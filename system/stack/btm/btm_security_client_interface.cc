@@ -18,6 +18,7 @@
 #define LOG_TAG "sec_interf"
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/bt_transport.h>
 
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sec.h"
@@ -25,7 +26,6 @@
 #include "stack/include/btm_ble_sec_api.h"
 #include "stack/include/btm_sec_api.h"
 #include "stack/include/security_client_callbacks.h"
-#include "types/bt_transport.h"
 
 using namespace bluetooth;
 
@@ -73,6 +73,7 @@ static SecurityClientInterface security = {
 
         .BTM_SecReadDevName = BTM_SecReadDevName,
         .BTM_SecReadDevClass = BTM_SecReadDevClass,
+        .BTM_SecReportBondLoss = BTM_SecReportBondLoss,
 };
 
 const SecurityClientInterface& get_security_client_interface() { return security; }

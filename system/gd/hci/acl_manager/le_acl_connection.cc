@@ -17,13 +17,11 @@
 #include "hci/acl_manager/le_acl_connection.h"
 
 #include <bluetooth/log.h>
+#include <bluetooth/metrics/os_metrics.h>
 #include <com_android_bluetooth_flags.h>
 
 #include "hci/acl_manager/le_connection_management_callbacks.h"
 #include "hci/event_checkers.h"
-#include "os/metrics.h"
-
-using bluetooth::hci::Address;
 
 namespace bluetooth {
 namespace hci {
@@ -74,8 +72,9 @@ public:
 
   void OnReadRemoteVersionInformationComplete(hci::ErrorCode hci_status, uint8_t lmp_version,
                                               uint16_t manufacturer_name, uint16_t sub_version) {
-    bluetooth::os::LogMetricRemoteVersionInfo(connection_handle_, static_cast<uint8_t>(hci_status),
-                                              lmp_version, manufacturer_name, sub_version);
+    bluetooth::metrics::LogMetricRemoteVersionInfo(connection_handle_,
+                                                   static_cast<uint8_t>(hci_status), lmp_version,
+                                                   manufacturer_name, sub_version);
     SAVE_OR_CALL(OnReadRemoteVersionInformationComplete, hci_status, lmp_version, manufacturer_name,
                  sub_version);
   }
@@ -115,6 +114,7 @@ struct LeAclConnection::impl {
     invalidate_callbacks_ = std::move(invalidate_callbacks);
     return &tracker;
   }
+  void ClearEventCallbacks() { invalidate_callbacks_ = nullptr; }
   void PutEventCallbacks() {
     if (invalidate_callbacks_) {
       invalidate_callbacks_(tracker.connection_handle_);
@@ -187,7 +187,7 @@ void LeAclConnection::RegisterCallbacks(LeConnectionManagementCallbacks* callbac
 }
 
 void LeAclConnection::Disconnect(DisconnectReason reason) {
-  if (com::android::bluetooth::flags::dont_send_hci_disconnect_repeatedly()) {
+  if (com_android_bluetooth_flags_dont_send_hci_disconnect_repeatedly()) {
     if (is_disconnecting_) {
       log::info("Already disconnecting {}", remote_address_);
       return;
@@ -230,6 +230,8 @@ void LeAclConnection::LeSubrateRequest(uint16_t subrate_min, uint16_t subrate_ma
           pimpl_->tracker.client_handler_->BindOnceOn(this,
                                                       &LeAclConnection::OnLeSubrateRequestStatus));
 }
+
+void LeAclConnection::ClearEventCallbacks() { pimpl_->ClearEventCallbacks(); }
 
 LeConnectionManagementCallbacks* LeAclConnection::GetEventCallbacks(
         std::function<void(uint16_t)> invalidate_callbacks) {

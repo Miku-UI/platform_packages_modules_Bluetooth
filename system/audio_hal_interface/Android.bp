@@ -29,7 +29,10 @@ cc_library_static {
     ],
     static_libs: [
         "bluetooth_flags_c_lib",
+        "libbluetooth_hci_pdl",
         "libbluetooth_log",
+        "libbluetooth_metrics",
+        "libbluetooth_types",
         "libbt-common",
         "libosi",
     ],
@@ -42,6 +45,7 @@ cc_library_static {
             srcs: [
                 "a2dp_encoding.cc",
                 "aidl/a2dp/a2dp_encoding_aidl.cc",
+                "aidl/a2dp/a2dp_encoding_aidl_utils.cc",
                 "aidl/a2dp/a2dp_provider_info.cc",
                 "aidl/a2dp/bluetooth_audio_port_impl.cc",
                 "aidl/a2dp/client_interface_aidl.cc",
@@ -77,54 +81,13 @@ cc_library_static {
     },
     host_supported: true,
     apex_available: ["com.android.bt"],
-    min_sdk_version: "Tiramisu",
+    min_sdk_version: "36",
     header_libs: ["libbluetooth_headers"],
 }
 
-// Bluetooth Audio client interface library unit tests for target and host
+// Bluetooth Audio A2dp Encoding AIDL unit tests
 cc_test {
-    name: "bluetooth-test-audio-hal-interface",
-    defaults: [
-        "fluoride_defaults",
-        "latest_android_hardware_audio_common_ndk_static",
-        "latest_android_hardware_bluetooth_audio_ndk_static",
-        "latest_android_media_audio_common_types_ndk_static",
-        "mts_defaults",
-    ],
-    include_dirs: [
-        "packages/modules/Bluetooth/system",
-        "packages/modules/Bluetooth/system/gd",
-        "packages/modules/Bluetooth/system/stack/include",
-    ],
-    srcs: [
-        "hidl/client_interface_hidl_unittest.cc",
-    ],
-    shared_libs: [
-        "libbase",
-        "libbinder_ndk",
-        "libcutils",
-        "libfmq",
-        "libhidlbase",
-        "liblog",
-        "libutils",
-    ],
-    static_libs: [
-        "android.hardware.audio.common@5.0",
-        "android.hardware.bluetooth.audio@2.0",
-        "android.hardware.bluetooth.audio@2.1",
-        "android.hardware.common-V2-ndk",
-        "android.hardware.common.fmq-V1-ndk",
-        "libbluetooth_log",
-        "libbt-audio-hal-interface",
-        "libbt-common",
-        "libchrome",
-    ],
-    header_libs: ["libbluetooth_headers"],
-}
-
-// Bluetooth Audio Provider Info unit tests for target and host
-cc_test {
-    name: "bluetooth-test-audio-hal-a2dp-provider-info",
+    name: "bluetooth-test-audio-hal-a2dp",
     test_suites: ["general-tests"],
     defaults: [
         "fluoride_defaults",
@@ -142,6 +105,7 @@ cc_test {
     },
     include_dirs: [
         "packages/modules/Bluetooth/system",
+        "packages/modules/Bluetooth/system/audio_hal_interface",
         "packages/modules/Bluetooth/system/gd",
         "packages/modules/Bluetooth/system/stack/include",
     ],
@@ -158,8 +122,11 @@ cc_test {
     srcs: [
         ":TestCommonMockFunctions",
         ":TestMockAudioHalInterface",
+        ":TestMockStackA2dp",
+        "aidl/a2dp/a2dp_encoding_aidl_utils.cc",
         "aidl/a2dp/a2dp_provider_info.cc",
         "aidl/a2dp/a2dp_provider_info_unittest.cc",
+        "test/a2dp_encoding_aidl_utils_unittest.cc",
     ],
     shared_libs: [
         "libaconfig_storage_read_api_cc",
@@ -171,6 +138,7 @@ cc_test {
         "server_configurable_flags",
     ],
     static_libs: [
+        "android.hardware.audio.common@5.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
         "android.hardware.bluetooth@1.0",
@@ -179,14 +147,15 @@ cc_test {
         "android.hardware.common.fmq-V1-ndk",
         "bluetooth_flags_c_lib_for_test",
         "libbase",
-        "libbluetooth-types",
         "libbluetooth_log",
+        "libbluetooth_types",
         "libbt-common",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libflagtest",
         "libfmq",
         "libgmock",
+        "libgtest",
         "libosi",
     ],
     header_libs: ["libbluetooth_headers"],
@@ -210,7 +179,6 @@ cc_defaults {
         "libbinder_ndk",
         "libcrypto",
         "libfmq",
-        "libstatslog",
         "libz",
         "server_configurable_flags",
     ],
@@ -224,11 +192,12 @@ cc_defaults {
         "android.hardware.common.fmq-V1-ndk",
         "libFraunhoferAAC",
         "libbase",
-        "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_log",
+        "libbluetooth_metrics_mock",
+        "libbluetooth_types",
         "libbt-common", // needed for MessageLoopThread
         "libbt-jni-thread",
         "libbt-sbc-decoder",
@@ -243,6 +212,8 @@ cc_defaults {
         "libcutils",
         "libevent",
         "libg722codec",
+        "libgmock",
+        "libgtest",
         "libhidlbase",
         "libjsoncpp",
         "liblc3",
@@ -250,7 +221,6 @@ cc_defaults {
         "libopus",
         "libosi",
         "libprotobuf-cpp-lite",
-        "libstatslog_bt",
         "libudrv-uipc",
         "libutils",
     ],
@@ -288,12 +258,10 @@ cc_test {
     shared_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
-        "libbinder",
         "libbinder_ndk",
         "libcutils",
         "libfmq",
         "liblog",
-        "libstatslog",
         "libutils",
         "server_configurable_flags",
     ],
@@ -301,14 +269,14 @@ cc_test {
         "android.hardware.common-V2-ndk",
         "android.hardware.common.fmq-V1-ndk",
         "bluetooth_flags_c_lib_for_test",
-        "libbluetooth-types",
         "libbluetooth_log",
+        "libbluetooth_types",
         "libbt-bta",
         "libbt-common",
-        "libbt-platform-protos-lite",
         "libchrome",
         "libevent",
         "libgmock",
+        "libgtest",
         "server_configurable_flags",
     ],
     cflags: [
@@ -344,9 +312,9 @@ cc_test {
     static_libs: [
         "bluetooth_flags_c_lib_for_test",
         "libbt-bta",
-        "libbt-platform-protos-lite",
         "libcutils",
         "libgmock",
+        "libgtest",
         "server_configurable_flags",
     ],
     header_libs: ["libbluetooth_headers"],
@@ -370,14 +338,23 @@ cc_test {
         "packages/modules/Bluetooth/system/bta",
     ],
     srcs: [
+        ":TestMockBtaAg",
         "hfp_client_interface.cc",
         "hfp_client_interface_unittest.cc",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
         "server_configurable_flags",
     ],
     header_libs: ["libbluetooth_headers"],
     cflags: [
         "-DBUILDCFG",
     ],
+    target: {
+        android: {
+            sanitize: {
+                address: true,
+            },
+        },
+    },
 }

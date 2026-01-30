@@ -45,6 +45,7 @@ enum class ErrorCode : uint8_t {
   INVALID_PRESET_INDEX,
   GROUP_OPERATION_NOT_SUPPORTED,
   PROCEDURE_ALREADY_IN_PROGRESS,
+  TIMEOUT
 };
 
 enum class PresetInfoReason : uint8_t {
@@ -90,8 +91,9 @@ public:
   virtual void OnFeaturesUpdate(const RawAddress& addr, uint8_t features) = 0;
 
   /** Callback for the currently active preset */
-  virtual void OnActivePresetSelected(std::variant<RawAddress, int> addr_or_group_id,
-                                      uint8_t preset_index) = 0;
+  virtual void OnActivePresetSelected(const RawAddress& addr, uint8_t preset_index) = 0;
+
+  virtual void OnActivePresetSelectedForGroup(int group_id, uint8_t preset_index) = 0;
 
   /** Callbacks for the active preset selection error */
   virtual void OnActivePresetSelectError(std::variant<RawAddress, int> addr_or_group_id,
@@ -135,6 +137,9 @@ public:
 
   /** Get preset name by the index */
   virtual void GetPresetInfo(const RawAddress& addr, uint8_t preset_index) = 0;
+
+  /** Get all preset name */
+  virtual void GetAllPresetInfo(const RawAddress& addr) = 0;
 
   /** Set preset name by the index */
   virtual void SetPresetName(std::variant<RawAddress, int> addr_or_group_id, uint8_t preset_index,

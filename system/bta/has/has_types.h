@@ -117,7 +117,7 @@ public:
   };
 
   void Dump(std::ostream& os) const {
-    os << "\"addr\": \"" << addr << "\"";
+    os << "\"addr\": \"" << addr.ToRedactedStringForLogging() << "\"";
     os << ", \"conn_id\": " << conn_id;
     os << ", \"is_gatt_service_valid\": "
        << (gatt_svc_validation_steps == 0 ? "\"True\"" : "\"False\"") << "("
@@ -127,9 +127,9 @@ public:
 };
 
 /* Build on top of the base GattServiceDevice extends the base device context
- * with service specific informations such as the currently active preset,
+ * with service specific information such as the currently active preset,
  * all available presets, and supported optional operations. It also stores
- * HAS service specific GATT informations such as characteristic handles.
+ * HAS service specific GATT information such as characteristic handles.
  */
 class HasDevice : public GattServiceDevice {
   uint8_t features = 0x00;

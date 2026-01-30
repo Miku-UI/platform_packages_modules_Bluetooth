@@ -18,25 +18,16 @@ package {
 
 java_defaults {
     name: "service-bluetooth-buildflags",
-    defaults: ["bluetooth_framework_errorprone_rules"],
+    defaults: [
+        "bluetooth_errorprone_rules",
+        "bluetooth_lint_rules",
+    ],
 
     lint: {
-        error_checks: [
-            "ExtraText",
-            "NewApi",
-            "ObsoleteSdkInt",
-            "Recycle",
-            "RtlHardcoded",
-            "UseSparseArrays",
-            "UseValueOf",
-        ],
         strict_updatability_linting: true,
     },
 
-    kotlincflags: [
-        "-Werror",
-    ],
-
+    kotlincflags: ["-Werror"],
     defaults_visibility: [":__subpackages__"],
 }
 
@@ -46,30 +37,43 @@ java_library {
     defaults: ["service-bluetooth-buildflags"],
     installable: false,
     srcs: [
+        ":Bluetooth-binder-aidl-for-service",
+        ":bluetooth-system-server-messenger",
         ":statslog-bluetooth-java-gen",
         "src/**/*.java",
-        "src/ActiveLog.kt",
+        "src/ActiveLogs.kt",
         "src/AdapterBinder.kt",
         "src/AdapterState.kt",
-        "src/AutoOnFeature.kt",
+        "src/AutoOn.kt",
+        "src/BleAppManager.kt",
         "src/BleScanSettingListener.kt",
+        "src/BluetoothComponent.kt",
+        "src/BluetoothHciInstance.kt",
+        "src/BluetoothManagerServiceApi.kt",
+        "src/BluetoothRestriction.kt",
         "src/BluetoothService.kt",
+        "src/BluetoothSupervisor.kt",
         "src/Log.kt",
+        "src/PermissionChecker.kt",
         "src/RadioModeListener.kt",
+        "src/RolePermissionListener.kt",
+        "src/ServiceMessenger.kt",
+        "src/SharingRestriction.kt",
+        "src/ShellCommand.kt",
         "src/airplane/ModeListener.kt",
         "src/satellite/ModeListener.kt",
     ],
 
     libs: [
         "framework-annotations-lib",
-        "framework-bluetooth-pre-jarjar",
         "framework-configinfrastructure.stubs.module_lib",
+        "framework-permission-s.stubs.module_lib",
         "framework-statsd.stubs.module_lib",
-        "service-bluetooth-binder-aidl",
         "service-bluetooth.change-ids",
     ],
 
     static_libs: [
+        "PlatformProperties",
         "androidx.annotation_annotation",
         "androidx.appcompat_appcompat",
         "bluetooth-nano-protos",
@@ -77,18 +81,11 @@ java_library {
         "bluetooth_flags_java_lib",
         "modules-utils-build_system",
         "modules-utils-shell-command-handler",
+        "service-bluetooth-binder-aidl",
     ],
 
-    optimize: {
-        enabled: true,
-        shrink: true,
-        proguard_compatibility: true,
-        ignore_warnings: false,
-        proguard_flags_files: ["proguard.flags"],
-    },
-
     sdk_version: "system_server_current",
-    min_sdk_version: "Tiramisu",
+    min_sdk_version: "36",
     apex_available: ["com.android.bt"],
     visibility: [":__subpackages__"],
 }
@@ -97,24 +94,13 @@ java_library {
 java_library {
     name: "service-bluetooth",
     static_libs: ["service-bluetooth-pre-jarjar"],
+    defaults: ["standalone-system-server-module-optimize-defaults"],
     installable: true,
 
     jarjar_rules: ":bluetooth-jarjar-rules",
 
-    optimize: {
-        enabled: true,
-        shrink: true,
-        proguard_compatibility: true,
-        ignore_warnings: false,
-        proguard_flags_files: ["proguard.flags"],
-    },
-
-    libs: [
-        "framework-bluetooth.impl",
-    ],
-
     sdk_version: "system_server_current",
-    min_sdk_version: "Tiramisu",
+    min_sdk_version: "36",
     apex_available: ["com.android.bt"],
     visibility: ["//packages/modules/Bluetooth/apex"],
 }
@@ -134,7 +120,7 @@ java_library {
     },
 
     sdk_version: "system_current",
-    min_sdk_version: "Tiramisu",
+    min_sdk_version: "36",
     apex_available: ["com.android.bt"],
 }
 
@@ -143,19 +129,36 @@ android_robolectric_test {
     instrumentation_for: "ServiceBluetoothFakeTestApp",
 
     srcs: [
+        ":Bluetooth-binder-aidl-for-service",
+        ":bluetooth-system-server-messenger",
         ":statslog-bluetooth-java-gen",
-        "src/ActiveLog.kt",
-        "src/ActiveLogTest.kt",
+        "src/ActiveLogs.kt",
+        "src/ActiveLogsTest.kt",
         "src/AdapterState.kt",
         "src/AdapterStateTest.kt",
-        "src/AutoOnFeature.kt",
-        "src/AutoOnFeatureTest.kt",
+        "src/AutoOn.kt",
+        "src/AutoOnTest.kt",
+        "src/BleAppManager.kt",
+        "src/BleAppManagerTest.kt",
         "src/BleScanSettingListener.kt",
         "src/BleScanSettingListenerTest.kt",
+        "src/BluetoothComponent.kt",
+        "src/BluetoothComponentTest.kt",
+        "src/BluetoothManagerServiceApi.kt",
+        "src/BluetoothRestriction.kt",
+        "src/BluetoothRestrictionTest.kt",
         "src/Log.kt",
         "src/LogTest.kt",
+        "src/PermissionChecker.kt",
         "src/RadioModeListener.kt",
         "src/RadioModeListenerTest.kt",
+        "src/RolePermissionListener.kt",
+        "src/RolePermissionListenerTest.kt",
+        "src/ServiceMessenger.kt",
+        "src/SharingRestriction.kt",
+        "src/SharingRestrictionTest.kt",
+        "src/ShellCommand.kt",
+        "src/ShellCommandTest.kt",
         "src/airplane/ModeListener.kt",
         "src/airplane/ModeListenerTest.kt",
         "src/satellite/ModeListener.kt",
@@ -167,15 +170,18 @@ android_robolectric_test {
     static_libs: [
         "androidx.test.core",
         "androidx.test.ext.truth",
+        "bluetooth-common-flagwrapper-tests",
         "bluetooth-nano-protos",
         "bluetooth-proto-enums-java-gen",
         "bluetooth_flags_java_lib",
         "flag-junit",
+        "inline-mockito-robolectric-prebuilt",
         "kotlin-test",
         "kotlinx_coroutines",
         "kotlinx_coroutines_test",
-        "mockito-robolectric-prebuilt",
-        "modules-utils-expresslog",
+        "mockito-kotlin-nodeps",
+        "modules-utils-preconditions",
+        "modules-utils-shell-command-handler",
         "platform-test-annotations",
         "service-bluetooth-binder-aidl",
         "testng",
@@ -183,9 +189,20 @@ android_robolectric_test {
     ],
 
     libs: [
-        "framework-bluetooth.stubs.module_lib",
+        "PlatformProperties",
+        "framework-annotations-lib",
         "framework-statsd.stubs.module_lib",
+        "service-bluetooth.change-ids",
     ],
+
+    jacoco: {
+        include_filter: [
+            "android.bluetooth.**",
+            "com.android.bluetooth.**",
+            "com.android.server.bluetooth.**",
+        ],
+        exclude_filter: [],
+    },
 
     sdk_version: "test_current",
     test_suites: ["general-tests"],

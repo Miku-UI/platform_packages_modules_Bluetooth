@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.btservice;
 
 import android.app.Application;
@@ -21,16 +22,11 @@ import android.util.Log;
 import com.android.bluetooth.Utils;
 
 public class AdapterApp extends Application {
-    private static final String TAG = Utils.TAG_PREFIX_BLUETOOTH + AdapterApp.class.getSimpleName();
+    private static final String TAG = Utils.BT_PREFIX + AdapterApp.class.getSimpleName();
 
     @Override
     public void onCreate() {
         super.onCreate();
         Log.d(TAG, "onCreate");
-        try {
-            DataMigration.run(this);
-        } catch (Exception e) {
-            Log.e(TAG, "Migration failure: ", e);
-        }
     }
 }

@@ -16,6 +16,7 @@
 
 package android.bluetooth;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.RequiresNoPermission;
@@ -24,6 +25,8 @@ import android.annotation.SystemApi;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Build;
 import android.os.IBinder;
+
+import com.android.bluetooth.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -54,6 +57,15 @@ public interface BluetoothProfile {
     @SuppressLint("ActionValue")
     String EXTRA_PREVIOUS_STATE = "android.bluetooth.profile.extra.PREVIOUS_STATE";
 
+    /**
+     * Extra for the {@link BluetoothProfile} that the intent applies to.
+     *
+     * <p>This extra represents the Bluetooth profile that the intent applies to.
+     */
+    @FlaggedApi(Flags.FLAG_ADD_PROFILE_AS_INTENT_EXTRA)
+    @SuppressLint("ActionValue")
+    String EXTRA_PROFILE = "android.bluetooth.profile.extra.PROFILE";
+
     /** The profile is in disconnected state */
     int STATE_DISCONNECTED = 0;
 
@@ -79,7 +91,7 @@ public interface BluetoothProfile {
     /** Headset and Handsfree profile */
     int HEADSET = 1;
 
-    /** A2DP profile. */
+    /** Advanced Audio Distribution Profile (A2DP) */
     int A2DP = 2;
 
     /**
@@ -93,58 +105,58 @@ public interface BluetoothProfile {
     @Deprecated int HEALTH = 3;
 
     /**
-     * HID Host
+     * Human Interface Device (HID) Host
      *
      * @hide
      */
     @SystemApi int HID_HOST = 4;
 
     /**
-     * PAN Profile
+     * Personal Area Networking Profile (PAN)
      *
      * @hide
      */
     @SystemApi int PAN = 5;
 
     /**
-     * PBAP
+     * Phone Book Access Profile (PBAP)
      *
      * @hide
      */
     @SystemApi int PBAP = 6;
 
-    /** GATT */
+    /** Generic Attribute Profile (GATT) */
     int GATT = 7;
 
-    /** GATT_SERVER */
+    /** Generic Attribute Profile (GATT) Server */
     int GATT_SERVER = 8;
 
     /**
-     * MAP Profile
+     * Message Access Profile (MAP)
      *
      * @hide
      */
     @SystemApi int MAP = 9;
 
-    /** SAP Profile */
+    /** SIM Access Profile (SAP) */
     int SAP = 10;
 
     /**
-     * A2DP Sink Profile
+     * Advanced Audio Distribution Profile (A2DP) Sink
      *
      * @hide
      */
     @SystemApi int A2DP_SINK = 11;
 
     /**
-     * AVRCP Controller Profile
+     * Audio/Video Remote Control Profile (AVRCP) Controller
      *
      * @hide
      */
     @SystemApi int AVRCP_CONTROLLER = 12;
 
     /**
-     * AVRCP Target Profile
+     * Audio/Video Remote Control Profile (AVRCP) Target
      *
      * @hide
      */
@@ -158,20 +170,20 @@ public interface BluetoothProfile {
     @SystemApi int HEADSET_CLIENT = 16;
 
     /**
-     * PBAP Client
+     * Phone Book Access Profile (PBAP) Client
      *
      * @hide
      */
     @SystemApi int PBAP_CLIENT = 17;
 
     /**
-     * MAP Messaging Client Equipment (MCE)
+     * Message Access Profile (MAP) Messaging Client Equipment (MCE)
      *
      * @hide
      */
     @SystemApi int MAP_CLIENT = 18;
 
-    /** HID Device */
+    /** Human Interface Device (HID) Device */
     int HID_DEVICE = 19;
 
     /**
@@ -188,18 +200,20 @@ public interface BluetoothProfile {
     int LE_AUDIO = 22;
 
     /**
-     * Volume Control profile
+     * Volume Control Profile (VCP)
      *
      * @hide
      */
     @SystemApi int VOLUME_CONTROL = 23;
 
     /**
-     * @hide Media Control Profile server
+     * Media Control Profile (MCP) server
+     *
+     * @hide
      */
     int MCP_SERVER = 24;
 
-    /** Coordinated Set Identification Profile set coordinator */
+    /** Coordinated Set Identification Profile (CSIP) set coordinator */
     int CSIP_SET_COORDINATOR = 25;
 
     /**
@@ -210,12 +224,14 @@ public interface BluetoothProfile {
     @SystemApi int LE_AUDIO_BROADCAST = 26;
 
     /**
-     * @hide Telephone Bearer Service from Call Control Profile
+     * Telephone Bearer Service (TBS) from Call Control Profile (CCP)
+     *
+     * @hide
      */
     int LE_CALL_CONTROL = 27;
 
     /*
-     * Hearing Access Profile Client
+     * Hearing Access Profile (HAP) Client
      *
      */
     int HAP_CLIENT = 28;
@@ -228,18 +244,26 @@ public interface BluetoothProfile {
     @SystemApi int LE_AUDIO_BROADCAST_ASSISTANT = 29;
 
     /**
-     * Battery Service
+     * Battery Service (BAS)
      *
      * @hide
      */
     int BATTERY = 30;
 
     /**
-     * Gaming Audio Profile
+     * Gaming Audio Profile (GMAP)
      *
      * @hide
      */
     int GMAP = 31;
+
+
+    /**
+     * Voice Assistant Profile and Service
+     *
+     * @hide
+     */
+    int VAPS_SERVER = 32;
 
     /**
      * Max profile ID. This value should be updated whenever a new profile is added to match the
@@ -247,7 +271,7 @@ public interface BluetoothProfile {
      *
      * @hide
      */
-    int MAX_PROFILE_ID = 31;
+    int MAX_PROFILE_ID = 32;
 
     /**
      * Default priority for devices that we try to auto-connect to and allow incoming connections
@@ -405,18 +429,13 @@ public interface BluetoothProfile {
     @NonNull
     @RequiresNoPermission
     static String getConnectionStateName(int connectionState) {
-        switch (connectionState) {
-            case STATE_DISCONNECTED:
-                return "STATE_DISCONNECTED";
-            case STATE_CONNECTING:
-                return "STATE_CONNECTING";
-            case STATE_CONNECTED:
-                return "STATE_CONNECTED";
-            case STATE_DISCONNECTING:
-                return "STATE_DISCONNECTING";
-            default:
-                return "STATE_UNKNOWN";
-        }
+        return switch (connectionState) {
+            case STATE_DISCONNECTED -> "STATE_DISCONNECTED";
+            case STATE_CONNECTING -> "STATE_CONNECTING";
+            case STATE_CONNECTED -> "STATE_CONNECTED";
+            case STATE_DISCONNECTING -> "STATE_DISCONNECTING";
+            default -> "STATE_UNKNOWN";
+        };
     }
 
     /**
@@ -430,63 +449,36 @@ public interface BluetoothProfile {
     @NonNull
     @RequiresNoPermission
     static String getProfileName(int profile) {
-        switch (profile) {
-            case HEADSET:
-                return "HEADSET";
-            case A2DP:
-                return "A2DP";
-            case HID_HOST:
-                return "HID_HOST";
-            case PAN:
-                return "PAN";
-            case PBAP:
-                return "PBAP";
-            case GATT:
-                return "GATT";
-            case GATT_SERVER:
-                return "GATT_SERVER";
-            case MAP:
-                return "MAP";
-            case SAP:
-                return "SAP";
-            case A2DP_SINK:
-                return "A2DP_SINK";
-            case AVRCP_CONTROLLER:
-                return "AVRCP_CONTROLLER";
-            case AVRCP:
-                return "AVRCP";
-            case HEADSET_CLIENT:
-                return "HEADSET_CLIENT";
-            case PBAP_CLIENT:
-                return "PBAP_CLIENT";
-            case MAP_CLIENT:
-                return "MAP_CLIENT";
-            case HID_DEVICE:
-                return "HID_DEVICE";
-            case OPP:
-                return "OPP";
-            case HEARING_AID:
-                return "HEARING_AID";
-            case LE_AUDIO:
-                return "LE_AUDIO";
-            case VOLUME_CONTROL:
-                return "VOLUME_CONTROL";
-            case MCP_SERVER:
-                return "MCP_SERVER";
-            case CSIP_SET_COORDINATOR:
-                return "CSIP_SET_COORDINATOR";
-            case LE_AUDIO_BROADCAST:
-                return "LE_AUDIO_BROADCAST";
-            case LE_CALL_CONTROL:
-                return "LE_CALL_CONTROL";
-            case HAP_CLIENT:
-                return "HAP_CLIENT";
-            case LE_AUDIO_BROADCAST_ASSISTANT:
-                return "LE_AUDIO_BROADCAST_ASSISTANT";
-            case BATTERY:
-                return "BATTERY";
-            default:
-                return "UNKNOWN_PROFILE (" + profile + ")";
-        }
+        return switch (profile) {
+            case HEADSET -> "HEADSET";
+            case A2DP -> "A2DP";
+            case HID_HOST -> "HID_HOST";
+            case PAN -> "PAN";
+            case PBAP -> "PBAP";
+            case GATT -> "GATT";
+            case GATT_SERVER -> "GATT_SERVER";
+            case MAP -> "MAP";
+            case SAP -> "SAP";
+            case A2DP_SINK -> "A2DP_SINK";
+            case AVRCP_CONTROLLER -> "AVRCP_CONTROLLER";
+            case AVRCP -> "AVRCP";
+            case HEADSET_CLIENT -> "HEADSET_CLIENT";
+            case PBAP_CLIENT -> "PBAP_CLIENT";
+            case MAP_CLIENT -> "MAP_CLIENT";
+            case HID_DEVICE -> "HID_DEVICE";
+            case OPP -> "OPP";
+            case HEARING_AID -> "HEARING_AID";
+            case LE_AUDIO -> "LE_AUDIO";
+            case VOLUME_CONTROL -> "VOLUME_CONTROL";
+            case MCP_SERVER -> "MCP_SERVER";
+            case CSIP_SET_COORDINATOR -> "CSIP_SET_COORDINATOR";
+            case LE_AUDIO_BROADCAST -> "LE_AUDIO_BROADCAST";
+            case LE_CALL_CONTROL -> "LE_CALL_CONTROL";
+            case HAP_CLIENT -> "HAP_CLIENT";
+            case LE_AUDIO_BROADCAST_ASSISTANT -> "LE_AUDIO_BROADCAST_ASSISTANT";
+            case BATTERY -> "BATTERY";
+            case VAPS_SERVER -> "VAPS_SERVER";
+            default -> "UNKNOWN_PROFILE (" + profile + ")";
+        };
     }
 }

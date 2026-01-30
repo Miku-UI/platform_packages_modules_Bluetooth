@@ -37,6 +37,8 @@ import java.util.List;
 public final class BluetoothDatabaseMigration {
     private static final String TAG = BluetoothDatabaseMigration.class.getSimpleName();
 
+    private BluetoothDatabaseMigration() {}
+
     public static boolean run(Context ctx, Cursor cursor) {
         boolean result = true;
         MetadataDatabase database = MetadataDatabase.createDatabaseWithoutMigration(ctx);
@@ -50,7 +52,6 @@ public final class BluetoothDatabaseMigration {
 
                 Metadata metadata = new Metadata(primaryKey);
 
-                metadata.migrated = fetchInt(cursor, "migrated") > 0;
                 migrate_a2dpSupportsOptionalCodecs(cursor, logKey, metadata);
                 migrate_a2dpOptionalCodecsEnabled(cursor, logKey, metadata);
                 metadata.last_active_time = fetchInt(cursor, "last_active_time");

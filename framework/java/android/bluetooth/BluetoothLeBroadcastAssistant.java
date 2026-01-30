@@ -26,7 +26,6 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.CallbackExecutor;
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
@@ -46,8 +45,6 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.CloseGuard;
 import android.util.Log;
-
-import com.android.bluetooth.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -86,7 +83,6 @@ import java.util.concurrent.Executor;
 public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, AutoCloseable {
     private static final String TAG = BluetoothLeBroadcastAssistant.class.getSimpleName();
 
-    private static final boolean DBG = true;
     private final Map<Callback, Executor> mCallbackExecutorMap = new HashMap<>();
 
     private final IBluetoothLeBroadcastAssistantCallback mCallback =
@@ -588,7 +584,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         final int defaultValue = STATE_DISCONNECTED;
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
+            log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled() && isValidDevice(sink)) {
             try {
                 return service.getConnectionState(sink, mAttributionSource);
@@ -616,7 +612,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         final List<BluetoothDevice> defaultValue = new ArrayList<BluetoothDevice>();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
+            log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled()) {
             try {
                 return service.getDevicesMatchingConnectionStates(states, mAttributionSource);
@@ -642,7 +638,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         final List<BluetoothDevice> defaultValue = new ArrayList<BluetoothDevice>();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
+            log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled()) {
             try {
                 return service.getConnectedDevices(mAttributionSource);
@@ -677,7 +673,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         final boolean defaultValue = false;
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
+            log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled()
                 && isValidDevice(device)
                 && (connectionPolicy == CONNECTION_POLICY_FORBIDDEN
@@ -712,7 +708,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         final int defaultValue = CONNECTION_POLICY_FORBIDDEN;
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
+            log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled() && isValidDevice(device)) {
             try {
                 return service.getConnectionPolicy(device, mAttributionSource);
@@ -863,7 +859,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         final IBluetoothLeBroadcastAssistant service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
+            log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled()) {
             try {
                 service.startSearchingForSources(filters, mAttributionSource);
@@ -901,7 +897,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         final IBluetoothLeBroadcastAssistant service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
+            log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled()) {
             try {
                 service.stopSearchingForSources(mAttributionSource);
@@ -926,7 +922,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         final boolean defaultValue = false;
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
+            log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled()) {
             try {
                 return service.isSearchInProgress(mAttributionSource);
@@ -1017,7 +1013,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         final IBluetoothLeBroadcastAssistant service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
+            log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled() && isValidDevice(sink)) {
             try {
                 service.addSource(sink, sourceMetadata, isGroupOp, mAttributionSource);
@@ -1093,7 +1089,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         final IBluetoothLeBroadcastAssistant service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
+            log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled() && isValidDevice(sink)) {
             try {
                 service.modifySource(sink, sourceId, updatedMetadata, mAttributionSource);
@@ -1144,7 +1140,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         final IBluetoothLeBroadcastAssistant service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
+            log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled() && isValidDevice(sink)) {
             try {
                 service.removeSource(sink, sourceId, mAttributionSource);
@@ -1175,7 +1171,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
                 new ArrayList<BluetoothLeBroadcastReceiveState>();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
+            log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled()) {
             try {
                 return service.getAllSources(sink, mAttributionSource);
@@ -1203,7 +1199,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         final int defaultValue = 0;
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
+            log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled() && isValidDevice(sink)) {
             try {
                 return service.getMaximumSourceCapacity(sink, mAttributionSource);
@@ -1234,7 +1230,6 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
      * @throws IllegalArgumentException if sourceID is not [0, 0xFF].
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_LEAUDIO_BROADCAST_API_GET_LOCAL_METADATA)
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
@@ -1249,7 +1244,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
         final IBluetoothLeBroadcastAssistant service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
+            log(Log.getStackTraceString(new Throwable()));
         } else if (mBluetoothAdapter.isEnabled()) {
             try {
                 return service.getSourceMetadata(sink, sourceId, mAttributionSource);
@@ -1261,9 +1256,7 @@ public final class BluetoothLeBroadcastAssistant implements BluetoothProfile, Au
     }
 
     private static void log(@NonNull String msg) {
-        if (DBG) {
-            Log.d(TAG, msg);
-        }
+        Log.d(TAG, msg);
     }
 
     private static boolean isValidDevice(@Nullable BluetoothDevice device) {

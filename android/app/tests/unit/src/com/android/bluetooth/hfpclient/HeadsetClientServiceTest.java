@@ -16,40 +16,42 @@
 
 package com.android.bluetooth.hfpclient;
 
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
+import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 import static android.content.pm.PackageManager.FEATURE_WATCH;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.TestUtils.mockGetSystemService;
 import static com.android.bluetooth.hfpclient.HeadsetClientService.MAX_HFP_SCO_VOICE_CALL_VOLUME;
 import static com.android.bluetooth.hfpclient.HeadsetClientService.MIN_HFP_SCO_VOICE_CALL_VOLUME;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSinkAudioPolicy;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.os.BatteryManager;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
-import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.RemoteDevices;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
+import com.android.tests.bluetooth.MockitoRule;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -59,6 +61,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -70,41 +73,28 @@ public class HeadsetClientServiceTest {
 
     @Mock private AdapterService mAdapterService;
     @Mock private HeadsetClientStateMachine mStateMachine;
-    @Mock private NativeInterface mNativeInterface;
+    @Mock private HeadsetClientNativeInterface mNativeInterface;
     @Mock private DatabaseManager mDatabaseManager;
     @Mock private RemoteDevices mRemoteDevices;
 
     private HeadsetClientService mService;
-    private boolean mIsHeadsetClientServiceStarted;
 
     private static final int STANDARD_WAIT_MILLIS = 1000;
     private static final int SERVICE_START_WAIT_MILLIS = 100;
 
     private AudioManager mMockAudioManager;
 
-    <T> T mockGetSystemService(String serviceName, Class<T> serviceClass) {
-        return TestUtils.mockGetSystemService(mAdapterService, serviceName, serviceClass);
-    }
-
     @Before
     public void setUp() throws Exception {
-        mMockAudioManager = mockGetSystemService(Context.AUDIO_SERVICE, AudioManager.class);
-        mockGetSystemService(Context.BATTERY_SERVICE, BatteryManager.class);
-        doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
+        mMockAudioManager = mockGetSystemService(mAdapterService, AudioManager.class);
+        mockGetSystemService(mAdapterService, BatteryManager.class);
+        doReturn(mDatabaseManager).when(mAdapterService).getDatabaseManager();
         doReturn(mRemoteDevices).when(mAdapterService).getRemoteDevices();
-        NativeInterface.setInstance(mNativeInterface);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        NativeInterface.setInstance(null);
-        stopServiceIfStarted();
     }
 
     @Test
     public void testInitialize() throws Exception {
         startService();
-        assertThat(HeadsetClientService.getHeadsetClientService()).isNotNull();
     }
 
     @Ignore("b/260202548")
@@ -175,7 +165,7 @@ public class HeadsetClientServiceTest {
         doReturn(false).when(packageManager).hasSystemFeature(FEATURE_WATCH);
         doReturn(packageManager).when(mAdapterService).getPackageManager();
 
-        HeadsetClientService service = new HeadsetClientService(mAdapterService);
+        HeadsetClientService service = new HeadsetClientService(mAdapterService, mNativeInterface);
 
         verify(mAdapterService).startService(any(Intent.class));
 
@@ -189,7 +179,7 @@ public class HeadsetClientServiceTest {
         doReturn(true).when(packageManager).hasSystemFeature(FEATURE_WATCH);
         doReturn(packageManager).when(mAdapterService).getPackageManager();
 
-        HeadsetClientService service = new HeadsetClientService(mAdapterService);
+        HeadsetClientService service = new HeadsetClientService(mAdapterService, mNativeInterface);
 
         verify(mAdapterService, never()).startService(any(Intent.class));
 
@@ -212,7 +202,7 @@ public class HeadsetClientServiceTest {
         doReturn(amMax).when(mMockAudioManager).getStreamMaxVolume(anyInt());
         doReturn(amMin).when(mMockAudioManager).getStreamMinVolume(anyInt());
 
-        HeadsetClientService service = new HeadsetClientService(mAdapterService);
+        HeadsetClientService service = new HeadsetClientService(mAdapterService, mNativeInterface);
 
         for (int i = amMin; i <= amMax; i++) {
             // Collect AM to HF conversion
@@ -241,7 +231,7 @@ public class HeadsetClientServiceTest {
         doReturn(amMax).when(mMockAudioManager).getStreamMaxVolume(anyInt());
         doReturn(amMin).when(mMockAudioManager).getStreamMinVolume(anyInt());
 
-        HeadsetClientService service = new HeadsetClientService(mAdapterService);
+        HeadsetClientService service = new HeadsetClientService(mAdapterService, mNativeInterface);
 
         for (int i = MIN_HFP_SCO_VOICE_CALL_VOLUME; i <= MAX_HFP_SCO_VOICE_CALL_VOLUME; i++) {
             // Collect HF to AM conversion
@@ -254,16 +244,180 @@ public class HeadsetClientServiceTest {
         }
     }
 
-    private void startService() throws Exception {
-        mService = new HeadsetClientService(mAdapterService);
-        mService.setAvailable(true);
-        mIsHeadsetClientServiceStarted = true;
+    /**
+     * Test that {@link HeadsetClientService#getConnectedDevices()} returns an empty list when no
+     * devices are being managed.
+     */
+    @Test
+    public void getConnectedDevices_noDevices() throws Exception {
+        startService();
+        // No devices added to the state machine map
+        assertThat(mService.getConnectedDevices()).isEmpty();
     }
 
-    private void stopServiceIfStarted() throws Exception {
-        if (mIsHeadsetClientServiceStarted) {
-            mService.cleanup();
-            assertThat(HeadsetClientService.getHeadsetClientService()).isNull();
-        }
+    /**
+     * Test that {@link HeadsetClientService#getConnectedDevices()} returns only the device that is
+     * in the CONNECTED state.
+     */
+    @Test
+    public void getConnectedDevices_oneConnectedDevice() throws Exception {
+        startService();
+        BluetoothDevice device = getTestDevice(0);
+        HeadsetClientStateMachine sm = Mockito.mock(HeadsetClientStateMachine.class);
+        doReturn(STATE_CONNECTED).when(sm).getConnectionState(device);
+        mService.getStateMachineMap().put(device, sm);
+
+        List<BluetoothDevice> devices = mService.getConnectedDevices();
+        assertThat(devices).containsExactly(device);
+    }
+
+    /**
+     * Test that {@link HeadsetClientService#getConnectedDevices()} returns an empty list when a
+     * device is not in the CONNECTED state.
+     */
+    @Test
+    public void getConnectedDevices_oneDisconnectedDevice() throws Exception {
+        startService();
+        BluetoothDevice device = getTestDevice(0);
+        HeadsetClientStateMachine sm = Mockito.mock(HeadsetClientStateMachine.class);
+        doReturn(STATE_DISCONNECTED).when(sm).getConnectionState(device);
+        mService.getStateMachineMap().put(device, sm);
+
+        List<BluetoothDevice> devices = mService.getConnectedDevices();
+        assertThat(devices).isEmpty();
+    }
+
+    /**
+     * Test that {@link HeadsetClientService#getConnectedDevices()} returns only the devices that
+     * are in the CONNECTED state from a list of devices in various states.
+     */
+    @Test
+    public void getConnectedDevices_multipleDevices_mixedStates() throws Exception {
+        startService();
+        BluetoothDevice connectedDevice1 = getTestDevice(0);
+        HeadsetClientStateMachine sm1 = Mockito.mock(HeadsetClientStateMachine.class);
+        doReturn(STATE_CONNECTED).when(sm1).getConnectionState(connectedDevice1);
+        mService.getStateMachineMap().put(connectedDevice1, sm1);
+
+        BluetoothDevice connectingDevice = getTestDevice(1);
+        HeadsetClientStateMachine sm2 = Mockito.mock(HeadsetClientStateMachine.class);
+        doReturn(STATE_CONNECTING).when(sm2).getConnectionState(connectingDevice);
+        mService.getStateMachineMap().put(connectingDevice, sm2);
+
+        BluetoothDevice disconnectedDevice = getTestDevice(2);
+        HeadsetClientStateMachine sm3 = Mockito.mock(HeadsetClientStateMachine.class);
+        doReturn(STATE_DISCONNECTED).when(sm3).getConnectionState(disconnectedDevice);
+        mService.getStateMachineMap().put(disconnectedDevice, sm3);
+
+        BluetoothDevice connectedDevice2 = getTestDevice(3);
+        HeadsetClientStateMachine sm4 = Mockito.mock(HeadsetClientStateMachine.class);
+        doReturn(STATE_CONNECTED).when(sm4).getConnectionState(connectedDevice2);
+        mService.getStateMachineMap().put(connectedDevice2, sm4);
+
+        List<BluetoothDevice> devices = mService.getConnectedDevices();
+        assertThat(devices).containsExactly(connectedDevice1, connectedDevice2);
+    }
+
+    /**
+     * Test that {@link HeadsetClientService#getDevicesMatchingConnectionStates(int[])} returns an
+     * empty list when no devices are managed.
+     */
+    @Test
+    public void getDevicesMatchingConnectionStates_noDevices() throws Exception {
+        startService();
+        int[] states = {STATE_CONNECTED, STATE_CONNECTING};
+        assertThat(mService.getDevicesMatchingConnectionStates(states)).isEmpty();
+    }
+
+    /**
+     * Test that {@link HeadsetClientService#getDevicesMatchingConnectionStates(int[])} returns an
+     * empty list when the desired states array is empty.
+     */
+    @Test
+    public void getDevicesMatchingConnectionStates_emptyStates() throws Exception {
+        startService();
+        BluetoothDevice device = getTestDevice(0);
+        HeadsetClientStateMachine sm = Mockito.mock(HeadsetClientStateMachine.class);
+        doReturn(STATE_CONNECTED).when(sm).getConnectionState(device);
+        mService.getStateMachineMap().put(device, sm);
+
+        int[] states = {};
+        assertThat(mService.getDevicesMatchingConnectionStates(states)).isEmpty();
+    }
+
+    /**
+     * Test that {@link HeadsetClientService#getDevicesMatchingConnectionStates(int[])} returns
+     * devices that match a single desired state.
+     */
+    @Test
+    public void getDevicesMatchingConnectionStates_singleStateMatch() throws Exception {
+        startService();
+        BluetoothDevice connectedDevice = getTestDevice(0);
+        HeadsetClientStateMachine sm1 = Mockito.mock(HeadsetClientStateMachine.class);
+        doReturn(STATE_CONNECTED).when(sm1).getConnectionState(connectedDevice);
+        mService.getStateMachineMap().put(connectedDevice, sm1);
+
+        BluetoothDevice connectingDevice = getTestDevice(1);
+        HeadsetClientStateMachine sm2 = Mockito.mock(HeadsetClientStateMachine.class);
+        doReturn(STATE_CONNECTING).when(sm2).getConnectionState(connectingDevice);
+        mService.getStateMachineMap().put(connectingDevice, sm2);
+
+        int[] states = {STATE_CONNECTED};
+        List<BluetoothDevice> devices = mService.getDevicesMatchingConnectionStates(states);
+        assertThat(devices).containsExactly(connectedDevice);
+    }
+
+    /**
+     * Test that {@link HeadsetClientService#getDevicesMatchingConnectionStates(int[])} returns all
+     * devices that match any of the multiple desired states.
+     */
+    @Test
+    public void getDevicesMatchingConnectionStates_multipleStatesMatch() throws Exception {
+        startService();
+        BluetoothDevice connectedDevice = getTestDevice(0);
+        HeadsetClientStateMachine sm1 = Mockito.mock(HeadsetClientStateMachine.class);
+        doReturn(STATE_CONNECTED).when(sm1).getConnectionState(connectedDevice);
+        mService.getStateMachineMap().put(connectedDevice, sm1);
+
+        BluetoothDevice connectingDevice = getTestDevice(1);
+        HeadsetClientStateMachine sm2 = Mockito.mock(HeadsetClientStateMachine.class);
+        doReturn(STATE_CONNECTING).when(sm2).getConnectionState(connectingDevice);
+        mService.getStateMachineMap().put(connectingDevice, sm2);
+
+        BluetoothDevice disconnectedDevice = getTestDevice(2);
+        HeadsetClientStateMachine sm3 = Mockito.mock(HeadsetClientStateMachine.class);
+        doReturn(STATE_DISCONNECTED).when(sm3).getConnectionState(disconnectedDevice);
+        mService.getStateMachineMap().put(disconnectedDevice, sm3);
+
+        int[] states = {STATE_CONNECTED, STATE_CONNECTING};
+        List<BluetoothDevice> devices = mService.getDevicesMatchingConnectionStates(states);
+        assertThat(devices).containsExactly(connectedDevice, connectingDevice);
+    }
+
+    /**
+     * Test that {@link HeadsetClientService#getDevicesMatchingConnectionStates(int[])} returns an
+     * empty list when no devices match the desired states.
+     */
+    @Test
+    public void getDevicesMatchingConnectionStates_noMatch() throws Exception {
+        startService();
+        BluetoothDevice connectedDevice = getTestDevice(0);
+        HeadsetClientStateMachine sm1 = Mockito.mock(HeadsetClientStateMachine.class);
+        doReturn(STATE_CONNECTED).when(sm1).getConnectionState(connectedDevice);
+        mService.getStateMachineMap().put(connectedDevice, sm1);
+
+        BluetoothDevice connectingDevice = getTestDevice(1);
+        HeadsetClientStateMachine sm2 = Mockito.mock(HeadsetClientStateMachine.class);
+        doReturn(STATE_CONNECTING).when(sm2).getConnectionState(connectingDevice);
+        mService.getStateMachineMap().put(connectingDevice, sm2);
+
+        int[] states = {STATE_DISCONNECTED, STATE_DISCONNECTING};
+        List<BluetoothDevice> devices = mService.getDevicesMatchingConnectionStates(states);
+        assertThat(devices).isEmpty();
+    }
+
+    private void startService() throws Exception {
+        mService = new HeadsetClientService(mAdapterService, mNativeInterface);
+        mService.setAvailable(true);
     }
 }

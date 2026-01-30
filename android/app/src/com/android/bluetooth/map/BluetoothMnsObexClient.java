@@ -12,7 +12,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.map;
+
+import static java.util.Objects.requireNonNull;
 
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
@@ -30,6 +33,7 @@ import android.util.SparseBooleanArray;
 
 import com.android.bluetooth.BluetoothObexTransport;
 import com.android.bluetooth.BluetoothStatsLog;
+import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 import com.android.obex.ClientOperation;
 import com.android.obex.ClientSession;
@@ -49,35 +53,41 @@ import java.io.OutputStream;
 public class BluetoothMnsObexClient {
     private static final String TAG = BluetoothMnsObexClient.class.getSimpleName();
 
-    private ObexTransport mTransport;
-    public Handler mHandler = null;
-    private static final String TYPE_EVENT = "x-bt/MAP-event-report";
-    private ClientSession mClientSession;
-    private boolean mConnected = false;
-    BluetoothDevice mRemoteDevice;
-    private final SparseBooleanArray mRegisteredMasIds = new SparseBooleanArray(1);
+    public static final ParcelUuid BLUETOOTH_UUID_OBEX_MNS =
+            ParcelUuid.fromString("00001133-0000-1000-8000-00805F9B34FB");
 
-    private HeaderSet mHsConnect = null;
-    private Handler mCallback = null;
-    private SdpMnsRecord mMnsRecord;
     // Used by the MAS to forward notification registrations
     public static final int MSG_MNS_NOTIFICATION_REGISTRATION = 1;
     public static final int MSG_MNS_SEND_EVENT = 2;
     public static final int MSG_MNS_SDP_SEARCH_REGISTRATION = 3;
 
+    private static final String TYPE_EVENT = "x-bt/MAP-event-report";
+
     // Copy SdpManager.SDP_INTENT_DELAY - The timeout to wait for reply from native.
     private static final int MNS_SDP_SEARCH_DELAY = 6000;
-    public MnsSdpSearchInfo mMnsLstRegRqst = null;
     private static final int MNS_NOTIFICATION_DELAY = 10;
-    public static final ParcelUuid BLUETOOTH_UUID_OBEX_MNS =
-            ParcelUuid.fromString("00001133-0000-1000-8000-00805F9B34FB");
 
-    public BluetoothMnsObexClient(
-            BluetoothDevice remoteDevice, SdpMnsRecord mnsRecord, Handler callback) {
-        if (remoteDevice == null) {
-            throw new NullPointerException("Obex transport is null");
-        }
-        mRemoteDevice = remoteDevice;
+    private final SparseBooleanArray mRegisteredMasIds = new SparseBooleanArray(1);
+    private final AdapterService mAdapterService;
+    private final BluetoothDevice mDevice;
+
+    public MnsSdpSearchInfo mMnsLstRegRqst = null;
+    public Handler mHandler = null;
+
+    private ObexTransport mTransport;
+    private ClientSession mClientSession;
+    private boolean mConnected = false;
+    private HeaderSet mHsConnect = null;
+    private Handler mCallback = null;
+    private SdpMnsRecord mMnsRecord;
+
+    BluetoothMnsObexClient(
+            AdapterService adapterService,
+            BluetoothDevice device,
+            SdpMnsRecord mnsRecord,
+            Handler callback) {
+        mAdapterService = requireNonNull(adapterService);
+        mDevice = requireNonNull(device);
         HandlerThread thread = new HandlerThread("BluetoothMnsObexClient");
         thread.start();
         /* This will block until the looper have started, hence it will be safe to use it,
@@ -120,7 +130,7 @@ public class BluetoothMnsObexClient {
         @Override
         public void handleMessage(Message msg) {
             switch (msg.what) {
-                case MSG_MNS_NOTIFICATION_REGISTRATION:
+                case MSG_MNS_NOTIFICATION_REGISTRATION -> {
                     Log.v(TAG, "Reg  masId:  " + msg.arg1 + " notfStatus: " + msg.arg2);
                     if (isValidMnsRecord()) {
                         handleRegistration(msg.arg1 /*masId*/, msg.arg2 /*status*/);
@@ -128,11 +138,11 @@ public class BluetoothMnsObexClient {
                         // Should not happen
                         Log.d(TAG, "MNS SDP info not available yet - Cannot Connect.");
                     }
-                    break;
-                case MSG_MNS_SEND_EVENT:
+                }
+                case MSG_MNS_SEND_EVENT -> {
                     sendEventHandler((byte[]) msg.obj /*byte[]*/, msg.arg1 /*masId*/);
-                    break;
-                case MSG_MNS_SDP_SEARCH_REGISTRATION:
+                }
+                case MSG_MNS_SDP_SEARCH_REGISTRATION -> {
                     // Initiate SDP Search
                     notifyMnsSdpSearch();
                     // Save the mns search info
@@ -143,9 +153,8 @@ public class BluetoothMnsObexClient {
                                     MSG_MNS_NOTIFICATION_REGISTRATION, msg.arg1, msg.arg2);
                     Log.v(TAG, "SearchReg  masId:  " + msg.arg1 + " notfStatus: " + msg.arg2);
                     mHandler.sendMessageDelayed(msgReg, MNS_SDP_SEARCH_DELAY);
-                    break;
-                default:
-                    break;
+                }
+                default -> {}
             }
         }
     }
@@ -317,11 +326,11 @@ public class BluetoothMnsObexClient {
             // TODO: Do SDP record search again?
             if (isValidMnsRecord() && mMnsRecord.getL2capPsm() > 0) {
                 // Do L2CAP connect
-                btSocket = mRemoteDevice.createL2capSocket(mMnsRecord.getL2capPsm());
+                btSocket = mDevice.createL2capSocket(mMnsRecord.getL2capPsm());
 
             } else if (isValidMnsRecord() && mMnsRecord.getRfcommChannelNumber() > 0) {
                 // Do Rfcomm connect
-                btSocket = mRemoteDevice.createRfcommSocket(mMnsRecord.getRfcommChannelNumber());
+                btSocket = mDevice.createRfcommSocket(mMnsRecord.getRfcommChannelNumber());
             } else {
                 // This should not happen...
                 Log.e(TAG, "Invalid SDP content - attempt a connect to UUID...");
@@ -332,7 +341,7 @@ public class BluetoothMnsObexClient {
                         4);
                 // TODO: Why insecure? - is it because the link is already encrypted?
                 btSocket =
-                        mRemoteDevice.createInsecureRfcommSocketToServiceRecord(
+                        mDevice.createInsecureRfcommSocketToServiceRecord(
                                 BLUETOOTH_UUID_OBEX_MNS.getUuid());
             }
             btSocket.connect();
@@ -348,7 +357,7 @@ public class BluetoothMnsObexClient {
             return;
         }
 
-        mTransport = new BluetoothObexTransport(btSocket);
+        mTransport = new BluetoothObexTransport(mAdapterService, btSocket);
 
         try {
             mClientSession = new ClientSession(mTransport);

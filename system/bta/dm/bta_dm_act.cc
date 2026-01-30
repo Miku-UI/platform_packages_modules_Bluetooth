@@ -30,6 +30,8 @@
 #include <android_bluetooth_sysprop.h>
 #include <base/location.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/ble_address_with_type.h>
+#include <bluetooth/types/uuid.h>
 #include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
@@ -40,6 +42,7 @@
 #include "bta/dm/bta_dm_gatt_client.h"
 #include "bta/dm/bta_dm_int.h"
 #include "bta/dm/bta_dm_sec_int.h"
+#include "bta/dm/bta_dm_pm_offload.h"
 #include "bta/include/bta_api.h"
 #include "bta/include/bta_dm_acl.h"
 #include "bta/include/bta_dm_api.h"
@@ -50,13 +53,14 @@
 #include "btif/include/btif_dm.h"
 #include "btif/include/stack_manager_t.h"
 #include "gd/os/rand.h"
-#include "hci/controller_interface.h"
+#include "hci/controller.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/acl_api.h"
 #include "main/shim/btm_api.h"
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
+#include "stack/acl/acl.h"
 #include "stack/connection_manager/connection_manager.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/ble_scanner.h"
@@ -69,8 +73,6 @@
 #include "stack/include/gatt_api.h"
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
-#include "types/bluetooth/uuid.h"
-#include "types/raw_address.h"
 
 using bluetooth::Uuid;
 using namespace bluetooth;
@@ -90,6 +92,7 @@ static void bta_dm_rm_cback(tBTA_SYS_CONN_STATUS status, tBTA_SYS_ID id, uint8_t
                             const RawAddress& peer_addr);
 static void bta_dm_adjust_roles(bool delay_role_switch);
 static void bta_dm_ctrl_features_rd_cmpl_cback(tHCI_STATUS result);
+static tBTA_DM_CONNECTION_INFO bta_dm_get_conn_info(const RawAddress& target);
 
 static const char kPropertySniffOffloadEnabled[] = "persist.bluetooth.sniff_offload.enabled";
 
@@ -204,15 +207,18 @@ static void bta_dm_init_cb(void) {
  *
  ******************************************************************************/
 static void bta_dm_deinit_cb(void) {
-  /*
-   * TODO: Should alarm_free() the bta_dm_cb timers during graceful
-   * shutdown.
-   */
   alarm_free(bta_dm_cb.disable_timer);
   alarm_free(bta_dm_cb.switch_delay_timer);
+  if (com_android_bluetooth_flags_set_ptr_null_after_free()) {
+    bta_dm_cb.switch_delay_timer = nullptr;
+    bta_dm_cb.disable_timer = nullptr;
+  }
   for (size_t i = 0; i < BTA_DM_NUM_PM_TIMER; i++) {
     for (size_t j = 0; j < BTA_DM_PM_MODE_TIMER_MAX; j++) {
       alarm_free(bta_dm_cb.pm_timer[i].timer[j]);
+      if (com_android_bluetooth_flags_set_ptr_null_after_free()) {
+        bta_dm_cb.pm_timer[i].timer[j] = nullptr;
+      }
     }
   }
   bta_dm_cb.pending_removals.clear();
@@ -278,11 +284,9 @@ void BTA_dm_on_hw_on() {
     }
   }
 
-  if (com::android::bluetooth::flags::socket_settings_api()) {
-    /* Read low power processor offload features */
-    if (bta_dm_acl_cb.p_acl_cback) {
-      bta_dm_acl_cb.p_acl_cback(BTA_DM_LPP_OFFLOAD_FEATURES_READ, NULL);
-    }
+  /* Read low power processor offload features */
+  if (bta_dm_acl_cb.p_acl_cback) {
+    bta_dm_acl_cb.p_acl_cback(BTA_DM_LPP_OFFLOAD_FEATURES_READ, NULL);
   }
 
   btm_ble_scanner_init();
@@ -295,6 +299,9 @@ void BTA_dm_on_hw_on() {
   /* if sniff is offload, no need to handle it in the stack */
   if (osi_property_get_bool(kPropertySniffOffloadEnabled, false)) {
     log::info("Sniff offloaded. Skip bta_dm_init_pm.");
+    if (com_android_bluetooth_flags_sniff_offload_with_vsc_based_control()) {
+      bta_dm_init_pm_offload();
+    }
   } else {
     /* initialize bluetooth low power manager */
     bta_dm_init_pm();
@@ -484,31 +491,17 @@ void bta_dm_process_remove_device(const RawAddress& bd_addr) {
 
 /** Removes device, disconnects ACL link if required */
 void bta_dm_remove_device(const RawAddress& target) {
+  tBTA_DM_CONNECTION_INFO conn_info;
   if (bta_dm_removal_pending(target)) {
     log::warn("{} already getting removed", target);
     return;
   }
 
-  // Find all aliases and connection status on all transports
-  RawAddress pseudo_addr = target;
-  RawAddress identity_addr = target;
-  bool le_connected = get_btm_client_interface().peer.BTM_ReadConnectedTransportAddress(
-          &pseudo_addr, BT_TRANSPORT_LE);
-  if (pseudo_addr.IsEmpty()) {
-    pseudo_addr = target;
-  }
-
-  bool bredr_connected = get_btm_client_interface().peer.BTM_ReadConnectedTransportAddress(
-          &identity_addr, BT_TRANSPORT_BR_EDR);
-  /* If connection not found with identity address, check with pseudo address if different */
-  if (!bredr_connected && identity_addr != pseudo_addr) {
-    identity_addr = pseudo_addr;
-    bredr_connected = get_btm_client_interface().peer.BTM_ReadConnectedTransportAddress(
-            &identity_addr, BT_TRANSPORT_BR_EDR);
-  }
-  if (identity_addr.IsEmpty()) {
-    identity_addr = target;
-  }
+  conn_info = bta_dm_get_conn_info(target);
+  const RawAddress& pseudo_addr = conn_info.pseudo_addr;
+  const RawAddress& identity_addr = conn_info.identity_addr;
+  bool& le_connected = conn_info.le_connected;
+  bool& bredr_connected = conn_info.bredr_connected;
 
   // Remove from LE allowlist
   if (!GATT_CancelConnect(0, pseudo_addr, false)) {
@@ -545,8 +538,7 @@ void bta_dm_remove_device(const RawAddress& target) {
 
   if (le_connected || bredr_connected) {
     // Wait for all transports to be disconnected
-    tBTA_DM_REMOVE_PENDING node = {pseudo_addr, identity_addr, le_connected, bredr_connected};
-    bta_dm_cb.pending_removals.push_back(node);
+    bta_dm_cb.pending_removals.push_back(conn_info);
     log::info(
             "Waiting for disconnection over LE:{}, BR/EDR:{} for pseudo address: {}, identity "
             "address: {}",
@@ -695,7 +687,10 @@ static tBTA_DM_PEER_DEVICE* allocate_device_for(const RawAddress& bd_addr,
   return nullptr;
 }
 
-static void bta_dm_acl_up(const RawAddress& bd_addr, tBT_TRANSPORT transport, uint16_t acl_handle) {
+static void bta_dm_acl_up(const tAclLinkSpec& link_spec, uint16_t acl_handle) {
+  const RawAddress& bd_addr = link_spec.addrt.bda;
+  tBT_TRANSPORT transport = link_spec.transport;
+
   // Disconnect if the device is being removed
   for (auto& it : bta_dm_cb.pending_removals) {
     if (bd_addr == it.identity_addr || bd_addr == it.pseudo_addr) {
@@ -735,8 +730,7 @@ static void bta_dm_acl_up(const RawAddress& bd_addr, tBT_TRANSPORT transport, ui
 
   if (bta_dm_acl_cb.p_acl_cback) {
     tBTA_DM_ACL conn{};
-    conn.link_up.bd_addr = bd_addr;
-    conn.link_up.transport_link_type = transport;
+    conn.link_up.link_spec = link_spec;
     conn.link_up.acl_handle = acl_handle;
 
     bta_dm_acl_cb.p_acl_cback(BTA_DM_LINK_UP_EVT, &conn);
@@ -745,27 +739,28 @@ static void bta_dm_acl_up(const RawAddress& bd_addr, tBT_TRANSPORT transport, ui
   bta_dm_adjust_roles(true);
 }
 
-void BTA_dm_acl_up(const RawAddress bd_addr, tBT_TRANSPORT transport, uint16_t acl_handle) {
-  do_in_main_thread(base::BindOnce(bta_dm_acl_up, bd_addr, transport, acl_handle));
+void BTA_dm_acl_up(const tAclLinkSpec& link_spec, uint16_t acl_handle) {
+  do_in_main_thread(base::BindOnce(bta_dm_acl_up, link_spec, acl_handle));
 }
 
-static void bta_dm_acl_up_failed(const RawAddress bd_addr, tBT_TRANSPORT transport,
-                                 tHCI_STATUS status) {
+static void bta_dm_acl_up_failed(const tAclLinkSpec& link_spec, tHCI_STATUS status) {
   if (bta_dm_acl_cb.p_acl_cback) {
     tBTA_DM_ACL conn = {};
-    conn.link_up_failed.bd_addr = bd_addr;
-    conn.link_up_failed.transport_link_type = transport;
+    conn.link_up_failed.link_spec = link_spec;
     conn.link_up_failed.status = status;
     bta_dm_acl_cb.p_acl_cback(BTA_DM_LINK_UP_FAILED_EVT, &conn);
   }
 }
 
-void BTA_dm_acl_up_failed(const RawAddress bd_addr, tBT_TRANSPORT transport, tHCI_STATUS status) {
-  do_in_main_thread(base::BindOnce(bta_dm_acl_up_failed, bd_addr, transport, status));
+void BTA_dm_acl_up_failed(const tAclLinkSpec& link_spec, tHCI_STATUS status) {
+  do_in_main_thread(base::BindOnce(bta_dm_acl_up_failed, link_spec, status));
 }
 
 
-static void bta_dm_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
+static void bta_dm_acl_down(const tAclLinkSpec& link_spec) {
+  const RawAddress& bd_addr = link_spec.addrt.bda;
+  tBT_TRANSPORT transport = link_spec.transport;
+
   log::info("Device {} disconnected over transport {}", bd_addr, bt_transport_text(transport));
   for (uint8_t i = 0; i < bta_dm_cb.device_list.count; i++) {
     auto device = &bta_dm_cb.device_list.peer_device[i];
@@ -797,8 +792,7 @@ static void bta_dm_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport) 
 
   if (bta_dm_acl_cb.p_acl_cback) {
     tBTA_DM_ACL conn{};
-    conn.link_down.bd_addr = bd_addr;
-    conn.link_down.transport_link_type = transport;
+    conn.link_down.link_spec = link_spec;
 
     bta_dm_acl_cb.p_acl_cback(BTA_DM_LINK_DOWN_EVT, &conn);
   }
@@ -807,8 +801,8 @@ static void bta_dm_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport) 
   bta_dm_remove_on_disconnect(bd_addr, transport);
 }
 
-void BTA_dm_acl_down(const RawAddress bd_addr, tBT_TRANSPORT transport) {
-  do_in_main_thread(base::BindOnce(bta_dm_acl_down, bd_addr, transport));
+void BTA_dm_acl_down(const tAclLinkSpec& link_spec) {
+  do_in_main_thread(base::BindOnce(bta_dm_acl_down, link_spec));
 }
 
 /*******************************************************************************
@@ -1001,7 +995,7 @@ static void bta_dm_adjust_roles(bool delay_role_switch) {
             }
           } else {
             uint64_t delay = BTA_DM_SWITCH_DELAY_TIMER_MS;
-            if (com::android::bluetooth::flags::extend_and_randomize_role_switch_delay()) {
+            if (com_android_bluetooth_flags_extend_and_randomize_role_switch_delay()) {
               delay = bluetooth::os::GenerateRandom() %
                               (BTA_DM_MAX_SWITCH_DELAY_MS - BTA_DM_MIN_SWITCH_DELAY_MS) +
                       BTA_DM_MIN_SWITCH_DELAY_MS;
@@ -1379,6 +1373,75 @@ tBTA_DM_PEER_DEVICE* find_connected_device(const RawAddress& bd_addr,
   return nullptr;
 }
 
+/*******************************************************************************
+ *
+ * Function         bta_dm_dev_connected
+ *
+ * Description      This function checks if the device is connected by the
+ *                  given transport.
+ *
+ * Returns          true if Peer device found, false otherwise.
+ *
+ ******************************************************************************/
+static bool bta_dm_dev_connected(const RawAddress& bd_addr,
+                                 tBT_TRANSPORT transport) {
+  for (uint8_t i = 0; i < bta_dm_cb.device_list.count; i++) {
+    if (bta_dm_cb.device_list.peer_device[i].peer_bdaddr == bd_addr &&
+        bta_dm_cb.device_list.peer_device[i].transport == transport &&
+        bta_dm_cb.device_list.peer_device[i].is_connected()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_dm_get_conn_info
+ *
+ * Description      This function retrieves the connection information.
+ *
+ * Returns          connection information
+ *
+ ******************************************************************************/
+static tBTA_DM_CONNECTION_INFO bta_dm_get_conn_info(const RawAddress& target) {
+  // Find all aliases and connection status on all transports
+  RawAddress pseudo_addr = target;
+  RawAddress identity_addr = target;
+  bool le_connected = false;
+  bool bredr_connected = false;
+  tBTA_DM_CONNECTION_INFO conn_info;
+
+  // Get identity and pseudo address
+  std::pair<RawAddress, RawAddress> pseudo_identity_addr_pair =
+          get_btm_client_interface().peer.BTM_GetConnectedTransportAddress(target);
+  pseudo_addr = pseudo_identity_addr_pair.first;
+  identity_addr = pseudo_identity_addr_pair.second;
+  if (identity_addr.IsEmpty()) {
+    identity_addr = target;
+  }
+  if (pseudo_addr.IsEmpty()) {
+    pseudo_addr = target;
+  }
+
+  // Check if LE is connected with pseudo address
+  le_connected = bta_dm_dev_connected(pseudo_addr, BT_TRANSPORT_LE);
+  /* If connection not found with pseudo address, check with identity address if different */
+  if (!le_connected && pseudo_addr != identity_addr) {
+    le_connected = bta_dm_dev_connected(identity_addr, BT_TRANSPORT_LE);
+  }
+
+  // Check if BR/EDR is connected with identity address
+  bredr_connected = bta_dm_dev_connected(identity_addr, BT_TRANSPORT_BR_EDR);
+  /* If connection not found with identity address, check with pseudo address if different */
+  if (!bredr_connected && identity_addr != pseudo_addr) {
+    bredr_connected = bta_dm_dev_connected(pseudo_addr, BT_TRANSPORT_BR_EDR);
+  }
+
+  conn_info = {pseudo_addr, identity_addr, le_connected, bredr_connected};
+  return conn_info;
+}
+
 bool bta_dm_check_if_only_hd_connected(const RawAddress& peer_addr) {
   log::verbose("count({})", bta_dm_conn_srvcs.count);
 
@@ -1423,8 +1486,8 @@ void bta_dm_ble_set_data_length(const RawAddress& bd_addr) {
   uint16_t max_len =
           bluetooth::shim::GetController()->GetLeMaximumDataLength().supported_max_tx_octets_;
 
-  if (get_btm_client_interface().ble.BTM_SetBleDataLength(bd_addr, max_len) !=
-      tBTM_STATUS::BTM_SUCCESS) {
+  if (get_btm_client_interface().ble.BTM_SetBleDataLength(
+              bd_addr, max_len, /* is_privileged_client */ false) != tBTM_STATUS::BTM_SUCCESS) {
     log::info("Unable to set ble data length:{}", max_len);
   }
 }
@@ -1727,11 +1790,11 @@ tBTA_DM_PEER_DEVICE* allocate_device_for(const RawAddress& bd_addr, tBT_TRANSPOR
   return ::allocate_device_for(bd_addr, transport);
 }
 
-void bta_dm_acl_up(const RawAddress& bd_addr, tBT_TRANSPORT transport, uint16_t acl_handle) {
-  ::bta_dm_acl_up(bd_addr, transport, acl_handle);
+void bta_dm_acl_up(const tAclLinkSpec& link_spec, uint16_t acl_handle) {
+  ::bta_dm_acl_up(link_spec, acl_handle);
 }
-void bta_dm_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
-  ::bta_dm_acl_down(bd_addr, transport);
+void bta_dm_acl_down(const tAclLinkSpec& link_spec) {
+  ::bta_dm_acl_down(link_spec);
 }
 void bta_dm_init_cb() { ::bta_dm_init_cb(); }
 void bta_dm_deinit_cb() { ::bta_dm_deinit_cb(); }

@@ -16,8 +16,6 @@
 
 package com.android.bluetooth.hid;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -26,35 +24,34 @@ import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothHidDevice;
 
-import com.android.bluetooth.btservice.AdapterService;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 
-import org.junit.After;
+import com.android.bluetooth.btservice.AdapterService;
+import com.android.tests.bluetooth.MockitoRule;
+
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mock;
 
 /** Test cases for {@link HidDeviceNativeInterface}. */
+@RunWith(AndroidJUnit4.class)
 public class HidDeviceNativeInterfaceTest {
-    private static final byte[] TEST_DEVICE_ADDRESS =
-            new byte[] {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
-    @Mock HidDeviceService mService;
     @Mock AdapterService mAdapterService;
+    @Mock HidDeviceService mService;
+
+    private static final byte[] TEST_DEVICE_ADDRESS =
+            new byte[] {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
     private HidDeviceNativeInterface mNativeInterface;
 
     @Before
     public void setUp() {
         doReturn(true).when(mService).isAvailable();
-        HidDeviceService.setHidDeviceService(mService);
-        mNativeInterface = new HidDeviceNativeInterface(mAdapterService);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        HidDeviceService.setHidDeviceService(null);
+        mNativeInterface = new HidDeviceNativeInterface(mAdapterService, mService);
     }
 
     @Test

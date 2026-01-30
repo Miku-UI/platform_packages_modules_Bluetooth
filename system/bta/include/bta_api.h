@@ -27,6 +27,10 @@
 
 #include <base/functional/callback.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/ble_address_with_type.h>
+#include <bluetooth/types/bt_transport.h>
+#include <bluetooth/types/uuid.h>
 
 #include <cstdint>
 #include <vector>
@@ -43,10 +47,6 @@
 #include "stack/include/btm_ble_api_types.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/sdp_device_id.h"
-#include "types/ble_address_with_type.h"
-#include "types/bluetooth/uuid.h"
-#include "types/bt_transport.h"
-#include "types/raw_address.h"
 
 /*
  * Service ID
@@ -165,22 +165,19 @@ typedef enum : uint8_t {
 
 /* Structure associated with BTA_DM_LINK_UP_EVT */
 typedef struct {
-  RawAddress bd_addr; /* BD address peer device. */
-  tBT_TRANSPORT transport_link_type;
+  tAclLinkSpec link_spec;
   uint16_t acl_handle;
 } tBTA_DM_LINK_UP;
 
 /* Structure associated with BTA_DM_LINK_UP_FAILED_EVT */
 typedef struct {
-  RawAddress bd_addr; /* BD address peer device. */
-  tBT_TRANSPORT transport_link_type;
+  tAclLinkSpec link_spec;
   tHCI_STATUS status; /* The HCI error code associated with this event */
 } tBTA_DM_LINK_UP_FAILED;
 
 /* Structure associated with BTA_DM_LINK_DOWN_EVT */
 typedef struct {
-  RawAddress bd_addr; /* BD address peer device. */
-  tBT_TRANSPORT transport_link_type;
+  tAclLinkSpec link_spec;
   tHCI_STATUS status;
 } tBTA_DM_LINK_DOWN;
 
@@ -233,6 +230,7 @@ typedef struct {
   const uint8_t* p_eir; /* received EIR */
   uint16_t eir_len;     /* received EIR length */
   uint8_t inq_result_type;
+  tBT_TRANSPORT last_inq_result_transport; /* Whether the last inquiry is from LE or BR/EDR */
   tBLE_ADDR_TYPE ble_addr_type;
   uint16_t ble_evt_type;
   uint8_t ble_primary_phy;
@@ -244,7 +242,7 @@ typedef struct {
   uint8_t flag;
   bool include_rsi;        /* true, if ADV contains RSI data */
   RawAddress original_bda; /* original address to pass up to
-                              GattService#onScanResult */
+                              ScanController#onScanResult */
   uint16_t clock_offset;
 } tBTA_DM_INQ_RES;
 
@@ -538,7 +536,7 @@ void BTA_DmDiscover(const RawAddress& bd_addr, service_discovery_callbacks cback
  *
  * Function         BTA_DmGetCachedRemoteName
  *
- * Description      Retieve cached remote name if available
+ * Description      Retrieve cached remote name if available
  *
  * Returns          BTA_SUCCESS if cached name was retrieved
  *                  BTA_FAILURE if cached name is not available
@@ -563,7 +561,7 @@ bool BTA_DmGetConnectionState(const RawAddress& bd_addr);
  *
  * Description      This function adds a DI record to the local SDP database.
  *
- * Returns          BTA_SUCCESS if record set sucessfully, otherwise error code.
+ * Returns          BTA_SUCCESS if record set successfully, otherwise error code.
  *
  ******************************************************************************/
 tBTA_STATUS BTA_DmSetLocalDiRecord(tSDP_DI_RECORD* p_device_info, uint32_t* p_handle);
@@ -625,7 +623,7 @@ void BTA_DmBleCsisObserve(bool observe, tBTA_DM_SEARCH_CBACK* p_results_cb);
  *
  * Description      Enable/disable privacy on the local device
  *
- * Parameters:      privacy_enable   - enable/disabe privacy on remote device.
+ * Parameters:      privacy_enable   - enable/disable privacy on remote device.
  *
  * Returns          void
  *
@@ -639,7 +637,7 @@ void BTA_DmBleConfigLocalPrivacy(bool privacy_enable);
  * Description      Enable/disable privacy on a remote device
  *
  * Parameters:      bd_addr          - BD address of the peer
- *                  privacy_enable   - enable/disabe privacy on remote device.
+ *                  privacy_enable   - enable/disable privacy on remote device.
  *
  * Returns          void
  *

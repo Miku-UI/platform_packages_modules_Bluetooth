@@ -19,10 +19,9 @@ package com.android.bluetooth.hid;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
-import static org.mockito.Mockito.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,8 +32,10 @@ import android.bluetooth.BluetoothHidDeviceAppSdpSettings;
 import android.bluetooth.IBluetoothHidDeviceCallback;
 import android.content.AttributionSource;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
+
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -49,9 +50,9 @@ public class HidDeviceServiceBinderTest {
 
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
+    @Mock private AttributionSource mAttributionSource;
     @Mock private HidDeviceService mService;
 
-    private final AttributionSource mAttributionSource = new AttributionSource.Builder(1).build();
     private final BluetoothDevice mDevice = getTestDevice(29);
 
     private HidDeviceServiceBinder mBinder;

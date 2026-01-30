@@ -23,6 +23,7 @@ import android.bluetooth.IBluetoothHciVendorSpecificCallback;
 import android.bluetooth.IBluetoothPreferredAudioProfilesCallback;
 import android.bluetooth.IBluetoothQualityReportReadyCallback;
 import android.bluetooth.IBluetoothCallback;
+import android.bluetooth.IBluetoothProfileCallback;
 import android.bluetooth.IBluetoothConnectionCallback;
 import android.bluetooth.IBluetoothMetadataListener;
 import android.bluetooth.IBluetoothOobDataCallback;
@@ -33,6 +34,7 @@ import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothDevice.BluetoothAddress;
 import android.bluetooth.BluetoothQualityReport;
+import android.bluetooth.EncryptionStatus;
 import android.bluetooth.IncomingRfcommSocketInfo;
 import android.bluetooth.OobData;
 import android.content.AttributionSource;
@@ -46,20 +48,10 @@ parcelable BluetoothDevice.BluetoothAddress;
 /**
  * System private API for talking with the Bluetooth service.
  *
- * {@hide}
+ * @hide
  */
 interface IBluetooth
 {
-    @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
-    int getState();
-
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
-    oneway void offToBleOn(boolean quietMode, in AttributionSource attributionSource);
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
-    oneway void onToBleOn(in AttributionSource attributionSource);
-
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.LOCAL_MAC_ADDRESS})")
-    String getAddress(in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     List<ParcelUuid> getUuids(in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
@@ -112,7 +104,7 @@ interface IBluetooth
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     boolean isBondingInitiatedLocally(in BluetoothDevice device, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
-    long getSupportedProfiles(in AttributionSource attributionSource);
+    int[] getSupportedProfiles(in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     int getConnectionState(in BluetoothDevice device, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
@@ -162,11 +154,6 @@ interface IBluetooth
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
     boolean setSimAccessPermission(in BluetoothDevice device, int value, in AttributionSource attributionSource);
 
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
-    oneway void registerCallback(in IBluetoothCallback callback, in AttributionSource attributionSource);
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
-    oneway void unregisterCallback(in IBluetoothCallback callback, in AttributionSource attributionSource);
-
     // For Socket
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
     void logL2capcocServerConnection(in BluetoothDevice device, int port, boolean isSecured, int result, long socketCreationTimeMillis, long socketCreationLatencyMillis, long socketConnectionTimeMillis, long timeoutMillis);
@@ -176,11 +163,6 @@ interface IBluetooth
 
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
     void logL2capcocClientConnection(in BluetoothDevice device, int port, boolean isSecured, int result, long socketCreationTimeNanos, long socketCreationLatencyNanos, long socketConnectionTimeNanos);
-    @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
-    void logRfcommConnectionAttempt(in BluetoothDevice device, boolean isSecured, int resultCode, long socketCreationTimeNanos, boolean isSerialPort);
-
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
-    boolean factoryReset(in AttributionSource attributionSource);
 
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
     boolean isMultiAdvertisementSupported();
@@ -199,18 +181,15 @@ interface IBluetooth
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
     boolean isLePeriodicAdvertisingSupported();
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
-    int isLeAudioSupported();
+    boolean isLeAudioSupported();
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
-    int isLeAudioBroadcastSourceSupported();
+    boolean isLeAudioBroadcastSourceSupported();
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
-    int isLeAudioBroadcastAssistantSupported();
+    boolean isLeAudioBroadcastAssistantSupported();
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
     int isDistanceMeasurementSupported(in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
     int getLeMaximumAdvertisingDataLength();
-
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
-    BluetoothActivityEnergyInfo reportActivityInfo(in AttributionSource attributionSource);
 
     // For Metadata
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
@@ -222,20 +201,8 @@ interface IBluetooth
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
     byte[] getMetadata(in BluetoothDevice device, in int key, in AttributionSource attributionSource);
 
-    /**
-     * Requests the controller activity info asynchronously.
-     * The implementor is expected to reply with the
-     * {@link android.bluetooth.BluetoothActivityEnergyInfo} object placed into the Bundle with the
-     * key {@link android.os.BatteryStats#RESULT_RECEIVER_CONTROLLER_KEY}.
-     * The result code is ignored.
-     */
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
     oneway void requestActivityInfo(in IBluetoothActivityEnergyInfoListener listener, in AttributionSource attributionSource);
-
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
-    oneway void bleOnToOn(in AttributionSource attributionSource);
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
-    oneway void bleOnToOff(in AttributionSource attributionSource);
 
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED,android.Manifest.permission.MODIFY_PHONE_STATE})")
     int connectAllEnabledProfiles(in BluetoothDevice device, in AttributionSource attributionSource);
@@ -281,9 +248,6 @@ interface IBluetooth
     IncomingRfcommSocketInfo retrievePendingSocketForServiceRecord(in ParcelUuid uuid, in AttributionSource attributionSource);
 
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
-    oneway void setForegroundUserId(in int userId, in AttributionSource attributionSource);
-
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
     int setPreferredAudioProfiles(in BluetoothDevice device, in Bundle modeToProfileBundle, in AttributionSource source);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
     Bundle getPreferredAudioProfiles(in BluetoothDevice device, in AttributionSource source);
@@ -311,20 +275,17 @@ interface IBluetooth
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_SCAN,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
     int getOffloadedTransportDiscoveryDataScanSupported(in AttributionSource attributionSource);
 
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
-    boolean isMediaProfileConnected(in AttributionSource attributionSource);
-
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
     IBinder getBluetoothGatt();
 
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
     IBinder getBluetoothScan();
 
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
-    oneway void unregAllGattClient(in AttributionSource attributionSource);
+    @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
+    IBinder getProfile(int profile);// TODO delete with get_profile_oneway
 
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
-    IBinder getProfile(int profile);
+    oneway void getProfileOneway(int profile, in IBluetoothProfileCallback callback);
 
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
     int setActiveAudioDevicePolicy(in BluetoothDevice device, int activeAudioDevicePolicy, in AttributionSource source);
@@ -338,8 +299,11 @@ interface IBluetooth
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
     boolean isMicrophonePreferredForCalls(in BluetoothDevice device, in AttributionSource source);
 
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
-    oneway void killBluetoothProcess();
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
+    int setOnHeadDetectionEnabled(in BluetoothDevice device, int enableState, in AttributionSource source);
+
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
+    int setOnHead(in BluetoothDevice device, int state, in AttributionSource source);
 
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
     boolean isLeCocSocketOffloadSupported(in AttributionSource source);
@@ -355,4 +319,10 @@ interface IBluetooth
 
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     int getKeyMissingCount(in BluetoothDevice device, in AttributionSource source);
+
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
+    EncryptionStatus.InnerParcel getEncryptionStatus(in BluetoothDevice device, in AttributionSource source, in int transport);
+
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
+    boolean isConnected(in BluetoothDevice device, in AttributionSource source, in int transport);
 }

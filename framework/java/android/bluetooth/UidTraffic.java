@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package android.bluetooth;
 
 import android.annotation.NonNull;
+import android.annotation.RequiresNoPermission;
 import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -54,21 +56,25 @@ public final class UidTraffic implements Cloneable, Parcelable {
     }
 
     /** @hide */
+    @RequiresNoPermission
     public void setRxBytes(long bytes) {
         mRxBytes = bytes;
     }
 
     /** @hide */
+    @RequiresNoPermission
     public void setTxBytes(long bytes) {
         mTxBytes = bytes;
     }
 
     /** @hide */
+    @RequiresNoPermission
     public void addRxBytes(long bytes) {
         mRxBytes += bytes;
     }
 
     /** @hide */
+    @RequiresNoPermission
     public void addTxBytes(long bytes) {
         mTxBytes += bytes;
     }
@@ -76,6 +82,7 @@ public final class UidTraffic implements Cloneable, Parcelable {
     /**
      * @return corresponding app Uid
      */
+    @RequiresNoPermission
     public int getUid() {
         return mAppUid;
     }
@@ -83,6 +90,7 @@ public final class UidTraffic implements Cloneable, Parcelable {
     /**
      * @return rx bytes count
      */
+    @RequiresNoPermission
     public long getRxBytes() {
         return mRxBytes;
     }
@@ -90,11 +98,11 @@ public final class UidTraffic implements Cloneable, Parcelable {
     /**
      * @return tx bytes count
      */
+    @RequiresNoPermission
     public long getTxBytes() {
         return mTxBytes;
     }
 
-    /** @hide */
     @Override
     public int describeContents() {
         return 0;
@@ -102,11 +110,11 @@ public final class UidTraffic implements Cloneable, Parcelable {
 
     /** @hide */
     @Override
+    @RequiresNoPermission
     public UidTraffic clone() {
         return new UidTraffic(mAppUid, mRxBytes, mTxBytes);
     }
 
-    /** @hide */
     @Override
     public String toString() {
         return "UidTraffic{mAppUid="

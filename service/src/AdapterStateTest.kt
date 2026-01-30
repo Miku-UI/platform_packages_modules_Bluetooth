@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.server.bluetooth.test
 
-import android.bluetooth.BluetoothAdapter.STATE_OFF
+import android.bluetooth.State
+import android.os.IpcDataCache
 import com.android.server.bluetooth.BluetoothAdapterState
 import com.android.server.bluetooth.Log
 import com.google.common.truth.Truth.assertThat
@@ -25,6 +27,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.yield
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -41,14 +44,20 @@ class BluetoothAdapterStateTest {
 
     @Before
     fun setUp() {
+        IpcDataCache.setCacheTestMode(true)
         Log.i("BluetoothAdapterStateTest", "\t--> setup of " + testName.getMethodName())
         mState = BluetoothAdapterState()
+    }
+
+    @After
+    fun tearDown() {
+        IpcDataCache.setCacheTestMode(false)
     }
 
     @Test
     fun init_isStateOff() {
         Log.d("BluetoothAdapterStateTest", "Initial state is " + mState)
-        assertThat(mState.get()).isEqualTo(STATE_OFF)
+        assertThat(mState.get()).isEqualTo(State.OFF)
     }
 
     @Test

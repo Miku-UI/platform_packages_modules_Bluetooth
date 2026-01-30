@@ -13,31 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.avrcpcontroller;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.TestUtils.mockGetSystemService;
 import static com.android.bluetooth.Utils.getBytesFromAddress;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyByte;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAvrcpController;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
-import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Looper;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
@@ -45,16 +55,16 @@ import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.SparseArray;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.FlakyTest;
 import androidx.test.filters.MediumTest;
 import androidx.test.rule.ServiceTestRule;
-import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.R;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.a2dpsink.A2dpSinkService;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.flags.Flags;
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.After;
 import org.junit.Before;
@@ -66,6 +76,7 @@ import org.mockito.Mock;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Test cases for {@link AvrcpControllerStateMachine}. */
@@ -73,11 +84,10 @@ import java.util.UUID;
 @RunWith(AndroidJUnit4.class)
 public class AvrcpControllerStateMachineTest {
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Rule
     public final ServiceTestRule mBluetoothBrowserMediaServiceTestRule = new ServiceTestRule();
-
-    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private A2dpSinkService mA2dpSinkService;
@@ -102,7 +112,7 @@ public class AvrcpControllerStateMachineTest {
 
     @Before
     public void setUp() throws Exception {
-        mBrowseTree = new BrowseTree(null);
+        mBrowseTree = new BrowseTree(mAdapterService, null);
 
         doReturn(STATE_DISCONNECTED).when(mCoverArtManager).getState(any());
 
@@ -117,17 +127,13 @@ public class AvrcpControllerStateMachineTest {
         doReturn(mMockResources).when(mAvrcpControllerService).getResources();
         doReturn(mBrowseTree).when(mAvrcpControllerService).getBrowseTree();
 
-        mockGetSystemService(
-                mAdapterService, Context.AUDIO_SERVICE, AudioManager.class, mAudioManager);
+        mockGetSystemService(mAdapterService, AudioManager.class, mAudioManager);
         doReturn(mCoverArtManager).when(mAvrcpControllerService).getCoverArtManager();
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
 
-        // Set a mock A2dpSinkService for audio focus calls
-        A2dpSinkService.setA2dpSinkService(mA2dpSinkService);
-
-        AvrcpControllerService.setAvrcpControllerService(mAvrcpControllerService);
+        doReturn(Optional.of(mA2dpSinkService)).when(mAdapterService).getA2dpSinkService();
 
         // Start the Bluetooth Media Browser Service
         final Intent bluetoothBrowserMediaServiceStartIntent =
@@ -145,8 +151,6 @@ public class AvrcpControllerStateMachineTest {
     @After
     public void tearDown() throws Exception {
         destroyStateMachine(mAvrcpStateMachine);
-        A2dpSinkService.setA2dpSinkService(null);
-        AvrcpControllerService.setAvrcpControllerService(null);
     }
 
     /** Create a state machine to test */
@@ -195,7 +199,6 @@ public class AvrcpControllerStateMachineTest {
      * @return number of times mAvrcpControllerService.sendBroadcastAsUser() has been invoked
      */
     private int setUpConnectedState(boolean control, boolean browsing) {
-
         assertThat(mAvrcpStateMachine.getCurrentState())
                 .isInstanceOf(AvrcpControllerStateMachine.Disconnected.class);
 
@@ -442,12 +445,37 @@ public class AvrcpControllerStateMachineTest {
         assertThat(mAvrcpStateMachine.getDevice()).isEqualTo(mDevice);
     }
 
-    /** Test that dumpsys will generate information about connected devices */
+    /** Test that dumpsys will generate information when cover art is disconnected */
     @Test
-    public void testDump() {
+    public void testDump_coverArtDisconnected() {
         StringBuilder sb = new StringBuilder();
         mAvrcpStateMachine.dump(sb);
-        assertThat(sb.toString()).isNotNull();
+        assertThat(sb.toString()).contains("Cover Art: false");
+    }
+
+    /** Test that dumpsys will generate information when cover art is connected */
+    @Test
+    public void testDump_coverArtConnected() {
+        when(mCoverArtManager.getState(mDevice)).thenReturn(STATE_CONNECTED);
+        StringBuilder sb = new StringBuilder();
+        mAvrcpStateMachine.dump(sb);
+        assertThat(sb.toString()).contains("Cover Art: true");
+    }
+
+    /** Test that dumpsys will generate information when cover art manager is null */
+    @Test
+    public void testDump_coverArtManagerNull() {
+        // Override the setup to return a null cover art manager
+        when(mAvrcpControllerService.getCoverArtManager()).thenReturn(null);
+        // Create a new state machine with this setup
+        AvrcpControllerStateMachine smWithNullManager = makeStateMachine(mDevice);
+
+        StringBuilder sb = new StringBuilder();
+        smWithNullManager.dump(sb);
+        assertThat(sb.toString()).contains("Cover Art: false, mCoverArtManager is null");
+
+        // Clean up the new state machine
+        destroyStateMachine(smWithNullManager);
     }
 
     /** Test media browser play command */
@@ -1602,8 +1630,8 @@ public class AvrcpControllerStateMachineTest {
     }
 
     /**
-     * Test receiving an audio focus gain event coming out of a transient loss where a stop command
-     * has been sent
+     * Test receiving an audio focus gain coming out of a transient loss where a stop command has
+     * been sent
      */
     @Test
     public void testOnAudioFocusGainFromTransientLossWithStop_playNotSent() {
@@ -2020,7 +2048,6 @@ public class AvrcpControllerStateMachineTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_UNCACHE_PLAYER_WHEN_BROWSED_PLAYER_CHANGES)
     public void testBrowsingContentsOfOtherBrowsablePlayer_browsedPlayerUncached() {
         setUpConnectedState(true, true);
         sendAudioFocusUpdate(AudioManager.AUDIOFOCUS_GAIN);

@@ -16,6 +16,7 @@
  */
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 #include <com_android_bluetooth_flags.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -23,7 +24,7 @@
 #include <vector>
 
 #include "bta/test/common/fake_osi.h"
-#include "hci/controller_interface_mock.h"
+#include "hci/controller_mock.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/l2cdefs.h"
@@ -33,7 +34,6 @@
 #include "stack/test/common/mock_l2cap_layer.h"
 #include "test/mock/mock_main_shim_entry.h"
 #include "test/mock/mock_stack_l2cap_interface.h"
-#include "types/raw_address.h"
 
 using testing::_;
 using testing::DoAll;
@@ -215,12 +215,11 @@ protected:
 
   void SetUp() override {
     bluetooth::testing::stack::l2cap::set_interface(&mock_stack_l2cap_interface_);
-    tL2CAP_APPL_INFO l2cap_callbacks{};
 
     le_buffer_size_.le_data_packet_length_ = 128;
     le_buffer_size_.total_num_le_packets_ = 24;
     bluetooth::hci::testing::mock_controller_ =
-            std::make_unique<bluetooth::hci::testing::MockControllerInterface>();
+            std::make_unique<bluetooth::hci::testing::MockController>();
     EXPECT_CALL(*bluetooth::hci::testing::mock_controller_, GetLeBufferSize)
             .WillRepeatedly(Return(le_buffer_size_));
     bluetooth::l2cap::SetMockInterface(&l2cap_interface_);
@@ -665,7 +664,7 @@ TEST_F(EattTest, DisconnectChannelOnIndicationConfirmationTimeout) {
   eatt_instance_->StartIndicationConfirmationTimer(test_address, test_local_cids[0]);
 
   EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_DisconnectReq(test_local_cids[0])).Times(1);
-  fake_osi_alarm_set_on_mloop_.cb(fake_osi_alarm_set_on_mloop_.data);
+  fake_osi_alarm_expired(fake_osi_alarm_set_on_mloop_);
 }
 
 }  // namespace

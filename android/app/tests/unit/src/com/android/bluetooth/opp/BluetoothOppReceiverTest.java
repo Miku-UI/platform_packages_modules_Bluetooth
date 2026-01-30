@@ -16,18 +16,17 @@
 
 package com.android.bluetooth.opp;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.TestUtils.mockGetBluetoothManager;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -42,11 +41,11 @@ import android.os.Looper;
 import android.sysprop.BluetoothProperties;
 
 import androidx.test.espresso.intent.Intents;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
-import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
-import com.android.bluetooth.TestUtils;
+import com.android.tests.bluetooth.MockitoRule;
 
 import com.google.common.base.Objects;
 
@@ -67,26 +66,27 @@ public class BluetoothOppReceiverTest {
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private BluetoothMethodProxy mBluetoothMethodProxy;
-    @Mock private Context mContext;
+    @Mock private Context mMockContext;
 
     private static final String TEST_PREF = "BluetoothOppReceiverTest";
 
-    private final Context mTargetContext =
-            InstrumentationRegistry.getInstrumentation().getTargetContext();
-    private SharedPreferences mPrefs;
+    private final Context mContext = InstrumentationRegistry.getInstrumentation().getContext();
 
-    BluetoothOppReceiver mReceiver;
+    private SharedPreferences mPrefs;
+    private BluetoothOppReceiver mReceiver;
 
     @Before
     public void setUp() throws Exception {
-        doReturn(mTargetContext.getContentResolver()).when(mContext).getContentResolver();
-        doReturn(mTargetContext.getResources()).when(mContext).getResources();
-        doReturn("").when(mContext).getString(anyInt(), any());
+        doReturn(mContext.getContentResolver()).when(mMockContext).getContentResolver();
+        doReturn(mContext.getResources()).when(mMockContext).getResources();
+        doReturn("").when(mMockContext).getString(anyInt(), any());
 
-        mTargetContext.deleteSharedPreferences(TEST_PREF);
-        mPrefs = mTargetContext.getSharedPreferences(TEST_PREF, Context.MODE_PRIVATE);
+        mockGetBluetoothManager(mMockContext);
+
+        mContext.deleteSharedPreferences(TEST_PREF);
+        mPrefs = mContext.getSharedPreferences(TEST_PREF, Context.MODE_PRIVATE);
         mPrefs.edit().clear().apply();
-        doReturn(mPrefs).when(mContext).getSharedPreferences(anyString(), anyInt());
+        doReturn(mPrefs).when(mMockContext).getSharedPreferences(anyString(), anyInt());
 
         // mock instance so query/insert/update/etc. will not be executed
         BluetoothMethodProxy.setInstanceForTesting(mBluetoothMethodProxy);
@@ -94,17 +94,15 @@ public class BluetoothOppReceiverTest {
         mReceiver = new BluetoothOppReceiver();
 
         Intents.init();
-        TestUtils.setUpUiTest();
     }
 
     @After
     public void tearDown() throws Exception {
-        TestUtils.tearDownUiTest();
         BluetoothMethodProxy.setInstanceForTesting(null);
 
         Intents.release();
         mPrefs.edit().clear().apply();
-        mTargetContext.deleteSharedPreferences(TEST_PREF);
+        mContext.deleteSharedPreferences(TEST_PREF);
     }
 
     @Test
@@ -115,17 +113,18 @@ public class BluetoothOppReceiverTest {
             Looper.prepare();
         }
 
-        BluetoothOppManager bluetoothOppManager = spy(BluetoothOppManager.getInstance(mContext));
-        BluetoothOppManager.setInstance(bluetoothOppManager);
+        BluetoothOppManager bluetoothOppManager =
+                spy(BluetoothOppManager.getInstance(mMockContext));
+        BluetoothOppManager.setInstanceForTesting(bluetoothOppManager);
         BluetoothDevice device = getTestDevice(43);
         Intent intent = new Intent();
         intent.setAction(BluetoothDevicePicker.ACTION_DEVICE_SELECTED);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
 
         doNothing().when(bluetoothOppManager).startTransfer(eq(device));
-        mReceiver.onReceive(mContext, intent);
+        mReceiver.onReceive(mMockContext, intent);
         verify(bluetoothOppManager).startTransfer(eq(device));
-        BluetoothOppManager.setInstance(null);
+        BluetoothOppManager.setInstanceForTesting(null);
     }
 
     @Test
@@ -134,7 +133,7 @@ public class BluetoothOppReceiverTest {
         Intent intent = new Intent();
         intent.setAction(Constants.ACTION_ACCEPT);
         intent.setData(uri);
-        mReceiver.onReceive(mContext, intent);
+        mReceiver.onReceive(mMockContext, intent);
         verify(mBluetoothMethodProxy)
                 .contentResolverUpdate(
                         any(),
@@ -154,7 +153,7 @@ public class BluetoothOppReceiverTest {
         Intent intent = new Intent();
         intent.setAction(Constants.ACTION_DECLINE);
         intent.setData(uri);
-        mReceiver.onReceive(mContext, intent);
+        mReceiver.onReceive(mMockContext, intent);
         verify(mBluetoothMethodProxy)
                 .contentResolverUpdate(
                         any(),
@@ -193,7 +192,7 @@ public class BluetoothOppReceiverTest {
 
         Intent intent = new Intent();
         intent.setAction(Constants.ACTION_HIDE);
-        mReceiver.onReceive(mContext, intent);
+        mReceiver.onReceive(mMockContext, intent);
 
         verify(mBluetoothMethodProxy)
                 .contentResolverUpdate(
@@ -212,7 +211,7 @@ public class BluetoothOppReceiverTest {
     public void onReceive_withActionHideCompletedInboundTransfer_makesInboundVisibilityHidden() {
         Intent intent = new Intent();
         intent.setAction(Constants.ACTION_HIDE_COMPLETED_INBOUND_TRANSFER);
-        mReceiver.onReceive(mContext, intent);
+        mReceiver.onReceive(mMockContext, intent);
         verify(mBluetoothMethodProxy)
                 .contentResolverUpdate(
                         any(),
@@ -230,7 +229,7 @@ public class BluetoothOppReceiverTest {
     public void onReceive_withActionHideCompletedOutboundTransfer_makesOutboundVisibilityHidden() {
         Intent intent = new Intent();
         intent.setAction(Constants.ACTION_HIDE_COMPLETED_OUTBOUND_TRANSFER);
-        mReceiver.onReceive(mContext, intent);
+        mReceiver.onReceive(mMockContext, intent);
         verify(mBluetoothMethodProxy)
                 .contentResolverUpdate(
                         any(),
@@ -242,60 +241,6 @@ public class BluetoothOppReceiverTest {
                                                 arg.get(BluetoothShare.VISIBILITY))),
                         eq(BluetoothOppNotification.WHERE_COMPLETED_OUTBOUND),
                         any());
-    }
-
-    @Test
-    public void onReceive_withActionTransferCompletedAndHandoverInitiated_contextSendBroadcast() {
-        List<BluetoothOppTestUtils.CursorMockData> cursorMockDataList;
-        Cursor cursor = mock(Cursor.class);
-        int idValue = 1234;
-        Long timestampValue = 123456789L;
-        String destinationValue = "AA:BB:CC:00:11:22";
-        String fileTypeValue = "text/plain";
-
-        cursorMockDataList =
-                new ArrayList<>(
-                        List.of(
-                                new BluetoothOppTestUtils.CursorMockData(
-                                        BluetoothShare._ID, 0, idValue),
-                                new BluetoothOppTestUtils.CursorMockData(
-                                        BluetoothShare.STATUS, 1, BluetoothShare.STATUS_SUCCESS),
-                                new BluetoothOppTestUtils.CursorMockData(
-                                        BluetoothShare.DIRECTION,
-                                        2,
-                                        BluetoothShare.DIRECTION_OUTBOUND),
-                                new BluetoothOppTestUtils.CursorMockData(
-                                        BluetoothShare.TOTAL_BYTES, 3, 100),
-                                new BluetoothOppTestUtils.CursorMockData(
-                                        BluetoothShare.CURRENT_BYTES, 4, 100),
-                                new BluetoothOppTestUtils.CursorMockData(
-                                        BluetoothShare.MIMETYPE, 5, fileTypeValue),
-                                new BluetoothOppTestUtils.CursorMockData(
-                                        BluetoothShare.TIMESTAMP, 6, timestampValue),
-                                new BluetoothOppTestUtils.CursorMockData(
-                                        BluetoothShare.DESTINATION, 7, destinationValue),
-                                new BluetoothOppTestUtils.CursorMockData(
-                                        BluetoothShare._DATA, 8, null),
-                                new BluetoothOppTestUtils.CursorMockData(
-                                        BluetoothShare.FILENAME_HINT, 9, null),
-                                new BluetoothOppTestUtils.CursorMockData(
-                                        BluetoothShare.URI, 10, "content://textfile.txt"),
-                                new BluetoothOppTestUtils.CursorMockData(
-                                        BluetoothShare.USER_CONFIRMATION,
-                                        11,
-                                        BluetoothShare.USER_CONFIRMATION_HANDOVER_CONFIRMED)));
-
-        BluetoothOppTestUtils.setUpMockCursor(cursor, cursorMockDataList);
-
-        doReturn(cursor)
-                .when(mBluetoothMethodProxy)
-                .contentResolverQuery(any(), any(), any(), any(), any(), any());
-        doReturn(true).when(cursor).moveToFirst();
-
-        Intent intent = new Intent();
-        intent.setAction(BluetoothShare.TRANSFER_COMPLETED_ACTION);
-        mReceiver.onReceive(mContext, intent);
-        verify(mContext).sendBroadcast(any(), eq(Constants.HANDOVER_STATUS_PERMISSION), any());
     }
 
     @Test
@@ -351,11 +296,6 @@ public class BluetoothOppReceiverTest {
         Intent intent = new Intent();
         intent.setAction(BluetoothShare.TRANSFER_COMPLETED_ACTION);
         InstrumentationRegistry.getInstrumentation()
-                .runOnMainSync(() -> mReceiver.onReceive(mContext, intent));
-
-        // check Toast with Espresso seems not to work on Android 11+. Check not send broadcast
-        // context instead
-        verify(mContext, never())
-                .sendBroadcast(any(), eq(Constants.HANDOVER_STATUS_PERMISSION), any());
+                .runOnMainSync(() -> mReceiver.onReceive(mMockContext, intent));
     }
 }

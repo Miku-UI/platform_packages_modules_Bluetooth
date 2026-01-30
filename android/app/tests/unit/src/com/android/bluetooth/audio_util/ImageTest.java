@@ -16,8 +16,6 @@
 
 package com.android.bluetooth.audio_util;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
-
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.when;
@@ -35,10 +33,12 @@ import android.os.Bundle;
 import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
-import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestUtils;
+import com.android.bluetooth.tests.R;
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.After;
 import org.junit.Before;
@@ -52,12 +52,12 @@ import java.io.InputStream;
 /** Test cases for {@link Image}. */
 @RunWith(AndroidJUnit4.class)
 public class ImageTest {
-    private Context mTargetContext;
-
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
-    private @Mock Context mMockContext;
-    private Resources mTestResources;
+    @Mock private Context mMockContext;
+
+    private final Resources mTestResources = TestUtils.getTestApplicationResources();
+
     private MockContentResolver mTestContentResolver;
 
     private static final String TEST_AUTHORITY = "com.android.bluetooth.avrcp.test";
@@ -83,13 +83,9 @@ public class ImageTest {
 
     @Before
     public void setUp() throws Exception {
-
-        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        mTestResources = TestUtils.getTestApplicationResources(mTargetContext);
-
-        mTestBitmap = loadImage(com.android.bluetooth.tests.R.raw.image_200_200);
-
-        mTestContentResolver = new MockContentResolver(mTargetContext);
+        mTestBitmap = loadImage(R.raw.image_200_200);
+        final var context = InstrumentationRegistry.getInstrumentation().getContext();
+        mTestContentResolver = new MockContentResolver(context);
         mTestContentResolver.addProvider(
                 TEST_AUTHORITY,
                 new MockContentProvider() {
@@ -97,8 +93,7 @@ public class ImageTest {
                     public AssetFileDescriptor openTypedAssetFile(
                             Uri url, String mimeType, Bundle opts) {
                         if (IMAGE_URI_1.equals(url)) {
-                            return mTestResources.openRawResourceFd(
-                                    com.android.bluetooth.tests.R.raw.image_200_200);
+                            return mTestResources.openRawResourceFd(R.raw.image_200_200);
                         } else if (IMAGE_URI_SECURITY_ERROR.equals(url)) {
                             throw new SecurityException();
                         }
@@ -107,17 +102,14 @@ public class ImageTest {
                 });
 
         when(mMockContext.getContentResolver()).thenReturn(mTestContentResolver);
-        Util.sUriImagesSupport = true;
+        Util.UriImagesSupport.sValue = true;
     }
 
     @After
     public void tearDown() throws Exception {
         mTestContentResolver = null;
         mTestBitmap = null;
-        mTestResources = null;
-        mTargetContext = null;
-        mMockContext = null;
-        Util.sUriImagesSupport = false;
+        Util.UriImagesSupport.sValue = false;
     }
 
     private Bitmap loadImage(int resId) {
@@ -286,7 +278,7 @@ public class ImageTest {
      */
     @Test
     public void testCreateImageFromMediaMetadataWithArtUriDisabled() {
-        Util.sUriImagesSupport = false;
+        Util.UriImagesSupport.sValue = false;
         MediaMetadata metadata =
                 getMediaMetadataWithUri(MediaMetadata.METADATA_KEY_ART_URI, IMAGE_STRING_1);
         Image artwork = new Image(mMockContext, metadata);
@@ -301,7 +293,7 @@ public class ImageTest {
      */
     @Test
     public void testCreateImageFromMediaMetadataWithAlbumArtUriDisabled() {
-        Util.sUriImagesSupport = false;
+        Util.UriImagesSupport.sValue = false;
         MediaMetadata metadata =
                 getMediaMetadataWithUri(MediaMetadata.METADATA_KEY_ALBUM_ART_URI, IMAGE_STRING_1);
         Image artwork = new Image(mMockContext, metadata);
@@ -316,7 +308,7 @@ public class ImageTest {
      */
     @Test
     public void testCreateImageFromMediaMetadataWithDisplayIconUriDisabled() {
-        Util.sUriImagesSupport = false;
+        Util.UriImagesSupport.sValue = false;
         MediaMetadata metadata =
                 getMediaMetadataWithUri(
                         MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI, IMAGE_STRING_1);
@@ -458,7 +450,7 @@ public class ImageTest {
      */
     @Test
     public void testCreateImageFromBundleWithArtUriDisabled() {
-        Util.sUriImagesSupport = false;
+        Util.UriImagesSupport.sValue = false;
         Bundle bundle = getBundleWithUri(MediaMetadata.METADATA_KEY_ART_URI, IMAGE_STRING_1);
         Image artwork = new Image(mMockContext, bundle);
         assertThat(artwork.getImage()).isNull();
@@ -472,7 +464,7 @@ public class ImageTest {
      */
     @Test
     public void testCreateImageFromBundleWithAlbumArtUriDisabled() {
-        Util.sUriImagesSupport = false;
+        Util.UriImagesSupport.sValue = false;
         Bundle bundle = getBundleWithUri(MediaMetadata.METADATA_KEY_ALBUM_ART_URI, IMAGE_STRING_1);
         Image artwork = new Image(mMockContext, bundle);
         assertThat(artwork.getImage()).isNull();
@@ -486,7 +478,7 @@ public class ImageTest {
      */
     @Test
     public void testCreateImageFromBundleWithDisplayIconUriDisabled() {
-        Util.sUriImagesSupport = false;
+        Util.UriImagesSupport.sValue = false;
         Bundle bundle =
                 getBundleWithUri(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI, IMAGE_STRING_1);
         Image artwork = new Image(mMockContext, bundle);

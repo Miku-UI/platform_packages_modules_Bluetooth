@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.map;
 
 import static com.android.bluetooth.Utils.formatSimple;
@@ -24,7 +25,6 @@ import android.util.Log;
 
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
-import com.android.bluetooth.mapapi.BluetoothMapContract;
 
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
@@ -55,12 +55,12 @@ public class BluetoothMapUtils {
      *       in stead of a bit to indicate the message type. Then 4
      *       bit can be use for 16 different message types.
      */
-    private static final long HANDLE_TYPE_MASK = (((long) 0xff) << 56);
-    private static final long HANDLE_TYPE_MMS_MASK = (((long) 0x01) << 56);
-    private static final long HANDLE_TYPE_EMAIL_MASK = (((long) 0x02) << 56);
-    private static final long HANDLE_TYPE_SMS_GSM_MASK = (((long) 0x04) << 56);
-    private static final long HANDLE_TYPE_SMS_CDMA_MASK = (((long) 0x08) << 56);
-    private static final long HANDLE_TYPE_IM_MASK = (((long) 0x10) << 56);
+    private static final long HANDLE_TYPE_MASK = (0xffL << 56);
+    private static final long HANDLE_TYPE_MMS_MASK = (0x01L << 56);
+    private static final long HANDLE_TYPE_EMAIL_MASK = (0x02L << 56);
+    private static final long HANDLE_TYPE_SMS_GSM_MASK = (0x04L << 56);
+    private static final long HANDLE_TYPE_SMS_CDMA_MASK = (0x08L << 56);
+    private static final long HANDLE_TYPE_IM_MASK = (0x10L << 56);
 
     public static final long CONVO_ID_TYPE_SMS_MMS = 1;
     public static final long CONVO_ID_TYPE_EMAIL_IM = 2;
@@ -128,6 +128,8 @@ public class BluetoothMapUtils {
             return NONE;
         }
     }
+
+    private BluetoothMapUtils() {}
 
     public static void printCursor(Cursor c) {
         StringBuilder sb = new StringBuilder();
@@ -278,39 +280,24 @@ public class BluetoothMapUtils {
      * @return String Formatted Map Handle
      */
     public static String getMapHandle(long cpHandle, TYPE messageType) {
-        String mapHandle = "-1";
         /* Avoid NPE for possible "null" value of messageType */
-        if (messageType != null) {
-            switch (messageType) {
-                case MMS:
-                    mapHandle = getLongAsString(cpHandle | HANDLE_TYPE_MMS_MASK);
-                    break;
-                case SMS_GSM:
-                    mapHandle = getLongAsString(cpHandle | HANDLE_TYPE_SMS_GSM_MASK);
-                    break;
-                case SMS_CDMA:
-                    mapHandle = getLongAsString(cpHandle | HANDLE_TYPE_SMS_CDMA_MASK);
-                    break;
-                case EMAIL:
-                    mapHandle = getLongAsString(cpHandle | HANDLE_TYPE_EMAIL_MASK);
-                    break;
-                case IM:
-                    mapHandle = getLongAsString(cpHandle | HANDLE_TYPE_IM_MASK);
-                    break;
-                case NONE:
-                    break;
-                default:
-                    throw new IllegalArgumentException("Message type not supported");
-            }
-        } else {
+        if (messageType == null) {
             Log.e(TAG, " Invalid messageType input");
             ContentProfileErrorReportUtils.report(
                     BluetoothProfile.MAP,
                     BluetoothProtoEnums.BLUETOOTH_MAP_UTILS,
                     BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
                     0);
+            return "-1";
         }
-        return mapHandle;
+        return switch (messageType) {
+            case MMS -> getLongAsString(cpHandle | HANDLE_TYPE_MMS_MASK);
+            case SMS_GSM -> getLongAsString(cpHandle | HANDLE_TYPE_SMS_GSM_MASK);
+            case SMS_CDMA -> getLongAsString(cpHandle | HANDLE_TYPE_SMS_CDMA_MASK);
+            case EMAIL -> getLongAsString(cpHandle | HANDLE_TYPE_EMAIL_MASK);
+            case IM -> getLongAsString(cpHandle | HANDLE_TYPE_IM_MASK);
+            case NONE -> "-1";
+        };
     }
 
     /**
@@ -321,21 +308,11 @@ public class BluetoothMapUtils {
      * @return String Formatted Map Handle
      */
     public static String getMapConvoHandle(long cpHandle, TYPE messageType) {
-        String mapHandle = "-1";
-        switch (messageType) {
-            case MMS:
-            case SMS_GSM:
-            case SMS_CDMA:
-                mapHandle = getLongLongAsString(cpHandle, CONVO_ID_TYPE_SMS_MMS);
-                break;
-            case EMAIL:
-            case IM:
-                mapHandle = getLongLongAsString(cpHandle, CONVO_ID_TYPE_EMAIL_IM);
-                break;
-            default:
-                throw new IllegalArgumentException("Message type not supported");
-        }
-        return mapHandle;
+        return switch (messageType) {
+            case MMS, SMS_GSM, SMS_CDMA -> getLongLongAsString(cpHandle, CONVO_ID_TYPE_SMS_MMS);
+            case EMAIL, IM -> getLongLongAsString(cpHandle, CONVO_ID_TYPE_EMAIL_IM);
+            default -> throw new IllegalArgumentException("Message type not supported");
+        };
     }
 
     /**

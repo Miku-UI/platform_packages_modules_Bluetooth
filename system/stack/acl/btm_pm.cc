@@ -32,17 +32,18 @@
 #define LOG_TAG "bt_btm_pm"
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 
 #include <cstdint>
 #include <unordered_map>
 
 #include "device/include/interop.h"
-#include "hci/controller_interface.h"
+#include "hci/controller.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
-#include "main/shim/entry.h"
 #include "osi/include/stack_power_telemetry.h"
 #include "stack/btm/btm_int_types.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/acl_hci_link_interface.h"
 #include "stack/include/bt_types.h"
@@ -50,11 +51,8 @@
 #include "stack/include/btm_status.h"
 #include "stack/include/l2cap_hci_link_interface.h"
 #include "stack/include/sco_hci_link_interface.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth;
-
-extern tBTM_CB btm_cb;
 
 namespace {
 uint16_t pm_pend_link = 0;
@@ -473,18 +471,16 @@ static tBTM_PM_MODE btm_pm_get_set_mode(uint8_t pm_id, tBTM_PM_MCB* p_cb,
     }
   }
 
-  /* if the resulting mode is NULL(nobody registers SET), use the requested mode
-   */
+  /* if the resulting mode is NULL(nobody registers SET), use the requested mode */
   if (p_md == NULL) {
     if (p_mode) {
       *p_res = *((tBTM_PM_PWR_MD*)p_mode);
-    } else { /* p_mode is NULL when btm_pm_snd_md_req is called from
-               btm_pm_proc_mode_change */
+    } else {
+      /* p_mode is NULL when btm_pm_snd_md_req is called from btm_pm_proc_mode_change */
       return BTM_PM_MD_ACTIVE;
     }
   } else {
-    /* if the command is from unregistered party,
-       compare the resulting mode from registered party*/
+    /* if the command is from unregistered party, compare the resulting mode from registered party*/
     if ((pm_id == BTM_PM_SET_ONLY_ID) && ((btm_pm_compare_modes(p_mode, p_md, p_res)) == NULL)) {
       return BTM_PM_MD_ACTIVE;
     }
@@ -797,33 +793,6 @@ void btm_pm_proc_ssr_evt(uint8_t* p, uint16_t /* evt_len */) {
 
 /*******************************************************************************
  *
- * Function         btm_pm_device_in_active_or_sniff_mode
- *
- * Description      This function is called to check if in active or sniff mode
- *
- * Returns          true, if in active or sniff mode
- *
- ******************************************************************************/
-static bool btm_pm_device_in_active_or_sniff_mode(void) {
-  /* The active state is the highest state-includes connected device and sniff
-   * mode*/
-
-  /* Covers active and sniff modes */
-  if (!pm_mode_db.empty()) {
-    return true;
-  }
-
-  /* Check BLE states */
-  if (!btm_cb.ble_ctr_cb.is_connection_state_idle()) {
-    log::verbose("- BLE state is not idle");
-    return true;
-  }
-
-  return false;
-}
-
-/*******************************************************************************
- *
  * Function         BTM_PM_DeviceInScanState
  *
  * Description      This function is called to check if in inquiry
@@ -839,26 +808,6 @@ bool BTM_PM_DeviceInScanState(void) {
   }
 
   return false;
-}
-
-/*******************************************************************************
- *
- * Function         BTM_PM_ReadControllerState
- *
- * Description      This function is called to obtain the controller state
- *
- * Returns          Controller State-BTM_CONTRL_ACTIVE, BTM_CONTRL_SCAN, and
- *                  BTM_CONTRL_IDLE
- *
- ******************************************************************************/
-tBTM_CONTRL_STATE BTM_PM_ReadControllerState(void) {
-  if (btm_pm_device_in_active_or_sniff_mode()) {
-    return BTM_CONTRL_ACTIVE;
-  } else if (BTM_PM_DeviceInScanState()) {
-    return BTM_CONTRL_SCAN;
-  } else {
-    return BTM_CONTRL_IDLE;
-  }
 }
 
 /*******************************************************************************

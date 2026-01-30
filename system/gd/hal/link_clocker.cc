@@ -34,6 +34,14 @@ void LinkClocker::Register(ReadClockHandler* handler) { g_read_clock_handler = h
 
 void LinkClocker::Unregister() { g_read_clock_handler = &g_empty_handler; }
 
+LinkClocker::LinkClocker() {
+  log::verbose("LinkClocker module started !!");
+}
+
+LinkClocker::~LinkClocker() {
+  log::verbose("LinkClocker module stopped !!");
+}
+
 void LinkClocker::OnHciEvent(const HciPacket& packet) {
   const int HCI_CMD_READ_CLOCK = 0x1407;
   const int HCI_EVT_COMMAND_COMPLETE = 0x0e;
@@ -101,7 +109,5 @@ void LinkClocker::OnHciEvent(const HciPacket& packet) {
 
   (*g_read_clock_handler).OnEvent(timestamp_us, bt_clock << 4);
 }
-
-const ModuleFactory LinkClocker::Factory = ModuleFactory([]() { return new LinkClocker(); });
 
 }  // namespace bluetooth::hal

@@ -18,7 +18,6 @@ package android.bluetooth;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.ParcelUuid;
@@ -37,7 +36,6 @@ import java.util.UUID;
  * @hide
  */
 @SystemApi
-@SuppressLint("AndroidFrameworkBluetoothPermission")
 public final class BluetoothUuid {
 
     /**
@@ -364,6 +362,15 @@ public final class BluetoothUuid {
     @NonNull
     public static final ParcelUuid TMAP =
             ParcelUuid.fromString("00001855-0000-1000-8000-00805F9B34FB");
+
+    /**
+     * UUID corresponding to the Voice Assistant Profile (VAPS).
+     *
+     * @hide
+     */
+    @NonNull
+    public static final ParcelUuid VAPS =
+            ParcelUuid.fromString("00007F64-0000-1000-8000-00805F9B34FB");
 
     /** @hide */
     @NonNull @SystemApi

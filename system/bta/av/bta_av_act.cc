@@ -26,6 +26,7 @@
 #define LOG_TAG "bluetooth-a2dp"
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 #include <com_android_bluetooth_flags.h>
 
 #include <cstddef>
@@ -64,7 +65,6 @@
 #include "stack/include/sdp_api.h"
 #include "stack/include/sdp_status.h"
 #include "stack/sdp/sdp_discovery_db.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;
@@ -385,6 +385,12 @@ uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, tAVCT_ROLE role, uint8_t shdl, uint8_
 
   if (AVRC_Open(&rc_handle, &ccb, bda) != AVRC_SUCCESS) {
     DEVICE_IOT_CONFIG_ADDR_INT_ADD_ONE(bda, IOT_CONF_KEY_AVRCP_CONN_FAIL_COUNT);
+    return BTA_AV_RC_HANDLE_NONE;
+  }
+
+  if (rc_handle != BTA_AV_RC_HANDLE_NONE && rc_handle >= BTA_AV_NUM_RCB) {
+    log::error("rc_handle out of bounds: {}. Closing AVRC.", rc_handle);
+    AVRC_Close(rc_handle);
     return BTA_AV_RC_HANDLE_NONE;
   }
 
@@ -1409,10 +1415,8 @@ void bta_av_disable(tBTA_AV_CB* p_cb, tBTA_AV_DATA* /* p_data */) {
       p_cb->p_scb[xx]->link_signalling_timer = NULL;
       alarm_free(p_cb->p_scb[xx]->accept_signalling_timer);
       p_cb->p_scb[xx]->accept_signalling_timer = NULL;
-      if (com::android::bluetooth::flags::avdt_handle_signaling_on_peer_failure()) {
-        alarm_free(p_cb->p_scb[xx]->accept_open_timer);
-        p_cb->p_scb[xx]->accept_open_timer = NULL;
-      }
+      alarm_free(p_cb->p_scb[xx]->accept_open_timer);
+      p_cb->p_scb[xx]->accept_open_timer = NULL;
       hdr.layer_specific = xx + 1;
       bta_av_api_deregister((tBTA_AV_DATA*)&hdr);
       disabling_in_progress = true;
@@ -1616,7 +1620,7 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
     log::verbose("bta_av_cb.conn_lcb=0x{:x}", bta_av_cb.conn_lcb);
 
     p_lcb = bta_av_find_lcb(p_data->str_msg.bd_addr, BTA_AV_LCB_FREE);
-    if (p_lcb && (p_lcb->conn_msk || bta_av_cb.conn_lcb)) {
+    if (p_lcb) {
       log::verbose("conn_msk: 0x{:x}", p_lcb->conn_msk);
       /* clean up ssm  */
       for (xx = 0; xx < BTA_AV_NUM_STRS; xx++) {
@@ -1631,8 +1635,7 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
           bta_sys_conn_close(BTA_ID_AV, p_cb->p_scb[xx]->app_id, p_cb->p_scb[xx]->PeerAddress());
         }
         mask = 1 << (xx + 1);
-        if (((mask & p_lcb->conn_msk) || bta_av_cb.conn_lcb) && p_cb->p_scb[xx] &&
-            p_cb->p_scb[xx]->PeerAddress() == p_data->str_msg.bd_addr) {
+        if (p_cb->p_scb[xx] && p_cb->p_scb[xx]->PeerAddress() == p_data->str_msg.bd_addr) {
           log::warn("Sending AVDT_DISCONNECT_EVT peer_addr={}", p_cb->p_scb[xx]->PeerAddress());
           bta_av_ssm_execute(p_cb->p_scb[xx], BTA_AV_AVDT_DISCONNECT_EVT, NULL);
         }
@@ -2069,6 +2072,11 @@ static void bta_av_rc_disc_done_all(tBTA_AV_DATA* /* p_data */) {
       p_cb->disc = 0;
       return;
     }
+  }
+
+  if (rc_handle != BTA_AV_RC_HANDLE_NONE && rc_handle >= BTA_AV_NUM_RCB) {
+    log::error("rc_handle out of bounds: {}", rc_handle);
+    return;
   }
 
   log::verbose("rc_handle {}", rc_handle);

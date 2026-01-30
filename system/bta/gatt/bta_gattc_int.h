@@ -25,6 +25,9 @@
 #define BTA_GATTC_INT_H
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/bt_transport.h>
+#include <bluetooth/types/uuid.h>
 
 #include <cstdint>
 #include <deque>
@@ -38,9 +41,6 @@
 #include "internal_include/bt_target.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/gatt_api.h"
-#include "types/bluetooth/uuid.h"
-#include "types/bt_transport.h"
-#include "types/raw_address.h"
 
 /*****************************************************************************
  *  Constants and data types
@@ -111,6 +111,7 @@ typedef struct {
   bool opportunistic;
   tBT_DEVICE_TYPE remote_addr_type;
   uint16_t preferred_mtu;
+  bool prefer_relax_mode;
 } tBTA_GATTC_API_OPEN;
 
 typedef struct {
@@ -250,7 +251,7 @@ typedef struct {
    * Properties */
   bool read_multiple_not_supported;
 
-  uint8_t srvc_hdl_chg;    /* service handle change indication pending */
+  bool srvc_hdl_chg;       /* service handle change indication pending */
   bool srvc_hdl_db_hash;   /* read db hash pending */
   uint8_t srvc_disc_count; /* current discovery retry count */
   uint16_t attr_index;     /* cache NV saving/loading attribute index */
@@ -477,6 +478,7 @@ const gatt::Characteristic* bta_gattc_get_owning_characteristic(tCONN_ID conn_id
 void bta_gattc_get_gatt_db(tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
                            btgatt_db_element_t** db, int* count);
 void bta_gattc_init_cache(tBTA_GATTC_SERV* p_srvc_cb);
+void bta_gattc_link_cache_for_bonded_device(const RawAddress& bd_addr);
 
 enum class RobustCachingSupport { UNSUPPORTED, SUPPORTED, UNKNOWN, W4_REMOTE_VERSION };
 RobustCachingSupport GetRobustCachingSupport(const tBTA_GATTC_CLCB* p_clcb,

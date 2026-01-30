@@ -17,49 +17,62 @@
 package com.android.bluetooth.le_scan
 
 import android.app.PendingIntent
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
 import android.bluetooth.le.IPeriodicAdvertisingCallback
 import android.bluetooth.le.IScannerCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
+import android.content.AttributionSource
 import android.content.Intent
 import android.os.WorkSource
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import androidx.test.platform.app.InstrumentationRegistry
-import com.android.bluetooth.TestUtils.MockitoRule
 import com.android.bluetooth.TestUtils.getTestDevice
+import com.android.bluetooth.btservice.AdapterService
+import com.android.tests.bluetooth.MockitoRule
+import java.util.function.Supplier
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
+import org.mockito.Mockito.any
+import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
+import org.mockito.kotlin.whenever
 
 /** Test cases for [ScanBinder]. */
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class ScanBinderTest {
-
     @get:Rule val mockitoRule = MockitoRule()
 
+    @Mock private lateinit var attributionSource: AttributionSource
+    @Mock private lateinit var adapterService: AdapterService
     @Mock private lateinit var scanController: ScanController
 
-    private val attributionSource =
-        InstrumentationRegistry.getInstrumentation()
-            .targetContext
-            .getSystemService(BluetoothManager::class.java)
-            .adapter
-            .attributionSource
-    private val device: BluetoothDevice = getTestDevice(89)
+    private val context = InstrumentationRegistry.getInstrumentation().getContext()
+    private val device = getTestDevice(89)
+
     private lateinit var binder: ScanBinder
 
     @Before
     fun setUp() {
-        binder = ScanBinder(scanController)
+        doAnswer { invocation ->
+                (invocation.getArgument(0) as Runnable).run()
+                null
+            }
+            .whenever(scanController)
+            .doOnScanThread(any())
+        doAnswer { invocation ->
+                val supplier = invocation.getArgument<Supplier<*>>(0)
+                supplier.get()
+            }
+            .whenever(scanController)
+            .fetchOnScanThread<Any>(any(), any())
+        binder = ScanBinder(adapterService, scanController)
     }
 
     @Test
@@ -76,7 +89,7 @@ class ScanBinderTest {
         val scannerId = 1
 
         binder.unregisterScanner(scannerId, attributionSource)
-        verify(scanController).unregisterScanner(scannerId, attributionSource)
+        verify(scanController).unregisterScanner(scannerId)
     }
 
     @Test
@@ -90,18 +103,12 @@ class ScanBinderTest {
     }
 
     @Test
-    fun startScanForIntent() {
-        val intent =
-            PendingIntent.getBroadcast(
-                InstrumentationRegistry.getInstrumentation().targetContext,
-                0,
-                Intent(),
-                PendingIntent.FLAG_IMMUTABLE,
-            )
+    fun registerPiAndStartScan() {
+        val intent = PendingIntent.getBroadcast(context, 0, Intent(), PendingIntent.FLAG_IMMUTABLE)
         val settings = ScanSettings.Builder().build()
         val filters = listOf<ScanFilter>()
 
-        binder.startScanForIntent(intent, settings, filters, attributionSource)
+        binder.registerPiAndStartScan(intent, settings, filters, attributionSource)
         verify(scanController).registerPiAndStartScan(intent, settings, filters, attributionSource)
     }
 
@@ -110,21 +117,15 @@ class ScanBinderTest {
         val scannerId = 1
 
         binder.stopScan(scannerId, attributionSource)
-        verify(scanController).stopScan(scannerId, attributionSource)
+        verify(scanController).stopScan(scannerId)
     }
 
     @Test
     fun stopScan_withIntent() {
-        val intent =
-            PendingIntent.getBroadcast(
-                InstrumentationRegistry.getInstrumentation().targetContext,
-                0,
-                Intent(),
-                PendingIntent.FLAG_IMMUTABLE,
-            )
+        val intent = PendingIntent.getBroadcast(context, 0, Intent(), PendingIntent.FLAG_IMMUTABLE)
 
         binder.stopScanForIntent(intent, attributionSource)
-        verify(scanController).stopScan(intent, attributionSource)
+        verify(scanController).stopScan(intent)
     }
 
     @Test
@@ -132,7 +133,7 @@ class ScanBinderTest {
         val scannerId = 1
 
         binder.flushPendingBatchResults(scannerId, attributionSource)
-        verify(scanController).flushPendingBatchResults(scannerId, attributionSource)
+        verify(scanController).flushPendingBatchResults(scannerId)
     }
 
     @Test
@@ -143,7 +144,7 @@ class ScanBinderTest {
         val callback = mock(IPeriodicAdvertisingCallback::class.java)
 
         binder.registerSync(scanResult, skip, timeout, callback, attributionSource)
-        verify(scanController).registerSync(scanResult, skip, timeout, callback, attributionSource)
+        verify(scanController).registerSync(scanResult, skip, timeout, callback)
     }
 
     @Test
@@ -151,7 +152,7 @@ class ScanBinderTest {
         val callback = mock(IPeriodicAdvertisingCallback::class.java)
 
         binder.unregisterSync(callback, attributionSource)
-        verify(scanController).unregisterSync(callback, attributionSource)
+        verify(scanController).unregisterSync(callback)
     }
 
     @Test
@@ -160,7 +161,7 @@ class ScanBinderTest {
         val syncHandle = 2
 
         binder.transferSync(device, serviceData, syncHandle, attributionSource)
-        verify(scanController).transferSync(device, serviceData, syncHandle, attributionSource)
+        verify(scanController).transferSync(device, serviceData, syncHandle)
     }
 
     @Test
@@ -170,14 +171,13 @@ class ScanBinderTest {
         val callback = mock(IPeriodicAdvertisingCallback::class.java)
 
         binder.transferSetInfo(device, serviceData, advHandle, callback, attributionSource)
-        verify(scanController)
-            .transferSetInfo(device, serviceData, advHandle, callback, attributionSource)
+        verify(scanController).transferSetInfo(device, serviceData, advHandle, callback)
     }
 
     @Test
     fun numHwTrackFiltersAvailable() {
         binder.numHwTrackFiltersAvailable(attributionSource)
-        verify(scanController).numHwTrackFiltersAvailable(attributionSource)
+        verify(scanController).numHwTrackFiltersAvailable()
     }
 
     @Test

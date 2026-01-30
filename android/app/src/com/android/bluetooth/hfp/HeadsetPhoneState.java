@@ -16,12 +16,13 @@
 
 package com.android.bluetooth.hfp;
 
+import static com.android.bluetooth.Utils.BackgroundExecutor;
+
 import static java.util.Objects.requireNonNull;
 
-import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
-import android.content.Context;
 import android.os.Handler;
+import android.os.Looper;
 import android.telephony.PhoneStateListener;
 import android.telephony.ServiceState;
 import android.telephony.SignalStrength;
@@ -31,11 +32,13 @@ import android.telephony.SubscriptionManager.OnSubscriptionsChangedListener;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
+import com.android.bluetooth.btservice.AdapterService;
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Class that manages Telephony states
@@ -68,66 +71,54 @@ public class HeadsetPhoneState {
     // HFP 1.6 CIND battchg value
     private int mCindBatteryCharge;
 
+    @GuardedBy("mDeviceEventMap")
     private final HashMap<BluetoothDevice, Integer> mDeviceEventMap = new HashMap<>();
-    private PhoneStateListener mPhoneStateListener;
+
     private final OnSubscriptionsChangedListener mOnSubscriptionsChangedListener =
             new HeadsetPhoneStateOnSubscriptionChangedListener();
-    private final SignalStrengthUpdateRequest mSignalStrengthUpdateRequest =
-            new SignalStrengthUpdateRequest.Builder()
-                    .setSignalThresholdInfos(Collections.EMPTY_LIST)
-                    .setSystemThresholdReportingRequestedWhileIdle(true)
-                    .build();
-    private final Object mPhoneStateListenerLock = new Object();
 
-    HeadsetPhoneState(HeadsetService headsetService) {
+    private HeadsetPhoneStateListener mPhoneStateListener;
+
+    HeadsetPhoneState(AdapterService adapterService, HeadsetService headsetService, Looper looper) {
         mHeadsetService = requireNonNull(headsetService);
-        Context ctx = headsetService;
-        mTelephonyManager = requireNonNull(ctx.getSystemService(TelephonyManager.class));
+        mTelephonyManager = requireNonNull(adapterService.getSystemService(TelephonyManager.class));
         // Register for SubscriptionInfo list changes which is guaranteed to invoke
         // onSubscriptionInfoChanged and which in turns calls loadInBackground.
-        mSubscriptionManager = requireNonNull(ctx.getSystemService(SubscriptionManager.class));
+        mSubscriptionManager =
+                requireNonNull(adapterService.getSystemService(SubscriptionManager.class));
 
         // Initialize subscription on the handler thread
-        mHandler = new Handler(headsetService.getStateMachinesThreadLooper());
+        mHandler = new Handler(looper);
         mSubscriptionManager.addOnSubscriptionsChangedListener(
                 mHandler::post, mOnSubscriptionsChangedListener);
     }
 
     /** Cleanup this instance. Instance can no longer be used after calling this method. */
     public void cleanup() {
+        mSubscriptionManager.removeOnSubscriptionsChangedListener(mOnSubscriptionsChangedListener);
         synchronized (mDeviceEventMap) {
             mDeviceEventMap.clear();
             stopListenForPhoneState();
         }
-        mSubscriptionManager.removeOnSubscriptionsChangedListener(mOnSubscriptionsChangedListener);
     }
 
     @Override
     public String toString() {
-        return "HeadsetPhoneState [mTelephonyServiceAvailability="
-                + mCindService
-                + ", mNumActive="
-                + mNumActive
-                + ", mCallState="
-                + mCallState
-                + ", mNumHeld="
-                + mNumHeld
-                + ", mSignal="
-                + mCindSignal
-                + ", mRoam="
-                + mCindRoam
-                + ", mBatteryCharge="
-                + mCindBatteryCharge
-                + ", TelephonyEvents="
-                + getTelephonyEventsToListen()
-                + "]";
+        return "HeadsetPhoneState "
+                + ("[mTelephonyServiceAvailability=" + mCindService)
+                + (", mNumActive=" + mNumActive)
+                + (", mCallState=" + mCallState)
+                + (", mNumHeld=" + mNumHeld)
+                + (", mSignal=" + mCindSignal)
+                + (", mRoam=" + mCindRoam)
+                + (", mBatteryCharge=" + mCindBatteryCharge)
+                + (", TelephonyEvents=" + getTelephonyEventsToListen() + "]");
     }
 
+    @GuardedBy("mDeviceEventMap")
     private int getTelephonyEventsToListen() {
-        synchronized (mDeviceEventMap) {
-            return mDeviceEventMap.values().stream()
-                    .reduce(PhoneStateListener.LISTEN_NONE, (a, b) -> a | b);
-        }
+        return mDeviceEventMap.values().stream()
+                .reduce(PhoneStateListener.LISTEN_NONE, (a, b) -> a | b);
     }
 
     /**
@@ -136,8 +127,7 @@ public class HeadsetPhoneState {
      * @param device remote device that subscribes to this phone state update
      * @param events events in {@link PhoneStateListener} to listen to
      */
-    @VisibleForTesting
-    public void listenForPhoneState(BluetoothDevice device, int events) {
+    void listenForPhoneState(BluetoothDevice device, int events) {
         synchronized (mDeviceEventMap) {
             int prevEvents = getTelephonyEventsToListen();
             if (events == PhoneStateListener.LISTEN_NONE) {
@@ -153,46 +143,49 @@ public class HeadsetPhoneState {
         }
     }
 
+    @GuardedBy("mDeviceEventMap")
     private void startListenForPhoneState() {
-        synchronized (mPhoneStateListenerLock) {
-            if (mPhoneStateListener != null) {
-                Log.w(TAG, "startListenForPhoneState, already listening");
-                return;
-            }
-            int events = getTelephonyEventsToListen();
-            if (events == PhoneStateListener.LISTEN_NONE) {
-                Log.w(TAG, "startListenForPhoneState, no event to listen");
-                return;
-            }
-            int subId = SubscriptionManager.getDefaultSubscriptionId();
-            if (!SubscriptionManager.isValidSubscriptionId(subId)) {
-                // Will retry listening for phone state in onSubscriptionsChanged() callback
-                Log.w(TAG, "startListenForPhoneState, invalid subscription ID " + subId);
-                return;
-            }
-            Log.i(TAG, "startListenForPhoneState(), subId=" + subId + ", enabled_events=" + events);
-            mPhoneStateListener = new HeadsetPhoneStateListener(mHandler::post);
-            mTelephonyManager.listen(mPhoneStateListener, events);
-            if ((events & PhoneStateListener.LISTEN_SIGNAL_STRENGTHS) != 0) {
-                mTelephonyManager.setSignalStrengthUpdateRequest(mSignalStrengthUpdateRequest);
-            }
+        Runnable asyncRunnable =
+                () -> {
+                    if (mPhoneStateListener != null) {
+                        Log.w(TAG, "startListenForPhoneState: already listening");
+                        return;
+                    }
+                    int events = getTelephonyEventsToListen();
+                    if (events == PhoneStateListener.LISTEN_NONE) {
+                        Log.w(TAG, "startListenForPhoneState: no event to listen");
+                        return;
+                    }
+                    int subId = SubscriptionManager.getDefaultSubscriptionId();
+                    if (!SubscriptionManager.isValidSubscriptionId(subId)) {
+                        // Will retry listening for phone state in onSubscriptionsChanged() callback
+                        Log.w(TAG, "startListenForPhoneState: invalid subId=" + subId);
+                        return;
+                    }
+                    Log.i(TAG, "startListenForPhoneState: subId=" + subId + " events=" + events);
+                    mPhoneStateListener = new HeadsetPhoneStateListener(events);
+                };
+        try {
+            BackgroundExecutor.submit(asyncRunnable).get();
+        } catch (ExecutionException | InterruptedException e) {
+            Log.e(TAG, "Exception in startListenForPhoneState", e);
         }
     }
 
+    @GuardedBy("mDeviceEventMap")
     private void stopListenForPhoneState() {
-        synchronized (mPhoneStateListenerLock) {
-            mTelephonyManager.clearSignalStrengthUpdateRequest(mSignalStrengthUpdateRequest);
-            if (mPhoneStateListener == null) {
-                Log.i(TAG, "stopListenForPhoneState(), no listener indicates nothing is listening");
-                return;
-            }
-            Log.i(
-                    TAG,
-                    "stopListenForPhoneState(), stopping listener, enabled_events="
-                            + getTelephonyEventsToListen());
-            mTelephonyManager.listen(mPhoneStateListener, PhoneStateListener.LISTEN_NONE);
-            mPhoneStateListener = null;
-        }
+        Runnable asyncRunnable =
+                () -> {
+                    if (mPhoneStateListener == null) {
+                        Log.i(TAG, "stopListenForPhoneState: no listener");
+                        return;
+                    }
+                    mPhoneStateListener.stopListener();
+                    mPhoneStateListener = null;
+                };
+        // We intentionally drop this future. If `start` is called afterward, it will implicitly
+        // await completion. Otherwise, the stack is shutting down, making a wait unnecessary.
+        var unusedFuture = BackgroundExecutor.submit(asyncRunnable);
     }
 
     int getCindService() {
@@ -260,25 +253,17 @@ public class HeadsetPhoneState {
     }
 
     private synchronized void sendDeviceStateChanged() {
-        // When out of service, send signal strength as 0. Some devices don't
-        // use the service indicator, but only the signal indicator
-        int signal = mCindService == HeadsetHalConstants.NETWORK_STATE_AVAILABLE ? mCindSignal : 0;
-
         Log.d(
                 TAG,
-                "sendDeviceStateChanged. mService="
-                        + mCindService
-                        + " mSignal="
-                        + mCindSignal
-                        + " mRoam="
-                        + mCindRoam
-                        + " mBatteryCharge="
-                        + mCindBatteryCharge);
+                "sendDeviceStateChanged. "
+                        + ("mService=" + mCindService)
+                        + (" mSignal=" + mCindSignal)
+                        + (" mRoam=" + mCindRoam)
+                        + (" mBatteryCharge=" + mCindBatteryCharge));
         mHeadsetService.onDeviceStateChanged(
-                new HeadsetDeviceState(mCindService, mCindRoam, signal, mCindBatteryCharge));
+                new HeadsetDeviceState(mCindService, mCindRoam, mCindSignal, mCindBatteryCharge));
     }
 
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     private class HeadsetPhoneStateOnSubscriptionChangedListener
             extends OnSubscriptionsChangedListener {
         @Override
@@ -297,10 +282,32 @@ public class HeadsetPhoneState {
         }
     }
 
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     private class HeadsetPhoneStateListener extends PhoneStateListener {
-        HeadsetPhoneStateListener(Executor executor) {
-            super(executor);
+        private static final SignalStrengthUpdateRequest SIGNAL_STRENGTH_UPDATE_REQUEST =
+                new SignalStrengthUpdateRequest.Builder()
+                        .setSignalThresholdInfos(Collections.EMPTY_LIST)
+                        .setSystemThresholdReportingRequestedWhileIdle(true)
+                        .build();
+
+        private final int mEvents;
+
+        HeadsetPhoneStateListener(int events) {
+            super(mHandler::post);
+            mEvents = events;
+
+            Log.i(TAG, "startListener: events=" + mEvents);
+            mTelephonyManager.listen(this, mEvents);
+            if ((mEvents & PhoneStateListener.LISTEN_SIGNAL_STRENGTHS) != 0) {
+                mTelephonyManager.setSignalStrengthUpdateRequest(SIGNAL_STRENGTH_UPDATE_REQUEST);
+            }
+        }
+
+        void stopListener() {
+            Log.i(TAG, "stopListener: events=" + mEvents);
+            if ((mEvents & PhoneStateListener.LISTEN_SIGNAL_STRENGTHS) != 0) {
+                mTelephonyManager.clearSignalStrengthUpdateRequest(SIGNAL_STRENGTH_UPDATE_REQUEST);
+            }
+            mTelephonyManager.listen(this, PhoneStateListener.LISTEN_NONE);
         }
 
         @Override
@@ -320,20 +327,26 @@ public class HeadsetPhoneState {
                 return;
             }
             mCindService = cindService;
+            if (mCindService == HeadsetHalConstants.NETWORK_STATE_NOT_AVAILABLE) {
+                mCindSignal = 0;
+            }
             mCindRoam = newRoam;
             sendDeviceStateChanged();
         }
 
         @Override
         public void onSignalStrengthsChanged(SignalStrength signalStrength) {
-            int prevSignal = mCindSignal;
             if (mCindService == HeadsetHalConstants.NETWORK_STATE_NOT_AVAILABLE) {
                 mCindSignal = 0;
-            } else {
-                mCindSignal = signalStrength.getLevel() + 1;
+                // sendDeviceStateChanged is sent in onServiceStateChanged for this case
+                return;
             }
+
+            int prevSignal = mCindSignal;
+
             // +CIND "signal" indicator is always between 0 to 5
-            mCindSignal = Integer.max(Integer.min(mCindSignal, 5), 0);
+            mCindSignal = Integer.max(Integer.min(signalStrength.getLevel() + 1, 5), 0);
+
             // This results in a lot of duplicate messages, hence this check
             if (prevSignal != mCindSignal) {
                 sendDeviceStateChanged();

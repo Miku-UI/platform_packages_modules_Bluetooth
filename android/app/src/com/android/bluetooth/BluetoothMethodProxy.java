@@ -20,21 +20,15 @@ import android.annotation.NonNull;
 import android.annotation.SuppressLint;
 import android.app.ComponentCaller;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.le.PeriodicAdvertisingCallback;
-import android.bluetooth.le.PeriodicAdvertisingManager;
-import android.bluetooth.le.ScanResult;
 import android.content.ContentProviderClient;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
-import android.media.session.MediaController;
-import android.media.session.MediaSessionManager;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.Handler;
@@ -45,9 +39,6 @@ import android.os.ParcelFileDescriptor;
 import android.provider.Telephony;
 import android.util.Log;
 
-import androidx.annotation.RequiresApi;
-
-import com.android.bluetooth.bass_client.BassClientPeriodicAdvertisingManager;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.obex.HeaderSet;
 
@@ -55,7 +46,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.List;
 import java.util.Set;
 
 /** Proxy class for method calls to help with unit testing */
@@ -161,13 +151,6 @@ public class BluetoothMethodProxy {
         return adapter.isEnabled();
     }
 
-    /**
-     * Proxies {@link BluetoothAdapter#getRemoteLeDevice(String, int)} on default Bluetooth Adapter.
-     */
-    public BluetoothDevice getDefaultAdapterRemoteLeDevice(String address, int addressType) {
-        return BluetoothAdapter.getDefaultAdapter().getRemoteLeDevice(address, addressType);
-    }
-
     /** Proxies {@link ContentResolver#openFileDescriptor(Uri, String)}. */
     public ParcelFileDescriptor contentResolverOpenFileDescriptor(
             ContentResolver contentResolver, final Uri uri, final String mode)
@@ -232,58 +215,6 @@ public class BluetoothMethodProxy {
         return Telephony.Threads.getOrCreateThreadId(context, recipients);
     }
 
-    /**
-     * Proxies {@link
-     * BassClientPeriodicAdvertisingManager#initializePeriodicAdvertisingManagerOnDefaultAdapter}.
-     */
-    public boolean initializePeriodicAdvertisingManagerOnDefaultAdapter() {
-        return BassClientPeriodicAdvertisingManager
-                .initializePeriodicAdvertisingManagerOnDefaultAdapter();
-    }
-
-    /**
-     * Proxies {@link PeriodicAdvertisingManager#registerSync(ScanResult, int, int,
-     * PeriodicAdvertisingCallback, Handler)}.
-     */
-    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
-    public void periodicAdvertisingManagerRegisterSync(
-            PeriodicAdvertisingManager manager,
-            ScanResult scanResult,
-            int skip,
-            int timeout,
-            PeriodicAdvertisingCallback callback,
-            Handler handler) {
-        manager.registerSync(scanResult, skip, timeout, callback, handler);
-    }
-
-    /** Proxies {@link PeriodicAdvertisingManager#unregisterSync(PeriodicAdvertisingCallback)}. */
-    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
-    public void periodicAdvertisingManagerUnregisterSync(
-            PeriodicAdvertisingManager manager, PeriodicAdvertisingCallback callback) {
-        manager.unregisterSync(callback);
-    }
-
-    /** Proxies {@link PeriodicAdvertisingManager#transferSync}. */
-    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
-    public void periodicAdvertisingManagerTransferSync(
-            PeriodicAdvertisingManager manager,
-            BluetoothDevice bda,
-            int serviceData,
-            int syncHandle) {
-        manager.transferSync(bda, serviceData, syncHandle);
-    }
-
-    /** Proxies {@link PeriodicAdvertisingManager#transferSetInfo}. */
-    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
-    public void periodicAdvertisingManagerTransferSetInfo(
-            PeriodicAdvertisingManager manager,
-            BluetoothDevice bda,
-            int serviceData,
-            int advHandle,
-            PeriodicAdvertisingCallback callback) {
-        manager.transferSetInfo(bda, serviceData, advHandle, callback);
-    }
-
     /** Proxies {@link Thread#start()}. */
     public void threadStart(Thread thread) {
         thread.start();
@@ -294,14 +225,7 @@ public class BluetoothMethodProxy {
         return handlerThread.getLooper();
     }
 
-    /** Proxies {@link MediaSessionManager#getActiveSessions} */
-    public @NonNull List<MediaController> mediaSessionManagerGetActiveSessions(
-            MediaSessionManager manager) {
-        return manager.getActiveSessions(null);
-    }
-
     /** Proxies {@link ComponentCaller#checkContentUriPermission(Uri, int)}. } */
-    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     public int componentCallerCheckContentUriPermission(
             ComponentCaller caller, Uri uri, int modeFlags) {
         return caller.checkContentUriPermission(uri, modeFlags);
@@ -309,6 +233,20 @@ public class BluetoothMethodProxy {
 
     /** Proxies {@link Context#grantUriPermission(String, Uri, int)}. } */
     public void grantUriPermission(Context context, String packageName, Uri uri, int modeFlags) {
-        context.grantUriPermission(packageName, uri, modeFlags);
+        try {
+            context.grantUriPermission(packageName, uri, modeFlags);
+        } catch (Exception e) {
+            Log.e(TAG, "Exception happened:" + e);
+        }
+    }
+
+    /** Proxies {@link Context#getPackageManager()}. } */
+    public PackageManager getPackageManager(Context context) {
+        return context.getPackageManager();
+    }
+
+    /** Proxies {@link Context#getContentResolver()}. */
+    public ContentResolver getContentResolver(Context context) {
+        return context.getContentResolver();
     }
 }

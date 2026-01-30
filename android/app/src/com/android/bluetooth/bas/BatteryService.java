@@ -27,7 +27,6 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.ParcelUuid;
 import android.sysprop.BluetoothProperties;
@@ -35,8 +34,7 @@ import android.util.Log;
 
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.ProfileService;
-import com.android.bluetooth.btservice.storage.DatabaseManager;
+import com.android.bluetooth.btservice.ConnectableProfile;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -46,17 +44,10 @@ import java.util.List;
 import java.util.Map;
 
 /** A profile service that connects to the Battery service (BAS) of BLE devices */
-public class BatteryService extends ProfileService {
+public class BatteryService extends ConnectableProfile {
     private static final String TAG = BatteryService.class.getSimpleName();
 
-    // Timeout for state machine thread join, to prevent potential ANR.
-    private static final int SM_THREAD_JOIN_TIMEOUT_MS = 1_000;
-
-    private static BatteryService sBatteryService;
-
-    private final AdapterService mAdapterService;
-    private final DatabaseManager mDatabaseManager;
-    private final HandlerThread mStateMachinesThread;
+    private final Looper mLooper;
     private final Handler mHandler;
 
     @GuardedBy("mStateMachines")
@@ -68,14 +59,9 @@ public class BatteryService extends ProfileService {
 
     @VisibleForTesting
     BatteryService(AdapterService adapterService, Looper looper) {
-        super(requireNonNull(adapterService));
-        mAdapterService = adapterService;
-        mDatabaseManager = requireNonNull(mAdapterService.getDatabase());
+        super(BluetoothProfile.BATTERY, requireNonNull(adapterService));
         mHandler = new Handler(requireNonNull(looper));
-
-        mStateMachinesThread = new HandlerThread("BatteryService.StateMachines");
-        mStateMachinesThread.start();
-        setBatteryService(this);
+        mLooper = looper;
     }
 
     public static boolean isEnabled() {
@@ -89,9 +75,7 @@ public class BatteryService extends ProfileService {
 
     @Override
     public void cleanup() {
-        Log.i(TAG, "Cleanup Battery Service");
-
-        setBatteryService(null);
+        Log.i(TAG, "cleanup()");
 
         // Destroy state machines and stop handler thread
         synchronized (mStateMachines) {
@@ -102,38 +86,11 @@ public class BatteryService extends ProfileService {
             mStateMachines.clear();
         }
 
-        try {
-            mStateMachinesThread.quitSafely();
-            mStateMachinesThread.join(SM_THREAD_JOIN_TIMEOUT_MS);
-        } catch (InterruptedException e) {
-            // Do not rethrow as we are shutting down anyway
-        }
-
         mHandler.removeCallbacksAndMessages(null);
     }
 
-    /** Gets the BatteryService instance */
-    public static synchronized BatteryService getBatteryService() {
-        if (sBatteryService == null) {
-            Log.w(TAG, "getBatteryService(): service is NULL");
-            return null;
-        }
-
-        if (!sBatteryService.isAvailable()) {
-            Log.w(TAG, "getBatteryService(): service is not available");
-            return null;
-        }
-        return sBatteryService;
-    }
-
-    /** Sets the battery service instance. It should be called only for testing purpose. */
-    @VisibleForTesting
-    public static synchronized void setBatteryService(BatteryService instance) {
-        Log.d(TAG, "setBatteryService(): set to: " + instance);
-        sBatteryService = instance;
-    }
-
     /** Connects to the battery service of the given device. */
+    @Override
     public boolean connect(BluetoothDevice device) {
         Log.d(TAG, "connect(): " + device);
         if (device == null) {
@@ -178,6 +135,7 @@ public class BatteryService extends ProfileService {
     }
 
     /** Disconnects from the battery service of the given device. */
+    @Override
     public boolean disconnect(BluetoothDevice device) {
         Log.d(TAG, "disconnect(): " + device);
         if (device == null) {
@@ -297,6 +255,7 @@ public class BatteryService extends ProfileService {
     }
 
     /** Gets the connection state of the given device's battery service */
+    @Override
     public int getConnectionState(BluetoothDevice device) {
         synchronized (mStateMachines) {
             BatteryStateMachine sm = mStateMachines.get(device);
@@ -321,21 +280,16 @@ public class BatteryService extends ProfileService {
      * @param connectionPolicy is the connection policy to set to for this profile
      * @return true on success, otherwise false
      */
+    @Override
     public boolean setConnectionPolicy(BluetoothDevice device, int connectionPolicy) {
         Log.d(TAG, "Saved connectionPolicy " + device + " = " + connectionPolicy);
-        mDatabaseManager.setProfileConnectionPolicy(
-                device, BluetoothProfile.BATTERY, connectionPolicy);
+        mAdapterService.setProfileConnectionPolicy(device, mProfileId, connectionPolicy);
         if (connectionPolicy == CONNECTION_POLICY_ALLOWED) {
             connect(device);
         } else if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
             disconnect(device);
         }
         return true;
-    }
-
-    /** Gets the connection policy for the battery service of the given device. */
-    public int getConnectionPolicy(BluetoothDevice device) {
-        return mDatabaseManager.getProfileConnectionPolicy(device, BluetoothProfile.BATTERY);
     }
 
     /** Called when the battery level of the device is notified. */
@@ -351,13 +305,13 @@ public class BatteryService extends ProfileService {
             }
 
             Log.d(TAG, "Creating a new state machine for " + device);
-            sm = new BatteryStateMachine(this, device, mStateMachinesThread.getLooper());
+            sm = new BatteryStateMachine(this, device, mLooper);
             mStateMachines.put(device, sm);
             return sm;
         }
     }
 
-    /** Process a change in the bonding state for a device */
+    @Override
     public void handleBondStateChanged(BluetoothDevice device, int fromState, int toState) {
         mHandler.post(() -> bondStateChanged(device, toState));
     }

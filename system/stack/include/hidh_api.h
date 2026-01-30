@@ -18,12 +18,13 @@
 #ifndef HIDH_API_H
 #define HIDH_API_H
 
+#include <bluetooth/types/address.h>
+
 #include <cstdint>
 
 #include "stack/include/bt_hdr.h"
 #include "stack/include/hiddefs.h"
 #include "stack/include/sdp_status.h"
-#include "types/raw_address.h"
 
 /*****************************************************************************
  *  Constants
@@ -200,5 +201,16 @@ tHID_STATUS HID_HostCloseDev(uint8_t dev_handle);
  * Returns          void
  ******************************************************************************/
 void HID_HostInit(void);
+
+/*******************************************************************************
+ *
+ * Function         HID_HostDump
+ *
+ * Description      Dump HID host control block
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void HID_HostDump(int fd);
 
 #endif /* HIDH_API_H */

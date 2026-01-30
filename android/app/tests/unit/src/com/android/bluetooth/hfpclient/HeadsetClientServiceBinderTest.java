@@ -19,7 +19,6 @@ package com.android.bluetooth.hfpclient;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static org.mockito.Mockito.verify;
@@ -27,8 +26,10 @@ import static org.mockito.Mockito.verify;
 import android.bluetooth.BluetoothDevice;
 import android.content.AttributionSource;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
+
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -42,9 +43,9 @@ import org.mockito.Mock;
 public class HeadsetClientServiceBinderTest {
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
+    @Mock private AttributionSource mAttributionSource;
     @Mock private HeadsetClientService mService;
 
-    private final AttributionSource mAttributionSource = new AttributionSource.Builder(1).build();
     private final BluetoothDevice mDevice = getTestDevice(54);
 
     private HeadsetClientServiceBinder mBinder;

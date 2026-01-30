@@ -16,12 +16,17 @@
 
 package android.bluetooth.le;
 
+import static android.bluetooth.le.DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_AUTO;
+import static android.bluetooth.le.DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING;
+import static android.bluetooth.le.DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI;
+
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.SystemApi;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.le.DistanceMeasurementMethod.DistanceMeasurementMethodId;
@@ -30,6 +35,7 @@ import android.os.Parcelable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.List;
 
 /**
  * The {@link DistanceMeasurementParams} provide a way to adjust distance measurement preferences.
@@ -98,6 +104,7 @@ public final class DistanceMeasurementParams implements Parcelable {
      * @hide
      */
     @SystemApi
+    @RequiresNoPermission
     public @NonNull BluetoothDevice getDevice() {
         return mDevice;
     }
@@ -111,6 +118,7 @@ public final class DistanceMeasurementParams implements Parcelable {
      * @hide
      */
     @SystemApi
+    @RequiresNoPermission
     public @IntRange(from = 0) int getDurationSeconds() {
         return mDuration;
     }
@@ -122,6 +130,7 @@ public final class DistanceMeasurementParams implements Parcelable {
      * @hide
      */
     @SystemApi
+    @RequiresNoPermission
     public @ReportFrequency int getFrequency() {
         return mFrequency;
     }
@@ -132,6 +141,7 @@ public final class DistanceMeasurementParams implements Parcelable {
      * @hide
      */
     @SystemApi
+    @RequiresNoPermission
     public @DistanceMeasurementMethodId int getMethodId() {
         return mMethodId;
     }
@@ -142,6 +152,7 @@ public final class DistanceMeasurementParams implements Parcelable {
      * @hide
      */
     @SystemApi
+    @RequiresNoPermission
     public @Nullable ChannelSoundingParams getChannelSoundingParams() {
         return mChannelSoundingParams;
     }
@@ -152,6 +163,7 @@ public final class DistanceMeasurementParams implements Parcelable {
      * @hide
      */
     @SystemApi
+    @RequiresNoPermission
     public static int getDefaultDurationSeconds() {
         return REPORT_DURATION_DEFAULT;
     }
@@ -162,6 +174,7 @@ public final class DistanceMeasurementParams implements Parcelable {
      * @hide
      */
     @SystemApi
+    @RequiresNoPermission
     public static int getMaxDurationSeconds() {
         return REPORT_DURATION_MAX;
     }
@@ -251,6 +264,7 @@ public final class DistanceMeasurementParams implements Parcelable {
          * @hide
          */
         @SystemApi
+        @RequiresNoPermission
         public @NonNull Builder setDurationSeconds(@IntRange(from = 0) int duration) {
             if (duration < 0 || duration > getMaxDurationSeconds()) {
                 throw new IllegalArgumentException("illegal duration " + duration);
@@ -268,16 +282,13 @@ public final class DistanceMeasurementParams implements Parcelable {
          * @hide
          */
         @SystemApi
+        @RequiresNoPermission
         public @NonNull Builder setFrequency(@ReportFrequency int frequency) {
-            switch (frequency) {
-                case REPORT_FREQUENCY_LOW:
-                case REPORT_FREQUENCY_MEDIUM:
-                case REPORT_FREQUENCY_HIGH:
-                    mFrequency = frequency;
-                    break;
-                default:
-                    throw new IllegalArgumentException("unknown frequency " + frequency);
+            if (!List.of(REPORT_FREQUENCY_LOW, REPORT_FREQUENCY_MEDIUM, REPORT_FREQUENCY_HIGH)
+                    .contains(frequency)) {
+                throw new IllegalArgumentException("unknown frequency " + frequency);
             }
+            mFrequency = frequency;
             return this;
         }
 
@@ -289,16 +300,16 @@ public final class DistanceMeasurementParams implements Parcelable {
          * @hide
          */
         @SystemApi
+        @RequiresNoPermission
         public @NonNull Builder setMethodId(@DistanceMeasurementMethodId int methodId) {
-            switch (methodId) {
-                case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_AUTO:
-                case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI:
-                case DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING:
-                    mMethodId = methodId;
-                    break;
-                default:
-                    throw new IllegalArgumentException("unknown method id " + methodId);
+            if (!List.of(
+                            DISTANCE_MEASUREMENT_METHOD_AUTO,
+                            DISTANCE_MEASUREMENT_METHOD_RSSI,
+                            DISTANCE_MEASUREMENT_METHOD_CHANNEL_SOUNDING)
+                    .contains(methodId)) {
+                throw new IllegalArgumentException("unknown method id " + methodId);
             }
+            mMethodId = methodId;
             return this;
         }
 
@@ -310,6 +321,7 @@ public final class DistanceMeasurementParams implements Parcelable {
          * @hide
          */
         @SystemApi
+        @RequiresNoPermission
         public @NonNull Builder setChannelSoundingParams(
                 @NonNull ChannelSoundingParams channelSoundingParams) {
             mChannelSoundingParams = channelSoundingParams;
@@ -322,6 +334,7 @@ public final class DistanceMeasurementParams implements Parcelable {
          * @hide
          */
         @SystemApi
+        @RequiresNoPermission
         public @NonNull DistanceMeasurementParams build() {
             return new DistanceMeasurementParams(
                     mDevice, mDuration, mFrequency, mMethodId, mChannelSoundingParams);

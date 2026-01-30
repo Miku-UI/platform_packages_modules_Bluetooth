@@ -25,6 +25,7 @@
 #pragma once
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/ble_address_with_type.h>
 #include <com_android_bluetooth_flags.h>
 
 #include <list>
@@ -38,7 +39,6 @@
 #include "internal_include/bt_target.h"
 #include "internal_include/bt_trace.h"
 #include "macros.h"
-#include "types/raw_address.h"
 
 /*****************************************************************************
  *  Constants and data types
@@ -81,7 +81,7 @@ inline std::string device_info_text(tBTA_DM_DEV_INFO info) {
 #define BTA_DM_PM_EXECUTE 3
 typedef uint8_t tBTA_DM_PM_REQ;
 
-struct tBTA_DM_REMOVE_PENDING {
+struct tBTA_DM_CONNECTION_INFO {
   RawAddress pseudo_addr;
   RawAddress identity_addr;
   bool le_connected;
@@ -215,7 +215,7 @@ typedef struct {
 #endif
   alarm_t* switch_delay_timer;
 
-  std::list<tBTA_DM_REMOVE_PENDING> pending_removals;
+  std::list<tBTA_DM_CONNECTION_INFO> pending_removals;
 } tBTA_DM_CB;
 
 /* DI control block */
@@ -284,6 +284,7 @@ extern const uint16_t bta_service_id_to_uuid_lkup_tbl[];
 
 extern const tBTA_DM_PM_CFG* p_bta_dm_pm_cfg;
 tBTA_DM_PM_TYPE_QUALIFIER tBTA_DM_PM_SPEC* get_bta_dm_pm_spec();
+size_t bta_dm_get_num_pm_entry();
 extern const tBTM_PM_PWR_MD* p_bta_dm_pm_md;
 extern tBTA_DM_SSR_SPEC* p_bta_dm_ssr_spec;
 
@@ -341,13 +342,14 @@ void bta_dm_eir_update_cust_uuid(const tBTA_CUSTOM_UUID& curr, bool adding);
 void bta_dm_ble_subrate_request(const RawAddress& bd_addr, uint16_t subrate_min,
                                 uint16_t subrate_max, uint16_t max_latency, uint16_t cont_num,
                                 uint16_t timeout);
-tBTM_CONTRL_STATE bta_dm_pm_obtain_controller_state(void);
+
+tBTM_PM_PWR_MD bta_dm_pm_get_sniff_entry(size_t index);
 
 namespace bluetooth::legacy::testing {
 
 tBTA_DM_PEER_DEVICE* allocate_device_for(const RawAddress& bd_addr, tBT_TRANSPORT transport);
-void bta_dm_acl_up(const RawAddress& bd_addr, tBT_TRANSPORT transport, uint16_t acl_handle);
-void bta_dm_acl_down(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+void bta_dm_acl_up(const tAclLinkSpec& link_spec, uint16_t acl_handle);
+void bta_dm_acl_down(const tAclLinkSpec& link_spec);
 void bta_dm_init_cb();
 void bta_dm_deinit_cb();
 

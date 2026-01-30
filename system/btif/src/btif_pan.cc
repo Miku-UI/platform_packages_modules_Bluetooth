@@ -33,6 +33,7 @@
 #include <base/functional/bind.h>
 #include <base/location.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 #include <fcntl.h>
 #include <linux/if_ether.h>
 #include <linux/if_tun.h>
@@ -56,7 +57,7 @@
 #include "btif/include/btif_pan_internal.h"
 #include "btif/include/btif_sock_thread.h"
 #include "hardware/bluetooth.h"
-#include "hci/controller_interface.h"
+#include "hci/controller.h"
 #include "include/hardware/bt_pan.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/entry.h"
@@ -67,7 +68,6 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/pan_api.h"
-#include "types/raw_address.h"
 
 #ifdef __ANDROID__
 #include <android/sysprop/BluetoothProperties.sysprop.h>
@@ -304,7 +304,7 @@ static int tap_if_up(const char* devname, const RawAddress& addr) {
   }
 
   osi_strlcpy(ifr.ifr_name, devname, IFNAMSIZ);
-  memcpy(ifr.ifr_hwaddr.sa_data, addr.address, 6);
+  memcpy(ifr.ifr_hwaddr.sa_data, addr.address.data(), 6);
 
   /* The IEEE has specified that the most significant bit of the most
    * significant byte is used to

@@ -19,7 +19,8 @@ impl ConnectionId {
     }
 
     /// Extract the ServerId from a ConnectionId (lower 8 bits)
-    pub fn get_server_id(&self) -> ServerId {
+    // NOTE: Currently unused.
+    pub fn _get_server_id(&self) -> ServerId {
         ServerId((self.0 & (u8::MAX as u16)) as u8)
     }
 }
@@ -44,6 +45,7 @@ pub struct AdvertiserId(pub u8);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct AttHandle(pub u16);
 
+#[allow(dead_code)]
 impl AttHandle {
     /// The (only) reserved AttHandle
     pub const RESERVED: Self = AttHandle(0);
@@ -51,4 +53,19 @@ impl AttHandle {
     pub const MIN: Self = AttHandle(1);
     /// The largest valid AttHandle
     pub const MAX: Self = AttHandle(0xFFFF);
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_connection_id() {
+        let tcb_idx = TransportIndex(0xAB);
+        let server_id = ServerId(0xCD);
+        let conn_id = ConnectionId::new(tcb_idx, server_id);
+        assert_eq!(conn_id.0, 0xABCD);
+        assert_eq!(conn_id.get_tcb_idx(), tcb_idx);
+        assert_eq!(conn_id._get_server_id(), server_id);
+    }
 }

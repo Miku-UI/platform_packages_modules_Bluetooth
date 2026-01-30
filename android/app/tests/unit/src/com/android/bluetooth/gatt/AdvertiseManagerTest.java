@@ -16,8 +16,6 @@
 
 package com.android.bluetooth.gatt;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -28,16 +26,15 @@ import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.IAdvertisingSetCallback;
 import android.bluetooth.le.PeriodicAdvertisingParameters;
+import android.content.AttributionSource;
 import android.os.IBinder;
-import android.platform.test.flag.junit.FlagsParameterization;
-import android.platform.test.flag.junit.SetFlagsRule;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
-import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.flags.Flags;
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -45,58 +42,40 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
-import platform.test.runner.parameterized.Parameters;
-
-import java.util.List;
-
 /** Test cases for {@link AdvertiseManager}. */
 @SmallTest
-@RunWith(ParameterizedAndroidJunit4.class)
+@RunWith(AndroidJUnit4.class)
 public class AdvertiseManagerTest {
-
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
-    @Rule public final SetFlagsRule mSetFlagsRule;
 
+    @Mock private AttributionSource mAttributionSource;
     @Mock private AdapterService mAdapterService;
-
+    @Mock private GattService mGattService;
     @Mock private AdvertiserMap mAdvertiserMap;
-
     @Mock private AdvertiseManagerNativeInterface mNativeInterface;
-
     @Mock private IAdvertisingSetCallback mCallback;
-
     @Mock private IBinder mBinder;
 
     private AdvertiseManager mAdvertiseManager;
     private int mAdvertiserId;
-
-    @Parameters(name = "{0}")
-    public static List<FlagsParameterization> getParams() {
-        return FlagsParameterization.allCombinationsOf(Flags.FLAG_ADVERTISE_THREAD);
-    }
-
-    public AdvertiseManagerTest(FlagsParameterization flags) {
-        mSetFlagsRule = new SetFlagsRule(flags);
-    }
 
     @Before
     public void setUp() throws Exception {
         mAdvertiseManager =
                 new AdvertiseManager(
                         mAdapterService,
-                        new TestLooper().getLooper(),
+                        mGattService,
                         mNativeInterface,
+                        new TestLooper().getLooper(),
                         mAdvertiserMap);
 
-        AdvertisingSetParameters parameters = new AdvertisingSetParameters.Builder().build();
-        AdvertiseData advertiseData = new AdvertiseData.Builder().build();
-        AdvertiseData scanResponse = new AdvertiseData.Builder().build();
-        PeriodicAdvertisingParameters periodicParameters =
-                new PeriodicAdvertisingParameters.Builder().build();
-        AdvertiseData periodicData = new AdvertiseData.Builder().build();
-        int duration = 10;
-        int maxExtAdvEvents = 15;
+        final var parameters = new AdvertisingSetParameters.Builder().build();
+        final var advertiseData = new AdvertiseData.Builder().build();
+        final var scanResponse = new AdvertiseData.Builder().build();
+        final var periodicParameters = new PeriodicAdvertisingParameters.Builder().build();
+        final var periodicData = new AdvertiseData.Builder().build();
+        final int duration = 10;
+        final int maxExtAdvEvents = 15;
 
         doReturn(mBinder).when(mCallback).asBinder();
         doNothing().when(mBinder).linkToDeath(any(), eq(0));
@@ -109,11 +88,9 @@ public class AdvertiseManagerTest {
                 periodicData,
                 duration,
                 maxExtAdvEvents,
-                0,
+                null,
                 mCallback,
-                InstrumentationRegistry.getInstrumentation()
-                        .getTargetContext()
-                        .getAttributionSource());
+                mAttributionSource);
 
         mAdvertiserId = mAdvertiseManager.mTempRegistrationId;
     }
@@ -125,54 +102,47 @@ public class AdvertiseManagerTest {
         int maxExtAdvEvents = 100;
 
         mAdvertiseManager.enableAdvertisingSet(mAdvertiserId, enable, duration, maxExtAdvEvents);
-
         verify(mAdvertiserMap)
                 .enableAdvertisingSet(mAdvertiserId, enable, duration, maxExtAdvEvents);
     }
 
     @Test
     public void advertisingData() {
-        AdvertiseData advertiseData = new AdvertiseData.Builder().build();
+        final var advertiseData = new AdvertiseData.Builder().build();
 
         mAdvertiseManager.setAdvertisingData(mAdvertiserId, advertiseData);
-
         verify(mAdvertiserMap).setAdvertisingData(mAdvertiserId, advertiseData);
     }
 
     @Test
     public void scanResponseData() {
-        AdvertiseData scanResponse = new AdvertiseData.Builder().build();
+        final var scanResponse = new AdvertiseData.Builder().build();
 
         mAdvertiseManager.setScanResponseData(mAdvertiserId, scanResponse);
-
         verify(mAdvertiserMap).setScanResponseData(mAdvertiserId, scanResponse);
     }
 
     @Test
     public void advertisingParameters() {
-        AdvertisingSetParameters parameters = new AdvertisingSetParameters.Builder().build();
+        final var parameters = new AdvertisingSetParameters.Builder().build();
 
         mAdvertiseManager.setAdvertisingParameters(mAdvertiserId, parameters);
-
         verify(mAdvertiserMap).setAdvertisingParameters(mAdvertiserId, parameters);
     }
 
     @Test
     public void periodicAdvertisingParameters() {
-        PeriodicAdvertisingParameters periodicParameters =
-                new PeriodicAdvertisingParameters.Builder().build();
+        final var periodicParameters = new PeriodicAdvertisingParameters.Builder().build();
 
         mAdvertiseManager.setPeriodicAdvertisingParameters(mAdvertiserId, periodicParameters);
-
         verify(mAdvertiserMap).setPeriodicAdvertisingParameters(mAdvertiserId, periodicParameters);
     }
 
     @Test
     public void periodicAdvertisingData() {
-        AdvertiseData periodicData = new AdvertiseData.Builder().build();
+        final var periodicData = new AdvertiseData.Builder().build();
 
         mAdvertiseManager.setPeriodicAdvertisingData(mAdvertiserId, periodicData);
-
         verify(mAdvertiserMap).setPeriodicAdvertisingData(mAdvertiserId, periodicData);
     }
 }

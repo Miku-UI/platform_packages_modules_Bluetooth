@@ -26,6 +26,7 @@ import static android.bluetooth.BluetoothUtils.isValidDevice;
 
 import static java.util.Objects.requireNonNull;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -41,10 +42,11 @@ import android.bluetooth.annotations.RequiresLegacyBluetoothPermission;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.AttributionSource;
 import android.content.Context;
-import android.os.Build;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
+
+import com.android.bluetooth.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -66,8 +68,8 @@ import java.util.List;
 public final class BluetoothHeadset implements BluetoothProfile {
     private static final String TAG = BluetoothHeadset.class.getSimpleName();
 
-    private static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
-    private static final boolean VDBG = false;
+    private static final boolean DBG = Log.isLoggable("bluetooth", Log.DEBUG);
+    private static final boolean VDBG = Log.isLoggable("bluetooth", Log.VERBOSE);
 
     /**
      * Intent used to broadcast the change in connection state of the Headset profile.
@@ -78,6 +80,8 @@ public final class BluetoothHeadset implements BluetoothProfile {
      *   <li>{@link #EXTRA_STATE} - The current state of the profile.
      *   <li>{@link #EXTRA_PREVIOUS_STATE}- The previous state of the profile.
      *   <li>{@link BluetoothDevice#EXTRA_DEVICE} - The remote device.
+     *   <li>{@link #EXTRA_DISCONNECTED_REASON} - A disconnection reason if moved from {@link
+     *       #STATE_CONNECTING} to {@link #STATE_DISCONNECTED}.
      * </ul>
      *
      * <p>{@link #EXTRA_STATE} or {@link #EXTRA_PREVIOUS_STATE} can be any of {@link
@@ -230,6 +234,13 @@ public final class BluetoothHeadset implements BluetoothProfile {
     public static final String VENDOR_RESULT_CODE_COMMAND_ANDROID = "+ANDROID";
 
     /**
+     * A vendor-specific command for unsolicited result code.
+     *
+     * @hide
+     */
+    public static final String VENDOR_RESULT_CODE_COMMAND_MOTOROLA = "+MOTOROLA";
+
+    /**
      * A vendor-specific AT command
      *
      * @hide
@@ -310,6 +321,26 @@ public final class BluetoothHeadset implements BluetoothProfile {
      * {@link #EXTRA_PREVIOUS_STATE} of {@link #ACTION_AUDIO_STATE_CHANGED} intent.
      */
     public static final int STATE_AUDIO_CONNECTED = 12;
+
+    /**
+     * Used as an int extra field in {@link
+     * android.bluetooth.BluetoothHeadset#ACTION_CONNECTION_STATE_CHANGED} intents for connection
+     * failure reasons.
+     *
+     * <p>The value is one of the following:
+     *
+     * <ul>
+     *   <li>{@link BluetoothStatusCodes#SUCCESS}
+     *   <li>{@link BluetoothStatusCodes#ERROR_UNKNOWN}
+     *   <li>{@link BluetoothStatusCodes#ERROR_INSUFFICIENT_RESOURCES}
+     *   <li>{@link BluetoothStatusCodes#ERROR_SDP_DISCOVERY_FAILED}
+     *   <li>{@link BluetoothStatusCodes#ERROR_RFCOMM_CONNECTION_FAILED}
+     * </ul>
+     */
+    @FlaggedApi(Flags.FLAG_A2DP_DISCONNECT_REASON_API)
+    @SuppressLint("ActionValue")
+    public static final String EXTRA_DISCONNECTED_REASON =
+            "android.bluetooth.headset.extra.DISCONNECTED_REASON";
 
     /**
      * Intent used to broadcast the headset's indicator status
@@ -592,25 +623,6 @@ public final class BluetoothHeadset implements BluetoothProfile {
             }
         }
         return false;
-    }
-
-    /**
-     * Get the priority of the profile.
-     *
-     * <p>The priority can be any of: {@link #PRIORITY_AUTO_CONNECT}, {@link #PRIORITY_OFF}, {@link
-     * #PRIORITY_ON}, {@link #PRIORITY_UNDEFINED}
-     *
-     * @param device Bluetooth device
-     * @return priority of the device
-     * @hide
-     */
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    @RequiresLegacyBluetoothPermission
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
-    public int getPriority(BluetoothDevice device) {
-        if (VDBG) log("getPriority(" + device + ")");
-        return BluetoothAdapter.connectionPolicyToPriority(getConnectionPolicy(device));
     }
 
     /**

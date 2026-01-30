@@ -19,7 +19,6 @@ package com.android.bluetooth.a2dpsink;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static org.mockito.Mockito.verify;
@@ -27,8 +26,10 @@ import static org.mockito.Mockito.verify;
 import android.bluetooth.BluetoothDevice;
 import android.content.AttributionSource;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
+
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.After;
 import org.junit.Before;
@@ -44,7 +45,9 @@ public class A2dpSinkServiceBinderTest {
 
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
+    @Mock private AttributionSource mAttributionSource;
     @Mock private A2dpSinkService mService;
+
     private A2dpSinkServiceBinder mBinder;
 
     @Before
@@ -60,44 +63,39 @@ public class A2dpSinkServiceBinderTest {
     @Test
     public void connect() {
         BluetoothDevice device = getTestDevice(0);
-        AttributionSource source = new AttributionSource.Builder(0).build();
 
-        mBinder.connect(device, source);
+        mBinder.connect(device, mAttributionSource);
         verify(mService).connect(device);
     }
 
     @Test
     public void disconnect() {
         BluetoothDevice device = getTestDevice(0);
-        AttributionSource source = new AttributionSource.Builder(0).build();
 
-        mBinder.disconnect(device, source);
+        mBinder.disconnect(device, mAttributionSource);
         verify(mService).disconnect(device);
     }
 
     @Test
     public void getConnectedDevices() {
-        AttributionSource source = new AttributionSource.Builder(0).build();
 
-        mBinder.getConnectedDevices(source);
+        mBinder.getConnectedDevices(mAttributionSource);
         verify(mService).getConnectedDevices();
     }
 
     @Test
     public void getDevicesMatchingConnectionStates() {
         int[] states = new int[] {STATE_CONNECTED};
-        AttributionSource source = new AttributionSource.Builder(0).build();
 
-        mBinder.getDevicesMatchingConnectionStates(states, source);
+        mBinder.getDevicesMatchingConnectionStates(states, mAttributionSource);
         verify(mService).getDevicesMatchingConnectionStates(states);
     }
 
     @Test
     public void getConnectionState() {
         BluetoothDevice device = getTestDevice(0);
-        AttributionSource source = new AttributionSource.Builder(0).build();
 
-        mBinder.getConnectionState(device, source);
+        mBinder.getConnectionState(device, mAttributionSource);
         verify(mService).getConnectionState(device);
     }
 
@@ -105,36 +103,32 @@ public class A2dpSinkServiceBinderTest {
     public void setConnectionPolicy() {
         BluetoothDevice device = getTestDevice(0);
         int connectionPolicy = CONNECTION_POLICY_ALLOWED;
-        AttributionSource source = new AttributionSource.Builder(0).build();
 
-        mBinder.setConnectionPolicy(device, connectionPolicy, source);
+        mBinder.setConnectionPolicy(device, connectionPolicy, mAttributionSource);
         verify(mService).setConnectionPolicy(device, connectionPolicy);
     }
 
     @Test
     public void getConnectionPolicy() {
         BluetoothDevice device = getTestDevice(0);
-        AttributionSource source = new AttributionSource.Builder(0).build();
 
-        mBinder.getConnectionPolicy(device, source);
+        mBinder.getConnectionPolicy(device, mAttributionSource);
         verify(mService).getConnectionPolicy(device);
     }
 
     @Test
     public void isA2dpPlaying() {
         BluetoothDevice device = getTestDevice(0);
-        AttributionSource source = new AttributionSource.Builder(0).build();
 
-        mBinder.isA2dpPlaying(device, source);
+        mBinder.isA2dpPlaying(device, mAttributionSource);
         verify(mService).isA2dpPlaying(device);
     }
 
     @Test
     public void getAudioConfig() {
         BluetoothDevice device = getTestDevice(0);
-        AttributionSource source = new AttributionSource.Builder(0).build();
 
-        mBinder.getAudioConfig(device, source);
+        mBinder.getAudioConfig(device, mAttributionSource);
         verify(mService).getAudioConfig(device);
     }
 }

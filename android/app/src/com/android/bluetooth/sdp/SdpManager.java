@@ -12,9 +12,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.sdp;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
+
+import static java.util.Objects.requireNonNullElseGet;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.SdpDipRecord;
@@ -57,11 +60,9 @@ public class SdpManager {
 
     private final AdapterService mAdapterService;
     private final Handler mHandler;
-    private final SdpManagerNativeInterface mNativeInterface =
-            SdpManagerNativeInterface.getInstance();
+    private final SdpManagerNativeInterface mNativeInterface;
 
     private boolean mSearchInProgress = false;
-    private boolean mNativeAvailable;
 
     /* Inner class used for wrapping sdp search instance data */
     private class SdpSearchInstance {
@@ -80,36 +81,36 @@ public class SdpManager {
             mSearching = true;
         }
 
-        public BluetoothDevice getDevice() {
+        BluetoothDevice getDevice() {
             return mDevice;
         }
 
-        public ParcelUuid getUuid() {
+        ParcelUuid getUuid() {
             return mUuid;
         }
 
-        public int getStatus() {
+        int getStatus() {
             return mStatus;
         }
 
-        public void setStatus(int status) {
+        void setStatus(int status) {
             this.mStatus = status;
         }
 
-        public void startSearch() {
+        void startSearch() {
             mSearching = true;
             Message message = mHandler.obtainMessage(MESSAGE_SDP_INTENT, this);
             mHandler.sendMessageDelayed(message, SDP_INTENT_DELAY);
         }
 
-        public void stopSearch() {
+        void stopSearch() {
             if (mSearching) {
                 mHandler.removeMessages(MESSAGE_SDP_INTENT, this);
             }
             mSearching = false;
         }
 
-        public boolean isSearching() {
+        boolean isSearching() {
             return mSearching;
         }
     }
@@ -168,29 +169,38 @@ public class SdpManager {
         }
     }
 
-    public SdpManager(AdapterService adapterService) {
-        this(adapterService, Looper.myLooper());
+    public SdpManager(AdapterService adapterService, SdpManagerNativeInterface nativeInterface) {
+        this(adapterService, nativeInterface, Looper.myLooper());
     }
 
-    public SdpManager(AdapterService adapterService, Looper looper) {
+    public SdpManager(
+            AdapterService adapterService,
+            SdpManagerNativeInterface nativeInterface,
+            Looper looper) {
         mAdapterService = adapterService;
-        mNativeInterface.init(this);
-        mNativeAvailable = true;
+        mNativeInterface =
+                requireNonNullElseGet(nativeInterface, () -> new SdpManagerNativeInterface(this));
+        mNativeInterface.init();
         mHandler =
                 new Handler(looper) {
                     @Override
                     public void handleMessage(Message msg) {
                         switch (msg.what) {
-                            case MESSAGE_SDP_INTENT:
+                            case MESSAGE_SDP_INTENT -> {
                                 SdpSearchInstance msgObj = (SdpSearchInstance) msg.obj;
                                 Log.w(TAG, "Search timed out for UUID " + msgObj.getUuid());
                                 synchronized (TRACKER_LOCK) {
                                     sendSdpIntent(msgObj, null, false);
                                 }
-                                break;
+                            }
+                            default -> {} // Nothing to do
                         }
                     }
                 };
+    }
+
+    public SdpManagerNativeInterface getNativeInterface() {
+        return mNativeInterface;
     }
 
     public void cleanup() {
@@ -198,10 +208,7 @@ public class SdpManager {
             mSdpSearchTracker.clear();
         }
 
-        if (mNativeAvailable) {
-            mNativeInterface.cleanup();
-            mNativeAvailable = false;
-        }
+        mNativeInterface.cleanup();
     }
 
     void sdpMasRecordFoundCallback(
@@ -430,10 +437,6 @@ public class SdpManager {
     }
 
     public void sdpSearch(BluetoothDevice device, ParcelUuid uuid) {
-        if (!mNativeAvailable) {
-            Log.e(TAG, "Native not initialized!");
-            return;
-        }
         synchronized (TRACKER_LOCK) {
             if (mSdpSearchTracker.isSearching(device, uuid)) {
                 /* Search already in progress */
@@ -460,7 +463,7 @@ public class SdpManager {
             inst.startSearch(); // Trigger timeout message
 
             mNativeInterface.sdpSearch(
-                    Utils.getByteBrEdrAddress(inst.getDevice()),
+                    Utils.getByteBrEdrAddress(mAdapterService, inst.getDevice()),
                     Utils.uuidToByteArray(inst.getUuid()));
         } else { // Else queue is empty.
             Log.d(
@@ -493,8 +496,7 @@ public class SdpManager {
          * Keep in mind that the MAP client needs to use this as well,
          * hence to make it call-backs, the MAP client profile needs to be
          * part of the Bluetooth APK. */
-        mAdapterService.sendBroadcast(
-                intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastOptions().toBundle());
+        mAdapterService.sendBroadcast(intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastBundle());
 
         if (!moreResults) {
             // Remove the outstanding UUID request

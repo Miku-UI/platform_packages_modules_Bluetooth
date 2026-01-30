@@ -28,11 +28,12 @@
 #include <string>
 
 // Original included files, if any
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/ble_address_with_type.h>
+
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_octets.h"
 #include "stack/include/hci_error_code.h"
-#include "types/ble_address_with_type.h"
-#include "types/raw_address.h"
 
 // Original usings
 
@@ -42,21 +43,6 @@ namespace test {
 namespace mock {
 namespace main_shim_acl_api {
 
-// Name: ACL_AddToAddressResolution
-// Params: const tBLE_BD_ADDR& legacy_address_with_type, const Octet16&
-// peer_irk, const Octet16& local_irk Return: void
-struct ACL_AddToAddressResolution {
-  std::function<void(const tBLE_BD_ADDR& legacy_address_with_type, const Octet16& peer_irk,
-                     const Octet16& local_irk)>
-          body{[](const tBLE_BD_ADDR& legacy_address_with_type, const Octet16& peer_irk,
-                  const Octet16& local_irk) {}};
-  void operator()(const tBLE_BD_ADDR& legacy_address_with_type, const Octet16& peer_irk,
-                  const Octet16& local_irk) {
-    body(legacy_address_with_type, peer_irk, local_irk);
-  }
-};
-extern struct ACL_AddToAddressResolution ACL_AddToAddressResolution;
-
 // Name: ACL_CancelClassicConnection
 // Params: const RawAddress& raw_address
 // Return: void
@@ -65,15 +51,6 @@ struct ACL_CancelClassicConnection {
   void operator()(const RawAddress& raw_address) { body(raw_address); }
 };
 extern struct ACL_CancelClassicConnection ACL_CancelClassicConnection;
-
-// Name: ACL_ClearAddressResolution
-// Params:
-// Return: void
-struct ACL_ClearAddressResolution {
-  std::function<void()> body{[]() {}};
-  void operator()() { body(); }
-};
-extern struct ACL_ClearAddressResolution ACL_ClearAddressResolution;
 
 // Name: ACL_ClearFilterAcceptList
 // Params:
@@ -169,16 +146,6 @@ struct ACL_GetAdvertisingSetConnectedTo {
   std::optional<uint8_t> operator()(const RawAddress& addr) { return body(addr); }
 };
 extern struct ACL_GetAdvertisingSetConnectedTo ACL_GetAdvertisingSetConnectedTo;
-
-// Name: ACL_RemoveFromAddressResolution
-// Params: const tBLE_BD_ADDR& legacy_address_with_type
-// Return: void
-struct ACL_RemoveFromAddressResolution {
-  std::function<void(const tBLE_BD_ADDR& legacy_address_with_type)> body{
-          [](const tBLE_BD_ADDR& legacy_address_with_type) {}};
-  void operator()(const tBLE_BD_ADDR& legacy_address_with_type) { body(legacy_address_with_type); }
-};
-extern struct ACL_RemoveFromAddressResolution ACL_RemoveFromAddressResolution;
 
 // Name: ACL_Shutdown
 // Params:

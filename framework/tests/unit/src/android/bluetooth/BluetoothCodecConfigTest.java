@@ -18,6 +18,8 @@ package android.bluetooth;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.os.Parcel;
+
 import androidx.test.runner.AndroidJUnit4;
 
 import com.google.common.truth.Expect;
@@ -99,7 +101,7 @@ public class BluetoothCodecConfigTest {
                     * sCodecSpecific3Array.length
                     * sCodecSpecific4Array.length;
 
-    private int selectCodecType(int configId) {
+    private static int selectCodecType(int configId) {
         int left = sCodecTypeArray.length;
         int right = sTotalConfigs / left;
         int index = configId / right;
@@ -107,7 +109,7 @@ public class BluetoothCodecConfigTest {
         return sCodecTypeArray[index];
     }
 
-    private int selectCodecPriority(int configId) {
+    private static int selectCodecPriority(int configId) {
         int left = sCodecTypeArray.length * sCodecPriorityArray.length;
         int right = sTotalConfigs / left;
         int index = configId / right;
@@ -115,7 +117,7 @@ public class BluetoothCodecConfigTest {
         return sCodecPriorityArray[index];
     }
 
-    private int selectSampleRate(int configId) {
+    private static int selectSampleRate(int configId) {
         int left = sCodecTypeArray.length * sCodecPriorityArray.length * sSampleRateArray.length;
         int right = sTotalConfigs / left;
         int index = configId / right;
@@ -123,7 +125,7 @@ public class BluetoothCodecConfigTest {
         return sSampleRateArray[index];
     }
 
-    private int selectBitsPerSample(int configId) {
+    private static int selectBitsPerSample(int configId) {
         int left =
                 sCodecTypeArray.length
                         * sCodecPriorityArray.length
@@ -135,7 +137,7 @@ public class BluetoothCodecConfigTest {
         return sBitsPerSampleArray[index];
     }
 
-    private int selectChannelMode(int configId) {
+    private static int selectChannelMode(int configId) {
         int left =
                 sCodecTypeArray.length
                         * sCodecPriorityArray.length
@@ -148,7 +150,7 @@ public class BluetoothCodecConfigTest {
         return sChannelModeArray[index];
     }
 
-    private long selectCodecSpecific1(int configId) {
+    private static long selectCodecSpecific1(int configId) {
         int left =
                 sCodecTypeArray.length
                         * sCodecPriorityArray.length
@@ -162,7 +164,7 @@ public class BluetoothCodecConfigTest {
         return sCodecSpecific1Array[index];
     }
 
-    private long selectCodecSpecific2(int configId) {
+    private static long selectCodecSpecific2(int configId) {
         int left =
                 sCodecTypeArray.length
                         * sCodecPriorityArray.length
@@ -177,7 +179,7 @@ public class BluetoothCodecConfigTest {
         return sCodecSpecific2Array[index];
     }
 
-    private long selectCodecSpecific3(int configId) {
+    private static long selectCodecSpecific3(int configId) {
         int left =
                 sCodecTypeArray.length
                         * sCodecPriorityArray.length
@@ -193,7 +195,7 @@ public class BluetoothCodecConfigTest {
         return sCodecSpecific3Array[index];
     }
 
-    private long selectCodecSpecific4(int configId) {
+    private static long selectCodecSpecific4(int configId) {
         int left =
                 sCodecTypeArray.length
                         * sCodecPriorityArray.length
@@ -556,7 +558,45 @@ public class BluetoothCodecConfigTest {
         assertThat(bcc11_codec_specific4).isNotEqualTo(bcc1);
     }
 
-    private BluetoothCodecConfig buildBluetoothCodecConfig(
+    @Test
+    public void codecType_isNull() {
+        // The default extended codec type is null when using the Builder.
+        // The matching codec type is SOURCE_CODEC_TYPE_INVALID.
+        BluetoothCodecConfig c = new BluetoothCodecConfig.Builder().build();
+        assertThat(c.getExtendedCodecType()).isNull();
+        assertThat(c.getCodecType()).isEqualTo(BluetoothCodecConfig.SOURCE_CODEC_TYPE_INVALID);
+
+        // Writing a BluetoothCodecConfig with null extended codec type
+        // should preserve the invalid codec type.
+        Parcel parcel = Parcel.obtain();
+        c.writeToParcel(parcel, 0);
+        parcel.setDataPosition(0);
+        assertThat(BluetoothCodecConfig.CREATOR.createFromParcel(parcel)).isEqualTo(c);
+    }
+
+    @Test
+    public void codecType_isSbc() {
+        // The default extended codec type is null when using the Builder.
+        // The matching codec type is SOURCE_CODEC_TYPE_INVALID.
+        BluetoothCodecConfig c =
+                new BluetoothCodecConfig.Builder()
+                        .setCodecType(BluetoothCodecConfig.SOURCE_CODEC_TYPE_SBC)
+                        .build();
+        assertThat(c.getExtendedCodecType().getNativeCodecType())
+                .isEqualTo(BluetoothCodecConfig.SOURCE_CODEC_TYPE_SBC);
+        assertThat(c.getExtendedCodecType().getCodecId())
+                .isEqualTo(BluetoothCodecType.CODEC_ID_SBC);
+        assertThat(c.getCodecType()).isEqualTo(BluetoothCodecConfig.SOURCE_CODEC_TYPE_SBC);
+
+        // Writing a BluetoothCodecConfig with non-null extended codec type
+        // should preserve the codec type.
+        Parcel parcel = Parcel.obtain();
+        c.writeToParcel(parcel, 0);
+        parcel.setDataPosition(0);
+        assertThat(BluetoothCodecConfig.CREATOR.createFromParcel(parcel)).isEqualTo(c);
+    }
+
+    private static BluetoothCodecConfig buildBluetoothCodecConfig(
             int sourceCodecType,
             int codecPriority,
             int sampleRate,

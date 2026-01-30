@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.pbapclient;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -26,7 +25,9 @@ import static org.mockito.Mockito.verify;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 
-import androidx.test.runner.AndroidJUnit4;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -46,7 +47,7 @@ public class PbapClientSocketTest {
     private static final int TEST_L2CAP_PSM = 4098;
     private static final int TEST_RFCOMM_CHANNEL_ID = 3;
 
-    private BluetoothDevice mTestDevice;
+    private final BluetoothDevice mDevice = getTestDevice(1);
 
     // This class is used to wrap the otherwise unmockable/untestable BluetoothSocket class. As such
     // its difficult to test that socket operations work in a unit test when we can't mock the
@@ -56,17 +57,14 @@ public class PbapClientSocketTest {
 
     @Before
     public void setUp() throws IOException {
-        mTestDevice = getTestDevice(1);
-
         PbapClientSocket.inject(mInjectedInput, mInjectedOutput);
     }
 
     @Test
     public void testCreateSocketWithInjection_usingL2cap() throws IOException {
-        PbapClientSocket socket =
-                PbapClientSocket.getL2capSocketForDevice(mTestDevice, TEST_L2CAP_PSM);
+        PbapClientSocket socket = PbapClientSocket.getL2capSocketForDevice(mDevice, TEST_L2CAP_PSM);
 
-        assertThat(socket.getRemoteDevice()).isEqualTo(mTestDevice);
+        assertThat(socket.getRemoteDevice()).isEqualTo(mDevice);
         assertThat(socket.getConnectionType()).isEqualTo(BluetoothSocket.TYPE_L2CAP);
         assertThat(socket.getMaxTransmitPacketSize()).isEqualTo(255);
         assertThat(socket.getMaxReceivePacketSize()).isEqualTo(255);
@@ -80,9 +78,9 @@ public class PbapClientSocketTest {
     @Test
     public void testCreateSocketWithInjection_usingRfcomm() throws IOException {
         PbapClientSocket socket =
-                PbapClientSocket.getRfcommSocketForDevice(mTestDevice, TEST_RFCOMM_CHANNEL_ID);
+                PbapClientSocket.getRfcommSocketForDevice(mDevice, TEST_RFCOMM_CHANNEL_ID);
 
-        assertThat(socket.getRemoteDevice()).isEqualTo(mTestDevice);
+        assertThat(socket.getRemoteDevice()).isEqualTo(mDevice);
         assertThat(socket.getConnectionType()).isEqualTo(BluetoothSocket.TYPE_RFCOMM);
         assertThat(socket.getMaxTransmitPacketSize()).isEqualTo(255);
         assertThat(socket.getMaxReceivePacketSize()).isEqualTo(255);
@@ -95,8 +93,7 @@ public class PbapClientSocketTest {
 
     @Test
     public void testCloseSocketWithInjection() throws IOException {
-        PbapClientSocket socket =
-                PbapClientSocket.getL2capSocketForDevice(mTestDevice, TEST_L2CAP_PSM);
+        PbapClientSocket socket = PbapClientSocket.getL2capSocketForDevice(mDevice, TEST_L2CAP_PSM);
 
         socket.close();
 

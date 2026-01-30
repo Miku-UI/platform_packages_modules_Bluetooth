@@ -24,7 +24,7 @@ cc_library_headers {
         "//apex_available:platform",
         "com.android.bt",
     ],
-    min_sdk_version: "30",
+    min_sdk_version: "36",
 }
 
 cc_library_headers {
@@ -35,13 +35,11 @@ cc_library_headers {
     header_libs: [
         "aics_headers",
         "avrcp_headers",
-        "libbluetooth-types-header",
         "libbtcore_headers",
     ],
     export_header_lib_headers: [
         "aics_headers",
         "avrcp_headers",
-        "libbluetooth-types-header",
         "libbtcore_headers",
     ],
     export_include_dirs: ["./"],
@@ -50,5 +48,5 @@ cc_library_headers {
         "//apex_available:platform",
         "com.android.bt",
     ],
-    min_sdk_version: "30",
+    min_sdk_version: "36",
 }

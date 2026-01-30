@@ -21,6 +21,7 @@
 #ifndef A2DP_CODEC_API_H
 #define A2DP_CODEC_API_H
 
+#include <bluetooth/types/address.h>
 #include <hardware/bt_av.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -35,7 +36,6 @@
 #include "a2dp_api.h"
 #include "avdt_api.h"
 #include "stack/include/bt_hdr.h"
-#include "types/raw_address.h"
 
 class tBT_A2DP_OFFLOAD;
 
@@ -136,6 +136,9 @@ public:
   // Checks whether |codec_config| is empty and contains no configuration.
   // Returns true if |codec_config| is empty, otherwise false.
   static bool isCodecConfigEmpty(const btav_a2dp_codec_config_t& codec_config);
+
+  // Checks whether the A2DP Codec Configuration is supported by Codec Extensibility.
+  virtual bool isHardwareProviderCodec() const { return false; }
 
 protected:
   // Sets the current priority of the codec to |codec_priority|.
@@ -273,10 +276,6 @@ public:
   // |p_codec_info| information.
   // Returns the Source codec if found, otherwise nullptr.
   A2dpCodecConfig* findSourceCodecConfig(const uint8_t* p_codec_info);
-
-  // Finds the Source codec that corresponds to the A2DP codec index.
-  // Returns the Source codec if found, otherwise nullptr.
-  A2dpCodecConfig* findSourceCodecConfig(btav_a2dp_codec_index_t codec_index);
 
   // Finds the Sink codec that corresponds to the A2DP over-the-air
   // |p_codec_info| information.

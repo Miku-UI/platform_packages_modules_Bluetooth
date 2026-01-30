@@ -26,9 +26,10 @@
 #include "btif/include/stack_manager_t.h"
 #include "common/message_loop_thread.h"
 #include "hal/snoop_logger.h"
-#include "hci/controller_interface_mock.h"
+#include "hci/controller_mock.h"
 #include "osi/include/allocator.h"
 #include "stack/btm/btm_int_types.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cap_controller_interface.h"
@@ -98,7 +99,7 @@ void SnoopLogger::SetL2capChannelOpen(uint16_t, uint16_t, uint16_t, uint16_t, bo
 
 namespace connection_manager {
 bool direct_connect_add(uint8_t /* id */, const RawAddress& /* bd_addr */,
-                        tBLE_ADDR_TYPE /* addr_type */) {
+                        tBLE_ADDR_TYPE /* addr_type */, bool /* prefer_relax_mode */) {
   return true;
 }
 }  // namespace connection_manager
@@ -122,7 +123,7 @@ public:
     GetInterfaceToProfiles()->profileSpecific_HACK->GetHearingAidDeviceCount = []() { return 1; };
 
     bluetooth::hci::testing::mock_controller_ =
-            std::make_unique<bluetooth::hci::testing::MockControllerInterface>();
+            std::make_unique<bluetooth::hci::testing::MockController>();
     ON_CALL(*bluetooth::hci::testing::mock_controller_, GetLeSuggestedDefaultDataLength)
             .WillByDefault(Return(512));
     bluetooth::hci::LeBufferSize iso_size;
@@ -155,12 +156,12 @@ public:
 
 }  // namespace
 
-constexpr uint8_t kAttAddr[] = {0x11, 0x78, 0x78, 0x78, 0x78, 0x78};
+constexpr RawAddress kAttAddr({0x11, 0x78, 0x78, 0x78, 0x78, 0x78});
 constexpr uint16_t kAttHndl = 0x0111;
 
-constexpr uint8_t kEattAddr[] = {0x22, 0x78, 0x78, 0x78, 0x78, 0x78};
+constexpr RawAddress kEattAddr({0x22, 0x78, 0x78, 0x78, 0x78, 0x78});
 
-constexpr uint8_t kSmpBrAddr[] = {0x33, 0x78, 0x78, 0x78, 0x78, 0x78};
+constexpr RawAddress kSmpBrAddr({0x33, 0x78, 0x78, 0x78, 0x78, 0x78});
 constexpr uint16_t kSmpBrHndl = 0x0222;
 
 constexpr uint16_t kNumClassicAclBuffer = 100;

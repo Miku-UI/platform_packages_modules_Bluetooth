@@ -20,6 +20,7 @@ import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.SystemProperties;
@@ -43,11 +44,7 @@ import java.util.Set;
  * individual GATT connection parameters.
  */
 public class CompanionManager {
-    private static final String TAG =
-            Utils.TAG_PREFIX_BLUETOOTH + CompanionManager.class.getSimpleName();
-
-    private BluetoothDevice mCompanionDevice;
-    private int mCompanionType;
+    private static final String TAG = Utils.BT_PREFIX + CompanionManager.class.getSimpleName();
 
     private final int[] mGattConnHighPrimary;
     private final int[] mGattConnBalancePrimary;
@@ -86,15 +83,21 @@ public class CompanionManager {
     static final String PROPERTY_DCK_MIN_INTERVAL = "bluetooth.gatt.dck_priority_min.interval";
     static final String PROPERTY_DCK_MAX_INTERVAL = "bluetooth.gatt.dck_priority_max.interval";
     static final String PROPERTY_DCK_LATENCY = "bluetooth.gatt.dck_priority.latency";
+
     static final String PROPERTY_SUFFIX_PRIMARY = ".primary";
     static final String PROPERTY_SUFFIX_SECONDARY = ".secondary";
 
-    private final AdapterService mAdapterService;
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
     private final Set<BluetoothDevice> mMetadataListeningDevices = new HashSet<>();
 
-    public CompanionManager(AdapterService service, ServiceFactory factory) {
+    private final AdapterService mAdapterService;
+    private final BluetoothAdapter mAdapter;
+
+    private BluetoothDevice mCompanionDevice;
+    private int mCompanionType;
+
+    public CompanionManager(AdapterService service) {
         mAdapterService = service;
+        mAdapter = mAdapterService.getSystemService(BluetoothManager.class).getAdapter();
 
         mGattConnHighDefault =
                 new int[] {
@@ -214,7 +217,7 @@ public class CompanionManager {
             String address = getCompanionPreferences().getString(COMPANION_DEVICE_KEY, "");
 
             try {
-                mCompanionDevice = mAdapter.getRemoteDevice(address);
+                mCompanionDevice = mAdapterService.getRemoteDevice(address);
                 mCompanionType =
                         getCompanionPreferences().getInt(COMPANION_TYPE_KEY, COMPANION_TYPE_NONE);
             } catch (IllegalArgumentException e) {
@@ -247,20 +250,17 @@ public class CompanionManager {
     }
 
     final BluetoothAdapter.OnMetadataChangedListener mMetadataListener =
-            new BluetoothAdapter.OnMetadataChangedListener() {
-                @Override
-                public void onMetadataChanged(BluetoothDevice device, int key, byte[] value) {
-                    if (value == null) {
-                        Log.d(TAG, "onMetadataChanged(device, " + key + ", null)");
-                        return;
-                    }
-                    String valueStr = new String(value);
-                    Log.d(TAG, "Metadata updated in " + device + ": " + key + "=" + valueStr);
-                    if (key == BluetoothDevice.METADATA_SOFTWARE_VERSION
-                            && (valueStr.equals(BluetoothDevice.COMPANION_TYPE_PRIMARY)
-                                    || valueStr.equals(BluetoothDevice.COMPANION_TYPE_SECONDARY))) {
-                        setCompanionDevice(device, valueStr);
-                    }
+            (device, key, value) -> {
+                if (value == null) {
+                    Log.d(TAG, "onMetadataChanged(device, " + key + ", null)");
+                    return;
+                }
+                String valueStr = new String(value);
+                Log.d(TAG, "Metadata updated in " + device + ": " + key + "=" + valueStr);
+                if (key == BluetoothDevice.METADATA_SOFTWARE_VERSION
+                        && (valueStr.equals(BluetoothDevice.COMPANION_TYPE_PRIMARY)
+                                || valueStr.equals(BluetoothDevice.COMPANION_TYPE_SECONDARY))) {
+                    setCompanionDevice(device, valueStr);
                 }
             };
 
@@ -308,14 +308,9 @@ public class CompanionManager {
                 return;
             }
             switch (state) {
-                case BluetoothDevice.BOND_BONDING:
-                    registerMetadataListener(device);
-                    break;
-                case BluetoothDevice.BOND_NONE:
-                    removeMetadataListener(device);
-                    break;
-                default:
-                    break;
+                case BluetoothDevice.BOND_BONDING -> registerMetadataListener(device);
+                case BluetoothDevice.BOND_NONE -> removeMetadataListener(device);
+                default -> {} // Nothing to do
             }
         }
     }
@@ -361,20 +356,6 @@ public class CompanionManager {
     /**
      * Method to check whether it is a companion device
      *
-     * @param address the address of the device
-     * @return true if the address is a companion device, otherwise false
-     */
-    public boolean isCompanionDevice(String address) {
-        try {
-            return isCompanionDevice(mAdapter.getRemoteDevice(address));
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
-    }
-
-    /**
-     * Method to check whether it is a companion device
-     *
      * @param device the Bluetooth device
      * @return true if the device is a companion device, otherwise false
      */
@@ -383,23 +364,10 @@ public class CompanionManager {
         return device.equals(mCompanionDevice);
     }
 
-    /** Method to reset the stored companion info */
-    public void factoryReset() {
-        synchronized (mMetadataListeningDevices) {
-            mCompanionDevice = null;
-            mCompanionType = COMPANION_TYPE_NONE;
-
-            SharedPreferences.Editor pref = getCompanionPreferences().edit();
-            pref.remove(COMPANION_DEVICE_KEY);
-            pref.remove(COMPANION_TYPE_KEY);
-            pref.apply();
-        }
-    }
-
     /**
      * Gets the GATT connection parameters of the device
      *
-     * @param address the address of the Bluetooth device
+     * @param device the Bluetooth device
      * @param type type of the parameter, can be GATT_CONN_INTERVAL_MIN, GATT_CONN_INTERVAL_MAX or
      *     GATT_CONN_LATENCY
      * @param priority the priority of the connection, can be
@@ -407,52 +375,37 @@ public class CompanionManager {
      *     BluetoothGatt.CONNECTION_PRIORITY_BALANCED
      * @return the connection parameter in integer
      */
-    public int getGattConnParameters(String address, int type, int priority) {
-        int companionType = isCompanionDevice(address) ? mCompanionType : COMPANION_TYPE_NONE;
-        int parameter;
-        switch (companionType) {
-            case COMPANION_TYPE_PRIMARY:
-                parameter = getGattConnParameterPrimary(type, priority);
-                break;
-            case COMPANION_TYPE_SECONDARY:
-                parameter = getGattConnParameterSecondary(type, priority);
-                break;
-            default:
-                parameter = getGattConnParameterDefault(type, priority);
-                break;
-        }
-        return parameter;
+    public int getGattConnParameters(BluetoothDevice device, int type, int priority) {
+        int companionType = isCompanionDevice(device) ? mCompanionType : COMPANION_TYPE_NONE;
+        return switch (companionType) {
+            case COMPANION_TYPE_PRIMARY -> getGattConnParameterPrimary(type, priority);
+            case COMPANION_TYPE_SECONDARY -> getGattConnParameterSecondary(type, priority);
+            default -> getGattConnParameterDefault(type, priority);
+        };
     }
 
     private int getGattConnParameterPrimary(int type, int priority) {
-        switch (priority) {
-            case BluetoothGatt.CONNECTION_PRIORITY_HIGH:
-                return mGattConnHighPrimary[type];
-            case BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER:
-                return mGattConnLowPrimary[type];
-        }
-        return mGattConnBalancePrimary[type];
+        return switch (priority) {
+            case BluetoothGatt.CONNECTION_PRIORITY_HIGH -> mGattConnHighPrimary[type];
+            case BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER -> mGattConnLowPrimary[type];
+            default -> mGattConnBalancePrimary[type];
+        };
     }
 
     private int getGattConnParameterSecondary(int type, int priority) {
-        switch (priority) {
-            case BluetoothGatt.CONNECTION_PRIORITY_HIGH:
-                return mGattConnHighSecondary[type];
-            case BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER:
-                return mGattConnLowSecondary[type];
-        }
-        return mGattConnBalanceSecondary[type];
+        return switch (priority) {
+            case BluetoothGatt.CONNECTION_PRIORITY_HIGH -> mGattConnHighSecondary[type];
+            case BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER -> mGattConnLowSecondary[type];
+            default -> mGattConnBalanceSecondary[type];
+        };
     }
 
     private int getGattConnParameterDefault(int type, int mode) {
-        switch (mode) {
-            case BluetoothGatt.CONNECTION_PRIORITY_HIGH:
-                return mGattConnHighDefault[type];
-            case BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER:
-                return mGattConnLowDefault[type];
-            case BluetoothGatt.CONNECTION_PRIORITY_DCK:
-                return mGattConnDckDefault[type];
-        }
-        return mGattConnBalanceDefault[type];
+        return switch (mode) {
+            case BluetoothGatt.CONNECTION_PRIORITY_HIGH -> mGattConnHighDefault[type];
+            case BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER -> mGattConnLowDefault[type];
+            case BluetoothGatt.CONNECTION_PRIORITY_DCK -> mGattConnDckDefault[type];
+            default -> mGattConnBalanceDefault[type];
+        };
     }
 }

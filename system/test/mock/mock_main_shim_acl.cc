@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
+#include <bluetooth/types/address.h>
+
 #include <cstdint>
 #include <future>
 #include <memory>
 #include <optional>
 #include <string>
 
-#include "hci/acl_manager.h"
+#include "hci/acl_manager/acl_manager_le.h"
 #include "hci/acl_manager/classic_acl_connection.h"
 #include "hci/acl_manager/le_acl_connection.h"
 #include "hci/address.h"
@@ -31,7 +33,6 @@
 #include "os/handler.h"
 #include "stack/acl/acl.h"
 #include "test/common/mock_functions.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth;
 
@@ -41,8 +42,7 @@ void DumpsysNeighbor(int /* fd */) { inc_func_call_count(__func__); }
 
 void shim::Acl::Dump(int /* fd */) const { inc_func_call_count(__func__); }
 
-shim::Acl::Acl(os::Handler* /* handler */, const acl_interface_t& acl_interface,
-               uint8_t /* max_address_resolution_size */)
+shim::Acl::Acl(os::Handler* /* handler */, const acl_interface_t& acl_interface)
     : acl_interface_(acl_interface) {
   inc_func_call_count(__func__);
 }
@@ -120,12 +120,12 @@ void shim::Acl::OnLeConnectFail(hci::AddressWithType /* address_with_type */,
 }
 
 void shim::Acl::DisconnectClassic(uint16_t /* handle */, tHCI_STATUS /* reason */,
-                                  std::string /* comment */) {
+                                  const std::string& /* comment */) {
   inc_func_call_count(__func__);
 }
 
 void shim::Acl::DisconnectLe(uint16_t /* handle */, tHCI_STATUS /* reason */,
-                             std::string /* comment */) {
+                             const std::string& /* comment */) {
   inc_func_call_count(__func__);
 }
 
@@ -144,18 +144,6 @@ void shim::Acl::Shutdown() { inc_func_call_count(__func__); }
 void shim::Acl::FinalShutdown() { inc_func_call_count(__func__); }
 
 void shim::Acl::ClearFilterAcceptList() { inc_func_call_count(__func__); }
-
-void shim::Acl::AddToAddressResolution(const hci::AddressWithType& /* address_with_type */,
-                                       const std::array<uint8_t, 16>& /* peer_irk */,
-                                       const std::array<uint8_t, 16>& /* local_irk */) {
-  inc_func_call_count(__func__);
-}
-
-void shim::Acl::RemoveFromAddressResolution(const hci::AddressWithType& /* address_with_type */) {
-  inc_func_call_count(__func__);
-}
-
-void shim::Acl::ClearAddressResolution() { inc_func_call_count(__func__); }
 
 void shim::Acl::SetSystemSuspendState(bool /* suspended */) { inc_func_call_count(__func__); }
 

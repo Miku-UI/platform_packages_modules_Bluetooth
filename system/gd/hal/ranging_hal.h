@@ -17,9 +17,9 @@
 #pragma once
 
 #include <complex>
+#include <cstdint>
 
 #include "hci/hci_packets.h"
-#include "module.h"
 
 namespace bluetooth {
 namespace hal {
@@ -36,6 +36,19 @@ enum RangingHalVersion {
   V_UNKNOWN = 0,
   V_1 = 1,
   V_2 = 2,
+};
+
+enum class RangingSessionType : uint8_t {
+  SOFTWARE_STACK_DATA_PARSING = 0,
+  HARDWARE_OFFLOAD_DATA_PARSING
+};
+
+enum class Reason : uint8_t {
+  LOCAL_STACK_REQUEST,
+  HAL_INITIATED,
+  HARDWARE_INITIATED,
+  ERROR_INVALID_PARAMETER,
+  ERROR_UNKNOWN,
 };
 
 struct VendorSpecificCharacteristic {
@@ -68,7 +81,7 @@ static inline int16_t ConvertToSigned(uint16_t num) {
 }
 
 struct Mode0Data {
-  Mode0Data(const hci::LeCsMode0InitatorData& le_cs_mode0_data)
+  Mode0Data(const hci::LeCsMode0InitiatorData& le_cs_mode0_data)
       : packet_quality_(le_cs_mode0_data.packet_quality_),
         packet_rssi_(le_cs_mode0_data.packet_rssi_),
         packet_antenna_(le_cs_mode0_data.packet_antenna_),
@@ -87,14 +100,14 @@ struct Mode0Data {
 
 struct Mode1Data {
   Mode1Data() {}
-  Mode1Data(const hci::LeCsMode1InitatorData& le_cs_mode1_data)
+  Mode1Data(const hci::LeCsMode1InitiatorData& le_cs_mode1_data)
       : packet_quality_(le_cs_mode1_data.packet_quality_),
         packet_nadm_(le_cs_mode1_data.packet_nadm_),
         packet_rssi_(le_cs_mode1_data.packet_rssi_),
         rtt_toa_tod_data_(le_cs_mode1_data.toa_tod_initiator_),
         packet_antenna_(le_cs_mode1_data.packet_antenna_) {}
 
-  Mode1Data(const hci::LeCsMode1InitatorDataWithPacketPct& le_cs_mode1_data)
+  Mode1Data(const hci::LeCsMode1InitiatorDataWithPacketPct& le_cs_mode1_data)
       : packet_quality_(le_cs_mode1_data.packet_quality_),
         packet_nadm_(le_cs_mode1_data.packet_nadm_),
         packet_rssi_(le_cs_mode1_data.packet_rssi_),
@@ -123,14 +136,14 @@ struct Mode1Data {
         i_packet_pct2_(le_cs_mode1_data.packet_pct2_.i_sample_),
         q_packet_pct2_(le_cs_mode1_data.packet_pct2_.q_sample_) {}
 
-  Mode1Data(const hci::LeCsMode3InitatorData& le_cs_mode3_data)
+  Mode1Data(const hci::LeCsMode3InitiatorData& le_cs_mode3_data)
       : packet_quality_(le_cs_mode3_data.packet_quality_),
         packet_nadm_(le_cs_mode3_data.packet_nadm_),
         packet_rssi_(le_cs_mode3_data.packet_rssi_),
         rtt_toa_tod_data_(le_cs_mode3_data.toa_tod_initiator_),
         packet_antenna_(le_cs_mode3_data.packet_antenna_) {}
 
-  Mode1Data(const hci::LeCsMode3InitatorDataWithPacketPct& le_cs_mode3_data)
+  Mode1Data(const hci::LeCsMode3InitiatorDataWithPacketPct& le_cs_mode3_data)
       : packet_quality_(le_cs_mode3_data.packet_quality_),
         packet_nadm_(le_cs_mode3_data.packet_nadm_),
         packet_rssi_(le_cs_mode3_data.packet_rssi_),
@@ -178,13 +191,13 @@ struct Mode2Data {
               std::back_inserter(tone_data_with_qualities_));
   }
 
-  Mode2Data(const hci::LeCsMode3InitatorData& le_cs_mode3_data)
+  Mode2Data(const hci::LeCsMode3InitiatorData& le_cs_mode3_data)
       : antenna_permutation_index_(le_cs_mode3_data.antenna_permutation_index_) {
     std::copy(le_cs_mode3_data.tone_data_.begin(), le_cs_mode3_data.tone_data_.end(),
               std::back_inserter(tone_data_with_qualities_));
   }
 
-  Mode2Data(const hci::LeCsMode3InitatorDataWithPacketPct& le_cs_mode3_data)
+  Mode2Data(const hci::LeCsMode3InitiatorDataWithPacketPct& le_cs_mode3_data)
       : antenna_permutation_index_(le_cs_mode3_data.antenna_permutation_index_) {
     std::copy(le_cs_mode3_data.tone_data_.begin(), le_cs_mode3_data.tone_data_.end(),
               std::back_inserter(tone_data_with_qualities_));
@@ -207,10 +220,10 @@ struct Mode2Data {
 };
 
 struct Mode3Data {
-  Mode3Data(const hci::LeCsMode3InitatorData& le_cs_mode3_data)
+  Mode3Data(const hci::LeCsMode3InitiatorData& le_cs_mode3_data)
       : mode1_data_(le_cs_mode3_data), mode2_data_(le_cs_mode3_data) {}
 
-  Mode3Data(const hci::LeCsMode3InitatorDataWithPacketPct& le_cs_mode3_data)
+  Mode3Data(const hci::LeCsMode3InitiatorDataWithPacketPct& le_cs_mode3_data)
       : mode1_data_(le_cs_mode3_data), mode2_data_(le_cs_mode3_data) {}
 
   Mode3Data(const hci::LeCsMode3ReflectorData& le_cs_mode3_data)
@@ -275,7 +288,6 @@ struct ProcedureDataV2 {
   hci::ProcedureAbortReason remote_procedure_abort_reason_;
   uint8_t local_selected_tx_power_;
   uint8_t remote_selected_tx_power_;
-  // TODO(b/378942784): assign the sequence
   int procedure_sequence_;
 };
 
@@ -300,12 +312,11 @@ public:
   virtual void OnOpenFailed(uint16_t connection_handle) = 0;
   virtual void OnHandleVendorSpecificReplyComplete(uint16_t connection_handle, bool success) = 0;
   virtual void OnResult(uint16_t connection_handle, const RangingResult& ranging_result) = 0;
+  virtual void OnClosed(uint16_t connection_handle, Reason reason) = 0;
 };
 
-class RangingHal : public ::bluetooth::Module {
+class RangingHal {
 public:
-  static const ModuleFactory Factory;
-
   virtual ~RangingHal() = default;
   virtual bool IsBound() = 0;
   virtual RangingHalVersion GetRangingHalVersion() = 0;
@@ -313,7 +324,8 @@ public:
   virtual std::vector<VendorSpecificCharacteristic> GetVendorSpecificCharacteristics() = 0;
   virtual void OpenSession(
           uint16_t connection_handle, uint16_t att_handle,
-          const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data) = 0;
+          const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_data,
+          uint8_t sight_type, uint8_t location_type) = 0;
   virtual void HandleVendorSpecificReply(
           uint16_t connection_handle,
           const std::vector<hal::VendorSpecificCharacteristic>& vendor_specific_reply) = 0;
@@ -330,6 +342,7 @@ public:
                                   const ProcedureDataV2& procedure_data,
                                   uint16_t procedure_counter) = 0;
   virtual bool IsAbortedProcedureRequired(uint16_t connection_handle) = 0;
+  virtual std::vector<RangingSessionType> GetSupportedSessionTypes() = 0;
 };
 
 }  // namespace hal

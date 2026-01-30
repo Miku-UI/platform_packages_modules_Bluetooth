@@ -12,9 +12,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.map;
 
-import android.bluetooth.BluetoothAdapter;
+import static java.util.Objects.requireNonNull;
+
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothProtoEnums;
@@ -30,10 +32,10 @@ import com.android.bluetooth.BluetoothObexTransport;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.IObexConnectionHandler;
 import com.android.bluetooth.ObexServerSockets;
+import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 import com.android.bluetooth.map.BluetoothMapContentObserver.Msg;
 import com.android.bluetooth.map.BluetoothMapUtils.TYPE;
-import com.android.bluetooth.sdp.SdpManagerNativeInterface;
 import com.android.obex.ServerSession;
 
 import java.io.IOException;
@@ -49,6 +51,10 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
     private static int sInstanceCounter = 0;
 
     private final int mObjectInstanceId;
+
+    public static final String TYPE_SMS_MMS_STR = "SMS/MMS";
+    public static final String TYPE_EMAIL_STR = "EMAIL";
+    public static final String TYPE_IM_STR = "IM";
 
     private static final int SDP_MAP_MSG_TYPE_EMAIL = 0x01;
     private static final int SDP_MAP_MSG_TYPE_SMS_GSM = 0x02;
@@ -67,6 +73,8 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
     static final int SDP_MAP_MAS_FEATURES_1_3 = 0x000603FF;
     static final int SDP_MAP_MAS_FEATURES_1_4 = 0x000603FF;
 
+    private final AdapterService mAdapterService;
+
     private ServerSession mServerSession = null;
     // The handle to the socket registration with SDP
     private ObexServerSockets mServerSockets = null;
@@ -74,15 +82,12 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
 
     // The actual incoming connection handle
     private BluetoothSocket mConnSocket = null;
-    // The remote connected device
-    private BluetoothAdapter mAdapter;
 
     private volatile boolean mShutdown = false; // Used to interrupt socket accept thread
     private volatile boolean mAcceptNewConnections = false;
 
     private Handler mServiceHandler = null; // MAP service message handler
     private BluetoothMapService mMapService = null; // Handle to the outer MAP service
-    private Context mContext = null; // MAP service context
     private BluetoothMnsObexClient mMnsClient = null; // Shared MAP MNS client
     private BluetoothMapAccountItem mAccount = null; //
     private String mBaseUri = null; // Client base URI for this instance
@@ -100,61 +105,34 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
     private Map<Long, Msg> mMsgListMsg = null;
 
     private Map<String, BluetoothMapConvoContactElement> mContactList;
-
     private Map<Long, BluetoothMapConvoListingElement> mSmsMmsConvoList = new HashMap<>();
-
     private Map<Long, BluetoothMapConvoListingElement> mImEmailConvoList = new HashMap<>();
 
     private int mRemoteFeatureMask = BluetoothMapUtils.MAP_FEATURE_DEFAULT_BITMASK;
     private static int sFeatureMask = SDP_MAP_MAS_FEATURES_1_4;
 
-    public static final String TYPE_SMS_MMS_STR = "SMS/MMS";
-    public static final String TYPE_EMAIL_STR = "EMAIL";
-    public static final String TYPE_IM_STR = "IM";
-
     /** Create a e-mail MAS instance */
-    public BluetoothMapMasInstance(
+    BluetoothMapMasInstance(
+            AdapterService adapterService,
             BluetoothMapService mapService,
-            Context context,
             BluetoothMapAccountItem account,
             int masId,
             boolean enableSmsMms) {
+        mAdapterService = requireNonNull(adapterService);
         mObjectInstanceId = sInstanceCounter++;
         mMapService = mapService;
         mServiceHandler = mapService.getHandler();
-        mContext = context;
         mAccount = account;
         if (account != null) {
             mBaseUri = account.mBase_uri;
         }
         mMasInstanceId = masId;
         mEnableSmsMms = enableSmsMms;
-        init();
-    }
-
-    private void removeSdpRecord() {
-        SdpManagerNativeInterface nativeInterface = SdpManagerNativeInterface.getInstance();
-        if (mAdapter != null && mSdpHandle >= 0 && nativeInterface.isAvailable()) {
-            verbose(
-                    "Removing SDP record for MAS instance: "
-                            + mMasInstanceId
-                            + " Object reference: "
-                            + this
-                            + ", SDP handle: "
-                            + mSdpHandle);
-            boolean status = nativeInterface.removeSdpRecord(mSdpHandle);
-            debug("RemoveSDPRecord returns " + status);
-            mSdpHandle = -1;
-        }
     }
 
     @Override
     public String toString() {
         return "MasId: " + mMasInstanceId + " Uri:" + mBaseUri + " SMS/MMS:" + mEnableSmsMms;
-    }
-
-    private void init() {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
     }
 
     /**
@@ -281,8 +259,7 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
         if (mServerSockets != null) {
             mAcceptNewConnections = true;
         } else {
-
-            mServerSockets = ObexServerSockets.create(this);
+            mServerSockets = ObexServerSockets.create(mAdapterService, this);
             mAcceptNewConnections = true;
 
             if (mServerSockets == null) {
@@ -308,6 +285,22 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
                             + ", SDP handle: "
                             + mSdpHandle);
             updateDbIdentifier();
+        }
+    }
+
+    private void removeSdpRecord() {
+        final var nativeInterface = mAdapterService.getSdpManagerNativeInterface();
+        if (mSdpHandle >= 0 && nativeInterface.isPresent()) {
+            verbose(
+                    "Removing SDP record for MAS instance: "
+                            + mMasInstanceId
+                            + " Object reference: "
+                            + this
+                            + ", SDP handle: "
+                            + mSdpHandle);
+            boolean status = nativeInterface.get().removeSdpRecord(mSdpHandle);
+            debug("RemoveSDPRecord returns " + status);
+            mSdpHandle = -1;
         }
     }
 
@@ -348,38 +341,47 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
         int masVersion;
 
         switch (currentValue) {
-            case "map12":
+            case "map12" -> {
                 masVersion = SDP_MAP_MAS_VERSION_1_2;
                 sFeatureMask = SDP_MAP_MAS_FEATURES_1_2;
-                break;
-            case "map13":
+            }
+            case "map13" -> {
                 masVersion = SDP_MAP_MAS_VERSION_1_3;
                 sFeatureMask = SDP_MAP_MAS_FEATURES_1_3;
-                break;
-            case "map14":
+            }
+            case "map14" -> {
                 masVersion = SDP_MAP_MAS_VERSION_1_4;
                 sFeatureMask = SDP_MAP_MAS_FEATURES_1_4;
-                break;
-            default:
+            }
+            default -> {
                 masVersion = SDP_MAP_MAS_VERSION_1_4;
                 sFeatureMask = SDP_MAP_MAS_FEATURES_1_4;
+            }
         }
 
-        return SdpManagerNativeInterface.getInstance()
-                .createMapMasRecord(
-                        masName,
-                        mMasInstanceId,
-                        rfcommChannel,
-                        l2capPsm,
-                        masVersion,
-                        messageTypeFlags,
-                        sFeatureMask);
+        final var nativeInterface = mAdapterService.getSdpManagerNativeInterface();
+        if (nativeInterface.isPresent()) {
+            return nativeInterface
+                    .get()
+                    .createMapMasRecord(
+                            masName,
+                            mMasInstanceId,
+                            rfcommChannel,
+                            l2capPsm,
+                            masVersion,
+                            messageTypeFlags,
+                            sFeatureMask);
+        } else {
+            error("Failed to create MapMasRecord. SdpManagerNativeInterface is not available.");
+            return -1;
+        }
     }
 
     /* Called for all MAS instances for each instance when auth. is completed, hence
      * must check if it has a valid connection before creating a session.
      * Returns true at success. */
-    public boolean startObexServerSession(BluetoothMnsObexClient mnsClient)
+    public boolean startObexServerSession(
+            BluetoothMapService mapService, BluetoothMnsObexClient mnsClient)
             throws IOException, RemoteException {
         debug("Map Service startObexServerSession masid = " + mMasInstanceId);
 
@@ -392,14 +394,21 @@ public class BluetoothMapMasInstance implements IObexConnectionHandler {
             mMnsClient = mnsClient;
             mObserver =
                     new BluetoothMapContentObserver(
-                            mContext, mMnsClient, this, mAccount, mEnableSmsMms);
+                            mAdapterService, mMnsClient, this, mAccount, mEnableSmsMms);
             mObserver.init();
             mMapServer =
                     new BluetoothMapObexServer(
-                            mServiceHandler, mContext, mObserver, this, mAccount, mEnableSmsMms);
+                            mAdapterService,
+                            mapService,
+                            mServiceHandler,
+                            mObserver,
+                            this,
+                            mAccount,
+                            mEnableSmsMms);
             mMapServer.setRemoteFeatureMask(mRemoteFeatureMask);
             // setup transport
-            BluetoothObexTransport transport = new BluetoothObexTransport(mConnSocket);
+            BluetoothObexTransport transport =
+                    new BluetoothObexTransport(mAdapterService, mConnSocket);
             mServerSession = new ServerSession(transport, mMapServer, null);
             debug("    ServerSession started.");
 

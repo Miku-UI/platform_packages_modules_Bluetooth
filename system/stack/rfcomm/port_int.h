@@ -25,6 +25,8 @@
 #ifndef PORT_INT_H
 #define PORT_INT_H
 
+#include <bluetooth/types/address.h>
+
 #include <cstdint>
 
 #include "include/macros.h"
@@ -36,7 +38,6 @@
 #include "stack/include/rfcdefs.h"
 #include "stack/rfcomm/rfc_event.h"
 #include "stack/rfcomm/rfc_state.h"
-#include "types/raw_address.h"
 
 /*
  * Flow control configuration values for the mux
@@ -97,6 +98,11 @@ typedef struct {
   uint8_t flow;                            /* flow control mechanism for this mux */
   bool l2cap_congested;                    /* true if L2CAP is congested */
   bool is_disc_initiator;                  /* true if initiated disc of port */
+  uint16_t collision_outgoing_lcid;        /* store LCID for retry of outgoing connection*/
+  bool collision_outgoing_conn_cnf;        /* true if peer responded to start_req after collision */
+  bool collision_outgoing_cfg_complete;    /* true if configuration of outgoing conn completed */
+  tL2CAP_CFG_INFO collision_cfg_info = {}; /* collision: store cfg info for outgoing connection */
+  // TODO: b/399420482 - delete pending_XXX when removing flag
   uint16_t pending_lcid;                   /* store LCID for incoming connection while connecting */
   bool pending_configure_complete;         /* true if confiquration of the pending
                                               connection was completed*/

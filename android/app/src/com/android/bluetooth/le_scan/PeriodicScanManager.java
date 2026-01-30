@@ -16,18 +16,23 @@
 
 package com.android.bluetooth.le_scan;
 
+import static com.android.bluetooth.Utils.callbackToApp;
+
+import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElseGet;
+
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.IPeriodicAdvertisingCallback;
 import android.bluetooth.le.PeriodicAdvertisingReport;
 import android.bluetooth.le.ScanRecord;
 import android.bluetooth.le.ScanResult;
 import android.os.IBinder;
-import android.os.IInterface;
 import android.os.RemoteException;
 import android.util.Log;
 
-import com.android.bluetooth.gatt.GattServiceConfig;
+import com.android.bluetooth.btservice.AdapterService;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.Collections;
@@ -41,30 +46,36 @@ import java.util.stream.Collectors;
 /** Manages Bluetooth LE Periodic scans */
 @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
 public class PeriodicScanManager {
-    private static final String TAG =
-            GattServiceConfig.TAG_PREFIX + PeriodicScanManager.class.getSimpleName();
+    private static final String TAG = PeriodicScanManager.class.getSimpleName();
 
-    static int sTempRegistrationId = -1;
+    @VisibleForTesting int mTempRegistrationId = -1;
 
     private final Map<IBinder, SyncInfo> mSyncs = new ConcurrentHashMap<>();
     private final Map<IBinder, SyncTransferInfo> mSyncTransfers =
             Collections.synchronizedMap(new HashMap<>());
+
+    private final AdapterService mAdapterService;
     private final BluetoothAdapter mAdapter;
+    private final ScanController mScanController;
     private final PeriodicScanNativeInterface mNativeInterface;
 
-    /** Constructor of {@link PeriodicScanManager}. */
-    PeriodicScanManager() {
-        Log.d(TAG, "Periodic Scan Manager created");
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
-        mNativeInterface = PeriodicScanNativeInterface.getInstance();
-        mNativeInterface.init(this);
+    PeriodicScanManager(
+            AdapterService service,
+            ScanController scanController,
+            PeriodicScanNativeInterface nativeInterface) {
+        mAdapterService = requireNonNull(service);
+        mAdapter = mAdapterService.getSystemService(BluetoothManager.class).getAdapter();
+        mScanController = scanController;
+        mNativeInterface =
+                requireNonNullElseGet(nativeInterface, () -> new PeriodicScanNativeInterface(this));
+        mNativeInterface.init();
     }
 
     void cleanup() {
-        Log.d(TAG, "cleanup()");
+        Log.i(TAG, "cleanup()");
         mNativeInterface.cleanup();
         mSyncs.clear();
-        sTempRegistrationId = -1;
+        mTempRegistrationId = -1;
     }
 
     private record SyncTransferInfo(String address, IPeriodicAdvertisingCallback callback) {}
@@ -92,10 +103,6 @@ public class PeriodicScanManager {
             Log.d(TAG, "Binder is dead - unregistering advertising set");
             stopSync(mCallback);
         }
-    }
-
-    private static IBinder toBinder(IPeriodicAdvertisingCallback e) {
-        return ((IInterface) e).asBinder();
     }
 
     private Map.Entry<IBinder, SyncTransferInfo> findSyncTransfer(String address) {
@@ -134,8 +141,8 @@ public class PeriodicScanManager {
             String address,
             int phy,
             int interval,
-            int status)
-            throws Exception {
+            int status) {
+        mScanController.enforceScanThread();
         List<IPeriodicAdvertisingCallback> callbacks = getAllCallbacks(regId);
         if (callbacks.isEmpty()) {
             Log.d(TAG, "onSyncStarted() - no callback found for regId " + regId);
@@ -162,21 +169,26 @@ public class PeriodicScanManager {
                                     e.getValue().timeout,
                                     e.getValue().deathRecipient,
                                     callback));
-                    callback.onSyncEstablished(
-                            syncHandle,
-                            mAdapter.getRemoteLeDevice(address, addressType),
-                            sid,
-                            e.getValue().skip,
-                            e.getValue().timeout,
-                            status);
+                    callbackToApp(
+                            () ->
+                                    callback.onSyncEstablished(
+                                            syncHandle,
+                                            mAdapter.getRemoteLeDevice(address, addressType),
+                                            sid,
+                                            e.getValue().skip,
+                                            e.getValue().timeout,
+                                            status));
+
                 } else {
-                    callback.onSyncEstablished(
-                            syncHandle,
-                            mAdapter.getRemoteLeDevice(address, addressType),
-                            sid,
-                            e.getValue().skip,
-                            e.getValue().timeout,
-                            status);
+                    callbackToApp(
+                            () ->
+                                    callback.onSyncEstablished(
+                                            syncHandle,
+                                            mAdapter.getRemoteLeDevice(address, addressType),
+                                            sid,
+                                            e.getValue().skip,
+                                            e.getValue().timeout,
+                                            status));
                     IBinder binder = e.getKey();
                     binder.unlinkToDeath(e.getValue().deathRecipient, 0);
                     it.remove();
@@ -185,8 +197,8 @@ public class PeriodicScanManager {
         }
     }
 
-    void onSyncReport(int syncHandle, int txPower, int rssi, int dataStatus, byte[] data)
-            throws Exception {
+    void onSyncReport(int syncHandle, int txPower, int rssi, int dataStatus, byte[] data) {
+        mScanController.enforceScanThread();
         List<IPeriodicAdvertisingCallback> callbacks = getAllCallbacks(syncHandle);
         if (callbacks.isEmpty()) {
             Log.i(TAG, "onSyncReport() - no callback found for syncHandle " + syncHandle);
@@ -196,40 +208,43 @@ public class PeriodicScanManager {
             PeriodicAdvertisingReport report =
                     new PeriodicAdvertisingReport(
                             syncHandle, txPower, rssi, dataStatus, ScanRecord.parseFromBytes(data));
-            callback.onPeriodicAdvertisingReport(report);
+            callbackToApp(() -> callback.onPeriodicAdvertisingReport(report));
         }
     }
 
-    void onSyncLost(int syncHandle) throws Exception {
+    void onSyncLost(int syncHandle) {
+        mScanController.enforceScanThread();
         List<IPeriodicAdvertisingCallback> callbacks = getAllCallbacks(syncHandle);
         if (callbacks.isEmpty()) {
             Log.i(TAG, "onSyncLost() - no callback found for syncHandle " + syncHandle);
             return;
         }
         for (IPeriodicAdvertisingCallback callback : callbacks) {
-            IBinder binder = toBinder(callback);
+            IBinder binder = callback.asBinder();
             synchronized (mSyncs) {
                 mSyncs.remove(binder);
             }
-            callback.onSyncLost(syncHandle);
+            callbackToApp(() -> callback.onSyncLost(syncHandle));
         }
     }
 
-    void onBigInfoReport(int syncHandle, boolean encrypted) throws Exception {
+    void onBigInfoReport(int syncHandle, boolean encrypted) {
+        mScanController.enforceScanThread();
         List<IPeriodicAdvertisingCallback> callbacks = getAllCallbacks(syncHandle);
         if (callbacks.isEmpty()) {
             Log.i(TAG, "onBigInfoReport() - no callback found for syncHandle " + syncHandle);
             return;
         }
         for (IPeriodicAdvertisingCallback callback : callbacks) {
-            callback.onBigInfoAdvertisingReport(syncHandle, encrypted);
+            callbackToApp(() -> callback.onBigInfoAdvertisingReport(syncHandle, encrypted));
         }
     }
 
     public void startSync(
             ScanResult scanResult, int skip, int timeout, IPeriodicAdvertisingCallback callback) {
+        mScanController.enforceScanThread();
         SyncDeathRecipient deathRecipient = new SyncDeathRecipient(callback);
-        IBinder binder = toBinder(callback);
+        IBinder binder = callback.asBinder();
         try {
             binder.linkToDeath(deathRecipient, 0);
         } catch (RemoteException e) {
@@ -281,7 +296,7 @@ public class PeriodicScanManager {
             }
         }
 
-        int cbId = --sTempRegistrationId;
+        int cbId = --mTempRegistrationId;
         mSyncs.put(
                 binder, new SyncInfo(cbId, sid, address, skip, timeout, deathRecipient, callback));
 
@@ -290,7 +305,8 @@ public class PeriodicScanManager {
     }
 
     public void stopSync(IPeriodicAdvertisingCallback callback) {
-        IBinder binder = toBinder(callback);
+        mScanController.enforceScanThread();
+        IBinder binder = callback.asBinder();
         Log.d(TAG, "stopSync() " + binder);
         SyncInfo sync = null;
         synchronized (mSyncs) {
@@ -322,12 +338,13 @@ public class PeriodicScanManager {
     }
 
     void onSyncTransferredCallback(int paSource, int status, String bda) {
+        mScanController.enforceScanThread();
         Map.Entry<IBinder, SyncTransferInfo> entry = findSyncTransfer(bda);
         if (entry != null) {
             mSyncTransfers.remove(entry);
             IPeriodicAdvertisingCallback callback = entry.getValue().callback;
             try {
-                callback.onSyncTransferred(mAdapter.getRemoteDevice(bda), status);
+                callback.onSyncTransferred(mAdapterService.getRemoteDevice(bda), status);
             } catch (RemoteException e) {
                 throw new IllegalArgumentException("Can't find callback for sync transfer");
             }
@@ -335,6 +352,7 @@ public class PeriodicScanManager {
     }
 
     public void transferSync(BluetoothDevice bda, int serviceData, int syncHandle) {
+        mScanController.enforceScanThread();
         Log.d(TAG, "transferSync()");
         Map.Entry<IBinder, SyncInfo> entry = findSync(syncHandle);
         if (entry == null) {
@@ -352,8 +370,9 @@ public class PeriodicScanManager {
             int serviceData,
             int advHandle,
             IPeriodicAdvertisingCallback callback) {
+        mScanController.enforceScanThread();
         SyncDeathRecipient deathRecipient = new SyncDeathRecipient(callback);
-        IBinder binder = toBinder(callback);
+        IBinder binder = callback.asBinder();
         Log.d(TAG, "transferSetInfo() " + binder);
         try {
             binder.linkToDeath(deathRecipient, 0);
@@ -362,5 +381,9 @@ public class PeriodicScanManager {
         }
         mSyncTransfers.put(binder, new SyncTransferInfo(bda.getAddress(), callback));
         mNativeInterface.transferSetInfo(bda, serviceData, advHandle);
+    }
+
+    void doOnScanThread(Runnable r) {
+        mScanController.doOnScanThread(r);
     }
 }

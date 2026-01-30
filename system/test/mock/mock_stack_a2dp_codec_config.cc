@@ -23,7 +23,7 @@
 
 #include "a2dp_codec_api.h"
 #include "a2dp_ext.h"
-#include "bta/av/bta_av_int.h"
+#include "bta/include/bta_av_api.h"
 #include "stack/include/bt_hdr.h"
 #include "test/common/mock_functions.h"
 
@@ -37,10 +37,6 @@ A2dpCodecConfig* A2dpCodecs::findSinkCodecConfig(const uint8_t* /* p_codec_info 
   return nullptr;
 }
 A2dpCodecConfig* A2dpCodecs::findSourceCodecConfig(const uint8_t* /* p_codec_info */) {
-  inc_func_call_count(__func__);
-  return nullptr;
-}
-A2dpCodecConfig* A2dpCodecs::findSourceCodecConfig(btav_a2dp_codec_index_t /* codec_index */) {
   inc_func_call_count(__func__);
   return nullptr;
 }
@@ -267,26 +263,26 @@ int A2dpCodecConfig::getTrackBitRate() const {
 }
 std::string A2DP_CodecInfoString(const uint8_t* /* p_codec_info */) {
   inc_func_call_count(__func__);
-  return 0;
+  return "";
 }
 std::string A2dpCodecConfig::codecBitsPerSample2Str(
         btav_a2dp_codec_bits_per_sample_t /* codec_bits_per_sample */) {
   inc_func_call_count(__func__);
-  return 0;
+  return "";
 }
 std::string A2dpCodecConfig::codecChannelMode2Str(
         btav_a2dp_codec_channel_mode_t /* codec_channel_mode */) {
   inc_func_call_count(__func__);
-  return 0;
+  return "";
 }
 std::string A2dpCodecConfig::codecConfig2Str(const btav_a2dp_codec_config_t& /* codec_config */) {
   inc_func_call_count(__func__);
-  return 0;
+  return "";
 }
 std::string A2dpCodecConfig::codecSampleRate2Str(
         btav_a2dp_codec_sample_rate_t /* codec_sample_rate */) {
   inc_func_call_count(__func__);
-  return 0;
+  return "";
 }
 tA2DP_CODEC_TYPE A2DP_GetCodecType(const uint8_t* /* p_codec_info */) {
   inc_func_call_count(__func__);
@@ -321,3 +317,32 @@ void A2dpCodecConfigExt::setCodecConfig(
         std::vector<uint8_t> const& /*vendor_specific_parameters*/) {
   inc_func_call_count(__func__);
 }
+
+namespace bluetooth::a2dp {
+
+std::string CodecIdToString(CodecId codec_id) {
+  switch (codec_id) {
+    case CodecId::SBC:
+      return "SBC";
+    case CodecId::AAC:
+      return "AAC";
+    case CodecId::APTX:
+      return "APTX";
+    case CodecId::APTX_HD:
+      return "APTX_HD";
+    case CodecId::LDAC:
+      return "LDAC";
+    case CodecId::OPUS:
+      return "OPUS";
+    default:
+      if (static_cast<uint8_t>(codec_id) == A2DP_MEDIA_CT_NON_A2DP) {
+        return std::format("Codec ID: 0x{:04x}, Vendor ID: 0x{:04x}",
+                           static_cast<uint16_t>(static_cast<uint64_t>(codec_id) >> 24),
+                           static_cast<uint16_t>(static_cast<uint64_t>(codec_id) >> 8));
+      } else {
+        return std::format("Invalid CodecId: {}", static_cast<uint64_t>(codec_id));
+      }
+  };
+}
+
+}  // namespace bluetooth::a2dp

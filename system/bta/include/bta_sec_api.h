@@ -20,6 +20,7 @@
 
 #include <base/functional/callback.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 
 #include <cstdint>
 
@@ -31,7 +32,6 @@
 #include "stack/include/btm_ble_sec_api_types.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/hci_error_code.h"
-#include "types/raw_address.h"
 
 /* Security Setting Mask */
 #define BTA_SEC_AUTHENTICATE \
@@ -482,6 +482,20 @@ void BTA_DmSirkSecCbRegister(tBTA_DM_SEC_CBACK* p_cback);
  *
  ******************************************************************************/
 void BTA_DmSirkConfirmDeviceReply(const RawAddress& bd_addr, bool accept);
+
+/*******************************************************************************
+ *
+ * Function         BTA_DmAuthCmplCbRegister
+ *
+ * Description      This procedure registers in requested a callback for
+ *                  authentication complete event.
+ *
+ * Parameters       p_cback     - callback to be called
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_DmBleAuthCmplCbRegister(tBTA_DM_SEC_CBACK* p_cback);
 
 namespace std {
 template <>

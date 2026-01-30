@@ -16,26 +16,26 @@
 
 package com.android.bluetooth.opp;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
@@ -46,29 +46,37 @@ import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.provider.Settings;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.bluetooth.BluetoothMethodProxy;
+import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.R;
-import com.android.bluetooth.TestUtils;
+import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.opp.BluetoothOppTestUtils.CursorMockData;
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.Spy;
 
+import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Test cases for {@link BluetoothOppUtility}. */
+@RunWith(AndroidJUnit4.class)
 public class BluetoothOppUtilityTest {
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock Cursor mCursor;
+    @Mock private MetricsLogger mMetricsLogger;
 
     @Spy BluetoothMethodProxy mCallProxy = BluetoothMethodProxy.getInstance();
 
@@ -76,20 +84,18 @@ public class BluetoothOppUtilityTest {
             Uri.parse("content://com.android.bluetooth.opp/btopp/0123455343467");
     private static final Uri INCORRECT_FORMAT_URI = Uri.parse("www.google.com");
 
-    private final Context mContext =
-            InstrumentationRegistry.getInstrumentation().getTargetContext();
+    private final Context mContext = InstrumentationRegistry.getInstrumentation().getContext();
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         BluetoothMethodProxy.setInstanceForTesting(mCallProxy);
-        TestUtils.setUpUiTest();
+        MetricsLogger.setInstanceForTesting(mMetricsLogger);
     }
 
     @After
-    public void tearDown() throws Exception {
-        TestUtils.tearDownUiTest();
-
+    public void tearDown() {
         BluetoothMethodProxy.setInstanceForTesting(null);
+        Mockito.clearAllCaches();
     }
 
     @Test
@@ -160,7 +166,6 @@ public class BluetoothOppUtilityTest {
 
     @Test
     public void openReceivedFile_fileNotExist() {
-
         Uri contentResolverUri = Uri.parse("content://com.android.bluetooth.opp/btopp/0123");
         Uri fileUri = Uri.parse("content:///tmp/randomFileName.txt");
 
@@ -283,7 +288,6 @@ public class BluetoothOppUtilityTest {
 
     @Test
     public void fillRecord_filledAllProperties() {
-        BluetoothAdapter adapter = mContext.getSystemService(BluetoothManager.class).getAdapter();
         int idValue = 1234;
         int directionValue = BluetoothShare.DIRECTION_OUTBOUND;
         long totalBytesValue = 10;
@@ -293,7 +297,9 @@ public class BluetoothOppUtilityTest {
         String destinationValue = "AA:BB:CC:00:11:22";
         String fileNameValue = mContext.getString(R.string.unknown_file);
         String fileTypeValue = "text/plain";
-        BluetoothDevice remoteDevice = adapter.getRemoteDevice(destinationValue);
+        final BluetoothDevice remoteDevice = getTestDevice(destinationValue);
+        doReturn("Unknown device").when(remoteDevice).getAlias();
+
         String deviceNameValue =
                 BluetoothOppManager.getInstance(mContext).getDeviceName(remoteDevice);
 
@@ -325,7 +331,7 @@ public class BluetoothOppUtilityTest {
         assertThat(info.mFileUri).isNull();
         assertThat(info.mFileType).isEqualTo(fileTypeValue);
         assertThat(info.mDeviceName).isEqualTo(deviceNameValue);
-        assertThat(info.mHandoverInitiated).isEqualTo(false);
+        assertThat(info.mHandoverInitiated).isFalse();
         assertThat(info.mFileName).isEqualTo(fileNameValue);
     }
 
@@ -451,5 +457,109 @@ public class BluetoothOppUtilityTest {
                         eq("com.example"),
                         eq(originalUri),
                         eq(Intent.FLAG_GRANT_READ_URI_PERMISSION));
+    }
+
+    @Test
+    public void fileExists_returnFalse() throws Exception {
+        Context context = spy(new ContextWrapper(mContext));
+
+        doThrow(new FileNotFoundException())
+                .when(mCallProxy)
+                .contentResolverOpenFileDescriptor(
+                        any(), eq(CORRECT_FORMAT_BUT_INVALID_FILE_URI), any());
+
+        assertThat(BluetoothOppUtility.fileExists(context, CORRECT_FORMAT_BUT_INVALID_FILE_URI))
+                .isFalse();
+    }
+
+    private void setupMockCursorForMetrics(
+            int oldStatus, int direction, long totalBytes, String mimeType, long timestamp) {
+        String address = "00:11:22:AA:BB:CC";
+        final BluetoothDevice remoteDevice = getTestDevice(address);
+        doReturn("OPP Test Device").when(remoteDevice).getAlias();
+
+        List<CursorMockData> cursorMockDataList =
+                List.of(
+                        new CursorMockData(BluetoothShare.STATUS, 0, oldStatus),
+                        new CursorMockData(BluetoothShare.DIRECTION, 1, direction),
+                        new CursorMockData(BluetoothShare.DESTINATION, 2, address),
+                        new CursorMockData(BluetoothShare.TOTAL_BYTES, 3, totalBytes),
+                        new CursorMockData(BluetoothShare.MIMETYPE, 4, mimeType),
+                        new CursorMockData(BluetoothShare.TIMESTAMP, 5, timestamp));
+        BluetoothOppTestUtils.setUpMockCursor(mCursor, cursorMockDataList);
+
+        doReturn(mCursor)
+                .when(mCallProxy)
+                .contentResolverQuery(any(), any(Uri.class), any(), any(), any(), any());
+        doReturn(true).when(mCursor).moveToFirst();
+    }
+
+    @Test
+    public void checkAndReportShareCompleted_statusChangesToCompleted_reportsMetrics() {
+        final long now = System.currentTimeMillis();
+        final long startTime = now - 5 * Constants.SEC_TO_MS;
+
+        final int id = 123;
+        final int oldStatus = BluetoothShare.STATUS_RUNNING;
+        final int newStatus = BluetoothShare.STATUS_SUCCESS;
+        final int direction = BluetoothShare.DIRECTION_INBOUND;
+        final long totalBytes = 5 * Constants.MB_TO_BYTES;
+        final String mimeType = "image/jpeg";
+
+        setupMockCursorForMetrics(oldStatus, direction, totalBytes, mimeType, startTime);
+
+        BluetoothOppUtility.checkAndReportShareCompleted(mContext, id, newStatus);
+
+        verify(mMetricsLogger)
+                .logBluetoothOppShareStatusCompleteReported(
+                        eq(
+                                BluetoothStatsLog
+                                        .BLUETOOTH_OPP_SHARE_STATUS_COMPLETE_REPORTED__SESSION_STATUS__OPP_SESSION_STATUS_SUCCESS),
+                        eq(
+                                BluetoothStatsLog
+                                        .BLUETOOTH_OPP_SHARE_STATUS_COMPLETE_REPORTED__DIRECTION__OPP_TRANSFER_DIRECTION_RECEIVE),
+                        eq(
+                                BluetoothStatsLog
+                                        .BLUETOOTH_OPP_SHARE_STATUS_COMPLETE_REPORTED__TRANSFER_DURATION__OPP_TRANSFER_DURATION_5_TO_30_SEC),
+                        eq(
+                                BluetoothStatsLog
+                                        .BLUETOOTH_OPP_SHARE_STATUS_COMPLETE_REPORTED__FILE_SIZE__OPP_FILE_SIZE_4MB_TO_8MB),
+                        eq(
+                                BluetoothStatsLog
+                                        .BLUETOOTH_OPP_SHARE_STATUS_COMPLETE_REPORTED__TRANSFER_SPEED__OPP_TRANSFER_SPEED_ABOVE_500_KBPS),
+                        eq(
+                                BluetoothStatsLog
+                                        .BLUETOOTH_OPP_SHARE_STATUS_COMPLETE_REPORTED__MIME_TYPE_CATEGORY__OPP_MIME_TYPE_CATEGORY_IMAGE),
+                        any(BluetoothDevice.class));
+    }
+
+    @Test
+    public void checkAndReportShareCompleted_oldStatusAlreadyCompleted_doesNotReport() {
+        final int id = 456;
+        final int oldStatus = BluetoothShare.STATUS_SUCCESS;
+        final int newStatus = BluetoothShare.STATUS_FORBIDDEN;
+
+        setupMockCursorForMetrics(oldStatus, 0, 0, null, 0);
+
+        BluetoothOppUtility.checkAndReportShareCompleted(mContext, id, newStatus);
+
+        verify(mMetricsLogger, never())
+                .logBluetoothOppShareStatusCompleteReported(
+                        anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any());
+    }
+
+    @Test
+    public void checkAndReportShareCompleted_newStatusNotCompleted_doesNotReport() {
+        final int id = 789;
+        final int oldStatus = BluetoothShare.STATUS_PENDING;
+        final int newStatus = BluetoothShare.STATUS_RUNNING;
+
+        setupMockCursorForMetrics(oldStatus, 0, 0, null, 0);
+
+        BluetoothOppUtility.checkAndReportShareCompleted(mContext, id, newStatus);
+
+        verify(mMetricsLogger, never())
+                .logBluetoothOppShareStatusCompleteReported(
+                        anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any());
     }
 }

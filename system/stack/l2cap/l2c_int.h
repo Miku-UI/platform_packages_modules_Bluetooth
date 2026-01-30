@@ -24,6 +24,8 @@
 #pragma once
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/hci_role.h>
 #include <stdbool.h>
 
 #include <string>
@@ -39,8 +41,6 @@
 #include "stack/include/hci_error_code.h"
 #include "stack/include/l2cap_interface.h"
 #include "stack/l2cap/internal/l2c_api.h"
-#include "types/hci_role.h"
-#include "types/raw_address.h"
 
 #define L2CAP_MIN_MTU 48 /* Minimum acceptable MTU is 48 bytes */
 
@@ -256,6 +256,8 @@ struct tL2CAP_SEC_DATA {
   void* p_ref_data;
 };
 
+typedef void(tL2C_TX_PACKET_COMPLETE_CB)(void*, uint16_t);
+
 struct tL2C_LCB;
 
 /* Define a channel control block (CCB). There may be many channel control
@@ -324,6 +326,11 @@ struct tL2C_CCB {
   bool out_cfg_fcr_present;       // true if cfg response should include fcr options
 
   bool is_flushable; /* true if channel is flushable */
+
+  uint16_t sent_not_acked_for_connection_rsp; /* Num packets sent but not acked when sending
+                                                 connection response */
+  tL2C_TX_PACKET_COMPLETE_CB* tx_packet_complete_cb{
+          nullptr}; /* Transmit packet complete callback */
 
   uint16_t fixed_chnl_idle_tout; /* Idle timeout to use for the fixed channel */
   uint16_t tx_data_len;
@@ -396,6 +403,8 @@ enum tCONN_UPDATE_MASK : uint8_t {
   L2C_BLE_NOT_DEFAULT_PARAM = (1u << 3),
   /* Aggressive initial connection parameters are used */
   L2C_BLE_AGGRESSIVE_INITIAL_PARAM = (1u << 4),
+  /* Connection parameters are used for LE Audio subrate*/
+  L2C_BLE_AUDIO_PARAM_SUBRATE = (1u << 5),
 };
 
 /* Define a link control block. There is one link control block between
@@ -447,6 +456,7 @@ public:
 
 private:
   bool is_bonding_{false}; /* True - link active only for bonding */
+  bool is_datalen_set_by_priv_client{false};
 
 public:
   bool IsBonding() const { return is_bonding_; }
@@ -455,6 +465,10 @@ public:
 
   uint16_t link_xmit_quota; /* Num outstanding pkts allowed */
   bool is_round_robin_scheduling() const { return link_xmit_quota == 0; }
+  bool is_datalen_set_by_privileged_client() const { return is_datalen_set_by_priv_client; }
+  void set_is_datalen_set_by_privileged_client(bool value) {
+    is_datalen_set_by_priv_client = value;
+  }
 
   uint16_t sent_not_acked; /* Num packets sent but not acked */
   void update_outstanding_packets(uint16_t packets_acked) {
@@ -519,6 +533,7 @@ public:
 
   bool conn_update_blocked_by_service_discovery;
   bool conn_update_blocked_by_profile_connection;
+  bool conn_update_blocked_by_lea_subrate_device;
 
   uint16_t min_interval; /* parameters as requested by peripheral */
   uint16_t max_interval;
@@ -760,6 +775,7 @@ void l2cu_process_fixed_chnl_resp(tL2C_LCB* p_lcb);
 bool l2cu_is_ccb_active(tL2C_CCB* p_ccb);
 void l2cu_set_lcb_handle(tL2C_LCB& p_lcb, uint16_t handle);
 tL2CAP_CONN le_result_to_l2c_conn(tL2CAP_LE_RESULT_CODE result);
+void l2cu_update_outstanding_packets_lcb(tL2C_LCB* p_lcb, uint16_t num_sent);
 
 /* Functions provided for Broadcom Aware
  ***************************************
@@ -808,7 +824,6 @@ void l2cu_set_info_rsp_mask(uint32_t mask);
  ***********************************
  */
 void l2c_csm_execute(tL2C_CCB* p_ccb, tL2CEVT event, void* p_data);
-
 void l2c_enqueue_peer_data(tL2C_CCB* p_ccb, BT_HDR* p_buf);
 
 /* Functions provided by l2c_fcr.cc

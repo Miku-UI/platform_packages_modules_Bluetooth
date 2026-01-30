@@ -16,6 +16,8 @@
  */
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/bt_transport.h>
+#include <bluetooth/types/uuid.h>
 #include <com_android_bluetooth_flags.h>
 
 #include <algorithm>
@@ -39,8 +41,6 @@
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/gatt_api.h"
-#include "types/bluetooth/uuid.h"
-#include "types/bt_transport.h"
 #include "vc/types.h"
 
 using bluetooth::vc::internal::VolumeControlDevice;
@@ -78,6 +78,8 @@ void VolumeControlDevice::Disconnect(tGATT_IF gatt_if) {
   }
 
   device_ready = false;
+  group_id = bluetooth::groups::kGroupUnknown;
+  requests_initiated = false;
   handles_pending.clear();
 }
 
@@ -270,11 +272,7 @@ bool VolumeControlDevice::UpdateHandles(void) {
 
         } else if (included.uuid == kVolumeAudioInputUuid) {
           log::info("{}, found AICS, handle={:#x}", address, service->handle);
-          if (com::android::bluetooth::flags::leaudio_add_aics_support()) {
-            set_audio_input_control_service_handles(*service);
-          } else {
-            log::info("Flag leaudio_add_aics_support is not enabled");
-          }
+          set_audio_input_control_service_handles(*service);
         } else {
           log::warn("{}, unknown service={}", address, service->uuid);
         }
@@ -288,6 +286,8 @@ bool VolumeControlDevice::UpdateHandles(void) {
 void VolumeControlDevice::ResetHandles(void) {
   known_service_handles_ = false;
   device_ready = false;
+  group_id = bluetooth::groups::kGroupUnknown;
+  requests_initiated = false;
 
   // the handles are not valid, so discard pending GATT operations
   BtaGattQueue::Clean(connection_id);
@@ -397,6 +397,8 @@ bool VolumeControlDevice::EnqueueInitialRequests(tGATT_IF gatt_if, GATT_READ_OP_
     }
   }
 
+  requests_initiated = true;
+
   for (auto const& handles : hdls_to_subscribe) {
     log::debug("{}, handle={:#x}, ccc_handle={:#x}", address, handles.first, handles.second);
     if (!subscribe_for_notifications(gatt_if, handles.first, handles.second, cccd_write_cb)) {
@@ -425,7 +427,7 @@ void VolumeControlDevice::EnqueueRemainingRequests(tGATT_IF /*gatt_if*/,
   const auto is_eatt_supported = gatt_profile_get_eatt_support_by_conn_id(connection_id);
 
   /* List of handles to the attributes having known and fixed-size values to read using the
-   * ATT_READ_MULTIPLE_REQ. The `.second` component contains 1 octet for the length + the actual
+   * ATT_READ_MULTIPLE_REQ. The `.second` component contains 2 octets for the length + the actual
    * attribute value length, exactly as in the received HCI packet for ATT_READ_MULTIPLE_RSP.
    * We use this to make sure the request response will fit the current MTU size.
    */
@@ -437,16 +439,16 @@ void VolumeControlDevice::EnqueueRemainingRequests(tGATT_IF /*gatt_if*/,
   std::vector<uint16_t> handles_to_read_variable_length;
 
   for (auto const& offset : audio_offsets.volume_offsets) {
-    handles_to_read.push_back(std::make_pair(offset.state_handle, 4));
-    handles_to_read.push_back(std::make_pair(offset.audio_location_handle, 5));
+    handles_to_read.push_back(std::make_pair(offset.state_handle, 5));
+    handles_to_read.push_back(std::make_pair(offset.audio_location_handle, 6));
     handles_to_read_variable_length.push_back(offset.audio_descr_handle);
   }
 
   for (auto const& input : audio_inputs.volume_audio_inputs) {
-    handles_to_read.push_back(std::make_pair(input.state_handle, 5));
-    handles_to_read.push_back(std::make_pair(input.gain_setting_handle, 4));
-    handles_to_read.push_back(std::make_pair(input.type_handle, 2));
-    handles_to_read.push_back(std::make_pair(input.status_handle, 2));
+    handles_to_read.push_back(std::make_pair(input.gain_setting_handle, 5));
+    handles_to_read.push_back(std::make_pair(input.type_handle, 3));
+    handles_to_read.push_back(std::make_pair(input.state_handle, 6));
+    handles_to_read.push_back(std::make_pair(input.status_handle, 3));
     handles_to_read_variable_length.push_back(input.description_handle);
   }
 
@@ -454,7 +456,7 @@ void VolumeControlDevice::EnqueueRemainingRequests(tGATT_IF /*gatt_if*/,
   log::debug("{}, number of variable-size attribute handles={}", address,
              handles_to_read_variable_length.size());
 
-  if (com::android::bluetooth::flags::le_ase_read_multiple_variable() && is_eatt_supported) {
+  if (com_android_bluetooth_flags_le_ase_read_multiple_variable() && is_eatt_supported) {
     const size_t payload_limit = this->mtu_ - 1;
 
     auto pair_it = handles_to_read.begin();
@@ -471,9 +473,16 @@ void VolumeControlDevice::EnqueueRemainingRequests(tGATT_IF /*gatt_if*/,
         ++pair_it;
       }
 
-      log::debug{"{}, calling multi-read with {} attributes, {} left", address, multi_read.num_attr,
-                 std::distance(pair_it, handles_to_read.end())};
-      BtaGattQueue::ReadMultiCharacteristic(connection_id, multi_read, chrc_multi_read_cb, nullptr);
+      if (multi_read.num_attr == 1) {
+        log::debug("{}, calling read with last, single attribute", address);
+        BtaGattQueue::ReadCharacteristic(connection_id, multi_read.handles[0], chrc_read_cb,
+                                         nullptr);
+      } else {
+        log::debug{"{}, calling multi-read with {} attributes, {} left", address,
+                   multi_read.num_attr, std::distance(pair_it, handles_to_read.end())};
+        BtaGattQueue::ReadMultiCharacteristic(connection_id, multi_read, chrc_multi_read_cb,
+                                              nullptr);
+      }
     }
   } else {
     for (auto const& [handle, _] : handles_to_read) {
@@ -486,13 +495,24 @@ void VolumeControlDevice::EnqueueRemainingRequests(tGATT_IF /*gatt_if*/,
   }
 }
 
-bool VolumeControlDevice::VerifyReady(uint16_t handle) {
-  handles_pending.erase(handle);
-  device_ready = handles_pending.size() == 0;
+bool VolumeControlDevice::VerifyReady() {
+  if (com_android_bluetooth_flags_vcp_handle_group_id_internally()) {
+    device_ready = requests_initiated && (handles_pending.size() == 0) &&
+                   (group_id != bluetooth::groups::kGroupUnknown);
+  } else {
+    device_ready = requests_initiated && (handles_pending.size() == 0);
+  }
 
-  log::debug("{}, handles_pending size={}", address, handles_pending.size());
+  log::debug("{}, requests_initiated={}, handles_pending size={}, group_id={}", address,
+             requests_initiated, handles_pending.size(), group_id);
 
   return device_ready;
+}
+
+bool VolumeControlDevice::VerifyReady(uint16_t handle) {
+  handles_pending.erase(handle);
+
+  return VerifyReady();
 }
 
 void VolumeControlDevice::GetExtAudioOutVolumeOffset(uint8_t ext_output_id, GATT_READ_OP_CB cb,

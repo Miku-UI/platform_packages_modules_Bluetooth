@@ -17,19 +17,23 @@
 
 package com.android.bluetooth.mcp;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.eq;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothDevice;
-import android.content.Context;
+import android.platform.test.flag.junit.SetFlagsRule;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
-import androidx.test.runner.AndroidJUnit4;
+
+import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.le_audio.LeAudioService;
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.After;
 import org.junit.Before;
@@ -38,34 +42,31 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 
+import java.util.Optional;
+
 /** Test cases for {@link McpService}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class McpServiceTest {
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private MediaControlProfile mMediaControlProfile;
-    @Mock private Context mContext;
+    @Mock private AdapterService mAdapterService;
+    @Mock private LeAudioService mLeAudioService;
 
     private McpService mMcpService;
 
     @Before
-    public void setUp() throws Exception {
-        mMcpService = new McpService(mContext, mMediaControlProfile);
+    public void setUp() {
+        doReturn(Optional.of(mLeAudioService)).when(mAdapterService).getLeAudioService();
+        mMcpService = new McpService(mAdapterService, mMediaControlProfile);
         mMcpService.setAvailable(true);
     }
 
     @After
     public void tearDown() {
         mMcpService.cleanup();
-        assertThat(McpService.getMcpService()).isNull();
-    }
-
-    @Test
-    public void testGetService() {
-        McpService mMcpServiceDuplicate = McpService.getMcpService();
-        assertThat(mMcpServiceDuplicate).isNotNull();
-        assertThat(mMcpServiceDuplicate).isSameInstanceAs(mMcpService);
     }
 
     @Test

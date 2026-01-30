@@ -23,24 +23,22 @@ import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 
 import android.bluetooth.BluetoothDevice;
 import android.os.Looper;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
-import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.storage.DatabaseManager;
-import com.android.bluetooth.flags.Flags;
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.After;
 import org.junit.Before;
@@ -59,7 +57,6 @@ public class HidHostServiceTest {
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
-    @Mock private DatabaseManager mDatabaseManager;
     @Mock private HidHostNativeInterface mNativeInterface;
 
     private final BluetoothDevice mDevice = getTestDevice(0);
@@ -68,28 +65,17 @@ public class HidHostServiceTest {
 
     @Before
     public void setUp() throws Exception {
-        doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
-        HidHostNativeInterface.setInstance(mNativeInterface);
-
         if (Looper.myLooper() == null) {
             Looper.prepare();
         }
 
-        mService = new HidHostService(mAdapterService);
+        mService = new HidHostService(mAdapterService, mNativeInterface);
         mService.setAvailable(true);
     }
 
     @After
     public void tearDown() throws Exception {
         mService.cleanup();
-        HidHostNativeInterface.setInstance(null);
-        mService = HidHostService.getHidHostService();
-        assertThat(mService).isNull();
-    }
-
-    @Test
-    public void testInitialize() {
-        assertThat(HidHostService.getHidHostService()).isNotNull();
     }
 
     @Test
@@ -98,8 +84,8 @@ public class HidHostServiceTest {
         int badBondState = 42;
         doReturn(badBondState).when(mAdapterService).getBondState(any());
         for (int policy : List.of(CONNECTION_POLICY_FORBIDDEN, badPolicyValue)) {
-            doReturn(policy).when(mDatabaseManager).getProfileConnectionPolicy(any(), anyInt());
-            assertThat(mService.okToConnect(mDevice)).isEqualTo(false);
+            doReturn(policy).when(mAdapterService).getProfileConnectionPolicy(any(), anyInt());
+            assertThat(mService.okToConnect(mDevice)).isFalse();
         }
     }
 
@@ -109,9 +95,8 @@ public class HidHostServiceTest {
         for (int bondState : List.of(BOND_NONE, BOND_BONDING)) {
             doReturn(bondState).when(mAdapterService).getBondState(any());
             for (int policy : List.of(CONNECTION_POLICY_UNKNOWN, CONNECTION_POLICY_ALLOWED)) {
-                doReturn(policy).when(mDatabaseManager).getProfileConnectionPolicy(any(), anyInt());
-                assertThat(mService.okToConnect(mDevice))
-                        .isEqualTo(Flags.donotValidateBondStateFromProfiles());
+                doReturn(policy).when(mAdapterService).getProfileConnectionPolicy(any(), anyInt());
+                assertThat(mService.okToConnect(mDevice)).isTrue();
             }
         }
     }
@@ -122,12 +107,12 @@ public class HidHostServiceTest {
         doReturn(BOND_BONDED).when(mAdapterService).getBondState(any());
 
         for (int policy : List.of(CONNECTION_POLICY_FORBIDDEN, badPolicyValue)) {
-            doReturn(policy).when(mDatabaseManager).getProfileConnectionPolicy(any(), anyInt());
-            assertThat(mService.okToConnect(mDevice)).isEqualTo(false);
+            doReturn(policy).when(mAdapterService).getProfileConnectionPolicy(any(), anyInt());
+            assertThat(mService.okToConnect(mDevice)).isFalse();
         }
         for (int policy : List.of(CONNECTION_POLICY_UNKNOWN, CONNECTION_POLICY_ALLOWED)) {
-            doReturn(policy).when(mDatabaseManager).getProfileConnectionPolicy(any(), anyInt());
-            assertThat(mService.okToConnect(mDevice)).isEqualTo(true);
+            doReturn(policy).when(mAdapterService).getProfileConnectionPolicy(any(), anyInt());
+            assertThat(mService.okToConnect(mDevice)).isTrue();
         }
     }
 

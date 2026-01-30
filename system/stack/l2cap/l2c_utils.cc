@@ -24,13 +24,14 @@
 #define LOG_TAG "l2c_utils"
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 #include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include <algorithm>
 
 #include "hal/snoop_logger.h"
-#include "hci/controller_interface.h"
+#include "hci/controller.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/acl_api.h"
 #include "main/shim/entry.h"
@@ -50,7 +51,6 @@
 #include "stack/include/l2cap_security_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/l2cap/l2c_int.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth;
 
@@ -103,6 +103,7 @@ tL2C_LCB* l2cu_allocate_lcb(const RawAddress& p_bd_addr, bool is_bonding, tBT_TR
         l2cb.num_used_lcbs++;
         l2c_link_adjust_allocation();
       }
+      p_lcb->set_is_datalen_set_by_privileged_client(false);
       p_lcb->link_xmit_data_q = list_new(NULL);
       return p_lcb;
     }
@@ -1463,6 +1464,9 @@ tL2C_CCB* l2cu_allocate_ccb(tL2C_LCB* p_lcb, uint16_t cid, bool is_eatt) {
   alarm_free(p_ccb->l2c_ccb_timer);
   p_ccb->l2c_ccb_timer = alarm_new("l2c.l2c_ccb_timer");
 
+  p_ccb->sent_not_acked_for_connection_rsp = 0;
+  p_ccb->tx_packet_complete_cb = nullptr;
+
 #if (L2CAP_CONFORMANCE_TESTING == TRUE)
   alarm_free(p_ccb->pts_config_delay_timer);
   p_ccb->pts_config_delay_timer = alarm_new("pts.delay");
@@ -1576,6 +1580,9 @@ void l2cu_release_ccb(tL2C_CCB* p_ccb) {
   /* Free the timer */
   alarm_free(p_ccb->l2c_ccb_timer);
   p_ccb->l2c_ccb_timer = NULL;
+
+  p_ccb->sent_not_acked_for_connection_rsp = 0;
+  p_ccb->tx_packet_complete_cb = nullptr;
 
 #if (L2CAP_CONFORMANCE_TESTING == TRUE)
   alarm_free(p_ccb->pts_config_delay_timer);
@@ -1865,8 +1872,7 @@ uint8_t l2cu_get_fcs_len(tL2C_CCB* p_ccb) {
                p_ccb->our_cfg.fcs_present, p_ccb->our_cfg.fcs, p_ccb->peer_cfg.fcs_present,
                p_ccb->peer_cfg.fcs);
 
-  if (com::android::bluetooth::flags::l2cap_fcs_option_fix() &&
-      (p_ccb->peer_cfg.fcs_present && p_ccb->peer_cfg.fcs == 0x00) &&
+  if ((p_ccb->peer_cfg.fcs_present && p_ccb->peer_cfg.fcs == 0x00) &&
       (p_ccb->our_cfg.fcs_present && p_ccb->our_cfg.fcs == 0x00)) {
     return 0;
   }
@@ -1909,7 +1915,7 @@ uint8_t l2cu_process_peer_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg) {
     p_cfg->fcr.mode = L2CAP_FCR_BASIC_MODE;
   }
 
-  if (com::android::bluetooth::flags::l2cap_fcs_option_fix() && p_cfg->fcs_present) {
+  if (p_cfg->fcs_present) {
     p_ccb->peer_cfg.fcs_present = 1;
     p_ccb->peer_cfg.fcs = p_cfg->fcs;
   }
@@ -2804,8 +2810,14 @@ void l2cu_no_dynamic_ccbs(tL2C_LCB* p_lcb) {
       l2cu_process_fixed_disc_cback(p_lcb);
       /* BTM SEC will make sure that link is release (probably after pairing is
        * done) */
-      p_lcb->link_state = LST_DISCONNECTING;
-      start_timeout = false;
+      if (com_android_bluetooth_flags_l2c_not_cancel_timeout() &&
+          p_lcb->link_state == LST_CONNECTING) {
+        // If connecting, trigger alarm to release lcb right now since no callbacks are expected.
+        start_timeout = true;
+      } else {
+        p_lcb->link_state = LST_DISCONNECTING;
+        start_timeout = false;
+      }
     } else if (p_lcb->IsBonding()) {
       acl_disconnect_from_handle(
               p_lcb->Handle(), HCI_ERR_PEER_USER,
@@ -3467,6 +3479,7 @@ tL2C_CCB* l2cu_find_ccb_by_cid(tL2C_LCB* p_lcb, uint16_t local_cid) {
     local_cid -= L2CAP_BASE_APPL_CID;
 
     if (local_cid >= MAX_L2CAP_CHANNELS) {
+      log::warn("local_cid is out of range");
       return NULL;
     }
 
@@ -3474,9 +3487,12 @@ tL2C_CCB* l2cu_find_ccb_by_cid(tL2C_LCB* p_lcb, uint16_t local_cid) {
 
     /* make sure the CCB is in use */
     if (!p_ccb->in_use) {
+      log::warn("p_ccb is not in use");
       p_ccb = NULL;
     } else if (p_lcb && p_lcb != p_ccb->p_lcb) {
       /* make sure it's for the same LCB */
+      log::warn("p_ccb doesn't have matching lcb: lcb of ccb handle: {}, lcb handle: {}",
+                p_ccb->p_lcb->Handle(), p_lcb->Handle());
       p_ccb = NULL;
     }
   }
@@ -3644,3 +3660,17 @@ tL2CAP_CONN le_result_to_l2c_conn(tL2CAP_LE_RESULT_CODE result) {
  *
  ******************************************************************************/
 void l2c_acl_flush(uint16_t handle) { btm_acl_flush(handle); }
+
+void l2cu_update_outstanding_packets_lcb(tL2C_LCB* p_lcb, uint16_t num_sent) {
+  p_lcb->update_outstanding_packets(num_sent);
+
+  if (com_android_bluetooth_flags_delay_offload_le_coc_connection_ind()) {
+    for (tL2C_CCB* p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb; p_ccb = p_ccb->p_next_ccb) {
+      if (p_ccb->tx_packet_complete_cb) {
+        log::debug("handle:0x{:04x}, num_sent:{}, CCB CID:0x{:04x}", p_lcb->Handle(), num_sent,
+                   p_ccb->local_cid);
+        p_ccb->tx_packet_complete_cb(p_ccb, num_sent);
+      }
+    }
+  }
+}

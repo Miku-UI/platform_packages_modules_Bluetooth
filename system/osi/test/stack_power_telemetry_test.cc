@@ -1,10 +1,10 @@
 #include "osi/src/stack_power_telemetry.cc"
 
+#include <bluetooth/types/address.h>
 #include <gtest/gtest.h>
 
 #include "osi/include/stack_power_telemetry.h"
 #include "stack/include/btm_status.h"
-#include "types/raw_address.h"
 
 class PowerTelemetryTest : public ::testing::Test {
 protected:
@@ -23,7 +23,7 @@ protected:
   void SetUp() override {
     power_telemetry::GetInstance();   // Init the object.
     power_telemerty_enabled_ = true;  // Enable the feature flag
-    RawAddress::FromString("00:00:00:00:00:00", bdaddr);
+    bdaddr = RawAddress::FromString("00:00:00:00:00:00").value();
   }
 };
 
@@ -88,33 +88,6 @@ TEST_F(PowerTelemetryTest, test_LogBleAdvDetails) {
   // Add new BleAdv data
   power_telemetry::GetInstance().LogBleAdvStarted();
   ASSERT_EQ(2, (int)ldc.adv_list.size());
-}
-
-TEST_F(PowerTelemetryTest, test_LogTxPower) {
-  reset();
-
-  LogDataContainer& ldc = power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
-  tBTM_TX_POWER_RESULT dummy_res;
-  dummy_res.rem_bda = bdaddr;
-
-  // Failed Case. Shouldn't crash if no init data
-  dummy_res.status = tBTM_STATUS::BTM_SUCCESS;
-  void* p = &dummy_res;
-  power_telemetry::GetInstance().LogTxPower(p);
-
-  // init data
-  power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected, true);
-
-  // Successful case
-  dummy_res.tx_power = 100;
-  power_telemetry::GetInstance().LogTxPower(p);
-  ASSERT_EQ(dummy_res.tx_power, ldc.acl.link_details_map[handle].tx_power_level);
-
-  // Failed case
-  dummy_res.tx_power = 99;
-  dummy_res.status = tBTM_STATUS::BTM_UNDEFINED;
-  power_telemetry::GetInstance().LogTxPower(p);
-  ASSERT_NE(dummy_res.tx_power, ldc.acl.link_details_map[handle].tx_power_level);
 }
 
 TEST_F(PowerTelemetryTest, test_LogAclLinkDetails) {
@@ -236,8 +209,6 @@ TEST_F(PowerTelemetryTest, test_LogChannelDisconnected) {
   power_telemetry::GetInstance().LogChannelDisconnected(0, 0, 0, bdaddr);
   ASSERT_EQ(State::kDisconnected, ldc.channel_map[bdaddr].back().state);
 
-  RawAddress dummyAddr;
-  RawAddress::FromString("00:00:00:00:00:11", dummyAddr);
   power_telemetry::GetInstance().LogChannelDisconnected(0, 0, 0, bdaddr);
   ASSERT_EQ(1, (int)ldc.channel_map[bdaddr].size());
 }
@@ -268,10 +239,6 @@ TEST_F(PowerTelemetryTest, test_feature_flag) {
   // init data
   isConnected = true;
   LogDataContainer& ldc = power_telemetry::GetInstance().pimpl_->GetCurrentLogDataContainer();
-  tBTM_TX_POWER_RESULT dummy_res;
-  dummy_res.rem_bda = bdaddr;
-  dummy_res.status = tBTM_STATUS::BTM_SUCCESS;
-  void* p = &dummy_res;
   power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected, true);
 
   // Set feature flag to false
@@ -320,10 +287,6 @@ TEST_F(PowerTelemetryTest, test_feature_flag) {
   // Set to 1 because of fake data
   power_telemetry::GetInstance().LogLinkDetails(handle, bdaddr, isConnected, true);
   ASSERT_EQ(1, (int)ldc.acl.link_details_map.count(handle));
-
-  dummy_res.tx_power = 100;
-  power_telemetry::GetInstance().LogTxPower(p);
-  ASSERT_EQ(0, ldc.acl.link_details_map[handle].tx_power_level);
 
   power_telemetry::GetInstance().LogBleScan(10);
   ASSERT_EQ(0, (int)power_telemetry::GetInstance().pimpl_->ble_scan.count_);

@@ -17,9 +17,8 @@
 #ifndef ANDROID_INCLUDE_DISTANCE_MEASUREMENT_INTERFACE_H
 #define ANDROID_INCLUDE_DISTANCE_MEASUREMENT_INTERFACE_H
 
+#include <bluetooth/types/address.h>
 #include <stdint.h>
-
-#include "types/raw_address.h"
 
 /**
  * Distance measurement callbacks related callbacks invoked from from the
@@ -43,8 +42,9 @@ class DistanceMeasurementInterface {
 public:
   virtual ~DistanceMeasurementInterface() = default;
   virtual void RegisterDistanceMeasurementCallbacks(DistanceMeasurementCallbacks* callbacks) = 0;
-  virtual void StartDistanceMeasurement(RawAddress raw_address, uint16_t interval,
-                                        uint8_t method) = 0;
+  virtual void StartDistanceMeasurement(int32_t app_uid, RawAddress raw_address, uint16_t interval,
+                                        uint8_t method, uint8_t sight_type,
+                                        uint8_t locationType) = 0;
   virtual void StopDistanceMeasurement(RawAddress raw_address, uint8_t method) = 0;
 };
 

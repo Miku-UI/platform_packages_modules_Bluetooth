@@ -17,30 +17,33 @@
 
 package com.android.bluetooth.mcp;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
-import android.bluetooth.BluetoothLeBroadcastMetadata;
 import android.os.Looper;
 import android.platform.test.flag.junit.SetFlagsRule;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
-import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.le_audio.LeAudioService;
+import com.android.tests.bluetooth.MockitoRule;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -55,6 +58,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Test cases for {@link MediaControlGattService}. */
@@ -86,21 +90,15 @@ public class MediaControlGattServiceTest {
             Looper.prepare();
         }
 
-        TestUtils.setAdapterService(mAdapterService);
-
         doReturn(true).when(mGattServer).addService(any(BluetoothGattService.class));
         doReturn(new BluetoothDevice[0]).when(mAdapterService).getBondedDevices();
         doReturn(BluetoothDevice.ACCESS_ALLOWED).when(mMcpService).getDeviceAuthorization(any());
 
-        mMediaControlGattService = new MediaControlGattService(mMcpService, mCallback, TEST_CCID);
-        mMediaControlGattService.setBluetoothGattServerForTesting(mGattServer);
-        mMediaControlGattService.setServiceManagerForTesting(mMcpService);
-        mMediaControlGattService.setLeAudioServiceForTesting(mLeAudioService);
-    }
+        doReturn(Optional.of(mLeAudioService)).when(mAdapterService).getLeAudioService();
 
-    @After
-    public void tearDown() throws Exception {
-        TestUtils.clearAdapterService(mAdapterService);
+        mMediaControlGattService =
+                new MediaControlGattService(mAdapterService, mMcpService, mCallback, TEST_CCID);
+        mMediaControlGattService.setBluetoothGattServerForTesting(mGattServer);
     }
 
     private void prepareConnectedDevice() {
@@ -1043,14 +1041,26 @@ public class MediaControlGattServiceTest {
     }
 
     @Test
-    public void testMediaControlPointeRequest_OpcodePlayCallLeAudioServiceSetActiveDevice() {
+    public void testMediaControlPointeRequest_OpcodePlayCallDuringBroadcast() {
+        when(mLeAudioService.isBroadcastActive()).thenReturn(true);
         initAllFeaturesGattService();
         prepareConnectedDevice();
         mMediaControlGattService.updateSupportedOpcodesChar(Request.SupportedOpcodes.PLAY, true);
         verifyMediaControlPointRequest(Request.Opcodes.PLAY, null, BluetoothGatt.GATT_SUCCESS, 1);
 
-        final List<BluetoothLeBroadcastMetadata> metadataList = mock(List.class);
-        when(mLeAudioService.getAllBroadcastMetadata()).thenReturn(metadataList);
+        verify(mLeAudioService, times(0)).setActiveDevice(any(BluetoothDevice.class));
+        verify(mCallback).onMediaControlRequest(any(Request.class));
+    }
+
+    @Test
+    public void testMediaControlPointeRequest_OpcodePlayCallLeAudioServiceSetActiveDevice() {
+        when(mLeAudioService.isBroadcastActive()).thenReturn(false);
+        initAllFeaturesGattService();
+        prepareConnectedDevice();
+        mMediaControlGattService.updateSupportedOpcodesChar(Request.SupportedOpcodes.PLAY, true);
+        verifyMediaControlPointRequest(Request.Opcodes.PLAY, null, BluetoothGatt.GATT_SUCCESS, 1);
+
+        verify(mLeAudioService).setActiveDevice(any(BluetoothDevice.class));
         verify(mCallback).onMediaControlRequest(any(Request.class));
     }
 

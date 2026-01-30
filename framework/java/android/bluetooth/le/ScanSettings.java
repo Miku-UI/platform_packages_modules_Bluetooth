@@ -16,15 +16,24 @@
 
 package android.bluetooth.le;
 
+import android.annotation.FlaggedApi;
+import android.annotation.IntDef;
+import android.annotation.NonNull;
+import android.annotation.RequiresNoPermission;
 import android.annotation.SystemApi;
 import android.app.compat.CompatChanges;
 import android.bluetooth.BluetoothDevice;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.EnabledSince;
+import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
 
 import com.android.bluetooth.flags.Flags;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.util.List;
 
 /**
  * Bluetooth LE scan settings are passed to {@link BluetoothLeScanner#startScan} to define the
@@ -167,13 +176,35 @@ public final class ScanSettings implements Parcelable {
      */
     public static final int PHY_LE_ALL_SUPPORTED = 255;
 
+    /** Scan type is unknown. */
+    @FlaggedApi(Flags.FLAG_SUPPORT_PASSIVE_SCANNING)
+    public static final int SCAN_TYPE_UNKNOWN = 0;
+
+    /** Does passive scanning, scan responses are ignored. */
+    @FlaggedApi(Flags.FLAG_SUPPORT_PASSIVE_SCANNING)
+    public static final int SCAN_TYPE_PASSIVE = 1;
+
+    /** Does active scanning, scan results are delivered upon scan responses arrive. */
+    @FlaggedApi(Flags.FLAG_SUPPORT_PASSIVE_SCANNING)
+    public static final int SCAN_TYPE_ACTIVE = 2;
+
+    /** @hide */
+    @IntDef(
+            prefix = "SCAN_TYPE_",
+            value = {
+                SCAN_TYPE_UNKNOWN,
+                SCAN_TYPE_PASSIVE,
+                SCAN_TYPE_ACTIVE,
+            })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface ScanType {}
+
     /**
      * Starting with Android B (Baklava), the default number of trackable advertisements for onFound
-     * /onLost scanning is 2 instead of (max hardware allows / 2). TODO: b/391981111 - Change 36 to
-     * VERSION_CODES.BAKLAVA when available.
+     * /onLost scanning is 2 instead of (max hardware allows / 2).
      */
     @ChangeId
-    @EnabledSince(targetSdkVersion = 36)
+    @EnabledSince(targetSdkVersion = Build.VERSION_CODES.BAKLAVA)
     static final long CHANGE_DEFAULT_TRACKABLE_ADV_NUMBER = 386727721L;
 
     // Bluetooth LE scan mode.
@@ -197,24 +228,39 @@ public final class ScanSettings implements Parcelable {
 
     private final int mPhy;
 
+    private final int mRssiThreshold;
+
+    private final int mScanType;
+
+    @RequiresNoPermission
     public int getScanMode() {
         return mScanMode;
     }
 
+    @RequiresNoPermission
     public int getCallbackType() {
         return mCallbackType;
     }
 
+    @RequiresNoPermission
     public int getScanResultType() {
         return mScanResultType;
     }
 
+    /** Returns report delay timestamp based on the device clock. */
+    @RequiresNoPermission
+    public long getReportDelayMillis() {
+        return mReportDelayMillis;
+    }
+
     /** @hide */
+    @RequiresNoPermission
     public int getMatchMode() {
         return mMatchMode;
     }
 
     /** @hide */
+    @RequiresNoPermission
     public int getNumOfMatches() {
         return mNumOfMatchesPerFilter;
     }
@@ -223,18 +269,27 @@ public final class ScanSettings implements Parcelable {
      * Returns whether only legacy advertisements will be returned. Legacy advertisements include
      * advertisements as specified by the Bluetooth core specification 4.2 and below.
      */
+    @RequiresNoPermission
     public boolean getLegacy() {
         return mLegacy;
     }
 
     /** Returns the physical layer used during a scan. */
+    @RequiresNoPermission
     public int getPhy() {
         return mPhy;
     }
 
-    /** Returns report delay timestamp based on the device clock. */
-    public long getReportDelayMillis() {
-        return mReportDelayMillis;
+    @FlaggedApi(Flags.FLAG_RSSI_SCAN_FILTER)
+    @RequiresNoPermission
+    public int getRssiThreshold() {
+        return mRssiThreshold;
+    }
+
+    @FlaggedApi(Flags.FLAG_SUPPORT_PASSIVE_SCANNING)
+    @RequiresNoPermission
+    public @ScanType int getScanType() {
+        return mScanType;
     }
 
     private ScanSettings(
@@ -245,7 +300,9 @@ public final class ScanSettings implements Parcelable {
             int matchMode,
             int numOfMatchesPerFilter,
             boolean legacy,
-            int phy) {
+            int phy,
+            int rssiThreshold,
+            int scanType) {
         mScanMode = scanMode;
         mCallbackType = callbackType;
         mScanResultType = scanResultType;
@@ -254,6 +311,8 @@ public final class ScanSettings implements Parcelable {
         mMatchMode = matchMode;
         mLegacy = legacy;
         mPhy = phy;
+        mRssiThreshold = rssiThreshold;
+        mScanType = scanType;
     }
 
     private ScanSettings(Parcel in) {
@@ -265,6 +324,8 @@ public final class ScanSettings implements Parcelable {
         mNumOfMatchesPerFilter = in.readInt();
         mLegacy = in.readInt() != 0;
         mPhy = in.readInt();
+        mRssiThreshold = in.readInt();
+        mScanType = in.readInt();
     }
 
     @Override
@@ -277,6 +338,8 @@ public final class ScanSettings implements Parcelable {
         dest.writeInt(mNumOfMatchesPerFilter);
         dest.writeInt(mLegacy ? 1 : 0);
         dest.writeInt(mPhy);
+        dest.writeInt(mRssiThreshold);
+        dest.writeInt(mScanType);
     }
 
     @Override
@@ -284,7 +347,7 @@ public final class ScanSettings implements Parcelable {
         return 0;
     }
 
-    public static final @android.annotation.NonNull Parcelable.Creator<ScanSettings> CREATOR =
+    public static final @NonNull Parcelable.Creator<ScanSettings> CREATOR =
             new Creator<ScanSettings>() {
                 @Override
                 public ScanSettings[] newArray(int size) {
@@ -307,11 +370,12 @@ public final class ScanSettings implements Parcelable {
         private int mNumOfMatchesPerFilter = MATCH_NUM_MAX_ADVERTISEMENT;
         private boolean mLegacy = true;
         private int mPhy = BluetoothDevice.PHY_LE_1M;
+        private int mRssiThreshold = Byte.MIN_VALUE;
+        private int mScanType = Flags.supportPassiveScanning() ? SCAN_TYPE_ACTIVE : 2;
 
         // Instance initializer for mNumOfMatchesPerFilter
         {
-            if (Flags.changeDefaultTrackableAdvNumber()
-                    && CompatChanges.isChangeEnabled(CHANGE_DEFAULT_TRACKABLE_ADV_NUMBER)) {
+            if (CompatChanges.isChangeEnabled(CHANGE_DEFAULT_TRACKABLE_ADV_NUMBER)) {
                 mNumOfMatchesPerFilter = MATCH_NUM_FEW_ADVERTISEMENT;
             }
         }
@@ -324,20 +388,21 @@ public final class ScanSettings implements Parcelable {
          *     ScanSettings#SCAN_MODE_LOW_LATENCY}.
          * @throws IllegalArgumentException If the {@code scanMode} is invalid.
          */
+        @RequiresNoPermission
         public Builder setScanMode(int scanMode) {
-            switch (scanMode) {
-                case SCAN_MODE_OPPORTUNISTIC:
-                case SCAN_MODE_LOW_POWER:
-                case SCAN_MODE_BALANCED:
-                case SCAN_MODE_LOW_LATENCY:
-                case SCAN_MODE_AMBIENT_DISCOVERY:
-                case SCAN_MODE_SCREEN_OFF:
-                case SCAN_MODE_SCREEN_OFF_BALANCED:
-                    mScanMode = scanMode;
-                    break;
-                default:
-                    throw new IllegalArgumentException("invalid scan mode " + scanMode);
+            if (!List.of(
+                            SCAN_MODE_OPPORTUNISTIC,
+                            SCAN_MODE_LOW_POWER,
+                            SCAN_MODE_BALANCED,
+                            SCAN_MODE_LOW_LATENCY,
+                            SCAN_MODE_AMBIENT_DISCOVERY,
+                            SCAN_MODE_SCREEN_OFF,
+                            SCAN_MODE_SCREEN_OFF_BALANCED)
+                    .contains(scanMode)) {
+                throw new IllegalArgumentException("invalid scan mode " + scanMode);
             }
+
+            mScanMode = scanMode;
             return this;
         }
 
@@ -347,6 +412,7 @@ public final class ScanSettings implements Parcelable {
          * @param callbackType The callback type flags for the scan.
          * @throws IllegalArgumentException If the {@code callbackType} is invalid.
          */
+        @RequiresNoPermission
         public Builder setCallbackType(int callbackType) {
 
             if (!isValidCallbackType(callbackType)) {
@@ -377,6 +443,7 @@ public final class ScanSettings implements Parcelable {
          * @hide
          */
         @SystemApi
+        @RequiresNoPermission
         public Builder setScanResultType(int scanResultType) {
             if (scanResultType < SCAN_RESULT_TYPE_FULL
                     || scanResultType > SCAN_RESULT_TYPE_ABBREVIATED) {
@@ -395,6 +462,7 @@ public final class ScanSettings implements Parcelable {
          * @param reportDelayMillis how frequently scan results should be delivered in milliseconds
          * @throws IllegalArgumentException if {@code reportDelayMillis} &lt; 0
          */
+        @RequiresNoPermission
         public Builder setReportDelay(long reportDelayMillis) {
             if (reportDelayMillis < 0) {
                 throw new IllegalArgumentException("reportDelay must be > 0");
@@ -412,6 +480,7 @@ public final class ScanSettings implements Parcelable {
          *     ScanSettings#MATCH_NUM_MAX_ADVERTISEMENT}
          * @throws IllegalArgumentException If the {@code matchMode} is invalid.
          */
+        @RequiresNoPermission
         public Builder setNumOfMatches(int numOfMatches) {
             if (numOfMatches < MATCH_NUM_ONE_ADVERTISEMENT
                     || numOfMatches > MATCH_NUM_MAX_ADVERTISEMENT) {
@@ -428,6 +497,7 @@ public final class ScanSettings implements Parcelable {
          *     or {@link ScanSettings#MATCH_MODE_STICKY}
          * @throws IllegalArgumentException If the {@code matchMode} is invalid.
          */
+        @RequiresNoPermission
         public Builder setMatchMode(int matchMode) {
             if (matchMode < MATCH_MODE_AGGRESSIVE || matchMode > MATCH_MODE_STICKY) {
                 throw new IllegalArgumentException("invalid matchMode " + matchMode);
@@ -443,6 +513,7 @@ public final class ScanSettings implements Parcelable {
          *
          * @param legacy true if only legacy advertisements will be returned
          */
+        @RequiresNoPermission
         public Builder setLegacy(boolean legacy) {
             mLegacy = legacy;
             return this;
@@ -459,8 +530,42 @@ public final class ScanSettings implements Parcelable {
          * @param phy Can be one of {@link BluetoothDevice#PHY_LE_1M}, {@link
          *     BluetoothDevice#PHY_LE_CODED} or {@link ScanSettings#PHY_LE_ALL_SUPPORTED}
          */
+        @RequiresNoPermission
         public Builder setPhy(int phy) {
             mPhy = phy;
+            return this;
+        }
+
+        /**
+         * Sets the RSSI threshold. When filtering by RSSI threshold, an advertisement will pass the
+         * filter only if its RSSI value is greater than or equal to the specified threshold.
+         *
+         * @param rssiThreshold the high threshold of RSSI value. The valid range is [-127, 126].
+         * @return this builder
+         */
+        @FlaggedApi(Flags.FLAG_RSSI_SCAN_FILTER)
+        @RequiresNoPermission
+        public @NonNull Builder setRssiThreshold(int rssiThreshold) {
+            mRssiThreshold = rssiThreshold;
+            return this;
+        }
+
+        /**
+         * Sets the scan type. Either {@link #SCAN_TYPE_ACTIVE} or {@link #SCAN_TYPE_PASSIVE} can be
+         * set. The default value is {@link #SCAN_TYPE_ACTIVE}.
+         *
+         * @param scanType Either {@link #SCAN_TYPE_ACTIVE} or {@link #SCAN_TYPE_PASSIVE}. If scan
+         *     type is {@link #SCAN_TYPE_PASSIVE}, scan results are delivered immediately upon
+         *     receiving an advertising report, without waiting for scan responses.
+         * @throws IllegalArgumentException if invalid scan type is given.
+         */
+        @FlaggedApi(Flags.FLAG_SUPPORT_PASSIVE_SCANNING)
+        @RequiresNoPermission
+        public @NonNull Builder setScanType(@ScanType int scanType) {
+            if (scanType != SCAN_TYPE_PASSIVE && scanType != SCAN_TYPE_ACTIVE) {
+                throw new IllegalArgumentException("invalid scan type");
+            }
+            mScanType = scanType;
             return this;
         }
 
@@ -469,6 +574,7 @@ public final class ScanSettings implements Parcelable {
          *
          * @throws IllegalArgumentException if the settings cannot be built.
          */
+        @RequiresNoPermission
         public ScanSettings build() {
             if (mCallbackType == CALLBACK_TYPE_ALL_MATCHES_AUTO_BATCH
                     && mReportDelayMillis < AUTO_BATCH_MIN_REPORT_DELAY_MILLIS) {
@@ -484,7 +590,9 @@ public final class ScanSettings implements Parcelable {
                     mMatchMode,
                     mNumOfMatchesPerFilter,
                     mLegacy,
-                    mPhy);
+                    mPhy,
+                    mRssiThreshold,
+                    mScanType);
         }
     }
 
@@ -493,24 +601,17 @@ public final class ScanSettings implements Parcelable {
      *
      * @hide
      */
+    @RequiresNoPermission
     public static String getScanModeString(int scanMode) {
-        switch (scanMode) {
-            case SCAN_MODE_OPPORTUNISTIC:
-                return "SCAN_MODE_OPPORTUNISTIC";
-            case SCAN_MODE_LOW_POWER:
-                return "SCAN_MODE_LOW_POWER";
-            case SCAN_MODE_BALANCED:
-                return "SCAN_MODE_BALANCED";
-            case SCAN_MODE_LOW_LATENCY:
-                return "SCAN_MODE_LOW_LATENCY";
-            case SCAN_MODE_AMBIENT_DISCOVERY:
-                return "SCAN_MODE_AMBIENT_DISCOVERY";
-            case SCAN_MODE_SCREEN_OFF:
-                return "SCAN_MODE_SCREEN_OFF";
-            case SCAN_MODE_SCREEN_OFF_BALANCED:
-                return "SCAN_MODE_SCREEN_OFF_BALANCED";
-            default:
-                return "UNKNOWN value=" + scanMode;
-        }
+        return switch (scanMode) {
+            case SCAN_MODE_OPPORTUNISTIC -> "SCAN_MODE_OPPORTUNISTIC";
+            case SCAN_MODE_LOW_POWER -> "SCAN_MODE_LOW_POWER";
+            case SCAN_MODE_BALANCED -> "SCAN_MODE_BALANCED";
+            case SCAN_MODE_LOW_LATENCY -> "SCAN_MODE_LOW_LATENCY";
+            case SCAN_MODE_AMBIENT_DISCOVERY -> "SCAN_MODE_AMBIENT_DISCOVERY";
+            case SCAN_MODE_SCREEN_OFF -> "SCAN_MODE_SCREEN_OFF";
+            case SCAN_MODE_SCREEN_OFF_BALANCED -> "SCAN_MODE_SCREEN_OFF_BALANCED";
+            default -> "UNKNOWN value=" + scanMode;
+        };
     }
 }

@@ -26,9 +26,10 @@
 #include <cstdint>
 
 // Original included files, if any
+#include <bluetooth/types/address.h>
+
 #include "stack/include/smp_api.h"
 #include "test/common/mock_functions.h"
-#include "types/raw_address.h"
 
 // Mocked compile conditionals, if any
 // Mocked internal structures, if any
@@ -356,9 +357,9 @@ void smp_link_encrypted(const RawAddress& bda, uint8_t encr_enable) {
   inc_func_call_count(__func__);
   test::mock::stack_smp_act::smp_link_encrypted(bda, encr_enable);
 }
-void smp_cancel_start_encryption_attempt() {
+void smp_cancel_start_encryption_attempt(const RawAddress& bda) {
   inc_func_call_count(__func__);
-  test::mock::stack_smp_act::smp_cancel_start_encryption_attempt();
+  test::mock::stack_smp_act::smp_cancel_start_encryption_attempt(bda);
 }
 bool smp_proc_ltk_request(const RawAddress& bda) {
   inc_func_call_count(__func__);

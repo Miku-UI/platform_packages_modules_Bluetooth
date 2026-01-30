@@ -16,7 +16,9 @@
 
 package android.bluetooth.le;
 
+import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -93,6 +95,7 @@ public final class PeriodicAdvertisingReport implements Parcelable {
     }
 
     /** Returns the synchronization handle. */
+    @RequiresNoPermission
     public int getSyncHandle() {
         return mSyncHandle;
     }
@@ -101,11 +104,13 @@ public final class PeriodicAdvertisingReport implements Parcelable {
      * Returns the transmit power in dBm. The valid range is [-127, 126]. Value of 127 means
      * information was not available.
      */
+    @RequiresNoPermission
     public int getTxPower() {
         return mTxPower;
     }
 
     /** Returns the received signal strength in dBm. The valid range is [-127, 20]. */
+    @RequiresNoPermission
     public int getRssi() {
         return mRssi;
     }
@@ -114,17 +119,19 @@ public final class PeriodicAdvertisingReport implements Parcelable {
      * Returns the data status. Can be one of {@link PeriodicAdvertisingReport#DATA_COMPLETE} or
      * {@link PeriodicAdvertisingReport#DATA_INCOMPLETE_TRUNCATED}.
      */
+    @RequiresNoPermission
     public int getDataStatus() {
         return mDataStatus;
     }
 
     /** Returns the data contained in this periodic advertising report. */
-    @Nullable
-    public ScanRecord getData() {
+    @RequiresNoPermission
+    public @Nullable ScanRecord getData() {
         return mData;
     }
 
     /** Returns timestamp since boot when the scan record was observed. */
+    @RequiresNoPermission
     public long getTimestampNanos() {
         return mTimestampNanos;
     }
@@ -168,17 +175,16 @@ public final class PeriodicAdvertisingReport implements Parcelable {
                 + '}';
     }
 
-    public static final @android.annotation.NonNull Parcelable.Creator<PeriodicAdvertisingReport>
-            CREATOR =
-                    new Creator<PeriodicAdvertisingReport>() {
-                        @Override
-                        public PeriodicAdvertisingReport createFromParcel(Parcel source) {
-                            return new PeriodicAdvertisingReport(source);
-                        }
+    public static final @NonNull Parcelable.Creator<PeriodicAdvertisingReport> CREATOR =
+            new Creator<PeriodicAdvertisingReport>() {
+                @Override
+                public PeriodicAdvertisingReport createFromParcel(Parcel source) {
+                    return new PeriodicAdvertisingReport(source);
+                }
 
-                        @Override
-                        public PeriodicAdvertisingReport[] newArray(int size) {
-                            return new PeriodicAdvertisingReport[size];
-                        }
-                    };
+                @Override
+                public PeriodicAdvertisingReport[] newArray(int size) {
+                    return new PeriodicAdvertisingReport[size];
+                }
+            };
 }

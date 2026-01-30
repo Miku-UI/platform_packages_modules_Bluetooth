@@ -79,7 +79,7 @@ cc_library_static {
     cflags: [
         "-DLIB_OSI_INTERNAL",
     ],
-    min_sdk_version: "Tiramisu",
+    min_sdk_version: "36",
     apex_available: ["com.android.bt"],
     header_libs: ["libbluetooth_headers"],
     static_libs: [
@@ -87,7 +87,7 @@ cc_library_static {
         "libaconfig_storage_read_api_cc",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
-        "libbt-platform-protos-lite",
+        "libbluetooth_types",
         "libcom.android.sysprop.bluetooth.wrapped",
         "server_configurable_flags",
     ],
@@ -134,11 +134,11 @@ cc_test {
         "test",
     ],
     static_libs: [
-        "bluetooth_flags_c_lib",
-        "libbluetooth-types",
+        "bluetooth_flags_c_lib_for_test",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_log",
+        "libbluetooth_types",
         "libbt-common",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
@@ -146,7 +146,6 @@ cc_test {
         "libgmock",
         "libosi",
         "libprotobuf-cpp-lite",
-        "libstatslog_bt",
     ],
     target: {
         android: {

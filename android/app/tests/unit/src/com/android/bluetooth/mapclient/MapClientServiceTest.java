@@ -13,8 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.mapclient;
 
+import static android.bluetooth.BluetoothDevice.TRANSPORT_BREDR;
+import static android.bluetooth.BluetoothDevice.TRANSPORT_LE;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
@@ -22,15 +25,15 @@ import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
+import static com.android.bluetooth.TestUtils.getBluetoothManager;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -38,21 +41,21 @@ import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.SdpMasRecord;
-import android.content.Context;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.telephony.SubscriptionManager;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
-import androidx.test.platform.app.InstrumentationRegistry;
-import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.storage.DatabaseManager;
+import com.android.bluetooth.flags.Flags;
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.After;
 import org.junit.Before;
@@ -69,16 +72,12 @@ import java.util.List;
 @RunWith(AndroidJUnit4.class)
 public class MapClientServiceTest {
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock private AdapterService mAdapterService;
-    @Mock private DatabaseManager mDatabaseManager;
     @Mock private MnsService mMnsService;
 
-    private final BluetoothAdapter mAdapter =
-            InstrumentationRegistry.getInstrumentation()
-                    .getTargetContext()
-                    .getSystemService(BluetoothManager.class)
-                    .getAdapter();
+    private final BluetoothAdapter mAdapter = getBluetoothManager().getAdapter();
     private final BluetoothDevice mRemoteDevice = getTestDevice(0);
 
     private MapClientService mService;
@@ -87,12 +86,10 @@ public class MapClientServiceTest {
     @Before
     public void setUp() throws Exception {
         doReturn(CONNECTION_POLICY_ALLOWED)
-                .when(mDatabaseManager)
+                .when(mAdapterService)
                 .getProfileConnectionPolicy(any(), anyInt());
 
-        doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
-        TestUtils.mockGetSystemService(
-                mAdapterService, Context.TELEPHONY_SUBSCRIPTION_SERVICE, SubscriptionManager.class);
+        TestUtils.mockGetSystemService(mAdapterService, SubscriptionManager.class);
 
         mTestLooper = new TestLooper();
 
@@ -106,19 +103,6 @@ public class MapClientServiceTest {
     @After
     public void tearDown() throws Exception {
         mService.cleanup();
-        assertThat(MapClientService.getMapClientService()).isNull();
-    }
-
-    @Test
-    public void initialize() {
-        assertThat(MapClientService.getMapClientService()).isNotNull();
-    }
-
-    @Test
-    public void setMapClientService_withNull() {
-        MapClientService.setMapClientService(null);
-
-        assertThat(MapClientService.getMapClientService()).isNull();
     }
 
     @Test
@@ -134,10 +118,10 @@ public class MapClientServiceTest {
 
     @Test
     public void setConnectionPolicy() {
-        doReturn(true).when(mDatabaseManager).setProfileConnectionPolicy(any(), anyInt(), anyInt());
+        doReturn(true).when(mAdapterService).setProfileConnectionPolicy(any(), anyInt(), anyInt());
 
         assertThat(mService.setConnectionPolicy(mRemoteDevice, CONNECTION_POLICY_UNKNOWN)).isTrue();
-        verify(mDatabaseManager)
+        verify(mAdapterService)
                 .setProfileConnectionPolicy(
                         mRemoteDevice, BluetoothProfile.MAP_CLIENT, CONNECTION_POLICY_UNKNOWN);
     }
@@ -149,7 +133,7 @@ public class MapClientServiceTest {
                         CONNECTION_POLICY_UNKNOWN,
                         CONNECTION_POLICY_FORBIDDEN,
                         CONNECTION_POLICY_ALLOWED)) {
-            doReturn(policy).when(mDatabaseManager).getProfileConnectionPolicy(any(), anyInt());
+            doReturn(policy).when(mAdapterService).getProfileConnectionPolicy(any(), anyInt());
             assertThat(mService.getConnectionPolicy(mRemoteDevice)).isEqualTo(policy);
         }
     }
@@ -157,8 +141,28 @@ public class MapClientServiceTest {
     @Test
     public void connect_whenPolicyIsForbidden_returnsFalse() {
         doReturn(CONNECTION_POLICY_FORBIDDEN)
-                .when(mDatabaseManager)
+                .when(mAdapterService)
                 .getProfileConnectionPolicy(any(), anyInt());
+
+        assertThat(mService.connect(mRemoteDevice)).isFalse();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_MAP_CLIENT_CHECK_ACCESS_PERMISSION)
+    public void connect_whenAccessRejected_returnsFalse() {
+        doReturn(BluetoothDevice.ACCESS_REJECTED)
+                .when(mAdapterService)
+                .getMessageAccessPermission(any(BluetoothDevice.class));
+
+        assertThat(mService.connect(mRemoteDevice)).isFalse();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_MAP_CLIENT_CHECK_ACCESS_PERMISSION)
+    public void connect_whenAccessUnknown_returnsFalse() {
+        doReturn(BluetoothDevice.ACCESS_UNKNOWN)
+                .when(mAdapterService)
+                .getMessageAccessPermission(any(BluetoothDevice.class));
 
         assertThat(mService.connect(mRemoteDevice)).isFalse();
     }
@@ -299,7 +303,7 @@ public class MapClientServiceTest {
         mService.getInstanceMap().put(mRemoteDevice, sm);
         when(sm.getState()).thenReturn(connectionState);
 
-        mService.aclDisconnected(mRemoteDevice, BluetoothDevice.TRANSPORT_LE);
+        mService.aclDisconnected(mRemoteDevice, TRANSPORT_LE);
         mTestLooper.dispatchAll();
 
         verify(sm, never()).disconnect();
@@ -312,7 +316,7 @@ public class MapClientServiceTest {
         mService.getInstanceMap().put(mRemoteDevice, sm);
         when(sm.getState()).thenReturn(connectionState);
 
-        mService.aclDisconnected(mRemoteDevice, BluetoothDevice.TRANSPORT_BREDR);
+        mService.aclDisconnected(mRemoteDevice, TRANSPORT_BREDR);
         mTestLooper.dispatchAll();
 
         verify(sm).disconnect();

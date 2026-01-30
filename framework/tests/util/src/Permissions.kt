@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package android.bluetooth.test_utils
 
 import android.app.UiAutomation
@@ -20,7 +21,7 @@ import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertThrows
 
-private const val TAG: String = "Permissions"
+private const val TAG = "Permissions"
 
 object Permissions {
     private val uiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation()
@@ -53,10 +54,15 @@ object Permissions {
         }
         newPermissions.forEach {
             val permissionsSet = newPermissions.toMutableSet()
-            permissionsSet.remove(it)
+            val removedPermission = it
+            permissionsSet.remove(removedPermission)
 
             withPermissions(*arrayOf(*permissionsSet.toTypedArray())).use {
-                assertThrows(SecurityException::class.java, { action() })
+                assertThrows(
+                    "SecurityException was not thrown after removing $removedPermission",
+                    SecurityException::class.java,
+                    { action() },
+                )
             }
         }
     }

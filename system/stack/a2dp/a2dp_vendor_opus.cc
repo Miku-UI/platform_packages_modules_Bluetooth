@@ -907,10 +907,6 @@ tA2DP_STATUS A2dpCodecConfigOpusBase::setCodecConfig(const uint8_t* p_peer_codec
       break;
     }
 
-    // Compute the common capability
-    if (sampleRate & A2DP_OPUS_SAMPLING_FREQ_48000) {
-    }
-
     // No user preference - try the codec audio config
     if (select_audio_sample_rate(&codec_audio_config_, sampleRate, &result_config_cie,
                                  &codec_config_)) {
@@ -1213,9 +1209,3 @@ bool A2dpCodecConfigOpusSink::init() {
 }
 
 bool A2dpCodecConfigOpusSink::useRtpHeaderMarkerBit() const { return false; }
-
-bool A2dpCodecConfigOpusSink::updateEncoderUserConfig(
-        const tA2DP_ENCODER_INIT_PEER_PARAMS* /* p_peer_params */, bool* /* p_restart_input */,
-        bool* /* p_restart_output */, bool* /* p_config_updated */) {
-  return false;
-}

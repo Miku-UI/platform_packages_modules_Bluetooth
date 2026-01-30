@@ -29,6 +29,9 @@
 #include <base/functional/callback.h>
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/uuid.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <cstdio>
@@ -45,15 +48,12 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/gatt_api.h"
 #include "stack/include/sdp_api.h"
-#include "types/bluetooth/uuid.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;
 
 using bluetooth::Uuid;
 using gatt::Characteristic;
-using gatt::Database;
 using gatt::DatabaseBuilder;
 using gatt::Descriptor;
 using gatt::IncludedService;
@@ -204,7 +204,8 @@ RobustCachingSupport GetRobustCachingSupport(const tBTA_GATTC_CLCB* p_clcb,
     return GATT_ERROR;
   }
 
-  if (p_clcb->transport == BT_TRANSPORT_LE) {
+  if (p_clcb->transport == BT_TRANSPORT_LE ||
+      com_android_bluetooth_flags_br_edr_discover_gatt_services_over_gatt()) {
     return GATTC_Discover(conn_id, disc_type, 0x0001, 0xFFFF);
   }
 
@@ -297,7 +298,7 @@ static void bta_gattc_explore_srvc_finished(tCONN_ID conn_id, tBTA_GATTC_SERV* p
   bool success = bta_gattc_hash_write(hash, p_clcb->p_srcb->gatt_database);
 
   // If the device is trusted, link the addr file to hash file
-  if (success && btm_sec_is_a_bonded_dev(p_srvc_cb->server_bda)) {
+  if (success && BTM_IsBonded(p_srvc_cb->server_bda)) {
     log::debug("Linking db hash to address {}",
                p_clcb->p_srcb->server_bda.ToRedactedStringForLogging());
     bta_gattc_cache_link(p_clcb->p_srcb->server_bda, hash);
@@ -766,7 +767,7 @@ static void bta_gattc_read_db_hash_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATT
           found = true;
         }
         // If the device is trusted, link addr file to correct hash file
-        if (found && (btm_sec_is_a_bonded_dev(p_clcb->p_srcb->server_bda))) {
+        if (found && BTM_IsBonded(p_clcb->p_srcb->server_bda)) {
           bta_gattc_cache_link(p_clcb->p_srcb->server_bda, remote_hash);
         }
       }
@@ -774,7 +775,7 @@ static void bta_gattc_read_db_hash_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATT
   } else {
     // Only load cache for trusted device if no database hash on server side.
     // If is_svc_chg is true, do not read the existing cache.
-    bool is_a_bonded_dev = btm_sec_is_a_bonded_dev(p_clcb->p_srcb->server_bda);
+    bool is_a_bonded_dev = BTM_IsBonded(p_clcb->p_srcb->server_bda);
     if (!is_svc_chg && is_a_bonded_dev) {
       gatt::Database db = bta_gattc_cache_load(p_clcb->p_srcb->server_bda);
       if (!db.IsEmpty()) {
@@ -946,19 +947,20 @@ static void bta_gattc_get_gatt_db_impl(tBTA_GATTC_SERV* p_srvc_cb, uint16_t star
                                        uint16_t end_handle, btgatt_db_element_t** db, int* count) {
   log::verbose("start_handle 0x{:04x}, end_handle 0x{:04x}", start_handle, end_handle);
 
-  if (p_srvc_cb->gatt_database.IsEmpty()) {
+  // Copy the database as it could be deallocated by another thread.
+  gatt::Database server_gatt_db = p_srvc_cb->gatt_database;
+  if (server_gatt_db.IsEmpty()) {
     *count = 0;
     *db = NULL;
     return;
   }
 
-  size_t db_size =
-          bta_gattc_get_db_size(p_srvc_cb->gatt_database.Services(), start_handle, end_handle);
+  size_t db_size = bta_gattc_get_db_size(server_gatt_db.Services(), start_handle, end_handle);
 
   void* buffer = osi_malloc(db_size * sizeof(btgatt_db_element_t));
   btgatt_db_element_t* curr_db_attr = (btgatt_db_element_t*)buffer;
 
-  for (const Service& service : p_srvc_cb->gatt_database.Services()) {
+  for (const Service& service : server_gatt_db.Services()) {
     if (service.handle < start_handle) {
       continue;
     }
@@ -1040,4 +1042,24 @@ void bta_gattc_get_gatt_db(tCONN_ID conn_id, uint16_t start_handle, uint16_t end
   }
 
   bta_gattc_get_gatt_db_impl(p_clcb->p_srcb, start_handle, end_handle, db, count);
+}
+
+void bta_gattc_link_cache_for_bonded_device(const RawAddress& bd_addr) {
+  log::info("");
+  tBTA_GATTC_SERV* p_srcb = bta_gattc_find_srcb(bd_addr);
+  if (p_srcb == nullptr || p_srcb->gatt_database.IsEmpty()) {
+    return;
+  }
+  gatt::Database db = bta_gattc_cache_load(p_srcb->server_bda);
+  if (!db.IsEmpty()) {
+    return;
+  }
+
+  if (BTM_IsBonded(bd_addr)) {
+    Octet16 hash = p_srcb->gatt_database.Hash();
+
+    log::debug("Linking db hash to bonded device {}",
+               p_srcb->server_bda.ToRedactedStringForLogging());
+    bta_gattc_cache_link(p_srcb->server_bda, hash);
+  }
 }

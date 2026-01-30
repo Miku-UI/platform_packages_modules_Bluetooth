@@ -50,7 +50,11 @@ int ScalarField::GenBounds(std::ostream& s, Size start_offset, Size end_offset, 
   if (!start_offset.empty()) {
     // Default to start if available.
     num_leading_bits = start_offset.bits() % 8;
-    s << "auto " << GetName() << "_it = to_bound + (" << start_offset << ") / 8;";
+    if (!start_offset.has_dynamic()) {
+      s << "auto " << GetName() << "_it = to_bound + " << (start_offset.bits() / 8) << ";";
+    } else {
+      s << "auto " << GetName() << "_it = to_bound + (" << start_offset << ") / 8;";
+    }
   } else if (!end_offset.empty()) {
     num_leading_bits = GetShiftBits(end_offset.bits() + size.bits());
     Size byte_offset = Size(num_leading_bits + size.bits()) + end_offset;
@@ -63,6 +67,16 @@ int ScalarField::GenBounds(std::ostream& s, Size start_offset, Size end_offset, 
 }
 
 void ScalarField::GenExtractor(std::ostream& s, int num_leading_bits, bool) const {
+  if ((size_ % 8) == 0 && num_leading_bits == 0) {
+    // Special case to address trailing scalar fields with an non standard number of bytes
+    // (e.g. 24 bit value). If the endianess is little and the number of leading bits is
+    // zero then the length is explicitly set.
+    s << "auto extracted_value = " << GetName() << "_it.extract<" << GetDataType() << ">("
+      << (size_ / 8) << ");";
+    s << "*" << GetName() << "_ptr = static_cast<" << GetDataType() << ">(extracted_value);";
+    return;
+  }
+
   Size size = GetSize();
   // Extract the correct number of bytes. The return type could be different
   // from the extract type if an earlier field causes the beginning of the
@@ -95,6 +109,44 @@ std::string ScalarField::GetGetterFunctionName() const {
 void ScalarField::GenGetter(std::ostream& s, Size start_offset, Size end_offset) const {
   s << GetDataType() << " " << GetGetterFunctionName() << "() const {";
   s << "ASSERT(was_validated_);";
+
+  if (!start_offset.empty() && start_offset.bits() % 8 == 0 && !start_offset.has_dynamic()) {
+    if (util::RoundSizeUp(GetSize().bits()) == GetSize().bits()) {
+      std::string extract_type = util::GetTypeForSize(GetSize().bits());
+      bool do_static_cast = (extract_type != GetDataType());
+
+      s << "return ";
+      if (do_static_cast) {
+        s << "static_cast<" << GetDataType() << ">(";
+      }
+      s << "(begin() + " << (start_offset.bits() / 8) << ").extract<" << extract_type << ">()";
+      if (do_static_cast) {
+        s << ")";
+      }
+      s << ";}";
+      return;
+    }
+
+    if (util::RoundSizeUp(GetSize().bits()) == 16 && GetSize().bits() == 12) {
+      /* special handling for connection handle mask, there are over 220 instances of it */
+      std::string extract_type = util::GetTypeForSize(GetSize().bits());
+      s << "return (begin() + " << (start_offset.bits() / 8) << ").extract<" << extract_type
+        << ">() & 0xfff;";
+      s << "}";
+      return;
+    }
+
+    if ((size_ % 8) == 0) {
+      // Special case to address trailing scalar fields with an non standard number of bytes
+      // (e.g. 24 bit value). If the endianess is little and the number of leading bits is
+      // zero then the length is explicitly set.
+      s << "return (begin() + " << (start_offset.bits() / 8) << ").extract<" << GetDataType()
+        << ">(" << (size_ / 8) << ");";
+      s << "}";
+      return;
+    }
+  }
+
   s << "auto to_bound = begin();";
   int num_leading_bits = GenBounds(s, start_offset, end_offset, GetSize());
   s << GetDataType() << " " << GetName() << "_value{};";
@@ -127,8 +179,9 @@ void ScalarField::GenValidator(std::ostream&) const {
 }
 
 void ScalarField::GenStringRepresentation(std::ostream& s, std::string accessor) const {
-  // Generate a static_cast to uint64_t (largest supported field type) in order
-  // to force hexadecimal formatting; uint8_t fields will be rendered as escaped
-  // characters otherwise.
-  s << "static_cast<uint64_t>(" << accessor << ")";
+  if (GetSize().bits() <= 8) {
+    // otherwise uint8_t fields will be rendered as escaped characters
+    s << "+";
+  }
+  s << accessor;
 }

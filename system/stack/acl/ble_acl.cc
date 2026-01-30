@@ -17,6 +17,7 @@
 #define LOG_TAG "acl"
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/ble_address_with_type.h>
 #include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
@@ -25,6 +26,7 @@
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/connection_manager/connection_manager.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/ble_acl_interface.h"
@@ -32,22 +34,14 @@
 #include "stack/include/btm_ble_privacy.h"
 #include "stack/include/gatt_api.h"
 #include "stack/include/l2cap_hci_link_interface.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth;
-
-extern tBTM_CB btm_cb;
 
 static bool acl_ble_common_connection(const tBLE_BD_ADDR& address_with_type, uint16_t handle,
                                       tHCI_ROLE role, bool is_in_security_db,
                                       uint16_t conn_interval, uint16_t conn_latency,
                                       uint16_t conn_timeout,
                                       bool can_read_discoverable_characteristics) {
-  if (role == HCI_ROLE_CENTRAL) {
-    btm_cb.ble_ctr_cb.set_connection_state_idle();
-    btm_ble_clear_topology_mask(BTM_BLE_STATE_INIT_BIT);
-  }
-
   // Allocate or update the security device record for this device
   btm_ble_connected(address_with_type.bda, handle, HCI_ENCRYPT_MODE_DISABLED, role,
                     address_with_type.type, is_in_security_db,
@@ -64,8 +58,10 @@ static bool acl_ble_common_connection(const tBLE_BD_ADDR& address_with_type, uin
     return false;
   }
 
+  tAclLinkSpec link_spec = { .addrt = address_with_type, .transport = BT_TRANSPORT_LE};
+
   /* Tell BTM Acl management about the link */
-  btm_acl_created(address_with_type.bda, handle, role, BT_TRANSPORT_LE);
+  btm_acl_created(link_spec, handle, role);
 
   return true;
 }
@@ -86,7 +82,6 @@ void acl_ble_enhanced_connection_complete(const tBLE_BD_ADDR& address_with_type,
   if (peer_addr_type & BLE_ADDR_TYPE_ID_BIT) {
     btm_ble_refresh_peer_resolvable_private_addr(address_with_type.bda, peer_rpa, BTM_BLE_ADDR_RRA);
   }
-  btm_ble_update_mode_operation(role, &address_with_type.bda, HCI_SUCCESS);
 }
 
 static bool maybe_resolve_received_address(const tBLE_BD_ADDR& address_with_type,
@@ -119,21 +114,17 @@ void acl_ble_enhanced_connection_complete_from_shim(
 
 void acl_ble_connection_fail(const tBLE_BD_ADDR& address_with_type, uint16_t /* handle */,
                              bool /* enhanced */, tHCI_STATUS status) {
+  tAclLinkSpec link_spec = {.addrt = address_with_type, .transport = BT_TRANSPORT_LE};
   acl_set_locally_initiated(true);  // LE connection failures are always locally initiated
-  btm_acl_create_failed(address_with_type.bda, BT_TRANSPORT_LE, status);
+  btm_acl_create_failed(link_spec, status);
 
   if (status != HCI_ERR_ADVERTISING_TIMEOUT) {
-    btm_cb.ble_ctr_cb.set_connection_state_idle();
-    btm_ble_clear_topology_mask(BTM_BLE_STATE_INIT_BIT);
     tBLE_BD_ADDR resolved_address_with_type;
     maybe_resolve_received_address(address_with_type, &resolved_address_with_type);
     connection_manager::on_connection_timed_out_from_shim(resolved_address_with_type.bda);
     log::warn("LE connection fail peer:{} bd_addr:{} hci_status:{}", address_with_type,
               resolved_address_with_type.bda, hci_status_code_text(status));
-  } else {
-    btm_cb.ble_ctr_cb.inq_var.adv_mode = BTM_BLE_ADV_DISABLE;
   }
-  btm_ble_update_mode_operation(HCI_ROLE_UNKNOWN, &address_with_type.bda, status);
 }
 
 void acl_ble_update_event_received(tHCI_STATUS status, uint16_t handle, uint16_t interval,

@@ -16,8 +16,9 @@
 
 package android.bluetooth.le;
 
-import android.annotation.SuppressLint;
+import android.annotation.RequiresNoPermission;
 import android.annotation.SystemApi;
+import android.util.Log;
 
 import java.util.List;
 
@@ -29,8 +30,9 @@ import java.util.List;
  */
 @Deprecated
 @SystemApi
-@SuppressLint("AndroidFrameworkBluetoothPermission")
 public final class TruncatedFilter {
+    private static final String TAG = TruncatedFilter.class.getSimpleName();
+    private static final String MESSAGE = " is deprecated and not supported; Will be removed soon";
     private final ScanFilter mFilter;
     private final List<ResultStorageDescriptor> mStorageDescriptors;
 
@@ -41,16 +43,19 @@ public final class TruncatedFilter {
      * @param storageDescriptors Describes how the scan should be stored.
      */
     public TruncatedFilter(ScanFilter filter, List<ResultStorageDescriptor> storageDescriptors) {
+        Log.wtf(TAG, MESSAGE);
         mFilter = filter;
         mStorageDescriptors = storageDescriptors;
     }
 
     /** Returns the scan filter. */
+    @RequiresNoPermission
     public ScanFilter getFilter() {
         return mFilter;
     }
 
     /** Returns a list of descriptor for scan result storage. */
+    @RequiresNoPermission
     public List<ResultStorageDescriptor> getStorageDescriptors() {
         return mStorageDescriptors;
     }

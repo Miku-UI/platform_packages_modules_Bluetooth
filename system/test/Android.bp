@@ -172,6 +172,13 @@ filegroup {
 }
 
 filegroup {
+    name: "TestMockBtaVaps",
+    srcs: [
+        "mock/mock_bta_vaps_*.cc",
+    ],
+}
+
+filegroup {
     name: "TestMockBtaVc",
     srcs: [
         "mock/mock_bta_vc*.cc",
@@ -202,6 +209,7 @@ filegroup {
         ":TestMockBtaRfcMetrics",
         ":TestMockBtaSdp",
         ":TestMockBtaSys",
+        ":TestMockBtaVaps",
         ":TestMockBtaVc",
     ],
 }
@@ -225,8 +233,6 @@ filegroup {
         "mock/mock_main_shim_hci_layer.cc",
         "mock/mock_main_shim_le_advertising_manager.cc",
         "mock/mock_main_shim_le_scanning_manager.cc",
-        "mock/mock_main_shim_metric_id_api.cc",
-        "mock/mock_main_shim_metrics_api.cc",
     ],
 }
 
@@ -311,13 +317,6 @@ filegroup {
     name: "TestMockStack",
     srcs: [
         "mock/mock_stack_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockHci",
-    srcs: [
-        "mock/mock_hci_*.cc",
     ],
 }
 
@@ -514,14 +513,6 @@ filegroup {
 }
 
 filegroup {
-    name: "TestCommonMainHandler",
-    srcs: [
-        ":TestCommonSyncMainHandler",
-        "common/main_handler.cc",
-    ],
-}
-
-filegroup {
     name: "TestCommonSyncMainHandler",
     srcs: ["common/sync_main_handler.cc"],
 }
@@ -620,7 +611,6 @@ cc_test {
     ],
     shared_libs: [
         "libbase",
-        "libbinder",
         "libbinder_ndk",
         "libchrome",
         "libcutils",

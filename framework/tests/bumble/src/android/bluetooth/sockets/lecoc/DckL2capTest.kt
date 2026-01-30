@@ -22,6 +22,8 @@ import android.bluetooth.BluetoothProfile.STATE_DISCONNECTED
 import android.bluetooth.test_utils.EnableBluetoothRule
 import android.content.Context
 import android.platform.test.annotations.RequiresFlagsEnabled
+import android.platform.test.flag.junit.CheckFlagsRule
+import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
@@ -39,6 +41,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import kotlin.Boolean
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -86,8 +89,12 @@ public class DckL2capTest() : Closeable {
     private lateinit var connectionResponse: WaitConnectionResponse
     private lateinit var host: Host
 
-    // Gives shell permissions during the test.
     @Rule(order = 0)
+    @JvmField
+    val mCheckFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
+
+    // Gives shell permissions during the test.
+    @Rule(order = 1)
     @JvmField
     val mPermissionRule =
         AdoptShellPermissionsRule(
@@ -98,10 +105,10 @@ public class DckL2capTest() : Closeable {
         )
 
     // Setup a Bumble Pandora device for the duration of the test.
-    @Rule(order = 1) @JvmField val mBumble = PandoraDevice()
+    @Rule(order = 2) @JvmField val mBumble = PandoraDevice()
 
     // Toggles Bluetooth.
-    @Rule(order = 2) @JvmField val EnableBluetoothRule = EnableBluetoothRule(false, true)
+    @Rule(order = 3) @JvmField val EnableBluetoothRule = EnableBluetoothRule(false, true)
 
     /** Wrapper for [BluetoothGatt] along with its [state] and [status] */
     data class GattState(val gatt: BluetoothGatt, val status: Int, val state: Int)
@@ -418,7 +425,7 @@ public class DckL2capTest() : Closeable {
 
         // read() would be blocking till underlying l2cap is disconnected
         Thread.sleep(1000 * 2)
-        Log.d(TAG, "testReadReturnOnRemoteSocketDisconnect: disconnect after 10 secs")
+        Log.d(TAG, "testReadReturnOnRemoteSocketDisconnect: disconnect after 2 secs")
         disconnectSocketAndWaitForDisconnectUtil(bluetoothSocket, channel, true)
         assertThat((bluetoothSocket).isConnected()).isFalse()
         inputStream.close()
@@ -428,7 +435,6 @@ public class DckL2capTest() : Closeable {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_SOCKET_SETTINGS_API)
     /**
      * Test:
      * - Create Bond between Phone and Bumble (Just works)
@@ -439,7 +445,7 @@ public class DckL2capTest() : Closeable {
      * - Send sample data from phone to bumble & ensure It is received on bumble side as expected
      * - close the connection
      * - Ensure L2cap connection is disconnected and Socket state is disconnected
-     * - remote bonding
+     * - remove bonding
      */
     fun testSendOverEncryptedOnlySocketAsClient() {
         Log.d(TAG, "testSendOverEncryptedOnlySocketAsClient")
@@ -466,7 +472,6 @@ public class DckL2capTest() : Closeable {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_SOCKET_SETTINGS_API)
     /**
      * Test:
      * - Create Bond between Phone and Bumble (Just works)
@@ -477,7 +482,7 @@ public class DckL2capTest() : Closeable {
      * - Send sample data from Bumble to phone & ensure It is received on bumble side as expected
      * - close the connection
      * - Ensure L2cap connection is disconnected and Socket state is disconnected
-     * - remote bonding
+     * - remove bonding
      */
     fun testReceiveOverEncryptedOnlySocketAsClient() {
         Log.d(TAG, "testReceiveOverEncryptedOnlySocketAsClient")
@@ -501,6 +506,232 @@ public class DckL2capTest() : Closeable {
 
         host.removeBondAndVerify(remoteDevice)
         Log.d(TAG, "testReceiveOverEncryptedOnlySocketAsClient: done")
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_DONOT_MANDATE_AUTH_ALONG_WITH_ENCRYPTION)
+    /**
+     * Test:
+     * - Create Bond between Phone and Bumble (Just works)
+     * - Create L2cap Server on Bumble side (DCK server) and wait for connection
+     * - Create Encrypt Only socket using BluetoothSocketSettings interface
+     * - trigger connection from client socket on phone to l2cap server on Bumble
+     * - Ensure connection is established
+     * - Send sample data from Phone to Bumble & ensure It is received on bumble side as expected
+     * - close the connection
+     * - Ensure L2cap connection is disconnected and Socket state is disconnected
+     * - remove bonding
+     */
+    fun testSendOverEncryptedOnlySocketAsServer() {
+        Log.d(TAG, "testSendOverEncryptedOnlySocketAsServer")
+        val remoteDevice =
+            bluetoothAdapter.getRemoteLeDevice(
+                Utils.BUMBLE_RANDOM_ADDRESS,
+                BluetoothDevice.ADDRESS_TYPE_RANDOM,
+            )
+
+        host.createBondAndVerify(remoteDevice)
+
+        val (l2capServer, bluetoothSocket, channel) =
+            l2capServerOnPhoneAndConnectionFromBumbleUsingSocketSettingsUtil(false, true)
+
+        Log.d(TAG, "testSendOverEncryptedOnlySocketAsServer: send data from Bumble to Phone")
+        sendDataFromPhoneToBumbleAndVerifyUtil(bluetoothSocket, channel)
+        // disconnect from local
+        disconnectSocketAndWaitForDisconnectUtil(bluetoothSocket, channel)
+        assertThat((bluetoothSocket).isConnected()).isFalse()
+
+        l2capServer.close()
+        host.removeBondAndVerify(remoteDevice)
+        Log.d(TAG, "testSendOverEncryptedOnlySocketAsServer: done")
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_DONOT_MANDATE_AUTH_ALONG_WITH_ENCRYPTION)
+    /**
+     * Test:
+     * - Create Bond between Phone and Bumble (Just works)
+     * - Create L2cap Server on Bumble side (DCK server) and wait for connection
+     * - Create Encrypt Only socket using BluetoothSocketSettings interface
+     * - trigger connection from client socket on phone to l2cap server on Bumble
+     * - Ensure connection is established
+     * - Send sample data from Bumble to phone & ensure It is received on bumble side as expected
+     * - close the connection
+     * - Ensure L2cap connection is disconnected and Socket state is disconnected
+     * - remove bonding
+     */
+    fun testReceiveOverEncryptedOnlySocketAsServer() {
+        Log.d(TAG, "testReceiveOverEncryptedOnlySocketAsServer")
+        val remoteDevice =
+            bluetoothAdapter.getRemoteLeDevice(
+                Utils.BUMBLE_RANDOM_ADDRESS,
+                BluetoothDevice.ADDRESS_TYPE_RANDOM,
+            )
+
+        host.createBondAndVerify(remoteDevice)
+
+        val (l2capServer, bluetoothSocket, channel) =
+            l2capServerOnPhoneAndConnectionFromBumbleUsingSocketSettingsUtil(false, true)
+
+        Log.d(TAG, "testReceiveOverEncryptedOnlySocketAsServer: send data from Bumble to Phone")
+        sendDataFromBumbleToPhoneAndVerifyUtil(bluetoothSocket, channel)
+        // disconnect from local
+        disconnectSocketAndWaitForDisconnectUtil(bluetoothSocket, channel)
+        assertThat((bluetoothSocket).isConnected()).isFalse()
+
+        l2capServer.close()
+        host.removeBondAndVerify(remoteDevice)
+        Log.d(TAG, "testReceiveOverEncryptedOnlySocketAsServer: done")
+    }
+
+    @Test
+    @VirtualOnly
+    @RequiresFlagsEnabled(Flags.FLAG_FIX_LECOC_SOCKET_AVAILABLE)
+    fun testBluetoothSocketAvailable() {
+        Log.d(TAG, "testBluetoothSocketAvailable: Connect L2CAP")
+        val (l2capServer, bluetoothSocket, channel) =
+            l2capServerOnPhoneAndConnectionFromBumbleUtil(false)
+
+        val inputStream = bluetoothSocket!!.inputStream
+        val sampleData: ByteString = ByteString.copyFromUtf8("cafe-place")
+
+        sendDataFromBumbleToPhoneUtil(bluetoothSocket, channel, sampleData)
+
+        // Ensure that data len available is equal to what is written from client
+        assertThat(inputStream.available()).isEqualTo(sampleData.size())
+
+        Log.d(TAG, "testBluetoothSocketAvailable: Receive data on Android")
+        // read 1 byte
+        val read = inputStream.read()
+
+        // Ensure that data len available is is 1 less, as 1 byte read in previous call
+        assertThat(inputStream.available()).isEqualTo(sampleData.size() - 1)
+
+        // write 5 more bytes from Bumble
+        val helloText: ByteString = ByteString.copyFromUtf8("Hello")
+        sendDataFromBumbleToPhoneUtil(bluetoothSocket, channel, helloText)
+
+        // Ensure that data len available would return only remaining bytes in the first packet
+        // and doesn't consider the next packet "Hello" from the stream
+        assertThat(inputStream.available()).isEqualTo((sampleData.size() - 1))
+
+        // try to read 1 more than available
+        val remFromSampleData = ByteArray((sampleData.size() - 1) + 1)
+        val retBytes = inputStream.read(remFromSampleData)
+
+        Log.d(
+            TAG,
+            "retBytes: " + retBytes + ":: read buffer: " + String(remFromSampleData, Charsets.UTF_8),
+        )
+
+        // Ensure that read() would only read remaining bytes from the first packet (cafe-place)
+        // and don't consider the next packet sent as "Hello"
+        assertThat((sampleData.size() - 1)).isEqualTo(retBytes)
+
+        // resultant buffer supposed to be last 9 bytes of sampleData
+        val expectedResultantString: ByteString = ByteString.copyFromUtf8("afe-place")
+        assertThat(expectedResultantString)
+            .isEqualTo(
+                ByteString.copyFrom(
+                    remFromSampleData.copyOfRange(0, expectedResultantString.size())
+                )
+            )
+
+        // Should return the size of next packet = sizeof("Hello")
+        assertThat(inputStream.available()).isEqualTo(helloText.size())
+
+        val readRemaining = ByteArray(inputStream.available())
+        val retBytes2 = inputStream.read(readRemaining)
+
+        assertThat(retBytes2).isEqualTo(helloText.size())
+
+        assertThat(helloText)
+            .isEqualTo(ByteString.copyFrom(readRemaining.copyOfRange(0, helloText.size())))
+
+        Log.d(TAG, "testBluetoothSocketAvailable: disconnect")
+        // disconnect from local
+        disconnectSocketAndWaitForDisconnectUtil(bluetoothSocket, channel)
+
+        inputStream.close()
+        bluetoothSocket?.close()
+        assertThat(inputStream.available()).isEqualTo(0)
+        l2capServer.close()
+        Log.d(TAG, "testBluetoothSocketAvailable: done")
+    }
+
+    @Test
+    @VirtualOnly
+    @RequiresFlagsEnabled(Flags.FLAG_FIX_LECOC_SOCKET_AVAILABLE)
+    fun testBluetoothSocketReadOoB() {
+        Log.d(TAG, "testBluetoothSockeReadtOoB: Connect L2CAP")
+        val (l2capServer, bluetoothSocket, channel) =
+            l2capServerOnPhoneAndConnectionFromBumbleUtil(false)
+
+        val inputStream = bluetoothSocket!!.inputStream
+        val maxRxSize = bluetoothSocket!!.getMaxReceivePacketSize()
+        val buffer = ByteArray(maxRxSize)
+        buffer.fill(65)
+        val bufferStr: ByteString = ByteString.copyFrom(buffer)
+
+        sendDataFromBumbleToPhoneUtil(bluetoothSocket, channel, bufferStr, 60000)
+
+        // Ensure that data len available is equal to what is written from client
+        assertThat(inputStream.available()).isEqualTo(bufferStr.size())
+
+        Log.d(TAG, "testBluetoothSocketReadOob: Receive data on Android")
+        // read 1 byte
+        val read = inputStream.read()
+
+        // Ensure that data len available is is 1 less, as 1 byte read in previous call
+        assertThat(inputStream.available()).isEqualTo(bufferStr.size() - 1)
+
+        // now try to send buffer full of 2's
+        val buffer2 = ByteArray(maxRxSize)
+        buffer2.fill(66)
+        val bufferStr2: ByteString = ByteString.copyFrom(buffer2)
+
+        sendDataFromBumbleToPhoneUtil(bluetoothSocket, channel, bufferStr2, 60000)
+
+        // Ensure It returns only remaining bytes from the 1st packet is available
+        assertThat(inputStream.available()).isEqualTo(maxRxSize - 1)
+
+        // try reading the max possible
+        val readResult = ByteArray(maxRxSize)
+        val retBytes = inputStream.read(readResult)
+
+        Log.d(
+            TAG,
+            "retBytes: " + retBytes + ":: read buffer: " + String(readResult, Charsets.UTF_8),
+        )
+
+        assertThat(retBytes).isEqualTo(maxRxSize - 1)
+
+        // this call should consider Input stream availability
+        assertThat(inputStream.available()).isEqualTo(maxRxSize)
+
+        // try reading the max possible
+        val readResult2 = ByteArray(maxRxSize)
+        // read should fill this back from Socket stream
+        val retBytes2 = inputStream.read(readResult2)
+
+        Log.d(
+            TAG,
+            "retBytes: " + retBytes2 + ":: read buffer: " + String(readResult2, Charsets.UTF_8),
+        )
+
+        // this read should be equal to the second write(bufferStr2) from Bumble side
+        assertThat(retBytes2).isEqualTo(maxRxSize)
+        assertThat(bufferStr2).isEqualTo(ByteString.copyFrom(readResult2))
+
+        Log.d(TAG, "testBluetoothSocketReadOoB: disconnect")
+        // disconnect from local
+        disconnectSocketAndWaitForDisconnectUtil(bluetoothSocket, channel)
+
+        inputStream.close()
+        bluetoothSocket?.close()
+        assertThat(inputStream.available()).isEqualTo(0)
+        l2capServer.close()
+        Log.d(TAG, "testBluetoothSocketReadOoB: done")
     }
 
     // Utility functions
@@ -620,13 +851,30 @@ public class DckL2capTest() : Closeable {
         return SocketServerDetails(l2capServer, bluetoothSocket, connectResponse.channel)
     }
 
+    private fun l2capServerOnPhoneAndConnectionFromBumbleUsingSocketSettingsUtil(
+        isAuthenticated: Boolean = false,
+        isEncrypted: Boolean = false,
+    ): SocketServerDetails {
+        var bluetoothSocket: BluetoothSocket
+        val channel: Channel
+        val l2capServer = createListeningChannelUsingSocketSettings(isEncrypted, isAuthenticated)
+        val socketFlow = flow { emit(l2capServer.accept()) }
+        val connectResponse = createAndConnectL2capChannelWithBumble(l2capServer.psm)
+        runBlocking {
+            bluetoothSocket = socketFlow.first()
+            assertThat(connectResponse.hasChannel()).isTrue()
+        }
+
+        return SocketServerDetails(l2capServer, bluetoothSocket, connectResponse.channel)
+    }
+
     private fun sendDataFromPhoneToBumbleAndVerifyUtil(
         bluetoothSocket: BluetoothSocket,
         channel: Channel,
     ) {
         val sampleData = "cafe-baguette".toByteArray()
 
-        val receiveObserver = StreamObserverSpliterator<ReceiveResponse>()
+        val receiveObserver = StreamObserverSpliterator<ReceiveRequest, ReceiveResponse>()
         mBumble
             .l2cap()
             .receive(ReceiveRequest.newBuilder().setChannel(channel).build(), receiveObserver)
@@ -642,9 +890,24 @@ public class DckL2capTest() : Closeable {
         outputStream.close()
     }
 
+    private fun sendDataFromBumbleToPhoneUtil(
+        bluetoothSocket: BluetoothSocket,
+        channel: Channel,
+        data: ByteString,
+        waitTime: Long = 500,
+    ) {
+        val sendRequest = SendRequest.newBuilder().setChannel(channel).setData(data).build()
+        Log.d(TAG, "sendDataFromBumbleToPhoneUtil: Send data from Bumble to Android")
+        mBumble.l2capBlocking().send(sendRequest)
+
+        // delay ensures data is arrived at the server side
+        Thread.sleep(waitTime)
+    }
+
     private fun sendDataFromBumbleToPhoneAndVerifyUtil(
         bluetoothSocket: BluetoothSocket,
         channel: Channel,
+        waitTime: Long = 500,
     ) {
         val inputStream = bluetoothSocket!!.inputStream
         val sampleData: ByteString = ByteString.copyFromUtf8("cafe-baguette")
@@ -654,6 +917,8 @@ public class DckL2capTest() : Closeable {
         Log.d(TAG, "sendDataFromBumbleToPhoneAndVerifyUtil: Send data from Bumble to Android")
         mBumble.l2capBlocking().send(sendRequest)
 
+        // delay ensures data is arrived at the server side
+        Thread.sleep(waitTime)
         Log.d(TAG, "sendDataFromBumbleToPhoneAndVerifyUtil: Receive data on Android")
         val read = inputStream.read(buffer)
         assertThat(ByteString.copyFrom(buffer).substring(0, read)).isEqualTo(sampleData)
@@ -738,7 +1003,7 @@ public class DckL2capTest() : Closeable {
         socket =
             bluetoothAdapter.listenUsingSocketSettings(
                 BluetoothSocketSettings.Builder()
-                    .setSocketType(BluetoothSocket.TYPE_L2CAP_LE)
+                    .setSocketType(BluetoothSocket.TYPE_LE)
                     .setEncryptionRequired(isEncrypted)
                     .setAuthenticationRequired(isAuthenticated)
                     .build()
@@ -758,7 +1023,7 @@ public class DckL2capTest() : Closeable {
         socket =
             remoteDevice.createUsingSocketSettings(
                 BluetoothSocketSettings.Builder()
-                    .setSocketType(BluetoothSocket.TYPE_L2CAP_LE)
+                    .setSocketType(BluetoothSocket.TYPE_LE)
                     .setEncryptionRequired(isEncrypted)
                     .setAuthenticationRequired(isAuthenticated)
                     .setL2capPsm(psm)
@@ -777,7 +1042,7 @@ public class DckL2capTest() : Closeable {
         var expectedType: Int
         if (isSecure) {
             socket = remoteDevice.createL2capChannel(psm)
-            expectedType = BluetoothSocket.TYPE_L2CAP_LE
+            expectedType = BluetoothSocket.TYPE_LE
         } else {
             socket = remoteDevice.createInsecureL2capChannel(psm)
             expectedType = BluetoothSocket.TYPE_L2CAP

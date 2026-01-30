@@ -271,8 +271,8 @@ class PbapClientAccountManager {
         // TODO(233361365): Remove this pattern when the framework solves their race condition
         private static final int ACCOUNT_ADD_RETRY_MS = 1000;
 
-        public static final int MSG_USER_UNLOCKED = 0;
-        public static final int MSG_ACCOUNT_CHECK = 1;
+        static final int MSG_USER_UNLOCKED = 0;
+        static final int MSG_ACCOUNT_CHECK = 1;
 
         AccountHandler(Looper looper) {
             super(looper);
@@ -282,14 +282,9 @@ class PbapClientAccountManager {
         public void handleMessage(Message msg) {
             Log.v(TAG, "Process message=" + messageToString(msg.what));
             switch (msg.what) {
-                case MSG_USER_UNLOCKED:
-                    handleUserUnlocked();
-                    break;
-                case MSG_ACCOUNT_CHECK:
-                    handleAccountCheck();
-                    break;
-                default:
-                    Log.e(TAG, "received an unknown message : " + msg.what);
+                case MSG_USER_UNLOCKED -> handleUserUnlocked();
+                case MSG_ACCOUNT_CHECK -> handleAccountCheck();
+                default -> Log.e(TAG, "received an unknown message : " + msg.what);
             }
         }
 
@@ -332,14 +327,11 @@ class PbapClientAccountManager {
         }
 
         private static String messageToString(int msg) {
-            switch (msg) {
-                case MSG_USER_UNLOCKED:
-                    return "MSG_USER_UNLOCKED";
-                case MSG_ACCOUNT_CHECK:
-                    return "MSG_ACCOUNT_CHECK";
-                default:
-                    return "MSG_RESERVED_" + msg;
-            }
+            return switch (msg) {
+                case MSG_USER_UNLOCKED -> "MSG_USER_UNLOCKED";
+                case MSG_ACCOUNT_CHECK -> "MSG_ACCOUNT_CHECK";
+                default -> "MSG_RESERVED_" + msg;
+            };
         }
     }
 

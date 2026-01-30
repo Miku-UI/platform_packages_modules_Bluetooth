@@ -21,6 +21,8 @@
 
 #include <base/functional/bind.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/uuid.h>
 
 #include <deque>
 #include <list>
@@ -35,8 +37,6 @@
 #include "macros.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/bt_hdr.h"
-#include "types/bluetooth/uuid.h"
-#include "types/raw_address.h"
 
 #define GATT_TRANS_ID_MAX 0x0fffffff /* 4 MSB is reserved */
 #define GATT_CL_RCB_MAX 255          /* Maximum number of cl_rcb */
@@ -410,7 +410,7 @@ typedef struct {
   tGATT_SVC_CHG gattp_attr;     /* GATT profile attribute service change */
   tGATT_IF gatt_if;
   std::list<tGATT_HDL_LIST_ELEM>* hdl_list_info;
-  std::list<tGATT_SRV_LIST_ELEM>* srv_list_info;
+  std::shared_ptr<std::list<tGATT_SRV_LIST_ELEM>> srv_list_info;
 
   fixed_queue_t* srv_chg_clt_q; /* service change clients queue */
   tGATT_REG cl_rcb[GATT_MAX_APPS];
@@ -490,6 +490,7 @@ struct tTCB_STATE_HISTORY {
 extern bluetooth::common::TimestampedCircularBuffer<tTCB_STATE_HISTORY> tcb_state_history_;
 
 /* from gatt_main.cc */
+void gatt_force_disconnect(tGATT_TCB* p_tcb, std::string comment);
 bool gatt_disconnect(tGATT_TCB* p_tcb);
 bool gatt_act_connect(tGATT_REG* p_reg, const RawAddress& bd_addr, tBT_TRANSPORT transport,
                       int8_t initiating_phys);
@@ -687,7 +688,7 @@ bluetooth::Uuid* gatts_get_service_uuid(tGATT_SVC_DB* p_db);
 void gatts_proc_srv_chg_ind_ack(tGATT_TCB tcb);
 
 /* gatt_sr_hash.cc */
-Octet16 gatts_calculate_database_hash(std::list<tGATT_SRV_LIST_ELEM>* lst_ptr);
+Octet16 gatts_calculate_database_hash(std::shared_ptr<std::list<tGATT_SRV_LIST_ELEM>> lst_ptr);
 
 namespace bluetooth {
 namespace legacy {

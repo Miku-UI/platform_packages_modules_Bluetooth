@@ -29,6 +29,9 @@
 #include <optional>
 
 // Original included files, if any
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/ble_address_with_type.h>
+
 #include "stack/btm/btm_ble_sec.h"
 #include "stack/include/bt_device_type.h"
 #include "stack/include/bt_octets.h"
@@ -37,8 +40,6 @@
 #include "stack/include/btm_ble_sec_api_types.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/btm_status.h"
-#include "types/ble_address_with_type.h"
-#include "types/raw_address.h"
 
 typedef uint8_t tBTM_SEC_ACTION;
 
@@ -344,16 +345,16 @@ struct btm_ble_link_encrypted {
 extern struct btm_ble_link_encrypted btm_ble_link_encrypted;
 
 // Name: btm_ble_link_sec_check
-// Params: const RawAddress& bd_addr, tBTM_LE_AUTH_REQ auth_req,
-// tBTM_BLE_SEC_REQ_ACT* p_sec_req_act Return: void
+// Params: const RawAddress& bd_addr, tBTM_LE_AUTH_REQ auth_req
+// Return: tBTM_BLE_SEC_REQ_ACT
 struct btm_ble_link_sec_check {
-  std::function<void(const RawAddress& bd_addr, tBTM_LE_AUTH_REQ auth_req,
-                     tBTM_BLE_SEC_REQ_ACT* p_sec_req_act)>
-          body{[](const RawAddress& /* bd_addr */, tBTM_LE_AUTH_REQ /* auth_req */,
-                  tBTM_BLE_SEC_REQ_ACT* /* p_sec_req_act */) {}};
-  void operator()(const RawAddress& bd_addr, tBTM_LE_AUTH_REQ auth_req,
-                  tBTM_BLE_SEC_REQ_ACT* p_sec_req_act) {
-    body(bd_addr, auth_req, p_sec_req_act);
+  static tBTM_BLE_SEC_REQ_ACT return_value;
+  std::function<tBTM_BLE_SEC_REQ_ACT(const RawAddress& bd_addr, tBTM_LE_AUTH_REQ auth_req)> body{
+          [](const RawAddress& /* bd_addr */, tBTM_LE_AUTH_REQ /* auth_req */) {
+            return return_value;
+          }};
+  tBTM_BLE_SEC_REQ_ACT operator()(const RawAddress& bd_addr, tBTM_LE_AUTH_REQ auth_req) {
+    return body(bd_addr, auth_req);
   }
 };
 extern struct btm_ble_link_sec_check btm_ble_link_sec_check;

@@ -67,6 +67,7 @@ class Server(context: Context) {
                         BluetoothProfile.PBAP to ::Pbap,
                         BluetoothProfile.OPP to ::Opp,
                         BluetoothProfile.MAP to ::Map,
+                        BluetoothProfile.MAP_CLIENT to ::MapClient,
                         BluetoothProfile.LE_AUDIO to ::LeAudio,
                         BluetoothProfile.VOLUME_CONTROL to ::Vcp,
                     )
@@ -86,6 +87,8 @@ class Server(context: Context) {
     }
 
     fun shutdown() = grpcServer.shutdown()
+
+    fun shutdownNow() = grpcServer.shutdownNow()
 
     fun awaitTermination() = grpcServer.awaitTermination()
 

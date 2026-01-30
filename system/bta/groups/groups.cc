@@ -16,6 +16,8 @@
  */
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/uuid.h>
 #include <stdio.h>
 
 #include <algorithm>
@@ -36,8 +38,6 @@
 #include "bta_groups.h"
 #include "btif/include/btif_profile_storage.h"
 #include "stack/include/bt_types.h"
-#include "types/bluetooth/uuid.h"
-#include "types/raw_address.h"
 
 using bluetooth::Uuid;
 
@@ -45,8 +45,8 @@ namespace bluetooth {
 namespace groups {
 
 class DeviceGroupsImpl;
-DeviceGroupsImpl* instance;
-std::mutex instance_mutex;
+static DeviceGroupsImpl* instance;
+static std::mutex instance_mutex;
 static constexpr int kMaxGroupId = 0xEF;
 
 class DeviceGroup {
@@ -378,7 +378,7 @@ void DeviceGroups::CleanUp(DeviceGroupsCallbacks* callbacks) {
 }
 
 std::ostream& operator<<(std::ostream& out, bluetooth::groups::DeviceGroup const& group) {
-  out << "    == Group id: " << group.group_id_ << " == \n"
+  out << "    == Group (gID): " << group.group_id_ << " == \n"
       << "      Uuid: " << group.group_uuid_ << std::endl;
   out << "      Devices:\n";
   for (auto const& addr : group.devices_) {

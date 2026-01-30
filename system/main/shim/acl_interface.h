@@ -16,15 +16,16 @@
 
 #pragma once
 
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/ble_address_with_type.h>
+#include <bluetooth/types/hci_role.h>
+
 #include <cstdint>
 
 #include "hci/class_of_device.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hci_mode.h"
-#include "types/ble_address_with_type.h"
-#include "types/hci_role.h"
-#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace shim {
@@ -68,7 +69,6 @@ typedef struct {
   void (*on_read_automatic_flush_timeout_complete)(uint16_t flush_timeout);
   void (*on_read_clock_complete)(uint32_t clock, uint16_t accuracy);
   void (*on_read_clock_offset_complete)(uint16_t clock_offset);
-  void (*on_read_failed_contact_counter_complete)(uint16_t failed_contact_counter);
   void (*on_read_link_policy_settings_complete)(uint16_t link_policy_settings);
   void (*on_read_link_quality_complete)(uint8_t link_quality);
   void (*on_read_link_supervision_timeout_complete)(uint16_t link_supervision_timeout);

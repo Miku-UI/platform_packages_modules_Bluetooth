@@ -27,15 +27,16 @@
 #include <string>
 
 // Original included files, if any
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/bt_transport.h>
+#include <bluetooth/types/hci_role.h>
+
 #include "stack/btm/security_device_record.h"
 #include "stack/include/bt_dev_class.h"
 #include "stack/include/bt_device_type.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/security_client_callbacks.h"
-#include "types/bt_transport.h"
-#include "types/hci_role.h"
-#include "types/raw_address.h"
 
 // Original usings
 
@@ -562,17 +563,6 @@ struct btm_sec_encryption_change_evt {
 };
 extern struct btm_sec_encryption_change_evt btm_sec_encryption_change_evt;
 
-// Name: btm_sec_is_a_bonded_dev
-// Params: const RawAddress& bda
-// Return: bool
-struct btm_sec_is_a_bonded_dev {
-  static bool return_value;
-  std::function<bool(const RawAddress& bda)> body{
-          [](const RawAddress& /* bda */) { return return_value; }};
-  bool operator()(const RawAddress& bda) { return body(bda); }
-};
-extern struct btm_sec_is_a_bonded_dev btm_sec_is_a_bonded_dev;
-
 // Name: btm_sec_l2cap_access_req
 // Params: const RawAddress& bd_addr, uint16_t psm, bool is_originator,
 // tBTM_SEC_CALLBACK* p_callback, void* p_ref_data Return: tBTM_STATUS
@@ -640,11 +630,11 @@ struct btm_sec_link_key_request {
 };
 extern struct btm_sec_link_key_request btm_sec_link_key_request;
 
-// Name: btm_sec_mx_access_request
+// Name: btm_sec_service_access_request
 // Params: const RawAddress& bd_addr, bool is_originator, uint16_t
 // security_required, tBTM_SEC_CALLBACK* p_callback, void* p_ref_data Return:
 // tBTM_STATUS
-struct btm_sec_mx_access_request {
+struct btm_sec_service_access_request {
   static tBTM_STATUS return_value;
   std::function<tBTM_STATUS(const RawAddress& bd_addr, bool is_originator,
                             uint16_t security_required, tBTM_SEC_CALLBACK* p_callback,
@@ -657,7 +647,7 @@ struct btm_sec_mx_access_request {
     return body(bd_addr, is_originator, security_required, p_callback, p_ref_data);
   }
 };
-extern struct btm_sec_mx_access_request btm_sec_mx_access_request;
+extern struct btm_sec_service_access_request btm_sec_service_access_request;
 
 // Name: btm_sec_pin_code_request
 // Params: const uint8_t* p_event
@@ -709,15 +699,17 @@ extern struct btm_sec_role_changed btm_sec_role_changed;
 // hci_role_switch_supported, bool br_edr_supported, bool le_supported Return:
 // void
 struct btm_sec_set_peer_sec_caps {
-  std::function<void(uint16_t hci_handle, bool ssp_supported, bool sc_supported,
-                     bool hci_role_switch_supported, bool br_edr_supported, bool le_supported)>
-          body{[](uint16_t /* hci_handle */, bool /* ssp_supported */, bool /* sc_supported */,
-                  bool /* hci_role_switch_supported */, bool /* br_edr_supported */,
-                  bool /* le_supported */) {}};
-  void operator()(uint16_t hci_handle, bool ssp_supported, bool sc_supported,
-                  bool hci_role_switch_supported, bool br_edr_supported, bool le_supported) {
-    body(hci_handle, ssp_supported, sc_supported, hci_role_switch_supported, br_edr_supported,
-         le_supported);
+  std::function<void(uint16_t hci_handle, bool ssp_supported, bool host_sc_supported,
+                     bool controller_sc_supported, bool hci_role_switch_supported,
+                     bool br_edr_supported, bool le_supported)>
+          body{[](uint16_t /* hci_handle */, bool /* ssp_supported */, bool /* host_sc_supported */,
+                  bool /* controller_sc_supported */, bool /* hci_role_switch_supported */,
+                  bool /* br_edr_supported */, bool /* le_supported */) {}};
+  void operator()(uint16_t hci_handle, bool ssp_supported, bool host_sc_supported,
+                  bool controller_sc_supported, bool hci_role_switch_supported,
+                  bool br_edr_supported, bool le_supported) {
+    body(hci_handle, ssp_supported, host_sc_supported, controller_sc_supported,
+         hci_role_switch_supported, br_edr_supported, le_supported);
   }
 };
 extern struct btm_sec_set_peer_sec_caps btm_sec_set_peer_sec_caps;

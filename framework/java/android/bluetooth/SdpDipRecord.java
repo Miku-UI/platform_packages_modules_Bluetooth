@@ -12,8 +12,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package android.bluetooth;
 
+import android.annotation.RequiresNoPermission;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -52,26 +54,32 @@ public class SdpDipRecord implements Parcelable {
         this.mPrimaryRecord = in.readBoolean();
     }
 
+    @RequiresNoPermission
     public int getSpecificationId() {
         return mSpecificationId;
     }
 
+    @RequiresNoPermission
     public int getVendorId() {
         return mVendorId;
     }
 
+    @RequiresNoPermission
     public int getVendorIdSource() {
         return mVendorIdSource;
     }
 
+    @RequiresNoPermission
     public int getProductId() {
         return mProductId;
     }
 
+    @RequiresNoPermission
     public int getVersion() {
         return mVersion;
     }
 
+    @RequiresNoPermission
     public boolean getPrimaryRecord() {
         return mPrimaryRecord;
     }

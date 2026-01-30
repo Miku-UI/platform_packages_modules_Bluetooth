@@ -26,12 +26,13 @@
 #ifndef BTA_AV_API_H
 #define BTA_AV_API_H
 
+#include <bluetooth/types/address.h>
+
 #include <cstdint>
 
 #include "bta/include/bta_api.h"
 #include "stack/include/avrc_defs.h"
 #include "stack/include/bt_hdr.h"
-#include "types/raw_address.h"
 
 /*****************************************************************************
  *  Constants and data types
@@ -398,6 +399,22 @@ typedef struct {
                                                       name */
   char avrc_target_name[BTA_SERVICE_NAME_LEN];     /* Default AVRCP target name*/
 } tBTA_AV_CFG;
+
+// A2DP offload VSC parameters
+class tBT_A2DP_OFFLOAD {
+public:
+  uint32_t codec_type;                  /* codec types ex: SBC/AAC/LDAC/APTx */
+  uint16_t max_latency;                 /* maximum latency */
+  std::array<uint8_t, 2> scms_t_enable; /* SCMS-T enable */
+  uint32_t sample_rate;                 /* Sample rates ex: 44.1/48/88.2/96 Khz */
+  uint8_t bits_per_sample;              /* bits per sample ex: 16/24/32 */
+  uint8_t ch_mode;                      /* None:0 Left:1 Right:2 */
+  uint32_t encoded_audio_bitrate;       /* encoder audio bitrates */
+  uint16_t acl_hdl;                     /* connection handle */
+  uint16_t l2c_rcid;                    /* l2cap channel id */
+  uint16_t mtu;                         /* MTU size */
+  uint8_t codec_info[32];               /* Codec specific information */
+};
 
 /*****************************************************************************
  *  External Function Declarations

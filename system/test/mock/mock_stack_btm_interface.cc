@@ -20,14 +20,15 @@
 
 #include "mock_stack_btm_interface.h"
 
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/bt_transport.h>
+
 #include "stack/include/btm_ble_api.h"
 #include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_ble_sec_api_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/btm_status.h"
-#include "types/bt_transport.h"
-#include "types/raw_address.h"
 
 // Test accessible feature page
 uint8_t hci_feature_bytes_per_page[HCI_FEATURE_BYTES_PER_PAGE] = {};
@@ -57,6 +58,10 @@ struct btm_client_interface_t default_btm_client_interface = {
                                                         tBT_TRANSPORT /* transport */) -> bool {
                   return false;
                 },
+                .BTM_GetConnectedTransportAddress =
+                        [](RawAddress /* remote_bda */) -> std::pair<RawAddress, RawAddress> {
+                  return std::pair<RawAddress, RawAddress>();
+                },
                 .BTM_ReadRemoteFeatures = [](const RawAddress& /* addr */) -> uint8_t* {
                   return hci_feature_bytes_per_page;
                 },
@@ -84,7 +89,8 @@ struct btm_client_interface_t default_btm_client_interface = {
                                            tBT_TRANSPORT /* transport */) -> uint16_t { return 0; },
         },
         .link_policy = {
-                .BTM_GetRole = [](const RawAddress& /* remote_bd_addr */, tHCI_ROLE* /* p_role */)
+                .BTM_GetRole = [](const RawAddress& /* remote_bd_addr */,
+                                  tBT_TRANSPORT /* transport */, tHCI_ROLE* /* p_role */)
                         -> tBTM_STATUS { return tBTM_STATUS::BTM_SUCCESS; },
                 .BTM_SetPowerMode = [](uint8_t /* pm_id */, const RawAddress& /* remote_bda */,
                                        const tBTM_PM_PWR_MD* /* p_mode */) -> tBTM_STATUS {
@@ -141,7 +147,7 @@ struct btm_client_interface_t default_btm_client_interface = {
                   return false;
                 },
                 .BTM_IsBonded = [](const RawAddress& /* bd_addr */,
-                                         tBT_TRANSPORT /* transport */) -> bool { return false; },
+                                   tBT_TRANSPORT /* transport */) -> bool { return false; },
                 .BTM_SetSecurityLevel = [](bool /* is_originator */, const char* /*p_name */,
                                            uint8_t /* service_id */, uint16_t /* sec_level */,
                                            uint16_t /* psm */, uint32_t /* mx_proto_id */,
@@ -181,7 +187,8 @@ struct btm_client_interface_t default_btm_client_interface = {
                   return tBTM_STATUS::BTM_SUCCESS;
                 },
                 .BTM_SetBleDataLength = [](const RawAddress& /* bd_addr */,
-                                           uint16_t /* tx_pdu_length */) -> tBTM_STATUS {
+                                           uint16_t /* tx_pdu_length */,
+                                           bool /* is_privileged_client */) -> tBTM_STATUS {
                   return tBTM_STATUS::BTM_SUCCESS;
                 },
                 .BTM_BleReadControllerFeatures =

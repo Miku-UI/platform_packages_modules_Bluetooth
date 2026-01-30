@@ -16,13 +16,16 @@
 
 package com.android.bluetooth.hfpclient;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
@@ -31,8 +34,12 @@ import android.net.Uri;
 import android.telecom.PhoneAccount;
 import android.telecom.TelecomManager;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
-import androidx.test.runner.AndroidJUnit4;
+
+import com.android.bluetooth.btservice.AdapterService;
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
+import com.android.tests.bluetooth.StaticMockitoRule;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -41,12 +48,15 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
+import java.util.Optional;
+
 /** Test cases for {@link HfpClientDeviceBlock}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class HfpClientDeviceBlockTest {
-    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
+    @Rule public final StaticMockitoRule mMockitoRule = new StaticMockitoRule(AdapterService.class);
 
+    @Mock private AdapterService mAdapterService;
     @Mock private HeadsetClientService mHeadsetClientService;
     @Mock private HfpClientConnectionService mConnServ;
     @Mock private HeadsetClientServiceInterface mMockServiceInterface;
@@ -74,10 +84,13 @@ public class HfpClientDeviceBlockTest {
         when(mConnServ.getApplicationContext()).thenReturn(mApplicationContext);
         when(mConnServ.getPackageName()).thenReturn(TEST_PACKAGE);
 
-        mockGetSystemService(mConnServ, Context.TELECOM_SERVICE, TelecomManager.class);
+        mockGetSystemService(mConnServ, TelecomManager.class);
 
-        when(mHeadsetClientService.isAvailable()).thenReturn(true);
-        HeadsetClientService.setHeadsetClientService(mHeadsetClientService);
+        ExtendedMockito.doReturn(mAdapterService)
+                .when(() -> AdapterService.deprecatedGetAdapterService());
+        doReturn(Optional.of(mHeadsetClientService))
+                .when(mAdapterService)
+                .getHeadsetClientService();
     }
 
     @Test

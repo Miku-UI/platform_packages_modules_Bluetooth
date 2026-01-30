@@ -27,6 +27,7 @@
 #include "stack/include/port_api.h"
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 #include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
@@ -40,7 +41,6 @@
 #include "stack/include/btm_log_history.h"
 #include "stack/include/rfcdefs.h"
 #include "stack/rfcomm/rfc_int.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth;
 
@@ -125,7 +125,7 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_serv
   // multiplexer channel, DLCI should be odd.
   uint8_t dlci;
   tRFC_MCB* p_mcb = port_find_mcb(bd_addr);
-  if (p_mcb && !p_mcb->is_initiator && !is_server) {
+  if (p_mcb != nullptr && !p_mcb->is_initiator && !is_server) {
     dlci = static_cast<uint8_t>((scn << 1) + 1);
   } else {
     dlci = (scn << 1);
@@ -201,13 +201,11 @@ int RFCOMM_CreateConnectionWithSecurity(uint16_t uuid, uint8_t scn, bool is_serv
 
   // Set the optional configuration for future use when the server or client negotiates the
   // parameters with the peer device.
-  if (com::android::bluetooth::flags::socket_settings_api()) {
-    p_port->rfc_cfg_info = cfg;
-    // Update the local mtu with the optional configuration if set by the app
-    if (p_port->rfc_cfg_info.rx_mtu_present) {
-      p_port->mtu =
-              (p_port->rfc_cfg_info.rx_mtu < rfcomm_mtu) ? p_port->rfc_cfg_info.rx_mtu : rfcomm_mtu;
-    }
+  p_port->rfc_cfg_info = cfg;
+  // Update the local mtu with the optional configuration if set by the app
+  if (p_port->rfc_cfg_info.rx_mtu_present) {
+    p_port->mtu =
+            (p_port->rfc_cfg_info.rx_mtu < rfcomm_mtu) ? p_port->rfc_cfg_info.rx_mtu : rfcomm_mtu;
   }
 
   // Other states
@@ -267,11 +265,11 @@ int RFCOMM_ControlReqFromBTSOCK(uint8_t dlci, const RawAddress& bd_addr, uint8_t
                                 uint8_t break_signal, uint8_t discard_buffers,
                                 uint8_t break_signal_seq, bool fc) {
   tRFC_MCB* p_mcb = port_find_mcb(bd_addr);
-  if (!p_mcb) {
+  if (p_mcb == nullptr) {
     return PORT_BAD_BD_ADDR;
   }
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
-  if (!p_port) {
+  if (p_port == nullptr) {
     return PORT_NOT_OPENED;
   }
   p_port->local_ctrl.modem_signal = modem_signal;
@@ -394,14 +392,13 @@ int PORT_SetEventMaskAndCallback(uint16_t handle, uint32_t mask, tPORT_CALLBACK*
  * Parameters:      handle     - Handle returned in the RFCOMM_CreateConnection
  *
  ******************************************************************************/
-
 int PORT_ClearKeepHandleFlag(uint16_t handle) {
   tPORT* p_port = get_port_from_handle(handle);
   if (p_port == nullptr) {
     log::error("Unable to get RFCOMM port control block bad handle:{}", handle);
     return PORT_BAD_HANDLE;
   }
-  p_port->keep_port_handle = 0;
+  p_port->keep_port_handle = false;
   return PORT_SUCCESS;
 }
 
@@ -467,7 +464,7 @@ int PORT_CheckConnection(uint16_t handle, RawAddress* bd_addr, uint16_t* p_lcid)
   }
 
   *bd_addr = p_port->rfc.p_mcb->bd_addr;
-  if (p_lcid) {
+  if (p_lcid != nullptr) {
     *p_lcid = p_port->rfc.p_mcb->lcid;
   }
 
@@ -475,8 +472,6 @@ int PORT_CheckConnection(uint16_t handle, RawAddress* bd_addr, uint16_t* p_lcid)
 }
 
 static const tPORT* get_port_from_mcb(const tRFC_MCB* multiplexer_cb) {
-  tPORT* p_port = nullptr;
-
   for (tPORT& port : rfc_cb.port.port) {
     if (port.rfc.p_mcb == multiplexer_cb) {
       return &port;
@@ -518,11 +513,15 @@ bool PORT_IsCollisionDetected(RawAddress bd_addr) {
       const tPORT* p_port = get_port_from_mcb(&multiplexer_cb);
       log::info("RFC_MX_STATE_CONNECTED, found_port={}, tRFC_PORT_STATE={}",
                 (p_port != nullptr) ? "T" : "F", (p_port != nullptr) ? p_port->rfc.sm_cb.state : 0);
-      if ((p_port == nullptr) || (p_port->rfc.sm_cb.state < RFC_STATE_OPENED)) {
-        // Port is not established yet
-        log::info(
-                "In RFC_MX_STATE_CONNECTED but port is not established yet, "
-                "returning true");
+      if ((com_android_bluetooth_flags_donot_collide_with_closed_port()) &&
+          ((p_port == nullptr) || (p_port->rfc.sm_cb.state > RFC_STATE_CLOSED &&
+                                   p_port->rfc.sm_cb.state < RFC_STATE_OPENED))) {
+        log::info("In RFC_MX_STATE_CONNECTED but port is being established, returning true");
+        return true;
+      }
+      if ((!com_android_bluetooth_flags_donot_collide_with_closed_port()) &&
+          ((p_port == nullptr) || p_port->rfc.sm_cb.state < RFC_STATE_OPENED)) {
+        log::info("In RFC_MX_STATE_CONNECTED but port is not established yet, returning true");
         return true;
       }
     }
@@ -771,7 +770,7 @@ int PORT_ReadData(uint16_t handle, char* p_data, uint16_t max_len, uint16_t* p_l
 
   while (max_len) {
     p_buf = (BT_HDR*)fixed_queue_try_peek_first(p_port->rx.queue);
-    if (p_buf == NULL) {
+    if (p_buf == nullptr) {
       break;
     }
 
@@ -875,9 +874,7 @@ static int port_write(tPORT* p_port, BT_HDR* p_buf) {
     return PORT_CMD_PENDING;
   } else {
     log::verbose("Data is being sent");
-
-    RFCOMM_DataReq(p_port->rfc.p_mcb, p_port->dlci, p_buf);
-    return PORT_SUCCESS;
+    return RFCOMM_DataReq(p_port->rfc.p_mcb, p_port->dlci, p_buf);
   }
 }
 
@@ -1005,7 +1002,7 @@ int PORT_WriteDataCO(uint16_t handle, int* p_len) {
 
     rc = port_write(p_port, p_buf);
 
-    /* If queue went below the threashold need to send flow control */
+    /* If queue went below the threshold need to send flow control */
     event |= port_flow_control_user(p_port);
 
     if (rc == PORT_SUCCESS) {
@@ -1087,7 +1084,7 @@ int PORT_WriteData(uint16_t handle, const char* p_data, uint16_t max_len, uint16
   mutex_global_lock();
 
   p_buf = (BT_HDR*)fixed_queue_try_peek_last(p_port->tx.queue);
-  if ((p_buf != NULL) && ((p_buf->len + max_len) <= p_port->peer_mtu) &&
+  if ((p_buf != nullptr) && ((p_buf->len + max_len) <= p_port->peer_mtu) &&
       ((p_buf->len + max_len) <= length)) {
     memcpy((uint8_t*)(p_buf + 1) + p_buf->offset + p_buf->len, p_data, max_len);
     p_port->tx.queue_size += max_len;
@@ -1129,7 +1126,7 @@ int PORT_WriteData(uint16_t handle, const char* p_data, uint16_t max_len, uint16
 
     rc = port_write(p_port, p_buf);
 
-    /* If queue went below the threashold need to send flow control */
+    /* If queue went below the threshold need to send flow control */
     event |= port_flow_control_user(p_port);
 
     if (rc == PORT_SUCCESS) {
@@ -1166,7 +1163,7 @@ int PORT_WriteData(uint16_t handle, const char* p_data, uint16_t max_len, uint16
  * Description      This function is called to initialize RFCOMM layer
  *
  ******************************************************************************/
-void RFCOMM_Init(void) {
+void RFCOMM_Init() {
   memset(&rfc_cb, 0, sizeof(tRFC_CB)); /* Init RFCOMM control block */
   rfc_lcid_mcb = {};
 

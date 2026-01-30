@@ -16,8 +16,9 @@
 
 #pragma once
 
+#include <bluetooth/types/address.h>
+
 #include "bt_hf.h"
-#include "types/raw_address.h"
 
 namespace bluetooth {
 namespace headset {
@@ -35,7 +36,8 @@ public:
    * @param state one of the values from bthf_connection_state_t
    * @param bd_addr remote device address
    */
-  virtual void ConnectionStateCallback(bthf_connection_state_t state, RawAddress* bd_addr) = 0;
+  virtual void ConnectionStateCallback(bthf_connection_state_t state, RawAddress* bd_addr,
+                                       uint8_t reason) = 0;
 
   /**
    * Callback for audio connection state change.
@@ -198,6 +200,13 @@ public:
    */
   virtual void AtBiaCallback(bool service, bool roam, bool signal, bool battery,
                              RawAddress* bd_addr) = 0;
+
+  /**
+   * Callback for BCC.
+   *
+   * @param bd_addr remote device address
+   */
+  virtual void AtBccCallback(RawAddress* bd_addr) = 0;
 
   /**
    * Callback for DebugDump.

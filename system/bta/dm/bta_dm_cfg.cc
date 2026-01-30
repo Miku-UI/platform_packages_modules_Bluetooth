@@ -89,6 +89,8 @@ const tBTA_DM_RM* p_bta_dm_rm_cfg = &bta_dm_rm_cfg[0];
 #define BTA_DM_NUM_PM_ENTRY 25 /* number of entries in bta_dm_pm_cfg except the first */
 #define BTA_DM_NUM_PM_SPEC 16  /* number of entries in bta_dm_pm_spec */
 
+size_t bta_dm_get_num_pm_entry() { return BTA_DM_NUM_PM_ENTRY; }
+
 tBTA_DM_PM_TYPE_QUALIFIER tBTA_DM_PM_CFG bta_dm_pm_cfg[BTA_DM_NUM_PM_ENTRY + 1] = {
         {BTA_ID_SYS, BTA_DM_NUM_PM_ENTRY, 0}, /* reserved: specifies length of this table. */
         {BTA_ID_AG, BTA_ALL_APP_ID, 0},       /* ag uses first spec table for app id 0 */
@@ -479,7 +481,7 @@ tBTA_DM_PM_TYPE_QUALIFIER tBTM_PM_PWR_MD bta_dm_pm_md[] = {
 /* the smaller of the SSR max latency wins.
  * the entries in this table must be from highest latency (biggest interval) to
  * lowest latency */
-tBTA_DM_SSR_SPEC bta_dm_ssr_spec[] = {
+static tBTA_DM_SSR_SPEC bta_dm_ssr_spec[] = {
         /*max_lat, min_rmt_to, min_loc_to*/
         {0, 0, 0, "no_ssr"}, /* BTA_DM_PM_SSR0 - do not use SSR */
         /* BTA_DM_PM_SSR1 - HH, can NOT share entry with any other profile, setting

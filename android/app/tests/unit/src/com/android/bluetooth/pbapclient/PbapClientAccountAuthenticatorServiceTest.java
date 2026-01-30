@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.pbapclient;
 
 import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DEFAULT;
@@ -25,10 +26,10 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.rule.ServiceTestRule;
-import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
 import org.junit.Before;
@@ -40,14 +41,12 @@ import org.junit.runner.RunWith;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class PbapClientAccountAuthenticatorServiceTest {
-
-    Context mTargetContext;
-
     @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
+
+    private final Context mContext = InstrumentationRegistry.getInstrumentation().getContext();
 
     @Before
     public void setUp() {
-        mTargetContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         enableService(true);
     }
 
@@ -59,7 +58,7 @@ public class PbapClientAccountAuthenticatorServiceTest {
     @Test
     public void bind() throws Exception {
         Intent intent = new Intent("android.accounts.AccountAuthenticator");
-        intent.setClass(mTargetContext, PbapClientAccountAuthenticatorService.class);
+        intent.setClass(mContext, PbapClientAccountAuthenticatorService.class);
 
         assertThat(mServiceRule.bindService(intent)).isNotNull();
     }
@@ -68,9 +67,8 @@ public class PbapClientAccountAuthenticatorServiceTest {
         int enabledState =
                 enable ? COMPONENT_ENABLED_STATE_ENABLED : COMPONENT_ENABLED_STATE_DEFAULT;
         ComponentName serviceName =
-                new ComponentName(mTargetContext, PbapClientAccountAuthenticatorService.class);
-        mTargetContext
-                .getPackageManager()
+                new ComponentName(mContext, PbapClientAccountAuthenticatorService.class);
+        mContext.getPackageManager()
                 .setComponentEnabledSetting(serviceName, enabledState, DONT_KILL_APP);
     }
 }

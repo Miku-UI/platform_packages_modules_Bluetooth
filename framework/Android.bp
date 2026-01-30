@@ -13,17 +13,31 @@ filegroup {
     visibility: ["//packages/modules/Bluetooth/framework/tests/unit"],
 }
 
+// Allow to share the SystemServiceMessenger class between system and Fwk
+filegroup {
+    name: "bluetooth-system-server-messenger",
+    srcs: [
+        "java/android/bluetooth/SystemServiceMessenger.java",
+        "java/android/bluetooth/annotations/RequiresBluetoothConnectPermission.java",
+    ],
+    path: "java",
+    visibility: ["//packages/modules/Bluetooth/service:__subpackages__"],
+}
+
 // defaults shared between `framework-bluetooth` & `framework-bluetooth-pre-jarjar`
 // java_sdk_library `framework-bluetooth` needs sources to generate stubs, so it cannot reuse
 // `framework-bluetooth-pre-jarjar`
 java_defaults {
     name: "framework-bluetooth-defaults",
+    defaults: [
+        "bluetooth_errorprone_rules",
+        "bluetooth_lint_rules",
+    ],
     static_libs: [
         "PlatformProperties",
-        "bluetooth_constants_java",
+        "bluetooth_constants-java",
         "bluetooth_flags_java_lib",
         "modules-utils-build",
-        "modules-utils-expresslog",
         "service-bluetooth-binder-aidl",
     ],
     libs: [
@@ -40,7 +54,7 @@ java_defaults {
         ":Bluetooth-binder-aidl",
         ":framework-bluetooth-sources",
     ],
-    min_sdk_version: "Tiramisu",
+    min_sdk_version: "36",
 }
 
 // bluetooth-service needs pre-jarjared version of framework-bluetooth so it can reference copied utility
@@ -136,6 +150,7 @@ java_sdk_library {
 // defaults for tests that need to build against framework-bluetooths's @hide APIs
 java_defaults {
     name: "framework-bluetooth-tests-defaults",
+    defaults: ["bluetooth_errorprone_rules"],
     sdk_version: "core_platform",
     libs: [
         // order matters: classes in framework-bluetooth are resolved before framework, meaning
@@ -152,6 +167,13 @@ java_defaults {
 filegroup {
     name: "bluetooth-jarjar-rules",
     srcs: ["jarjar-rules.txt"],
+}
+
+// Test is using a different jarjar to enforce that there is no class conflict
+// with the currently installed apex
+filegroup {
+    name: "bluetooth-jarjar-rules-tests",
+    srcs: ["jarjar-rules-tests.txt"],
 }
 
 platform_compat_config {

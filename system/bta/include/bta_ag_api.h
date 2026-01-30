@@ -26,6 +26,7 @@
 #define BTA_AG_API_H
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 
 #include <string>
 #include <vector>
@@ -34,7 +35,6 @@
 #include "bta_api.h"
 #include "internal_include/bt_target.h"
 #include "macros.h"
-#include "types/raw_address.h"
 
 /*****************************************************************************
  *  Constants and data types
@@ -374,6 +374,7 @@ typedef enum : uint8_t {
   BTA_AG_AT_BIND_EVT = 28, /* HF indicator */
   BTA_AG_AT_BIEV_EVT = 29, /* HF indicator updates from peer */
   BTA_AG_AT_BIA_EVT = 32,  /* AG indicator activation event from peer */
+  BTA_AG_AT_BCC_EVT = 33,  /* Audio connection setup by HF */
 } tBTA_AG_EVT;
 
 /* data associated with most non-AT events */
@@ -646,6 +647,8 @@ void BTA_AgSetScoOffloadEnabled(bool value);
 void BTA_AgSetScoAllowed(bool value);
 
 void BTA_AgSetActiveDevice(const RawAddress& active_device_addr);
+
+void BTA_AgSetIsScoManagedByAudio(bool value);
 
 namespace std {
 template <>

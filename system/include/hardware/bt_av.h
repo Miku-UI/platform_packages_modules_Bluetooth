@@ -18,13 +18,14 @@
 #define ANDROID_INCLUDE_BT_AV_H
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 #include <hardware/bluetooth.h>
 
 #include <optional>
 #include <sstream>
 #include <vector>
 
-#include "types/raw_address.h"
+#include "stack/include/a2dp_constants.h"
 
 __BEGIN_DECLS
 
@@ -88,12 +89,6 @@ typedef enum {
   BTAV_A2DP_CODEC_INDEX_MIN = BTAV_A2DP_CODEC_INDEX_SOURCE_MIN,
   BTAV_A2DP_CODEC_INDEX_MAX = BTAV_A2DP_CODEC_INDEX_SINK_EXT_MAX
 } btav_a2dp_codec_index_t;
-
-typedef struct {
-  btav_a2dp_codec_index_t codec_type;
-  uint64_t codec_id;
-  std::string codec_name;
-} btav_a2dp_codec_info_t;
 
 typedef enum {
   // Disable the codec.
@@ -166,6 +161,17 @@ struct btav_a2dp_codec_config_t {
   int64_t codec_specific_2;  // Codec-specific value 2
   int64_t codec_specific_3;  // Codec-specific value 3
   int64_t codec_specific_4;  // Codec-specific value 4
+
+  bool operator==(const btav_a2dp_codec_config_t& codec_config) const {
+    return codec_type == codec_config.codec_type && codec_priority == codec_config.codec_priority &&
+           sample_rate == codec_config.sample_rate &&
+           bits_per_sample == codec_config.bits_per_sample &&
+           channel_mode == codec_config.channel_mode &&
+           codec_specific_1 == codec_config.codec_specific_1 &&
+           codec_specific_2 == codec_config.codec_specific_2 &&
+           codec_specific_3 == codec_config.codec_specific_3 &&
+           codec_specific_4 == codec_config.codec_specific_4;
+  }
 
   std::string CodecNameStr() const {
     switch (codec_type) {
@@ -270,6 +276,21 @@ typedef struct {
   uint8_t error_code;
   std::optional<std::string> error_msg;
 } btav_error_t;
+
+typedef struct {
+  ::bluetooth::a2dp::CodecId codec_id;
+  std::string name;
+  uint8_t media_codec_capabilites[20];
+  btav_a2dp_codec_config_t codec_capabilities;
+  bool lossless;
+
+  std::string ToString() const;
+} btav_a2dp_codec_info_t;
+
+struct btav_a2dp_hal_provider_info_t {
+  std::vector<btav_a2dp_codec_info_t> source_codecs;
+  std::vector<btav_a2dp_codec_info_t> sink_codecs;
+};
 
 /**
  * NOTE:

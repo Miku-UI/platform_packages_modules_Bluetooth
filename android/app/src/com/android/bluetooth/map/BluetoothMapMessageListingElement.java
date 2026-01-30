@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.map;
 
 import com.android.bluetooth.DeviceWorkArounds;
@@ -27,6 +28,8 @@ import java.util.Locale;
 public class BluetoothMapMessageListingElement
         implements Comparable<BluetoothMapMessageListingElement> {
     private static final String TAG = BluetoothMapMessageListingElement.class.getSimpleName();
+
+    private final BluetoothMapService mMapService;
 
     private long mCpHandle = 0; /* The content provider handle - without type information */
     private String mSubject = null;
@@ -54,6 +57,10 @@ public class BluetoothMapMessageListingElement
 
     private boolean mReportRead = false;
     private int mCursorIndex = 0;
+
+    public BluetoothMapMessageListingElement(BluetoothMapService mapService) {
+        mMapService = mapService;
+    }
 
     public int getCursorIndex() {
         return mCursorIndex;
@@ -272,9 +279,8 @@ public class BluetoothMapMessageListingElement
         xmlMsgElement.attribute(null, "handle", BluetoothMapUtils.getMapHandle(mCpHandle, mType));
         if (mSubject != null) {
             String stripped = BluetoothMapUtils.stripInvalidChars(mSubject);
-
             if (DeviceWorkArounds.addressStartsWith(
-                    BluetoothMapService.getBluetoothMapService().getRemoteDevice().getAddress(),
+                    mMapService.getRemoteDevice().getAddress(),
                     DeviceWorkArounds.MERCEDES_BENZ_CARKIT)) {
                 stripped = stripped.replaceAll("[\\P{ASCII}&\"><]", "");
                 if (stripped.isEmpty()) {

@@ -23,6 +23,9 @@ import android.util.Log;
 
 import com.android.bluetooth.avrcp.AvrcpTargetService;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /** Manager class for player apps. */
 public class PlayerSettingsManager {
     private static final String TAG = PlayerSettingsManager.class.getSimpleName();
@@ -34,6 +37,12 @@ public class PlayerSettingsManager {
     private final MediaControllerCallback mControllerCallback;
 
     /**
+     * Map containing the current values of the player settings. Used to prevent sending a state
+     * change event when values are unchanged.
+     */
+    private final Map<Integer, Integer> mCurrentAppSettingValue = new HashMap<>();
+
+    /**
      * Instantiates a new PlayerSettingsManager.
      *
      * @param mediaPlayerList is used to retrieve the current active player.
@@ -41,30 +50,38 @@ public class PlayerSettingsManager {
     public PlayerSettingsManager(MediaPlayerList mediaPlayerList, AvrcpTargetService service) {
         mService = service;
         mMediaPlayerList = mediaPlayerList;
-        mMediaPlayerList.setPlayerSettingsCallback(
-                (mediaPlayerWrapper) -> activePlayerChanged(mediaPlayerWrapper));
+        mMediaPlayerList.setPlayerSettingsCallback(this::activePlayerChanged);
         mControllerCallback = new MediaControllerCallback();
 
         MediaPlayerWrapper wrapper = mMediaPlayerList.getActivePlayer();
-        if (wrapper != null) {
-            mActivePlayerController =
-                    new MediaControllerCompat(
-                            mService,
-                            MediaSessionCompat.Token.fromToken(wrapper.getSessionToken()));
+        if (wrapper != null && wrapper.getSessionToken() != null) {
+            MediaSessionCompat.Token sessionToken =
+                    MediaSessionCompat.Token.fromToken(wrapper.getSessionToken());
+            if (sessionToken == null) {
+                Log.w(TAG, "PlayerSettingsManager sessionToken is null");
+                return;
+            }
+            mActivePlayerController = new MediaControllerCompat(mService, sessionToken);
             if (!registerMediaControllerCallback(mActivePlayerController, mControllerCallback)) {
                 mActivePlayerController = null;
             }
         } else {
+            Log.i(TAG, "PlayerSettingsManager : no registered callback");
             mActivePlayerController = null;
         }
+        mCurrentAppSettingValue.put(
+                PlayerSettingsValues.SETTING_REPEAT, PlayerSettingsValues.STATE_REPEAT_OFF);
+        mCurrentAppSettingValue.put(
+                PlayerSettingsValues.SETTING_SHUFFLE, PlayerSettingsValues.STATE_SHUFFLE_OFF);
     }
 
     /** Unregister callbacks */
     public void cleanup() {
-        updateRemoteDevice();
         if (mActivePlayerController != null) {
             unregisterMediaControllerCallback(mActivePlayerController, mControllerCallback);
         }
+        mActivePlayerController = null;
+        mCurrentAppSettingValue.clear();
     }
 
     /** Updates the active player controller. */
@@ -72,20 +89,23 @@ public class PlayerSettingsManager {
         if (mActivePlayerController != null) {
             unregisterMediaControllerCallback(mActivePlayerController, mControllerCallback);
         }
-        if (mediaPlayerWrapper != null) {
-            mActivePlayerController =
-                    new MediaControllerCompat(
-                            mService,
-                            MediaSessionCompat.Token.fromToken(
-                                    mediaPlayerWrapper.getSessionToken()));
+        if (mediaPlayerWrapper != null && mediaPlayerWrapper.getSessionToken() != null) {
+            MediaSessionCompat.Token sessionToken =
+                    MediaSessionCompat.Token.fromToken(mediaPlayerWrapper.getSessionToken());
+            if (sessionToken == null) {
+                Log.w(TAG, "activePlayerChanged sessionToken is null");
+                return;
+            }
+            Log.i(TAG, "activePlayerChanged : " + mediaPlayerWrapper.getPackageName());
+            mActivePlayerController = new MediaControllerCompat(mService, sessionToken);
             if (!registerMediaControllerCallback(mActivePlayerController, mControllerCallback)) {
                 mActivePlayerController = null;
-                updateRemoteDevice();
             }
         } else {
+            Log.i(TAG, "activePlayerChanged : no registered callback");
             mActivePlayerController = null;
-            updateRemoteDevice();
         }
+        updateRemoteDevice();
     }
 
     /**
@@ -96,22 +116,44 @@ public class PlayerSettingsManager {
      * been removed - The repeat / shuffle player state changed
      */
     private void updateRemoteDevice() {
+        int currentRepeatMode =
+                mCurrentAppSettingValue.getOrDefault(
+                        PlayerSettingsValues.SETTING_REPEAT, PlayerSettingsValues.STATE_REPEAT_OFF);
+        int currentShuffleMode =
+                mCurrentAppSettingValue.getOrDefault(
+                        PlayerSettingsValues.SETTING_SHUFFLE,
+                        PlayerSettingsValues.STATE_SHUFFLE_OFF);
+
         int repeatMode = getPlayerRepeatMode();
         int shuffleMode = getPlayerShuffleMode();
+
         Log.i(
                 TAG,
-                "updateRemoteDevice: "
+                "updateRemoteDevice: repeat ("
+                        + getRepeatModeStringValue(currentRepeatMode)
+                        + " -> "
                         + getRepeatModeStringValue(repeatMode)
-                        + ", "
-                        + getShuffleModeStringValue(shuffleMode));
-        mService.sendPlayerSettings(repeatMode, shuffleMode);
+                        + "), shuffle ("
+                        + getShuffleModeStringValue(currentShuffleMode)
+                        + " -> "
+                        + getShuffleModeStringValue(shuffleMode)
+                        + ")");
+
+        if (currentRepeatMode != repeatMode || currentShuffleMode != shuffleMode) {
+            mCurrentAppSettingValue.put(PlayerSettingsValues.SETTING_REPEAT, repeatMode);
+            mCurrentAppSettingValue.put(PlayerSettingsValues.SETTING_SHUFFLE, shuffleMode);
+            mService.sendPlayerSettings(repeatMode, shuffleMode);
+        }
     }
 
     /** Called from remote device to set the active player repeat mode. */
     public boolean setPlayerRepeatMode(int repeatMode) {
         if (mActivePlayerController == null) {
+            Log.i(TAG, "setPlayerRepeatMode: no active player");
             return false;
         }
+        Log.d(TAG, "setPlayerRepeatMode repeat : " + repeatMode);
+
         MediaControllerCompat.TransportControls controls;
         try {
             controls = mActivePlayerController.getTransportControls();
@@ -120,22 +162,20 @@ public class PlayerSettingsManager {
             return false;
         }
         switch (repeatMode) {
-            case PlayerSettingsValues.STATE_REPEAT_OFF:
-                controls.setRepeatMode(PlaybackStateCompat.REPEAT_MODE_NONE);
-                return true;
-            case PlayerSettingsValues.STATE_REPEAT_SINGLE_TRACK:
-                controls.setRepeatMode(PlaybackStateCompat.REPEAT_MODE_ONE);
-                return true;
-            case PlayerSettingsValues.STATE_REPEAT_GROUP:
-                controls.setRepeatMode(PlaybackStateCompat.REPEAT_MODE_GROUP);
-                return true;
-            case PlayerSettingsValues.STATE_REPEAT_ALL_TRACK:
-                controls.setRepeatMode(PlaybackStateCompat.REPEAT_MODE_ALL);
-                return true;
-            default:
+            case PlayerSettingsValues.STATE_REPEAT_OFF ->
+                    controls.setRepeatMode(PlaybackStateCompat.REPEAT_MODE_NONE);
+            case PlayerSettingsValues.STATE_REPEAT_SINGLE_TRACK ->
+                    controls.setRepeatMode(PlaybackStateCompat.REPEAT_MODE_ONE);
+            case PlayerSettingsValues.STATE_REPEAT_GROUP ->
+                    controls.setRepeatMode(PlaybackStateCompat.REPEAT_MODE_GROUP);
+            case PlayerSettingsValues.STATE_REPEAT_ALL_TRACK ->
+                    controls.setRepeatMode(PlaybackStateCompat.REPEAT_MODE_ALL);
+            default -> {
                 controls.setRepeatMode(PlaybackStateCompat.REPEAT_MODE_NONE);
                 return false;
+            }
         }
+        return true;
     }
 
     /** Called from remote device to set the active player shuffle mode. */
@@ -144,6 +184,8 @@ public class PlayerSettingsManager {
             Log.i(TAG, "setPlayerShuffleMode: no active player");
             return false;
         }
+        Log.d(TAG, "setPlayerShuffleMode shuffle : " + shuffleMode);
+
         MediaControllerCompat.TransportControls controls;
         try {
             controls = mActivePlayerController.getTransportControls();
@@ -152,19 +194,18 @@ public class PlayerSettingsManager {
             return false;
         }
         switch (shuffleMode) {
-            case PlayerSettingsValues.STATE_SHUFFLE_OFF:
-                controls.setShuffleMode(PlaybackStateCompat.SHUFFLE_MODE_NONE);
-                return true;
-            case PlayerSettingsValues.STATE_SHUFFLE_GROUP:
-                controls.setShuffleMode(PlaybackStateCompat.SHUFFLE_MODE_GROUP);
-                return true;
-            case PlayerSettingsValues.STATE_SHUFFLE_ALL_TRACK:
-                controls.setShuffleMode(PlaybackStateCompat.SHUFFLE_MODE_ALL);
-                return true;
-            default:
+            case PlayerSettingsValues.STATE_SHUFFLE_OFF ->
+                    controls.setShuffleMode(PlaybackStateCompat.SHUFFLE_MODE_NONE);
+            case PlayerSettingsValues.STATE_SHUFFLE_GROUP ->
+                    controls.setShuffleMode(PlaybackStateCompat.SHUFFLE_MODE_GROUP);
+            case PlayerSettingsValues.STATE_SHUFFLE_ALL_TRACK ->
+                    controls.setShuffleMode(PlaybackStateCompat.SHUFFLE_MODE_ALL);
+            default -> {
                 controls.setShuffleMode(PlaybackStateCompat.SHUFFLE_MODE_NONE);
                 return false;
+            }
         }
+        return true;
     }
 
     /**
@@ -182,20 +223,15 @@ public class PlayerSettingsManager {
             Log.e(TAG, e.toString());
             return PlayerSettingsValues.STATE_REPEAT_OFF;
         }
-        switch (mediaFwkMode) {
-            case PlaybackStateCompat.REPEAT_MODE_NONE:
-                return PlayerSettingsValues.STATE_REPEAT_OFF;
-            case PlaybackStateCompat.REPEAT_MODE_ONE:
-                return PlayerSettingsValues.STATE_REPEAT_SINGLE_TRACK;
-            case PlaybackStateCompat.REPEAT_MODE_GROUP:
-                return PlayerSettingsValues.STATE_REPEAT_GROUP;
-            case PlaybackStateCompat.REPEAT_MODE_ALL:
-                return PlayerSettingsValues.STATE_REPEAT_ALL_TRACK;
-            case PlaybackStateCompat.REPEAT_MODE_INVALID:
-                return PlayerSettingsValues.STATE_REPEAT_OFF;
-            default:
-                return PlayerSettingsValues.STATE_REPEAT_OFF;
-        }
+        return switch (mediaFwkMode) {
+            case PlaybackStateCompat.REPEAT_MODE_NONE -> PlayerSettingsValues.STATE_REPEAT_OFF;
+            case PlaybackStateCompat.REPEAT_MODE_ONE ->
+                    PlayerSettingsValues.STATE_REPEAT_SINGLE_TRACK;
+            case PlaybackStateCompat.REPEAT_MODE_GROUP -> PlayerSettingsValues.STATE_REPEAT_GROUP;
+            case PlaybackStateCompat.REPEAT_MODE_ALL -> PlayerSettingsValues.STATE_REPEAT_ALL_TRACK;
+            case PlaybackStateCompat.REPEAT_MODE_INVALID -> PlayerSettingsValues.STATE_REPEAT_OFF;
+            default -> PlayerSettingsValues.STATE_REPEAT_OFF;
+        };
     }
 
     /**
@@ -213,18 +249,14 @@ public class PlayerSettingsManager {
             Log.e(TAG, e.toString());
             return PlayerSettingsValues.STATE_SHUFFLE_OFF;
         }
-        switch (mediaFwkMode) {
-            case PlaybackStateCompat.SHUFFLE_MODE_NONE:
-                return PlayerSettingsValues.STATE_SHUFFLE_OFF;
-            case PlaybackStateCompat.SHUFFLE_MODE_GROUP:
-                return PlayerSettingsValues.STATE_SHUFFLE_GROUP;
-            case PlaybackStateCompat.SHUFFLE_MODE_ALL:
-                return PlayerSettingsValues.STATE_SHUFFLE_ALL_TRACK;
-            case PlaybackStateCompat.SHUFFLE_MODE_INVALID:
-                return PlayerSettingsValues.STATE_SHUFFLE_OFF;
-            default:
-                return PlayerSettingsValues.STATE_SHUFFLE_OFF;
-        }
+        return switch (mediaFwkMode) {
+            case PlaybackStateCompat.SHUFFLE_MODE_NONE -> PlayerSettingsValues.STATE_SHUFFLE_OFF;
+            case PlaybackStateCompat.SHUFFLE_MODE_GROUP -> PlayerSettingsValues.STATE_SHUFFLE_GROUP;
+            case PlaybackStateCompat.SHUFFLE_MODE_ALL ->
+                    PlayerSettingsValues.STATE_SHUFFLE_ALL_TRACK;
+            case PlaybackStateCompat.SHUFFLE_MODE_INVALID -> PlayerSettingsValues.STATE_SHUFFLE_OFF;
+            default -> PlayerSettingsValues.STATE_SHUFFLE_OFF;
+        };
     }
 
     /**
@@ -261,16 +293,19 @@ public class PlayerSettingsManager {
     private class MediaControllerCallback extends MediaControllerCompat.Callback {
         @Override
         public void onRepeatModeChanged(final int repeatMode) {
+            Log.d(TAG, "onRepeatModeChanged : " + repeatMode);
             updateRemoteDevice();
         }
 
         @Override
         public void onSessionReady() {
+            Log.d(TAG, "onSessionReady");
             updateRemoteDevice();
         }
 
         @Override
         public void onShuffleModeChanged(final int shuffleMode) {
+            Log.d(TAG, "onShuffleModeChanged : " + shuffleMode);
             updateRemoteDevice();
         }
     }
@@ -309,30 +344,21 @@ public class PlayerSettingsManager {
     }
 
     private static String getRepeatModeStringValue(int repeatMode) {
-        switch (repeatMode) {
-            case PlayerSettingsValues.STATE_REPEAT_OFF:
-                return "STATE_REPEAT_OFF";
-            case PlayerSettingsValues.STATE_REPEAT_SINGLE_TRACK:
-                return "STATE_REPEAT_SINGLE_TRACK";
-            case PlayerSettingsValues.STATE_REPEAT_ALL_TRACK:
-                return "STATE_REPEAT_ALL_TRACK";
-            case PlayerSettingsValues.STATE_REPEAT_GROUP:
-                return "STATE_REPEAT_GROUP";
-            default:
-                return "STATE_DEFAULT_OFF";
-        }
+        return switch (repeatMode) {
+            case PlayerSettingsValues.STATE_REPEAT_OFF -> "STATE_REPEAT_OFF";
+            case PlayerSettingsValues.STATE_REPEAT_SINGLE_TRACK -> "STATE_REPEAT_SINGLE_TRACK";
+            case PlayerSettingsValues.STATE_REPEAT_ALL_TRACK -> "STATE_REPEAT_ALL_TRACK";
+            case PlayerSettingsValues.STATE_REPEAT_GROUP -> "STATE_REPEAT_GROUP";
+            default -> "STATE_DEFAULT_OFF";
+        };
     }
 
     private static String getShuffleModeStringValue(int shuffleMode) {
-        switch (shuffleMode) {
-            case PlayerSettingsValues.STATE_SHUFFLE_OFF:
-                return "STATE_SHUFFLE_OFF";
-            case PlayerSettingsValues.STATE_SHUFFLE_ALL_TRACK:
-                return "STATE_SHUFFLE_ALL_TRACK";
-            case PlayerSettingsValues.STATE_SHUFFLE_GROUP:
-                return "STATE_SHUFFLE_GROUP";
-            default:
-                return "STATE_DEFAULT_OFF";
-        }
+        return switch (shuffleMode) {
+            case PlayerSettingsValues.STATE_SHUFFLE_OFF -> "STATE_SHUFFLE_OFF";
+            case PlayerSettingsValues.STATE_SHUFFLE_ALL_TRACK -> "STATE_SHUFFLE_ALL_TRACK";
+            case PlayerSettingsValues.STATE_SHUFFLE_GROUP -> "STATE_SHUFFLE_GROUP";
+            default -> "STATE_DEFAULT_OFF";
+        };
     }
 }

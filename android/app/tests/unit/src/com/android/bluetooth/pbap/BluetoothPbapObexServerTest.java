@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.pbap;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.obex.ApplicationParameter.TRIPLET_LENGTH.FORMAT_LENGTH;
 import static com.android.obex.ApplicationParameter.TRIPLET_LENGTH.LISTSTARTOFFSET_LENGTH;
 import static com.android.obex.ApplicationParameter.TRIPLET_LENGTH.ORDER_LENGTH;
@@ -44,10 +43,10 @@ import static com.android.obex.ApplicationParameter.TRIPLET_VALUE.ORDER.ORDER_BY
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
-import static org.mockito.Mockito.any;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -55,9 +54,9 @@ import static org.mockito.Mockito.when;
 import android.os.Handler;
 import android.os.UserManager;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
-import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.pbap.BluetoothPbapObexServer.AppParamValue;
@@ -65,6 +64,7 @@ import com.android.obex.ApplicationParameter;
 import com.android.obex.HeaderSet;
 import com.android.obex.Operation;
 import com.android.obex.ResponseCodes;
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.After;
 import org.junit.Before;
@@ -113,7 +113,7 @@ public class BluetoothPbapObexServerTest {
         mServer =
                 new BluetoothPbapObexServer(
                         mMockHandler,
-                        InstrumentationRegistry.getInstrumentation().getTargetContext(),
+                        InstrumentationRegistry.getInstrumentation().getContext(),
                         mMockStateMachine);
     }
 

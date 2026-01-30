@@ -20,6 +20,8 @@
 #include <base/task/cancelable_task_tracker.h>
 #include <base/threading/thread.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/uuid.h>
 #include <com_android_bluetooth_flags.h>
 #include <stdio.h>
 
@@ -56,8 +58,6 @@
 #include "stack/include/sdp_callback.h"
 #include "stack/include/sdpdefs.h"
 #include "stack/sdp/sdp_discovery_db.h"
-#include "types/bluetooth/uuid.h"
-#include "types/raw_address.h"
 
 using bluetooth::legacy::stack::sdp::get_legacy_stack_sdp_api;
 using namespace bluetooth::avrcp;
@@ -68,7 +68,7 @@ namespace avrcp {
 AvrcpService* AvrcpService::instance_ = nullptr;
 AvrcpService::ServiceInterfaceImpl* AvrcpService::service_interface_ = nullptr;
 
-class A2dpInterfaceImpl : public A2dpInterface {
+static class A2dpInterfaceImpl : public A2dpInterface {
   RawAddress active_peer() override { return btif_av_source_active_peer(); }
 
   bool is_peer_in_silence_mode(const RawAddress& peer_address) override {
@@ -94,7 +94,7 @@ class A2dpInterfaceImpl : public A2dpInterface {
   }
 } a2dp_interface_;
 
-class AvrcpInterfaceImpl : public AvrcpInterface {
+static class AvrcpInterfaceImpl : public AvrcpInterface {
 public:
   uint16_t GetAvrcpControlVersion() { return AVRC_GetControlProfileVersion(); }
 
@@ -137,9 +137,10 @@ public:
   void SaveControllerVersion(const RawAddress& bdaddr, uint16_t version) override {
     AVRC_SaveControllerVersion(bdaddr, version);
   }
+  void ResetServiceUuid() { AVRC_ResetServiceUuid(); }
 } avrcp_interface_;
 
-class SdpInterfaceImpl : public SdpInterface {
+static class SdpInterfaceImpl : public SdpInterface {
 public:
   bool InitDiscoveryDb(tSDP_DISCOVERY_DB* a, uint32_t b, uint16_t c, const bluetooth::Uuid* d,
                        uint16_t e, uint16_t* f) override {
@@ -170,9 +171,9 @@ class MediaInterfaceWrapper : public MediaInterface {
 public:
   explicit MediaInterfaceWrapper(MediaInterface* cb) : wrapped_(cb) {}
 
-  void SendKeyEvent(uint8_t key, KeyState state) override {
-    do_in_jni_thread(
-            base::Bind(&MediaInterface::SendKeyEvent, base::Unretained(wrapped_), key, state));
+  void SendKeyEvent(const RawAddress& bdaddr, uint8_t key, KeyState state) override {
+    do_in_jni_thread(base::Bind(&MediaInterface::SendKeyEvent, base::Unretained(wrapped_), bdaddr,
+                                key, state));
   }
 
   void GetSongInfo(SongInfoCallback info_cb) override {
@@ -375,6 +376,7 @@ public:
 
   void SetPlayerSettings(std::vector<PlayerAttribute> attributes, std::vector<uint8_t> values,
                          SetPlayerSettingValueCallback cb) override {
+    log::info("");
     auto cb_lambda = [](const SetPlayerSettingValueCallback& cb, bool success) {
       do_in_main_thread(base::BindOnce(cb, success));
     };
@@ -479,20 +481,14 @@ void AvrcpService::RegisterBipServer(int psm) {
   log::info("AVRCP Target Service has registered a BIP OBEX server, psm={}", psm);
 
   const std::shared_ptr<AvrcpSdpService>& avrcp_sdp_service = AvrcpSdpService::Get();
-  avrcp_sdp_service->EnableCovertArt(UUID_SERVCLASS_AV_REM_CTRL_TARGET, psm,
-                                     target_sdp_request_id_);
+  avrcp_sdp_service->EnableCoverArt(UUID_SERVCLASS_AV_REM_CTRL_TARGET, psm, target_sdp_request_id_);
 }
 
 void AvrcpService::UnregisterBipServer() {
   log::info("AVRCP Target Service has unregistered a BIP OBEX server");
 
   const std::shared_ptr<AvrcpSdpService>& avrcp_sdp_service = AvrcpSdpService::Get();
-  avrcp_sdp_service->DisableCovertArt(UUID_SERVCLASS_AV_REM_CTRL_TARGET, target_sdp_request_id_);
-  avrcp_interface_.RemoveRecord(sdp_record_handle);
-  uint16_t supported_features = GetSupportedFeatures(profile_version);
-  sdp_record_handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
-  avrcp_interface_.AddRecord(UUID_SERVCLASS_AV_REM_CTRL_TARGET, "AV Remote Control Target", NULL,
-                             supported_features, sdp_record_handle, true, profile_version, 0);
+  avrcp_sdp_service->DisableCoverArt(UUID_SERVCLASS_AV_REM_CTRL_TARGET, target_sdp_request_id_);
 }
 
 AvrcpService* AvrcpService::Get() {

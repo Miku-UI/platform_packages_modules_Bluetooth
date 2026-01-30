@@ -25,6 +25,7 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 
 import static com.android.bluetooth.Utils.BD_ADDR_LEN;
+import static com.android.bluetooth.Utils.TYPED_BD_ADDR_LEN;
 
 import android.annotation.NonNull;
 import android.app.BroadcastOptions;
@@ -39,7 +40,6 @@ import android.bluetooth.BluetoothSap;
 import android.bluetooth.BluetoothUtils;
 import android.bluetooth.BufferConstraint;
 import android.bluetooth.BufferConstraints;
-import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -55,7 +55,7 @@ import androidx.annotation.VisibleForTesting;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.RemoteDevices.DeviceProperties;
-import com.android.modules.utils.build.SdkLevel;
+import com.android.bluetooth.flags.Flags;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -67,7 +67,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 class AdapterProperties {
-    private static final String TAG = AdapterProperties.class.getSimpleName();
+    private static final String TAG = Utils.BT_PREFIX + AdapterProperties.class.getSimpleName();
 
     private static final String MAX_CONNECTED_AUDIO_DEVICES_PROPERTY =
             "persist.bluetooth.maxconnectedaudiodevices";
@@ -113,8 +113,6 @@ class AdapterProperties {
     private long mDiscoveryEndMs; // < Time (ms since epoch) that discovery ended or will end.
     // TODO - all hw capabilities to be exposed as a class
     private int mNumOfAdvertisementInstancesSupported;
-    private boolean mRpaOffloadSupported;
-    private int mNumOfOffloadedIrkSupported;
     private int mNumOfOffloadedScanFilterSupported;
     private int mOffloadedScanResultStorageBytes;
     private int mVersSupported;
@@ -143,19 +141,23 @@ class AdapterProperties {
     private int mNumberOfSupportedOffloadedRfcommSockets;
 
     // Lock for all getters and setters.
-    // If finer grained locking is needer, more locks
-    // can be added here.
+    // If finer grained locking is needer, more locks can be added here.
     private final Object mObject = new Object();
 
     AdapterProperties(AdapterService service, RemoteDevices remoteDevices, Looper looper) {
-        mAdapter = ((Context) service).getSystemService(BluetoothManager.class).getAdapter();
-        mRemoteDevices = remoteDevices;
         mService = service;
+        mAdapter = mService.getSystemService(BluetoothManager.class).getAdapter();
+        mRemoteDevices = remoteDevices;
         mHandler = new Handler(looper);
         invalidateBluetoothCaches();
     }
 
-    public void init() {
+    @Override
+    public Object clone() throws CloneNotSupportedException {
+        throw new CloneNotSupportedException();
+    }
+
+    void init() {
         mProfileConnectionState.clear();
 
         // Get default max connected audio devices from config.xml
@@ -165,7 +167,7 @@ class AdapterProperties {
                                 com.android.bluetooth.R.integer
                                         .config_bluetooth_max_connected_audio_devices);
         // Override max connected audio devices if MAX_CONNECTED_AUDIO_DEVICES_PROPERTY is set
-        int propertyOverlayedMaxConnectedAudioDevices =
+        int propertyOverlaidMaxConnectedAudioDevices =
                 SystemProperties.getInt(
                         MAX_CONNECTED_AUDIO_DEVICES_PROPERTY,
                         configDefaultMaxConnectedAudioDevices);
@@ -173,17 +175,14 @@ class AdapterProperties {
         mMaxConnectedAudioDevices =
                 Math.min(
                         Math.max(
-                                propertyOverlayedMaxConnectedAudioDevices,
+                                propertyOverlaidMaxConnectedAudioDevices,
                                 MAX_CONNECTED_AUDIO_DEVICES_LOWER_BOUND),
                         MAX_CONNECTED_AUDIO_DEVICES_UPPER_BOUND);
-        Log.i(
-                TAG,
-                "init(), maxConnectedAudioDevices, default="
-                        + configDefaultMaxConnectedAudioDevices
-                        + ", propertyOverlayed="
-                        + propertyOverlayedMaxConnectedAudioDevices
-                        + ", finalValue="
-                        + mMaxConnectedAudioDevices);
+        infoLog(
+                "init(), maxConnectedAudioDevices"
+                        + (" default=" + configDefaultMaxConnectedAudioDevices)
+                        + (", propertyOverlaid=" + propertyOverlaidMaxConnectedAudioDevices)
+                        + (", finalValue=" + mMaxConnectedAudioDevices));
 
         mA2dpOffloadEnabled =
                 SystemProperties.getBoolean(A2DP_OFFLOAD_SUPPORTED_PROPERTY, false)
@@ -192,32 +191,11 @@ class AdapterProperties {
         invalidateBluetoothCaches();
     }
 
-    public void cleanup() {
+    void cleanup() {
         mProfileConnectionState.clear();
 
         mBondedDevices.clear();
         invalidateBluetoothCaches();
-    }
-
-    private static void invalidateGetProfileConnectionStateCache() {
-        BluetoothAdapter.invalidateGetProfileConnectionStateCache();
-    }
-
-    private static void invalidateIsOffloadedFilteringSupportedCache() {
-        BluetoothAdapter.invalidateIsOffloadedFilteringSupportedCache();
-    }
-
-    private static void invalidateBluetoothGetConnectionStateCache() {
-        BluetoothMap.invalidateBluetoothGetConnectionStateCache();
-        BluetoothSap.invalidateBluetoothGetConnectionStateCache();
-    }
-
-    private static void invalidateGetConnectionStateCache() {
-        BluetoothAdapter.invalidateGetAdapterConnectionStateCache();
-    }
-
-    private static void invalidateGetBondStateCache() {
-        BluetoothDevice.invalidateBluetoothGetBondStateCache();
     }
 
     private static void invalidateBluetoothCaches() {
@@ -228,14 +206,27 @@ class AdapterProperties {
         invalidateBluetoothGetConnectionStateCache();
     }
 
-    @Override
-    public Object clone() throws CloneNotSupportedException {
-        throw new CloneNotSupportedException();
+    private static void invalidateGetProfileConnectionStateCache() {
+        BluetoothAdapter.invalidateGetProfileConnectionStateCache();
     }
 
-    /**
-     * @return the mName
-     */
+    private static void invalidateIsOffloadedFilteringSupportedCache() {
+        BluetoothAdapter.invalidateIsOffloadedFilteringSupportedCache();
+    }
+
+    private static void invalidateGetConnectionStateCache() {
+        BluetoothAdapter.invalidateGetAdapterConnectionStateCache();
+    }
+
+    private static void invalidateGetBondStateCache() {
+        BluetoothDevice.invalidateBluetoothGetBondStateCache();
+    }
+
+    private static void invalidateBluetoothGetConnectionStateCache() {
+        BluetoothMap.invalidateBluetoothGetConnectionStateCache();
+        BluetoothSap.invalidateBluetoothGetConnectionStateCache();
+    }
+
     String getName() {
         return mName;
     }
@@ -256,81 +247,36 @@ class AdapterProperties {
         }
     }
 
-    /**
-     * @return the mUuids
-     */
     ParcelUuid[] getUuids() {
         return mUuids;
     }
 
-    /**
-     * @return the mAddress
-     */
-    byte[] getAddress() {
-        return mAddress;
-    }
-
-    /**
-     * @param connectionState the mConnectionState to set
-     */
     void setConnectionState(int connectionState) {
         mConnectionState = connectionState;
         invalidateGetConnectionStateCache();
     }
 
-    /**
-     * @return the mConnectionState
-     */
     int getConnectionState() {
         return mConnectionState;
     }
 
-    /**
-     * @param state the mState to set
-     */
     void setState(int state) {
         debugLog("Setting state to " + BluetoothAdapter.nameForState(state));
         mState = state;
     }
 
-    /**
-     * @return the mState
-     */
     int getState() {
         return mState;
     }
 
-    /**
-     * @return the mNumOfAdvertisementInstancesSupported
-     */
     int getNumOfAdvertisementInstancesSupported() {
         return mNumOfAdvertisementInstancesSupported;
     }
 
-    /**
-     * @return the mRpaOffloadSupported
-     */
-    boolean isRpaOffloadSupported() {
-        return mRpaOffloadSupported;
-    }
-
-    /**
-     * @return the mNumOfOffloadedIrkSupported
-     */
-    int getNumOfOffloadedIrkSupported() {
-        return mNumOfOffloadedIrkSupported;
-    }
-
-    /**
-     * @return the mNumOfOffloadedScanFilterSupported
-     */
     int getNumOfOffloadedScanFilterSupported() {
         return mNumOfOffloadedScanFilterSupported;
     }
 
-    /**
-     * @return the mOffloadedScanResultStorageBytes
-     */
     int getOffloadedScanResultStorage() {
         return mOffloadedScanResultStorageBytes;
     }
@@ -342,100 +288,58 @@ class AdapterProperties {
         return mIsActivityAndEnergyReporting;
     }
 
-    /**
-     * @return the mIsLe2MPhySupported
-     */
     boolean isLe2MPhySupported() {
         return mIsLe2MPhySupported;
     }
 
-    /**
-     * @return the mIsLeCodedPhySupported
-     */
     boolean isLeCodedPhySupported() {
         return mIsLeCodedPhySupported;
     }
 
-    /**
-     * @return the mIsLeExtendedAdvertisingSupported
-     */
     boolean isLeExtendedAdvertisingSupported() {
         return mIsLeExtendedAdvertisingSupported;
     }
 
-    /**
-     * @return the mIsLePeriodicAdvertisingSupported
-     */
     boolean isLePeriodicAdvertisingSupported() {
         return mIsLePeriodicAdvertisingSupported;
     }
 
-    /**
-     * @return the mIsLePeriodicAdvertisingSyncTransferSenderSupported
-     */
     boolean isLePeriodicAdvertisingSyncTransferSenderSupported() {
         return mIsLePeriodicAdvertisingSyncTransferSenderSupported;
     }
 
-    /**
-     * @return the mIsLePeriodicAdvertisingSyncTransferRecipientSupported
-     */
     boolean isLePeriodicAdvertisingSyncTransferRecipientSupported() {
         return mIsLePeriodicAdvertisingSyncTransferRecipientSupported;
     }
 
-    /**
-     * @return the mIsLeConnectedIsochronousStreamCentralSupported
-     */
     boolean isLeConnectedIsochronousStreamCentralSupported() {
         return mIsLeConnectedIsochronousStreamCentralSupported;
     }
 
-    /**
-     * @return the mIsLeIsochronousBroadcasterSupported
-     */
     boolean isLeIsochronousBroadcasterSupported() {
         return mIsLeIsochronousBroadcasterSupported;
     }
 
-    /**
-     * @return the mIsLeChannelSoundingSupported
-     */
     boolean isLeChannelSoundingSupported() {
         return mIsLeChannelSoundingSupported;
     }
 
-    /**
-     * @return the getLeMaximumAdvertisingDataLength
-     */
     int getLeMaximumAdvertisingDataLength() {
         return mLeMaximumAdvertisingDataLength;
     }
 
-    /**
-     * @return total number of trackable advertisements
-     */
     int getTotalNumOfTrackableAdvertisements() {
         return mTotNumOfTrackableAdv;
     }
 
-    /**
-     * @return the isOffloadedTransportDiscoveryDataScanSupported
-     */
-    public boolean isOffloadedTransportDiscoveryDataScanSupported() {
+    boolean isOffloadedTransportDiscoveryDataScanSupported() {
         return mIsOffloadedTransportDiscoveryDataScanSupported;
     }
 
-    /**
-     * @return the maximum number of connected audio devices
-     */
     int getMaxConnectedAudioDevices() {
         return mMaxConnectedAudioDevices;
     }
 
-    /**
-     * @return A2DP offload support
-     */
     boolean isA2dpOffloadEnabled() {
         return mA2dpOffloadEnabled;
     }
@@ -502,7 +406,7 @@ class AdapterProperties {
             byte[] addrByte = Utils.getByteAddress(device);
             DeviceProperties prop = mRemoteDevices.getDeviceProperties(device);
             if (prop == null) {
-                prop = mRemoteDevices.addDeviceProperties(addrByte);
+                prop = mRemoteDevices.addDeviceProperties(addrByte, device.getAddressType());
             }
             device = prop.getDevice();
             prop.setBondState(state);
@@ -560,17 +464,15 @@ class AdapterProperties {
                 if (mService.getNative().removeBond(Utils.getBytesFromAddress(existingAddress))) {
                     mBondedDevices.remove(existingDevice);
                     infoLog(
-                            "Removing old bond record: "
-                                    + existingDevice
-                                    + " for the device: "
-                                    + device);
+                            "Removing old bond"
+                                    + (" record: " + existingDevice)
+                                    + (" for the device: " + device));
                 } else {
                     Log.e(
                             TAG,
-                            "Unexpected error while removing old bond record:"
-                                    + existingDevice
-                                    + " for the device: "
-                                    + device);
+                            "Unexpected error while removing old bond"
+                                    + (" record:" + existingDevice)
+                                    + (" for the device: " + device));
                 }
                 break;
             }
@@ -608,14 +510,13 @@ class AdapterProperties {
         return mDiscovering;
     }
 
-
     void updateOnProfileConnectionChanged(
             BluetoothDevice device, int profile, int newState, int prevState) {
         String logInfo =
                 ("profile=" + BluetoothProfile.getProfileName(profile))
                         + (" device=" + device)
                         + (" state [" + prevState + " -> " + newState + "]");
-        Log.d(TAG, "updateOnProfileConnectionChanged: " + logInfo);
+        debugLog("updateOnProfileConnectionChanged: " + logInfo);
         if (!isNormalStateTransition(prevState, newState)) {
             Log.w(TAG, "updateOnProfileConnectionChanged: Unexpected transition. " + logInfo);
         }
@@ -656,12 +557,17 @@ class AdapterProperties {
                                 .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
                 MetricsLogger.getInstance()
                         .logProfileConnectionStateChange(device, profile, newState, prevState);
-                Log.d(TAG, "updateOnProfileConnectionChanged: " + logInfo);
-                mService.sendBroadcastAsUser(
-                        intent,
-                        UserHandle.ALL,
-                        BLUETOOTH_CONNECT,
-                        Utils.getTempBroadcastOptions().toBundle());
+                debugLog("updateOnProfileConnectionChanged: " + logInfo);
+                if (Flags.onlyBroadcastToLocalUser()) {
+                    mService.sendBroadcast(
+                            intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastBundle());
+                } else {
+                    mService.sendBroadcastAsUser(
+                            intent,
+                            UserHandle.ALL,
+                            BLUETOOTH_CONNECT,
+                            Utils.getTempBroadcastBundle());
+                }
             }
         }
     }
@@ -674,37 +580,31 @@ class AdapterProperties {
     }
 
     private static int convertToAdapterState(int state) {
-        switch (state) {
-            case STATE_DISCONNECTED:
-                return BluetoothAdapter.STATE_DISCONNECTED;
-            case STATE_DISCONNECTING:
-                return BluetoothAdapter.STATE_DISCONNECTING;
-            case STATE_CONNECTED:
-                return BluetoothAdapter.STATE_CONNECTED;
-            case STATE_CONNECTING:
-                return BluetoothAdapter.STATE_CONNECTING;
-        }
-        Log.e(TAG, "convertToAdapterState, unknown state " + state);
-        return -1;
+        return switch (state) {
+            case STATE_DISCONNECTED -> BluetoothAdapter.STATE_DISCONNECTED;
+            case STATE_DISCONNECTING -> BluetoothAdapter.STATE_DISCONNECTING;
+            case STATE_CONNECTED -> BluetoothAdapter.STATE_CONNECTED;
+            case STATE_CONNECTING -> BluetoothAdapter.STATE_CONNECTING;
+            default -> {
+                Log.e(TAG, "convertToAdapterState, unknown state " + state);
+                yield -1;
+            }
+        };
     }
 
     private static boolean isNormalStateTransition(int prevState, int nextState) {
-        switch (prevState) {
-            case STATE_DISCONNECTED:
-                return nextState == STATE_CONNECTING;
-            case STATE_CONNECTED:
-                return nextState == STATE_DISCONNECTING;
-            case STATE_DISCONNECTING:
-            case STATE_CONNECTING:
-                return (nextState == STATE_DISCONNECTED) || (nextState == STATE_CONNECTED);
-            default:
-                return false;
-        }
+        return switch (prevState) {
+            case STATE_DISCONNECTED -> nextState == STATE_CONNECTING;
+            case STATE_CONNECTED -> nextState == STATE_DISCONNECTING;
+            case STATE_DISCONNECTING, STATE_CONNECTING ->
+                    (nextState == STATE_DISCONNECTED) || (nextState == STATE_CONNECTED);
+            default -> false;
+        };
     }
 
     private boolean updateCountersAndCheckForConnectionStateChange(int state, int prevState) {
         switch (prevState) {
-            case STATE_CONNECTING:
+            case STATE_CONNECTING -> {
                 if (mProfilesConnecting > 0) {
                     mProfilesConnecting--;
                 } else {
@@ -712,9 +612,8 @@ class AdapterProperties {
                     throw new IllegalStateException(
                             "Invalid state transition, " + prevState + " -> " + state);
                 }
-                break;
-
-            case STATE_CONNECTED:
+            }
+            case STATE_CONNECTED -> {
                 if (mProfilesConnected > 0) {
                     mProfilesConnected--;
                 } else {
@@ -722,9 +621,8 @@ class AdapterProperties {
                     throw new IllegalStateException(
                             "Invalid state transition, " + prevState + " -> " + state);
                 }
-                break;
-
-            case STATE_DISCONNECTING:
+            }
+            case STATE_DISCONNECTING -> {
                 if (mProfilesDisconnecting > 0) {
                     mProfilesDisconnecting--;
                 } else {
@@ -732,36 +630,32 @@ class AdapterProperties {
                     throw new IllegalStateException(
                             "Invalid state transition, " + prevState + " -> " + state);
                 }
-                break;
+            }
+            default -> {} // Nothing to do
         }
 
-        switch (state) {
-            case STATE_CONNECTING:
+        return switch (state) {
+            case STATE_CONNECTING -> {
                 mProfilesConnecting++;
-                return (mProfilesConnected == 0 && mProfilesConnecting == 1);
-
-            case STATE_CONNECTED:
+                yield (mProfilesConnected == 0 && mProfilesConnecting == 1);
+            }
+            case STATE_CONNECTED -> {
                 mProfilesConnected++;
-                return (mProfilesConnected == 1);
-
-            case STATE_DISCONNECTING:
+                yield (mProfilesConnected == 1);
+            }
+            case STATE_DISCONNECTING -> {
                 mProfilesDisconnecting++;
-                return (mProfilesConnected == 0 && mProfilesDisconnecting == 1);
-
-            case STATE_DISCONNECTED:
-                return (mProfilesConnected == 0 && mProfilesConnecting == 0);
-
-            default:
-                return true;
-        }
+                yield (mProfilesConnected == 0 && mProfilesDisconnecting == 1);
+            }
+            case STATE_DISCONNECTED -> (mProfilesConnected == 0 && mProfilesConnecting == 0);
+            default -> true;
+        };
     }
 
     private void updateProfileConnectionState(int profile, int newState, int oldState) {
-        // mProfileConnectionState is a hashmap -
-        // <Integer, Pair<Integer, Integer>>
-        // The key is the profile, the value is a pair. first element
-        // is the state and the second element is the number of devices
-        // in that state.
+        // mProfileConnectionState is a hashmap - <Integer, Pair<Integer, Integer>>
+        // The key is the profile, the value is a pair. first element is the state
+        // and the second element is the number of devices in that state.
         int numDev = 1;
         int newHashState = newState;
         boolean update = true;
@@ -773,9 +667,8 @@ class AdapterProperties {
         // 3. If a state change has happened to Connected or Connecting
         //    (if current state is not connected), update.
         // 4. If numDevices is 1 and that device state is being updated, update
-        // 5. If numDevices is > 1 and one of the devices is changing state,
-        //    decrement numDevices but maintain oldState if it is Connected or
-        //    Connecting
+        // 5. If numDevices is > 1 and one of the devices is changing state, decrement numDevices
+        //     but maintain oldState if it is Connected or Connecting
         Pair<Integer, Integer> stateNumDev = mProfileConnectionState.get(profile);
         if (stateNumDev != null) {
             int currHashState = stateNumDev.first;
@@ -800,7 +693,7 @@ class AdapterProperties {
         }
 
         if (update) {
-            mProfileConnectionState.put(profile, new Pair<Integer, Integer>(newHashState, numDev));
+            mProfileConnectionState.put(profile, new Pair<>(newHashState, numDev));
             invalidateGetProfileConnectionStateCache();
         }
     }
@@ -818,7 +711,7 @@ class AdapterProperties {
             infoLog("adapterPropertyChangedCallback with type:" + type + " len:" + val.length);
             synchronized (mObject) {
                 switch (type) {
-                    case AbstractionLayer.BT_PROPERTY_BDNAME:
+                    case AbstractionLayer.BT_PROPERTY_BDNAME -> {
                         String name = new String(val);
                         if (name.equals(mName)) {
                             debugLog("Name already set: " + mName);
@@ -826,8 +719,8 @@ class AdapterProperties {
                         }
                         mName = name;
                         mService.updateAdapterName(mName);
-                        break;
-                    case AbstractionLayer.BT_PROPERTY_BDADDR:
+                    }
+                    case AbstractionLayer.BT_PROPERTY_BDADDR -> {
                         if (Arrays.equals(mAddress, val)) {
                             debugLog("Address already set");
                             break;
@@ -835,8 +728,8 @@ class AdapterProperties {
                         mAddress = val;
                         String address = Utils.getAddressStringFromByte(mAddress);
                         mService.updateAdapterAddress(address);
-                        break;
-                    case AbstractionLayer.BT_PROPERTY_CLASS_OF_DEVICE:
+                    }
+                    case AbstractionLayer.BT_PROPERTY_CLASS_OF_DEVICE -> {
                         if (val == null || val.length != 3) {
                             debugLog("Invalid BT CoD value from stack.");
                             return;
@@ -847,51 +740,57 @@ class AdapterProperties {
                             mBluetoothClass = new BluetoothClass(bluetoothClass);
                         }
                         debugLog("BT Class:" + mBluetoothClass);
-                        break;
-                    case AbstractionLayer.BT_PROPERTY_UUIDS:
+                    }
+                    case AbstractionLayer.BT_PROPERTY_UUIDS -> {
                         mUuids = Utils.byteArrayToUuid(val);
-                        break;
-                    case AbstractionLayer.BT_PROPERTY_ADAPTER_BONDED_DEVICES:
-                        int number = val.length / BD_ADDR_LEN;
-                        byte[] addrByte = new byte[BD_ADDR_LEN];
-                        for (int j = 0; j < number; j++) {
-                            System.arraycopy(val, j * BD_ADDR_LEN, addrByte, 0, BD_ADDR_LEN);
-                            onBondStateChanged(
-                                    mAdapter.getRemoteDevice(
-                                            Utils.getAddressStringFromByte(addrByte)),
-                                    BluetoothDevice.BOND_BONDED);
-                        }
-                        break;
-                    case AbstractionLayer.BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT:
+                    }
+                    case AbstractionLayer.BT_PROPERTY_ADAPTER_BONDED_DEVICES ->
+                            updateBondedDevices(val);
+                    case AbstractionLayer.BT_PROPERTY_ADAPTER_DISCOVERABLE_TIMEOUT -> {
                         mDiscoverableTimeout = Utils.byteArrayToInt(val, 0);
                         debugLog("Discoverable Timeout:" + mDiscoverableTimeout);
-                        break;
-
-                    case AbstractionLayer.BT_PROPERTY_LOCAL_LE_FEATURES:
+                    }
+                    case AbstractionLayer.BT_PROPERTY_LOCAL_LE_FEATURES -> {
                         updateFeatureSupport(val);
                         mService.updateLeAudioProfileServiceState();
-                        break;
-
-                    case AbstractionLayer.BT_PROPERTY_DYNAMIC_AUDIO_BUFFER:
-                        updateDynamicAudioBufferSupport(val);
-                        break;
-
-                    case AbstractionLayer.BT_PROPERTY_LPP_OFFLOAD_FEATURES:
-                        updateLppOffloadFeatureSupport(val);
-                        break;
-
-                    default:
-                        Log.e(TAG, "Property change not handled in Java land:" + type);
+                    }
+                    case AbstractionLayer.BT_PROPERTY_DYNAMIC_AUDIO_BUFFER ->
+                            updateDynamicAudioBufferSupport(val);
+                    case AbstractionLayer.BT_PROPERTY_LPP_OFFLOAD_FEATURES ->
+                            updateLppOffloadFeatureSupport(val);
+                    default -> Log.e(TAG, "Property change not handled in Java land:" + type);
                 }
             }
+        }
+    }
+
+    private void updateBondedDevices(byte[] val) {
+        int number = val.length / TYPED_BD_ADDR_LEN;
+        int addressType;
+        byte[] addrByte = new byte[BD_ADDR_LEN];
+        for (int j = 0; j < number; j++) {
+            System.arraycopy(val, j * TYPED_BD_ADDR_LEN, addrByte, 0, BD_ADDR_LEN);
+            addressType = val[(j * TYPED_BD_ADDR_LEN) + BD_ADDR_LEN];
+            String address = Utils.getAddressStringFromByte(addrByte);
+
+            debugLog(
+                    "updateBondedDevices: Add device: "
+                            + BluetoothUtils.toAnonymizedAddress(address)
+                            + ("[" + Utils.addressTypeToString(addressType) + "]"));
+
+            BluetoothDevice device =
+                    Flags.retainAddressType()
+                            ? mService.getRemoteDevice(address, addressType)
+                            : mAdapter.getRemoteDevice(address);
+            onBondStateChanged(device, BluetoothDevice.BOND_BONDED);
         }
     }
 
     private void updateFeatureSupport(byte[] val) {
         mVersSupported = ((0xFF & ((int) val[1])) << 8) + (0xFF & ((int) val[0]));
         mNumOfAdvertisementInstancesSupported = (0xFF & ((int) val[3]));
-        mRpaOffloadSupported = ((0xFF & ((int) val[4])) != 0);
-        mNumOfOffloadedIrkSupported = (0xFF & ((int) val[5]));
+        var rpaOffloadSupported = ((0xFF & ((int) val[4])) != 0);
+        var numOfOffloadedIrkSupported = (0xFF & ((int) val[5]));
         mNumOfOffloadedScanFilterSupported = (0xFF & ((int) val[6]));
         mIsActivityAndEnergyReporting = ((0xFF & ((int) val[7])) != 0);
         mOffloadedScanResultStorageBytes = ((0xFF & ((int) val[9])) << 8) + (0xFF & ((int) val[8]));
@@ -915,55 +814,42 @@ class AdapterProperties {
         mIsOffloadedTransportDiscoveryDataScanSupported = ((0x01 & ((int) val[28])) != 0);
         mIsLeChannelSoundingSupported = ((0xFF & ((int) val[30])) != 0);
 
-        Log.d(
-                TAG,
+        debugLog(
                 "BT_PROPERTY_LOCAL_LE_FEATURES: update from BT controller"
-                        + " mNumOfAdvertisementInstancesSupported = "
-                        + mNumOfAdvertisementInstancesSupported
-                        + " mRpaOffloadSupported = "
-                        + mRpaOffloadSupported
-                        + " mNumOfOffloadedIrkSupported = "
-                        + mNumOfOffloadedIrkSupported
-                        + " mNumOfOffloadedScanFilterSupported = "
-                        + mNumOfOffloadedScanFilterSupported
-                        + " mOffloadedScanResultStorageBytes= "
-                        + mOffloadedScanResultStorageBytes
-                        + " mIsActivityAndEnergyReporting = "
-                        + mIsActivityAndEnergyReporting
-                        + " mVersSupported = "
-                        + mVersSupported
-                        + " mTotNumOfTrackableAdv = "
-                        + mTotNumOfTrackableAdv
-                        + " mIsExtendedScanSupported = "
-                        + mIsExtendedScanSupported
-                        + " mIsDebugLogSupported = "
-                        + mIsDebugLogSupported
-                        + " mIsLe2MPhySupported = "
-                        + mIsLe2MPhySupported
-                        + " mIsLeCodedPhySupported = "
-                        + mIsLeCodedPhySupported
-                        + " mIsLeExtendedAdvertisingSupported = "
-                        + mIsLeExtendedAdvertisingSupported
-                        + " mIsLePeriodicAdvertisingSupported = "
-                        + mIsLePeriodicAdvertisingSupported
-                        + " mLeMaximumAdvertisingDataLength = "
-                        + mLeMaximumAdvertisingDataLength
-                        + " mDynamicAudioBufferSizeSupportedCodecsGroup1 = "
-                        + mDynamicAudioBufferSizeSupportedCodecsGroup1
-                        + " mDynamicAudioBufferSizeSupportedCodecsGroup2 = "
-                        + mDynamicAudioBufferSizeSupportedCodecsGroup2
-                        + " mIsLePeriodicAdvertisingSyncTransferSenderSupported = "
-                        + mIsLePeriodicAdvertisingSyncTransferSenderSupported
-                        + " mIsLeConnectedIsochronousStreamCentralSupported = "
-                        + mIsLeConnectedIsochronousStreamCentralSupported
-                        + " mIsLeIsochronousBroadcasterSupported = "
-                        + mIsLeIsochronousBroadcasterSupported
-                        + " mIsLePeriodicAdvertisingSyncTransferRecipientSupported = "
-                        + mIsLePeriodicAdvertisingSyncTransferRecipientSupported
-                        + " mIsOffloadedTransportDiscoveryDataScanSupported = "
-                        + mIsOffloadedTransportDiscoveryDataScanSupported
-                        + " mIsLeChannelSoundingSupported = "
-                        + mIsLeChannelSoundingSupported);
+                        + (" mNumOfAdvertisementInstancesSupported="
+                                + mNumOfAdvertisementInstancesSupported)
+                        + (", rpaOffloadSupported=" + rpaOffloadSupported)
+                        + (", numOfOffloadedIrkSupported=" + numOfOffloadedIrkSupported)
+                        + (", numOfOffloadedScanFilterSupported="
+                                + mNumOfOffloadedScanFilterSupported)
+                        + (", offloadedScanResultStorageBytes= " + mOffloadedScanResultStorageBytes)
+                        + (", isActivityAndEnergyReporting=" + mIsActivityAndEnergyReporting)
+                        + (", versSupported=" + mVersSupported)
+                        + (", totNumOfTrackableAdv=" + mTotNumOfTrackableAdv)
+                        + (", isExtendedScanSupported=" + mIsExtendedScanSupported)
+                        + (", isDebugLogSupported=" + mIsDebugLogSupported)
+                        + (", isLe2MPhySupported=" + mIsLe2MPhySupported)
+                        + (", isLeCodedPhySupported=" + mIsLeCodedPhySupported)
+                        + (", isLeExtendedAdvertisingSupported="
+                                + mIsLeExtendedAdvertisingSupported)
+                        + (", isLePeriodicAdvertisingSupported="
+                                + mIsLePeriodicAdvertisingSupported)
+                        + (", leMaximumAdvertisingDataLength=" + mLeMaximumAdvertisingDataLength)
+                        + (", dynamicAudioBufferSizeSupportedCodecsGroup1="
+                                + mDynamicAudioBufferSizeSupportedCodecsGroup1)
+                        + (", dynamicAudioBufferSizeSupportedCodecsGroup2="
+                                + mDynamicAudioBufferSizeSupportedCodecsGroup2)
+                        + (", isLePeriodicAdvertisingSyncTransferSenderSupported="
+                                + mIsLePeriodicAdvertisingSyncTransferSenderSupported)
+                        + (", isLeConnectedIsochronousStreamCentralSupported="
+                                + mIsLeConnectedIsochronousStreamCentralSupported)
+                        + (", isLeIsochronousBroadcasterSupported="
+                                + mIsLeIsochronousBroadcasterSupported)
+                        + (", isLePeriodicAdvertisingSyncTransferRecipientSupported="
+                                + mIsLePeriodicAdvertisingSyncTransferRecipientSupported)
+                        + (", isOffloadedTransportDiscoveryDataScanSupported="
+                                + mIsOffloadedTransportDiscoveryDataScanSupported)
+                        + (", isLeChannelSoundingSupported = " + mIsLeChannelSoundingSupported));
         invalidateIsOffloadedFilteringSupportedCache();
     }
 
@@ -978,7 +864,7 @@ class AdapterProperties {
         // The maximum number of raw is BUFFER_CODEC_MAX_NUM(32).
         // The maximum number of column is BUFFER_TYPE_MAX(3).
         // The array element indicates the buffer time, the size is two octet.
-        List<BufferConstraint> bufferConstraintList = new ArrayList<BufferConstraint>();
+        List<BufferConstraint> bufferConstraintList = new ArrayList<>();
 
         for (int i = 0; i < BufferConstraints.BUFFER_CODEC_MAX_NUM; i++) {
             int defaultBufferTime =
@@ -994,16 +880,10 @@ class AdapterProperties {
         mBufferConstraintList.complete(bufferConstraintList);
     }
 
-    /**
-     * @return the mNumberOfSupportedOffloadedLeCocSockets
-     */
     int getNumberOfSupportedOffloadedLeCocSockets() {
         return mNumberOfSupportedOffloadedLeCocSockets;
     }
 
-    /**
-     * @return the mNumberOfSupportedOffloadedRfcommSockets
-     */
     int getNumberOfSupportedOffloadedRfcommSockets() {
         return mNumberOfSupportedOffloadedRfcommSockets;
     }
@@ -1016,8 +896,7 @@ class AdapterProperties {
         mNumberOfSupportedOffloadedLeCocSockets = (0xFF & ((int) val[0]));
         mNumberOfSupportedOffloadedRfcommSockets = (0xFF & ((int) val[1]));
 
-        Log.d(
-                TAG,
+        debugLog(
                 "BT_PROPERTY_LPP_OFFLOAD_FEATURES: update from Offload HAL"
                         + " mNumberOfSupportedOffloadedLeCocSockets = "
                         + mNumberOfSupportedOffloadedLeCocSockets
@@ -1060,8 +939,7 @@ class AdapterProperties {
                 mDiscovering = true;
                 mDiscoveryEndMs = System.currentTimeMillis() + DEFAULT_DISCOVERY_TIMEOUT_MS;
                 intent = new Intent(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
-                mService.sendBroadcast(
-                        intent, BLUETOOTH_SCAN, Utils.getTempBroadcastOptions().toBundle());
+                mService.sendBroadcast(intent, BLUETOOTH_SCAN, Utils.getTempBroadcastBundle());
             }
         }
     }
@@ -1071,10 +949,8 @@ class AdapterProperties {
      */
     private static @NonNull Bundle getBroadcastOptionsForDiscoveryFinished() {
         final BroadcastOptions options = Utils.getTempBroadcastOptions();
-        if (SdkLevel.isAtLeastU()) {
-            options.setDeliveryGroupPolicy(BroadcastOptions.DELIVERY_GROUP_POLICY_MOST_RECENT);
-            options.setDeferralPolicy(BroadcastOptions.DEFERRAL_POLICY_UNTIL_ACTIVE);
-        }
+        options.setDeliveryGroupPolicy(BroadcastOptions.DELIVERY_GROUP_POLICY_MOST_RECENT);
+        options.setDeferralPolicy(BroadcastOptions.DEFERRAL_POLICY_UNTIL_ACTIVE);
         return options.toBundle();
     }
 
@@ -1089,11 +965,14 @@ class AdapterProperties {
         writer.println("  " + "Discovering: " + mDiscovering);
         writer.println("  " + "DiscoveryEndMs: " + mDiscoveryEndMs);
 
+        if (Flags.doNotDumpDevicesFromAdapterProperties()) {
+            return;
+        }
         writer.println("  " + "Bonded devices:");
         StringBuilder sb = new StringBuilder();
         for (BluetoothDevice device : mBondedDevices) {
             String address = device.getAddress();
-            String brEdrAddress = Utils.getBrEdrAddress(device);
+            String brEdrAddress = Utils.getBrEdrAddress(device, mService);
             if (brEdrAddress.equals(address)) {
                 writer.println(
                         "    "
@@ -1102,8 +981,7 @@ class AdapterProperties {
                                 + dumpDeviceType(mRemoteDevices.getType(device))
                                 + "][ 0x"
                                 + String.format("%06X", mRemoteDevices.getBluetoothClass(device))
-                                + " ] "
-                                + Utils.getName(device));
+                                + " ] ");
             } else {
                 sb.append("    ")
                         .append(BluetoothUtils.toAnonymizedAddress(address))
@@ -1114,41 +992,31 @@ class AdapterProperties {
                         .append("][ 0x")
                         .append(String.format("%06X", mRemoteDevices.getBluetoothClass(device)))
                         .append(" ] ")
-                        .append(Utils.getName(device))
                         .append("\n");
             }
         }
         writer.println(sb.toString());
     }
 
+    // TODO(b/406319687): Remove when do_not_dump_devices_from_adapter_properties is shipped
     private static String dumpDeviceType(int deviceType) {
-        switch (deviceType) {
-            case BluetoothDevice.DEVICE_TYPE_UNKNOWN:
-                return " ???? ";
-            case BluetoothDevice.DEVICE_TYPE_CLASSIC:
-                return "BR/EDR";
-            case BluetoothDevice.DEVICE_TYPE_LE:
-                return "  LE  ";
-            case BluetoothDevice.DEVICE_TYPE_DUAL:
-                return " DUAL ";
-            default:
-                return "Invalid device type: " + deviceType;
-        }
+        return switch (deviceType) {
+            case BluetoothDevice.DEVICE_TYPE_UNKNOWN -> " ???? ";
+            case BluetoothDevice.DEVICE_TYPE_CLASSIC -> "BR/EDR";
+            case BluetoothDevice.DEVICE_TYPE_LE -> "  LE  ";
+            case BluetoothDevice.DEVICE_TYPE_DUAL -> " DUAL ";
+            default -> "Invalid device type: " + deviceType;
+        };
     }
 
     private static String dumpConnectionState(int state) {
-        switch (state) {
-            case BluetoothAdapter.STATE_DISCONNECTED:
-                return "STATE_DISCONNECTED";
-            case BluetoothAdapter.STATE_DISCONNECTING:
-                return "STATE_DISCONNECTING";
-            case BluetoothAdapter.STATE_CONNECTING:
-                return "STATE_CONNECTING";
-            case BluetoothAdapter.STATE_CONNECTED:
-                return "STATE_CONNECTED";
-            default:
-                return "Unknown Connection State " + state;
-        }
+        return switch (state) {
+            case BluetoothAdapter.STATE_DISCONNECTED -> "STATE_DISCONNECTED";
+            case BluetoothAdapter.STATE_DISCONNECTING -> "STATE_DISCONNECTING";
+            case BluetoothAdapter.STATE_CONNECTING -> "STATE_CONNECTING";
+            case BluetoothAdapter.STATE_CONNECTED -> "STATE_CONNECTED";
+            default -> "Unknown Connection State " + state;
+        };
     }
 
     private static void infoLog(String msg) {

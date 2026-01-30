@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.a2dpsink;
 
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
@@ -26,7 +27,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.bluetooth.BluetoothDevice;
 
-import androidx.test.runner.AndroidJUnit4;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;

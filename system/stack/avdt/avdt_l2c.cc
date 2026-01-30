@@ -25,6 +25,8 @@
 #define LOG_TAG "bluetooth-a2dp"
 
 #include <bluetooth/log.h>
+#include <bluetooth/metrics/bluetooth_event.h>
+#include <bluetooth/types/address.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -39,18 +41,17 @@
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cap_interface.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth;
 
 /* callback function declarations */
-void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16_t psm, uint8_t id);
-void avdt_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result);
-void avdt_l2c_config_cfm_cback(uint16_t lcid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
-void avdt_l2c_config_ind_cback(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg);
-void avdt_l2c_disconnect_ind_cback(uint16_t lcid, bool ack_needed);
-void avdt_l2c_congestion_ind_cback(uint16_t lcid, bool is_congested);
-void avdt_l2c_data_ind_cback(uint16_t lcid, BT_HDR* p_buf);
+static void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16_t psm, uint8_t id);
+static void avdt_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result);
+static void avdt_l2c_config_cfm_cback(uint16_t lcid, uint16_t result, tL2CAP_CFG_INFO* p_cfg);
+static void avdt_l2c_config_ind_cback(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg);
+static void avdt_l2c_disconnect_ind_cback(uint16_t lcid, bool ack_needed);
+static void avdt_l2c_congestion_ind_cback(uint16_t lcid, bool is_congested);
+static void avdt_l2c_data_ind_cback(uint16_t lcid, BT_HDR* p_buf);
 static void avdt_on_l2cap_error(uint16_t lcid, uint16_t result);
 
 /* L2CAP callback function structure */
@@ -79,7 +80,7 @@ const tL2CAP_APPL_INFO avdt_l2c_appl = {avdt_l2c_connect_ind_cback,
  * Returns          void
  *
  ******************************************************************************/
-void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16_t /* psm */,
+static void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16_t /* psm */,
                                 uint8_t /* id */) {
   AvdtpCcb* p_ccb;
   AvdtpTransportChannel* p_tbl = NULL;
@@ -119,6 +120,9 @@ void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16
       /* store idx in LCID table, store LCID in routing table */
       avdtp_cb.ad.lcid_tbl[p_tbl->lcid] = avdt_ad_tc_tbl_to_idx(p_tbl);
       avdtp_cb.ad.rt_tbl[avdt_ccb_to_idx(p_ccb)][p_tbl->tcid].lcid = p_tbl->lcid;
+      bluetooth::metrics::LogAvdtpL2capEvent(
+              bd_addr, bluetooth::metrics::EventType::AVDTP_L2CAP_CONNECTION_REQUEST_RECEIVED,
+              tL2CAP_CONN::L2CAP_CONN_OK);
       return;
     }
   } else {
@@ -153,6 +157,9 @@ void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16
     }
   }
 
+  bluetooth::metrics::LogAvdtpL2capEvent(
+          bd_addr, bluetooth::metrics::EventType::AVDTP_L2CAP_CONNECTION_REQUEST_RECEIVED, result);
+
   /* If we reject the connection, send DisconnectReq */
   if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
     log::warn("lcid: 0x{:04x}, result: {}", lcid, l2cap_result_code_text(result));
@@ -173,6 +180,7 @@ void avdt_l2c_connect_ind_cback(const RawAddress& bd_addr, uint16_t lcid, uint16
 
 static void avdt_on_l2cap_error(uint16_t lcid, uint16_t result) {
   AvdtpTransportChannel* p_tbl;
+  AvdtpCcb* p_ccb;
 
   log::warn("lcid: 0x{:04x}, result: {}", lcid, to_l2cap_result_code(result));
   if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
@@ -184,6 +192,11 @@ static void avdt_on_l2cap_error(uint16_t lcid, uint16_t result) {
   if (p_tbl == NULL) {
     log::warn("Adaptation layer transport channel table is NULL");
     return;
+  }
+
+  p_ccb = avdt_ccb_by_idx(p_tbl->ccb_idx);
+  if (p_ccb != NULL) {
+    bluetooth::metrics::LogAvdtpL2capErrorEvent(p_ccb->peer_addr, to_l2cap_result_code(result));
   }
   avdt_ad_tc_close_ind(p_tbl);
 }
@@ -198,7 +211,7 @@ static void avdt_on_l2cap_error(uint16_t lcid, uint16_t result) {
  * Returns          void
  *
  ******************************************************************************/
-void avdt_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
+static void avdt_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
   AvdtpTransportChannel* p_tbl;
   AvdtpCcb* p_ccb;
 
@@ -207,6 +220,13 @@ void avdt_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
   if (p_tbl == NULL) {
     log::warn("Adaptation layer transport channel table is NULL");
     return;
+  }
+
+  p_ccb = avdt_ccb_by_idx(p_tbl->ccb_idx);
+  if (p_ccb != NULL) {
+    bluetooth::metrics::LogAvdtpL2capEvent(
+            p_ccb->peer_addr,
+            bluetooth::metrics::EventType::AVDTP_L2CAP_CONNECTION_RESPONSE_RECEIVED, result);
   }
 
   if (p_tbl->state != AVDT_AD_ST_CONN) {
@@ -224,7 +244,6 @@ void avdt_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
     return;
   }
 
-  p_ccb = avdt_ccb_by_idx(p_tbl->ccb_idx);
   if (p_ccb == NULL) {
     log::warn("p_ccb is NULL");
     return;
@@ -252,7 +271,7 @@ void avdt_l2c_connect_cfm_cback(uint16_t lcid, tL2CAP_CONN result) {
  * Returns          void
  *
  ******************************************************************************/
-void avdt_l2c_config_cfm_cback(uint16_t lcid, uint16_t initiator, tL2CAP_CFG_INFO* p_cfg) {
+static void avdt_l2c_config_cfm_cback(uint16_t lcid, uint16_t initiator, tL2CAP_CFG_INFO* p_cfg) {
   AvdtpTransportChannel* p_tbl;
 
   /* look up info for this channel */
@@ -286,7 +305,7 @@ void avdt_l2c_config_cfm_cback(uint16_t lcid, uint16_t initiator, tL2CAP_CFG_INF
  * Returns          void
  *
  ******************************************************************************/
-void avdt_l2c_config_ind_cback(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg) {
+static void avdt_l2c_config_ind_cback(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg) {
   AvdtpTransportChannel* p_tbl;
 
   /* look up info for this channel */
@@ -315,8 +334,9 @@ void avdt_l2c_config_ind_cback(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg) {
  * Returns          void
  *
  ******************************************************************************/
-void avdt_l2c_disconnect_ind_cback(uint16_t lcid, bool ack_needed) {
+static void avdt_l2c_disconnect_ind_cback(uint16_t lcid, bool ack_needed) {
   AvdtpTransportChannel* p_tbl;
+  AvdtpCcb* p_ccb;
 
   log::verbose("lcid: 0x{:04x}, ack_needed: {}", lcid, ack_needed);
   /* look up info for this channel */
@@ -325,6 +345,15 @@ void avdt_l2c_disconnect_ind_cback(uint16_t lcid, bool ack_needed) {
     log::warn("Adaptation layer transport channel table is NULL");
     return;
   }
+
+  p_ccb = avdt_ccb_by_idx(p_tbl->ccb_idx);
+  if (p_ccb != NULL) {
+    bluetooth::metrics::LogAvdtpL2capEvent(
+            p_ccb->peer_addr,
+            bluetooth::metrics::EventType::AVDTP_L2CAP_DISCONNECTION_REQUEST_RECEIVED,
+            tL2CAP_CONN::L2CAP_CONN_OK);
+  }
+
   avdt_ad_tc_close_ind(p_tbl);
 }
 
@@ -338,7 +367,7 @@ void avdt_l2c_disconnect_ind_cback(uint16_t lcid, bool ack_needed) {
  * Returns          void
  *
  ******************************************************************************/
-void avdt_l2c_congestion_ind_cback(uint16_t lcid, bool is_congested) {
+static void avdt_l2c_congestion_ind_cback(uint16_t lcid, bool is_congested) {
   AvdtpTransportChannel* p_tbl;
 
   log::verbose("lcid: 0x{:04x}, is_congested: {}", lcid, is_congested);
@@ -361,7 +390,7 @@ void avdt_l2c_congestion_ind_cback(uint16_t lcid, bool is_congested) {
  * Returns          void
  *
  ******************************************************************************/
-void avdt_l2c_data_ind_cback(uint16_t lcid, BT_HDR* p_buf) {
+static void avdt_l2c_data_ind_cback(uint16_t lcid, BT_HDR* p_buf) {
   AvdtpTransportChannel* p_tbl;
 
   /* look up info for this channel */

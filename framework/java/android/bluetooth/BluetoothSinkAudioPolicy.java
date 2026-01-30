@@ -19,6 +19,7 @@ package android.bluetooth;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -128,6 +129,7 @@ public final class BluetoothSinkAudioPolicy implements Parcelable {
      * @hide
      */
     @SystemApi
+    @RequiresNoPermission
     public @AudioPolicyValues int getCallEstablishPolicy() {
         return mCallEstablishPolicy;
     }
@@ -145,6 +147,7 @@ public final class BluetoothSinkAudioPolicy implements Parcelable {
      * @hide
      */
     @SystemApi
+    @RequiresNoPermission
     public @AudioPolicyValues int getActiveDevicePolicyAfterConnection() {
         return mConnectingTimePolicy;
     }
@@ -160,6 +163,7 @@ public final class BluetoothSinkAudioPolicy implements Parcelable {
      * @hide
      */
     @SystemApi
+    @RequiresNoPermission
     public @AudioPolicyValues int getInBandRingtonePolicy() {
         return mInBandRingtonePolicy;
     }
@@ -178,20 +182,18 @@ public final class BluetoothSinkAudioPolicy implements Parcelable {
     }
 
     /** {@link Parcelable.Creator} interface implementation. */
-    public static final @android.annotation.NonNull Parcelable.Creator<BluetoothSinkAudioPolicy>
-            CREATOR =
-                    new Parcelable.Creator<BluetoothSinkAudioPolicy>() {
-                        @Override
-                        public BluetoothSinkAudioPolicy createFromParcel(@NonNull Parcel in) {
-                            return new BluetoothSinkAudioPolicy(
-                                    in.readInt(), in.readInt(), in.readInt());
-                        }
+    public static final @NonNull Parcelable.Creator<BluetoothSinkAudioPolicy> CREATOR =
+            new Parcelable.Creator<BluetoothSinkAudioPolicy>() {
+                @Override
+                public BluetoothSinkAudioPolicy createFromParcel(@NonNull Parcel in) {
+                    return new BluetoothSinkAudioPolicy(in.readInt(), in.readInt(), in.readInt());
+                }
 
-                        @Override
-                        public BluetoothSinkAudioPolicy[] newArray(int size) {
-                            return new BluetoothSinkAudioPolicy[size];
-                        }
-                    };
+                @Override
+                public BluetoothSinkAudioPolicy[] newArray(int size) {
+                    return new BluetoothSinkAudioPolicy[size];
+                }
+            };
 
     @Override
     public void writeToParcel(@NonNull Parcel out, int flags) {
@@ -262,6 +264,7 @@ public final class BluetoothSinkAudioPolicy implements Parcelable {
          * @hide
          */
         @SystemApi
+        @RequiresNoPermission
         public @NonNull Builder setCallEstablishPolicy(@AudioPolicyValues int callEstablishPolicy) {
             mCallEstablishPolicy = callEstablishPolicy;
             return this;
@@ -285,6 +288,7 @@ public final class BluetoothSinkAudioPolicy implements Parcelable {
          * @hide
          */
         @SystemApi
+        @RequiresNoPermission
         public @NonNull Builder setActiveDevicePolicyAfterConnection(
                 @AudioPolicyValues int connectingTimePolicy) {
             mConnectingTimePolicy = connectingTimePolicy;
@@ -307,6 +311,7 @@ public final class BluetoothSinkAudioPolicy implements Parcelable {
          * @hide
          */
         @SystemApi
+        @RequiresNoPermission
         public @NonNull Builder setInBandRingtonePolicy(
                 @AudioPolicyValues int inBandRingtonePolicy) {
             mInBandRingtonePolicy = inBandRingtonePolicy;
@@ -320,6 +325,7 @@ public final class BluetoothSinkAudioPolicy implements Parcelable {
          * @hide
          */
         @SystemApi
+        @RequiresNoPermission
         public @NonNull BluetoothSinkAudioPolicy build() {
             return new BluetoothSinkAudioPolicy(
                     mCallEstablishPolicy, mConnectingTimePolicy, mInBandRingtonePolicy);

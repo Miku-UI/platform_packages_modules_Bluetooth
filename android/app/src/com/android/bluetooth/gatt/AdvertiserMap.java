@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.gatt;
 
 import android.bluetooth.le.AdvertiseData;
@@ -32,8 +33,7 @@ import java.util.HashMap;
 
 /** Helper class that keeps track of advertiser stats. */
 class AdvertiserMap {
-    private static final String TAG =
-            GattServiceConfig.TAG_PREFIX + AdvertiserMap.class.getSimpleName();
+    private static final String TAG = GattUtil.TAG_PREFIX + AdvertiserMap.class.getSimpleName();
 
     /** Internal map to keep track of logging information by advertise id */
     @GuardedBy("this")
@@ -43,7 +43,7 @@ class AdvertiserMap {
             new BluetoothEventLogger(5, "Last Advertising");
 
     /** Add an entry to the stats map if it doesn't already exist. */
-    void addAppAdvertiseStats(int id, Context context, AttributionSource attrSource) {
+    void addAppAdvertiseStats(int id, Context context, AttributionSource source) {
         int appUid = Binder.getCallingUid();
         String appName = context.getPackageManager().getNameForUid(appUid);
         if (appName == null) {
@@ -53,7 +53,7 @@ class AdvertiserMap {
 
         synchronized (this) {
             if (!mAppAdvertiseStats.containsKey(id)) {
-                addAppAdvertiseStats(id, new AppAdvertiseStats(appUid, id, appName, attrSource));
+                addAppAdvertiseStats(id, new AppAdvertiseStats(appUid, id, appName, source));
             }
         }
     }

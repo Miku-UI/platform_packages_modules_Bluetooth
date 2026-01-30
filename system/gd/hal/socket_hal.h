@@ -17,22 +17,16 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
+#include <variant>
 
-#include "module.h"
+#include "hal/endpoint.h"
 
 namespace bluetooth::hal {
 
 enum SocketStatus {
   SUCCESS = 0,
   FAILURE,
-};
-
-struct EndpointInfo {
-  // The ID of the Hub to which the end point belongs for hardware offload data path.
-  uint64_t hub_id;
-
-  //  The ID of the Hub endpoint for hardware offload data path.
-  uint64_t endpoint_id;
 };
 
 struct LeCocCapabilities {
@@ -171,10 +165,8 @@ public:
  * processor to handle packet reception, processing, and transmission independently. This offloading
  * process prevents the need to wake the main application processor, improving power efficiency.
  */
-class SocketHal : public ::bluetooth::Module {
+class SocketHal {
 public:
-  static const ModuleFactory Factory;
-
   virtual ~SocketHal() = default;
 
   /**

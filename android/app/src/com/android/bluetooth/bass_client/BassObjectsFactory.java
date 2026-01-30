@@ -19,6 +19,7 @@ package com.android.bluetooth.bass_client;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.PeriodicAdvertisingManager;
 import android.os.Looper;
 import android.util.Log;
 
@@ -67,16 +68,20 @@ public class BassObjectsFactory {
      * Make a {@link BassClientStateMachine}
      *
      * @param device the remote device associated with this state machine
-     * @param svc the bass client service
+     * @param service the bass client service
+     * @param adapterService the {@link AdapterService}
+     * @param periodicAdvertisingManager the {@link PeriodicAdvertisingManager}
      * @param looper the thread that the state machine is supposed to run on
      * @return a state machine that is initialized and started, ready to go
      */
     public BassClientStateMachine makeStateMachine(
             BluetoothDevice device,
-            BassClientService svc,
+            BassClientService service,
             AdapterService adapterService,
+            PeriodicAdvertisingManager periodicAdvertisingManager,
             Looper looper) {
-        return BassClientStateMachine.make(device, svc, adapterService, looper);
+        return new BassClientStateMachine(
+                device, service, adapterService, periodicAdvertisingManager, looper);
     }
 
     /**

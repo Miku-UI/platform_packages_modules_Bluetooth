@@ -151,13 +151,9 @@ void RFCOMM_ParameterNegotiationRequest(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t 
   if (flow == PORT_FC_CREDIT) {
     cl = RFCOMM_PN_CONV_LAYER_CBFC_I;
 
-    if (com::android::bluetooth::flags::socket_settings_api()) {
-      k = (p_port->rfc_cfg_info.init_credit_present) ? p_port->rfc_cfg_info.init_credit
-          : (p_port->credit_rx_max < RFCOMM_K_MAX)   ? p_port->credit_rx_max
-                                                     : RFCOMM_K_MAX;
-    } else {
-      k = (p_port->credit_rx_max < RFCOMM_K_MAX) ? p_port->credit_rx_max : RFCOMM_K_MAX;
-    }
+    k = (p_port->rfc_cfg_info.init_credit_present) ? p_port->rfc_cfg_info.init_credit
+        : (p_port->credit_rx_max < RFCOMM_K_MAX)   ? p_port->credit_rx_max
+                                                   : RFCOMM_K_MAX;
     p_port->credit_rx = k;
   } else {
     cl = RFCOMM_PN_CONV_LAYER_TYPE_1;
@@ -215,7 +211,7 @@ void RFCOMM_PortParameterNegotiationRequest(tRFC_MCB* p_mcb, uint8_t dlci,
   }
 
   /* Send Parameter Negotiation Command UIH frame */
-  if (!p_settings) {
+  if (p_settings == nullptr) {
     p_port->rfc.expected_rsp |= RFC_RSP_RPN_REPLY;
   } else {
     p_port->rfc.expected_rsp |= RFC_RSP_RPN;
@@ -345,9 +341,16 @@ void RFCOMM_DlcReleaseReq(tRFC_MCB* p_mcb, uint8_t dlci) {
  *
  * Function         RFCOMM_DataReq
  *
- * Description      This function is called by the user app to send data buffer
+ * Description      This function is called by the user app to send data buffer.
+ *                  returns PORT_SUCCESS on success or appropriate error codes
  *
  ******************************************************************************/
-void RFCOMM_DataReq(tRFC_MCB* p_mcb, uint8_t dlci, BT_HDR* p_buf) {
-  rfc_port_sm_execute(port_find_mcb_dlci_port(p_mcb, dlci), RFC_PORT_EVENT_DATA, p_buf);
+tPORT_RESULT RFCOMM_DataReq(tRFC_MCB* p_mcb, uint8_t dlci, BT_HDR* p_buf) {
+  tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
+  if (p_port == nullptr) {
+    log::warn("Unable to find DLCI port dlci:{}", dlci);
+    return PORT_LOCAL_CLOSED;
+  }
+  rfc_port_sm_execute(p_port, RFC_PORT_EVENT_DATA, p_buf);
+  return PORT_SUCCESS;
 }

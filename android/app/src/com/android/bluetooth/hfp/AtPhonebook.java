@@ -46,8 +46,7 @@ import java.util.HashMap;
 
 /** Helper for managing phonebook presentation over AT commands */
 public class AtPhonebook {
-    private static final String TAG =
-            Utils.TAG_PREFIX_BLUETOOTH + AtPhonebook.class.getSimpleName();
+    private static final String TAG = Utils.BT_PREFIX + AtPhonebook.class.getSimpleName();
 
     /**
      * The projection to use when querying the call log database in response to AT+CPBR for the MC,
@@ -95,8 +94,7 @@ public class AtPhonebook {
     // package and class name to which we send intent to check phone book access permission
     private final String mPairingPackage;
 
-    @VisibleForTesting
-    final HashMap<String, PhonebookResult> mPhonebooks = new HashMap<String, PhonebookResult>(4);
+    @VisibleForTesting final HashMap<String, PhonebookResult> mPhonebooks = new HashMap<>(4);
 
     static final int TYPE_UNKNOWN = -1;
     static final int TYPE_READ = 0;
@@ -319,7 +317,7 @@ public class AtPhonebook {
                 mNativeInterface.atResponseString(remoteDevice, atCommandResponse);
                 mNativeInterface.atResponseCode(remoteDevice, atCommandResult, atCommandErrorCode);
                 break;
-                // Read PhoneBook Entries
+            // Read PhoneBook Entries
             case TYPE_READ:
             case TYPE_SET: // Set & read
                 // Phone Book Read Request
@@ -545,6 +543,8 @@ public class AtPhonebook {
                 || mCpbrIndex1 > pbr.cursor.getCount()) {
             atCommandResult = HeadsetHalConstants.AT_RESPONSE_OK;
             Log.e(TAG, "Invalid request or no results, returning");
+            pbr.cursor.close();
+            pbr.cursor = null;
             return atCommandResult;
         }
 
@@ -613,7 +613,9 @@ public class AtPhonebook {
             int regionType = PhoneNumberUtils.toaFromString(number);
 
             number = number.trim();
-            number = PhoneNumberUtils.stripSeparators(number);
+            number =
+                    PhoneNumberUtils.stripSeparators(
+                            PhoneNumberUtils.convertKeypadLettersToDigits(number));
             if (number.length() > 30) {
                 number = number.substring(0, 30);
             }
@@ -647,10 +649,8 @@ public class AtPhonebook {
                 break;
             }
         }
-        if (pbr.cursor != null) {
-            pbr.cursor.close();
-            pbr.cursor = null;
-        }
+        pbr.cursor.close();
+        pbr.cursor = null;
         return atCommandResult;
     }
 
@@ -666,7 +666,7 @@ public class AtPhonebook {
         mAdapterService.sendOrderedBroadcast(
                 intent,
                 BLUETOOTH_CONNECT,
-                Utils.getTempBroadcastOptions().toBundle(),
+                Utils.getTempBroadcastBundle(),
                 null,
                 null,
                 Activity.RESULT_OK,

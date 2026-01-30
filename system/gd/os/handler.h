@@ -16,6 +16,9 @@
 
 #pragma once
 
+#include <base/thread_annotations.h>
+
+#include <chrono>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -23,9 +26,29 @@
 #include "common/bind.h"
 #include "common/callback.h"
 #include "common/postable_context.h"
+#include "os/alarm.h"
+#include "os/boottime_clock.h"
 #include "os/thread.h"
 
 namespace bluetooth {
+// Timeout for waiting for a handler to stop, used in Handler::WaitUntilStopped()
+constexpr std::chrono::milliseconds kHandlerStopTimeout = std::chrono::milliseconds(2000);
+using TimePoint = os::boottime_clock::time_point;
+using DelayedTask = std::pair<TimePoint, common::OnceClosure>;
+
+// Define the lambda comparator
+inline auto compare_task_by_time = [](const DelayedTask& a, const DelayedTask& b) {
+  // For a min-heap of time_points (earliest time has highest priority),
+  // this returns true if 'a' should come after 'b' (i.e., 'a' has a later time).
+  return a.first > b.first;
+};
+
+// Priority queue of delayed tasks, the minimum to maximum priority.
+// Note: `time_point` delay is absolute time in the future, and will be compared against the
+// current time.
+using DelayedTaskQueue =
+        std::priority_queue<DelayedTask, std::vector<DelayedTask>, decltype(compare_task_by_time)>;
+
 namespace os {
 
 // A message-queue style handler for reactor-based thread to handle incoming events from different
@@ -46,7 +69,7 @@ public:
   // Enqueue a closure to the queue of this handler
   virtual void Post(common::OnceClosure closure) override;
 
-  // Remove all pending events from the queue of this handler
+  // Remove all pending events from the queue of this handler, and asynchronously stop the handler.
   void Clear();
 
   // Die if the current reactable doesn't stop before the timeout.  Must be called after Clear()
@@ -63,6 +86,26 @@ public:
                           std::forward<Args>(args)...));
   }
 
+  Thread& thread() const { return *thread_; }
+
+  // Returns true if `Clear` has been called, but the handler could still be running (see
+  // WaitUntilStopped).
+  bool IsCleared() const LOCKS_EXCLUDED(mutex_) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return reactable_ == nullptr;
+  }
+
+  bool Synchronize(std::chrono::milliseconds timeout) {
+    std::promise<void> promise;
+    auto future = promise.get_future();
+    Post(common::BindOnce(&std::promise<void>::set_value, common::Unretained(&promise)));
+    return future.wait_for(timeout) == std::future_status::ready;
+  }
+
+  common::PostableContext* GetPostableContext() { return this; }
+
+  bool PostWithDelay(common::OnceClosure closure, std::chrono::milliseconds delay);
+
   template <typename T>
   friend class Queue;
 
@@ -71,13 +114,26 @@ public:
   friend class RepeatingAlarm;
 
 private:
-  inline bool was_cleared() const { return tasks_ == nullptr; }
-  std::queue<common::OnceClosure>* tasks_;
+  inline bool was_cleared() const EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
+    return tasks_ == nullptr || delayed_tasks_ == nullptr;
+  }
+  std::queue<common::OnceClosure>* tasks_ GUARDED_BY(mutex_);
+
   Thread* thread_;
   std::unique_ptr<Reactor::Event> event_;
-  Reactor::Reactable* reactable_;
+  Reactor::Reactable* reactable_ GUARDED_BY(mutex_);
   mutable std::mutex mutex_;
+
+  // A priority queue (minimum priority to maximum priority) of delayed tasks, once the delayed task
+  // timer expires, the task will be Post()ed to the handler.
+  DelayedTaskQueue* delayed_tasks_ GUARDED_BY(mutex_);
+
+  // The alarm used to schedule delayed tasks.
+  Alarm* alarm_ GUARDED_BY(mutex_);
+
   void handle_next_event();
+  void handle_delayed_event();
+  void reschedule_delayed_tasks();
 };
 
 }  // namespace os

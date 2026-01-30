@@ -16,8 +16,9 @@
 
 #include "test/mock/mock_main_shim_entry.h"
 
-#include "hci/acl_manager_mock.h"
-#include "hci/controller_interface_mock.h"
+#include "hci/acl_manager/acl_manager_classic_mock.h"
+#include "hci/acl_manager/acl_manager_le_mock.h"
+#include "hci/controller_mock.h"
 #include "hci/distance_measurement_manager_mock.h"
 #include "hci/hci_interface.h"
 #include "hci/le_advertising_manager_mock.h"
@@ -39,7 +40,8 @@ namespace hci {
 namespace testing {
 
 std::unique_ptr<MockAclManager> mock_acl_manager_;
-std::unique_ptr<MockControllerInterface> mock_controller_;
+std::unique_ptr<acl_manager::testing::MockAclManagerClassic> mock_acl_manager_classic_;
+std::unique_ptr<MockController> mock_controller_;
 std::unique_ptr<MockHciLayer> mock_hci_layer_;
 os::Handler* mock_gd_shim_handler_{nullptr};
 MockLeAdvertisingManager* mock_le_advertising_manager_{nullptr};
@@ -58,8 +60,11 @@ class Dumpsys;
 
 namespace shim {
 
-hci::AclManager* GetAclManager() { return hci::testing::mock_acl_manager_.get(); }
-hci::ControllerInterface* GetController() { return hci::testing::mock_controller_.get(); }
+hci::AclManagerLe* GetAclManagerLe() { return hci::testing::mock_acl_manager_.get(); }
+hci::acl_manager::AclManagerClassic* GetAclManagerClassic() {
+  return hci::testing::mock_acl_manager_classic_.get();
+}
+hci::Controller* GetController() { return hci::testing::mock_controller_.get(); }
 hci::HciInterface* GetHciLayer() { return hci::testing::mock_hci_layer_.get(); }
 hci::LeAdvertisingManager* GetAdvertising() { return hci::testing::mock_le_advertising_manager_; }
 hci::LeScanningManager* GetScanning() { return hci::testing::mock_le_scanning_manager_; }
@@ -69,7 +74,6 @@ hci::DistanceMeasurementManager* GetDistanceMeasurementManager() {
 os::Handler* GetGdShimHandler() { return hci::testing::mock_gd_shim_handler_; }
 hal::SnoopLogger* GetSnoopLogger() { return nullptr; }
 storage::StorageModule* GetStorage() { return hci::testing::mock_storage_; }
-metrics::CounterMetrics* GetCounterMetrics() { return nullptr; }
 hci::MsftExtensionManager* GetMsftExtensionManager() { return nullptr; }
 hci::RemoteNameRequestModule* GetRemoteNameRequest() { return nullptr; }
 lpp::LppOffloadInterface* GetLppOffloadManager() {

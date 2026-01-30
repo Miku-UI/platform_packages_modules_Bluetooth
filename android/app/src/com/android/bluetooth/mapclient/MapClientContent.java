@@ -27,6 +27,7 @@ import android.content.Context;
 import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.UserManager;
 import android.provider.BaseColumns;
 import android.provider.Telephony;
 import android.provider.Telephony.Mms;
@@ -40,6 +41,8 @@ import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
+import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.map.BluetoothMapbMessageMime;
 import com.android.bluetooth.map.BluetoothMapbMessageMime.MimePart;
 import com.android.vcard.VCardConstants;
@@ -114,8 +117,8 @@ class MapClientContent {
      * the interface to send outbound updates such as when a message is read locally device: the
      * associated Bluetooth device used for associating messages with a subscription
      */
-    MapClientContent(Context context, Callbacks callbacks, BluetoothDevice device) {
-        mContext = context;
+    MapClientContent(AdapterService adapterService, Callbacks callbacks, BluetoothDevice device) {
+        mContext = adapterService;
         mDevice = device;
         mCallbacks = callbacks;
         mResolver = mContext.getContentResolver();
@@ -123,7 +126,7 @@ class MapClientContent {
         mTelephonyManager = mContext.getSystemService(TelephonyManager.class);
         mSubscriptionManager.addSubscriptionInfoRecord(
                 mDevice.getAddress(),
-                Utils.getName(mDevice),
+                adapterService.getRemoteName(mDevice),
                 0,
                 SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM);
         SubscriptionInfo info =
@@ -232,16 +235,19 @@ class MapClientContent {
                         + ", folder="
                         + message.getFolder());
 
+        if (Flags.ignoreMessageSmsDisallowed()) {
+            UserManager userManager = mContext.getSystemService(UserManager.class);
+            if (userManager != null
+                    && userManager.getUserRestrictions().getBoolean(UserManager.DISALLOW_SMS)) {
+                warn("SMS is disallowed for the user, skip storing message");
+                return;
+            }
+        }
+
         switch (message.getType()) {
-            case MMS:
-                storeMms(message, handle, timestamp, seen);
-                return;
-            case SMS_CDMA:
-            case SMS_GSM:
-                storeSms(message, handle, timestamp, seen);
-                return;
-            default:
-                debug("Request to store unsupported message type: " + message.getType());
+            case MMS -> storeMms(message, handle, timestamp, seen);
+            case SMS_CDMA, SMS_GSM -> storeSms(message, handle, timestamp, seen);
+            default -> debug("Request to store unsupported message type: " + message.getType());
         }
     }
 
@@ -668,15 +674,20 @@ class MapClientContent {
     private List<MessageDumpElement> getRecentMessagesFromFolder(Folder folder) {
         final Uri smsUri;
         final Uri mmsUri;
-        if (folder == Folder.INBOX) {
-            smsUri = Sms.Inbox.CONTENT_URI;
-            mmsUri = Mms.Inbox.CONTENT_URI;
-        } else if (folder == Folder.SENT) {
-            smsUri = Sms.Sent.CONTENT_URI;
-            mmsUri = Mms.Sent.CONTENT_URI;
-        } else {
-            warn("getRecentMessagesFromFolder: Failed, unsupported folder=" + folder);
-            return null;
+
+        switch (folder) {
+            case Folder.INBOX -> {
+                smsUri = Sms.Inbox.CONTENT_URI;
+                mmsUri = Mms.Inbox.CONTENT_URI;
+            }
+            case Folder.SENT -> {
+                smsUri = Sms.Sent.CONTENT_URI;
+                mmsUri = Mms.Sent.CONTENT_URI;
+            }
+            default -> { // Folder.UNKNOWN
+                warn("getRecentMessagesFromFolder: Failed, unsupported folder=" + folder);
+                return null;
+            }
         }
 
         List<MessageDumpElement> messages = new ArrayList<>();
@@ -887,7 +898,7 @@ class MapClientContent {
             String handle, Uri uri, long timestamp, long threadId, Type type)
             implements Comparable<MessageDumpElement> {
 
-        public static String getFormattedColumnNames() {
+        static String getFormattedColumnNames() {
             return String.format(
                     "%-19s %s %-16s %s %s", "Timestamp", "ThreadId", "Handle", "Type", "Uri");
         }

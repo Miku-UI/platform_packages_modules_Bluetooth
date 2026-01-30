@@ -17,6 +17,7 @@
 #include "le_audio_log_history.h"
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 
 #include <cstddef>
 #include <cstdio>
@@ -28,33 +29,14 @@
 #include "common/circular_buffer.h"
 #include "common/strings.h"
 #include "main/shim/dumpsys.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth;
+using TimestampedStringCircularBuffer = common::TimestampedStringCircularBuffer;
 
-constexpr size_t kMaxLogSize = 255;
 constexpr size_t kLeAudioLogHistoryBufferSize = 200;
 
-class TimestampedStringCircularBuffer
-    : public bluetooth::common::TimestampedCircularBuffer<std::string> {
-public:
-  explicit TimestampedStringCircularBuffer(size_t size)
-      : bluetooth::common::TimestampedCircularBuffer<std::string>(size) {}
-
-  void Push(const std::string& s) {
-    bluetooth::common::TimestampedCircularBuffer<std::string>::Push(s.substr(0, kMaxLogSize));
-  }
-
-  template <typename... Args>
-  void Push(Args... args) {
-    char buf[kMaxLogSize];
-    std::snprintf(buf, sizeof(buf), args...);
-    bluetooth::common::TimestampedCircularBuffer<std::string>::Push(std::string(buf));
-  }
-};
-
 class LeAudioLogHistoryImpl;
-LeAudioLogHistoryImpl* instance;
+static LeAudioLogHistoryImpl* instance;
 
 constexpr size_t kMaxLogHistoryTagLength = 14;
 constexpr size_t kMaxLogHistoryMsgLength = 44;

@@ -23,6 +23,7 @@
 #pragma once
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/uuid.h>
 #include <stdint.h>
 
 #include <bit>
@@ -38,7 +39,6 @@
 #include "osi/include/alarm.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_iso_api_types.h"
-#include "types/bluetooth/uuid.h"
 
 namespace bluetooth::le_audio {
 
@@ -57,6 +57,7 @@ namespace bluetooth::le_audio {
 
 enum class DsaMode { DISABLED = 0, ACL, ISO_SW, ISO_HW };
 typedef std::vector<DsaMode> DsaModes;
+std::ostream& operator<<(std::ostream& os, const DsaMode& mode);
 
 namespace uuid {
 /* CAP service
@@ -157,6 +158,7 @@ constexpr uint8_t kLeAudioCodecFrameDur7500us = 0x00;
 constexpr uint8_t kLeAudioCodecFrameDur10000us = 0x01;
 
 /* Audio Allocations */
+constexpr uint32_t kLeAudioLocationUninitialized = 0xFFFFFFFF;
 constexpr uint32_t kLeAudioLocationMonoAudio = 0x00000000;
 constexpr uint32_t kLeAudioLocationFrontLeft = 0x00000001;
 constexpr uint32_t kLeAudioLocationFrontRight = 0x00000002;
@@ -312,8 +314,10 @@ constexpr uint8_t kLeAudioCodingFormatVendorSpecific =
 constexpr uint16_t kLeAudioVendorCompanyIdUndefined = 0x00;
 constexpr uint16_t kLeAudioVendorCodecIdUndefined = 0x00;
 
+// TODO: b/409508660 - Provide a common place to find the codec IDs
 constexpr uint16_t kLeAudioVendorCompanyIdGoogle = 0x00E0;
-constexpr uint16_t kLeAudioVendorCodecIdHeadtracking = 0x0001;
+constexpr uint16_t kLeAudioVendorCodecIdOpus = 0x0001;
+constexpr uint16_t kLeAudioVendorCodecIdHeadtracking = 0x0002;
 
 /* Metadata types from Assigned Numbers */
 constexpr uint8_t kLeAudioMetadataTypePreferredAudioContext = 0x01;
@@ -372,7 +376,7 @@ constexpr uint32_t kPresDelayNoPreference = 0x00000000;
 constexpr uint16_t kMaxTransportLatencyMin = 0x0005;
 constexpr uint16_t kMaxTransportLatencyMax = 0x0FA0;
 
-enum class CigState : uint8_t { NONE, CREATING, CREATED, REMOVING, RECOVERING };
+enum class CigState : uint8_t { NONE, CREATING, CREATED, REMOVING, RECOVERING, RECONFIGURING };
 
 /* ASE states according to BAP defined state machine states */
 enum class AseState : uint8_t {
@@ -1188,7 +1192,8 @@ struct ase {
         cis_state(CisState::IDLE),
         data_path_state(DataPathState::IDLE),
         configured_for_context_type(LeAudioContextType::UNINITIALIZED),
-        state(AseState::BTA_LE_AUDIO_ASE_STATE_IDLE) {}
+        state(AseState::BTA_LE_AUDIO_ASE_STATE_IDLE),
+        expected_state(AseState::BTA_LE_AUDIO_ASE_STATE_IDLE) {}
 
   struct hdl_pair hdls;
   uint8_t id;
@@ -1218,6 +1223,11 @@ struct ase {
   LeAudioLtvMap metadata;
 
   AseState state;
+
+  /* Keeps the expected state send via control point.
+   * Note: There is no expect_state after RELEASE,
+   * as it depends on the remote caching capabilities. */
+  AseState expected_state;
 };
 
 struct acs_ac_record {
@@ -1290,6 +1300,52 @@ struct AudioSetConfiguration {
   bool operator==(const AudioSetConfiguration& other) const {
     return (packing == other.packing) && (confs == other.confs);
   }
+
+  bool hasDsaBackChannel() const {
+    return std::count_if(confs.source.begin(), confs.source.end(),
+                         [](const AseConfiguration& ase_cfg) {
+                           return ase_cfg.codec.id == types::kLeAudioCodecHeadtracking;
+                         }) > 0;
+  }
+
+  size_t countNonDsaBackChannels() const {
+    return std::count_if(confs.source.begin(), confs.source.end(),
+                         [](const AseConfiguration& ase_cfg) {
+                           return ase_cfg.codec.id != types::kLeAudioCodecHeadtracking;
+                         });
+  }
+
+  BidirectionalPair<bool> getDirections() const {
+    return {.sink = !confs.sink.empty(), .source = !confs.source.empty()};
+  }
+
+  BidirectionalPair<uint8_t> getTargetLatency() const {
+    BidirectionalPair<uint8_t> target_latencies = {0, 0};
+    /* same latency size is used for all the ASEs, just take first one */
+    if (!confs.sink.empty()) {
+      target_latencies.sink = confs.sink[0].qos.target_latency;
+    }
+
+    if (!confs.source.empty()) {
+      target_latencies.source = confs.source[0].qos.target_latency;
+    }
+
+    return target_latencies;
+  }
+
+  BidirectionalPair<uint16_t> getMaxSdu() const {
+    BidirectionalPair<uint16_t> max_sdu = {0, 0};
+    /* same max_sdu is used for all the ASEs, just take first one */
+    if (!confs.sink.empty()) {
+      max_sdu.sink = confs.sink[0].codec.GetOctetsPerFrame();
+    }
+
+    if (!confs.source.empty()) {
+      max_sdu.source = confs.source[0].codec.GetOctetsPerFrame();
+    }
+
+    return max_sdu;
+  }
 };
 
 std::ostream& operator<<(std::ostream& os, const AudioSetConfiguration& config);
@@ -1300,6 +1356,11 @@ const types::LeAudioCodecId LeAudioCodecIdLc3 = {
         .coding_format = types::kLeAudioCodingFormatLC3,
         .vendor_company_id = types::kLeAudioVendorCompanyIdUndefined,
         .vendor_codec_id = types::kLeAudioVendorCodecIdUndefined};
+
+const types::LeAudioCodecId LeAudioCodecIdOpus = {
+        .coding_format = types::kLeAudioCodingFormatVendorSpecific,
+        .vendor_company_id = types::kLeAudioVendorCompanyIdGoogle,
+        .vendor_codec_id = types::kLeAudioVendorCodecIdOpus};
 
 static constexpr uint32_t kChannelAllocationStereo =
         codec_spec_conf::kLeAudioLocationFrontLeft | codec_spec_conf::kLeAudioLocationFrontRight;
@@ -1364,6 +1425,9 @@ struct stream_parameters {
 };
 
 struct stream_configuration {
+  /* Has used to described later CIG configuration */
+  size_t configuration_hash;
+
   /* Whether the group should be reconfigured once the streaming stops */
   bool pending_configuration;
 

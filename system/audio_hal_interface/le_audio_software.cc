@@ -38,6 +38,7 @@ namespace bluetooth {
 namespace audio {
 
 using aidl::BluetoothAudioClientInterface;
+using aidl::GetAidlCodecIdFromStackFormat;
 using aidl::GetAidlLeAudioBroadcastConfigurationRequirementFromStackFormat;
 using aidl::GetAidlLeAudioDeviceCapabilitiesFromStackFormat;
 using aidl::GetAidlLeAudioUnicastConfigurationRequirementsFromStackFormat;
@@ -49,13 +50,10 @@ namespace le_audio {
 
 namespace {
 
-using ::android::hardware::bluetooth::audio::V2_1::PcmParameters;
 using AudioConfiguration_2_1 = ::android::hardware::bluetooth::audio::V2_1::AudioConfiguration;
 using AudioConfigurationAIDL = ::aidl::android::hardware::bluetooth::audio::AudioConfiguration;
-using ::aidl::android::hardware::bluetooth::audio::AudioContext;
 using ::aidl::android::hardware::bluetooth::audio::IBluetoothAudioProvider;
 using ::aidl::android::hardware::bluetooth::audio::LatencyMode;
-using ::aidl::android::hardware::bluetooth::audio::LeAudioCodecConfiguration;
 using ::aidl::android::hardware::bluetooth::audio::SessionType;
 
 using ::bluetooth::le_audio::CodecManager;
@@ -307,6 +305,20 @@ void LeAudioClientInterface::Sink::UpdateAudioConfigToHal(
   get_aidl_client_interface(is_broadcaster_)->UpdateAudioConfig(offload_hal_config);
 }
 
+void LeAudioClientInterface::Sink::SetCodecPriority(
+        const ::bluetooth::le_audio::types::LeAudioCodecId& codecId, int32_t priority) {
+  if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
+    return;
+  }
+
+  if (is_broadcaster_ || !is_aidl_offload_encoding_session(is_broadcaster_)) {
+    return;
+  }
+
+  get_aidl_client_interface(is_broadcaster_)
+          ->SetCodecPriority(GetAidlCodecIdFromStackFormat(codecId), priority);
+}
+
 std::optional<::bluetooth::le_audio::broadcaster::BroadcastConfiguration>
 LeAudioClientInterface::Sink::GetBroadcastConfig(
         const std::vector<std::pair<::bluetooth::le_audio::types::LeAudioContextType, uint8_t>>&
@@ -397,6 +409,17 @@ void LeAudioClientInterface::Sink::SuspendedForReconfiguration() {
 }
 
 void LeAudioClientInterface::Sink::ReconfigurationComplete() {
+  // This is needed only for AIDL since SuspendedForReconfiguration()
+  // already calls StreamSuspended(SUCCESS_FINISHED) for HIDL
+  if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::AIDL) {
+    // FIXME: For now we have to workaround the missing API and use
+    //        StreamSuspended() with SUCCESS_FINISHED ack code.
+    get_aidl_client_interface(is_broadcaster_)
+            ->StreamSuspended(aidl::BluetoothAudioCtrlAck::SUCCESS_FINISHED);
+  }
+}
+
+void LeAudioClientInterface::Sink::StreamSuspended() {
   // This is needed only for AIDL since SuspendedForReconfiguration()
   // already calls StreamSuspended(SUCCESS_FINISHED) for HIDL
   if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::AIDL) {
@@ -510,6 +533,17 @@ void LeAudioClientInterface::Source::ReconfigurationComplete() {
   }
 }
 
+void LeAudioClientInterface::Source::StreamSuspended() {
+  // This is needed only for AIDL since SuspendedForReconfiguration()
+  // already calls StreamSuspended(SUCCESS_FINISHED) for HIDL
+  if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::AIDL) {
+    // FIXME: For now we have to workaround the missing API and use
+    //        StreamSuspended() with SUCCESS_FINISHED ack code.
+    aidl::le_audio::LeAudioSourceTransport::interface->StreamSuspended(
+            aidl::BluetoothAudioCtrlAck::SUCCESS_FINISHED);
+  }
+}
+
 void LeAudioClientInterface::Source::ConfirmStreamingRequest() {
   auto lambda =
           [&](StartRequestState currect_start_request_state) -> std::pair<StartRequestState, bool> {
@@ -609,6 +643,21 @@ void LeAudioClientInterface::Source::UpdateAudioConfigToHal(
   dumpOffloadConfig("Decoding config:", offload_hal_config);
 
   aidl::le_audio::LeAudioSourceTransport::interface->UpdateAudioConfig(offload_hal_config);
+}
+
+void LeAudioClientInterface::Source::SetCodecPriority(
+        const ::bluetooth::le_audio::types::LeAudioCodecId& codecId, int32_t priority) {
+  if (HalVersionManager::GetHalTransport() == BluetoothAudioHalTransport::HIDL) {
+    return;
+  }
+
+  if (aidl::le_audio::LeAudioSourceTransport::interface->GetTransportInstance()->GetSessionType() !=
+      aidl::SessionType::LE_AUDIO_HARDWARE_OFFLOAD_DECODING_DATAPATH) {
+    return;
+  }
+
+  aidl::le_audio::LeAudioSourceTransport::interface->SetCodecPriority(
+          GetAidlCodecIdFromStackFormat(codecId), priority);
 }
 
 size_t LeAudioClientInterface::Source::Write(const uint8_t* p_buf, uint32_t len) {

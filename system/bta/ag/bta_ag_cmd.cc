@@ -19,6 +19,7 @@
 #define LOG_TAG "bta_ag_cmd"
 
 #include <bluetooth/log.h>
+#include <bluetooth/metrics/bluetooth_event.h>
 #include <com_android_bluetooth_flags.h>
 #include <string.h>
 
@@ -35,6 +36,7 @@
 #include "bta/include/utl.h"
 #include "bta_ag_swb_aptx.h"
 #include "bta_sys.h"
+#include "btif/include/btif_storage.h"
 #include "btm_api_types.h"
 #include "hardware/bt_hf.h"
 #include "osi/include/alarm.h"
@@ -44,17 +46,15 @@
 #include "os/system_properties.h"
 #endif
 
-#include "bta/include/bta_hfp_api.h"
+#include <bluetooth/metrics/os_metrics.h>
+
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/helpers.h"
-#include "main/shim/metrics_api.h"
 #include "osi/include/compat.h"
-#include "stack/btm/btm_sco_hfp_hal.h"
 #include "stack/include/port_api.h"
 
 using namespace bluetooth;
-using namespace bluetooth::shim;
 
 /*****************************************************************************
  *  Constants
@@ -249,6 +249,7 @@ static void bta_ag_send_result(tBTA_AG_SCB* p_scb, size_t code, const char* p_ar
   if (result->arg_type == BTA_AG_RES_FMT_INT) {
     p += utl_itoa((uint16_t)int_arg, p);
   } else if (result->arg_type == BTA_AG_RES_FMT_STR) {
+    // NOLINTNEXTLINE(runtime/printf)
     strcpy(p, p_arg);
     p += strlen(p_arg);
   }
@@ -401,8 +402,8 @@ static bool bta_ag_parse_cmer(char* p_s, char* p_end, bool* p_enabled) {
 
   for (i = 0; i < 4; i++, p_s = p + 1) {
     /* skip to comma delimiter */
-    for (p = p_s; p < p_end && *p != ',' && *p != 0; p++)
-      ;
+    for (p = p_s; p < p_end && *p != ',' && *p != 0; p++) {
+    }
 
     /* get integer value */
     if (p > p_end) {
@@ -473,8 +474,8 @@ static tBTA_AG_PEER_CODEC bta_ag_parse_bac(char* p_s, char* p_end) {
 
   while (p_s) {
     /* skip to comma delimiter */
-    for (p = p_s; p < p_end && *p != ',' && *p != 0; p++)
-      ;
+    for (p = p_s; p < p_end && *p != ',' && *p != 0; p++) {
+    }
 
     /* get integer value */
     if (p > p_end) {
@@ -702,7 +703,8 @@ static int bta_ag_find_hf_ind_by_id(tBTA_AG_HF_IND* p_hf_ind, int size, uint32_t
  *
  ******************************************************************************/
 static bool bta_ag_parse_bind_set(tBTA_AG_SCB* p_scb, tBTA_AG_VAL val) {
-  char* p_token = strtok(val.str, ",");
+  char* saveptr = nullptr;
+  char* p_token = strtok_r(val.str, ",", &saveptr);
   if (p_token == nullptr) {
     return false;
   }
@@ -718,7 +720,7 @@ static bool bta_ag_parse_bind_set(tBTA_AG_SCB* p_scb, tBTA_AG_VAL val) {
     p_scb->peer_hf_indicators[index].ind_id = rcv_ind_id;
     log::verbose("peer_hf_ind[{}] = {}", index, rcv_ind_id);
 
-    p_token = strtok(nullptr, ",");
+    p_token = strtok_r(nullptr, ",", &saveptr);
   }
 
   return true;
@@ -747,6 +749,7 @@ static void bta_ag_bind_response(tBTA_AG_SCB* p_scb, uint8_t arg_type) {
         if (index > 1) {
           buffer[index++] = ',';
         }
+        // NOLINTNEXTLINE(runtime/printf)
         snprintf(&buffer[index++], 2, "%d", bta_ag_local_hf_ind_cfg[i + 1].ind_id);
       }
     }
@@ -811,13 +814,14 @@ static void bta_ag_bind_response(tBTA_AG_SCB* p_scb, uint8_t arg_type) {
  *
  ******************************************************************************/
 static bool bta_ag_parse_biev_response(tBTA_AG_SCB* p_scb, tBTA_AG_VAL* val) {
-  char* p_token = strtok(val->str, ",");
+  char* saveptr = nullptr;
+  char* p_token = strtok_r(val->str, ",", &saveptr);
   if (p_token == nullptr) {
     return false;
   }
   uint16_t rcv_ind_id = atoi(p_token);
 
-  p_token = strtok(nullptr, ",");
+  p_token = strtok_r(nullptr, ",", &saveptr);
   if (p_token == nullptr) {
     return false;
   }
@@ -1139,14 +1143,26 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, cha
       p_scb->peer_features = (uint16_t)int_arg;
 
       if (p_scb->peer_version < HFP_VERSION_1_7) {
-        if (!(com::android::bluetooth::flags::check_peer_hf_indicator() &&
+        if (!(com_android_bluetooth_flags_check_peer_hf_indicator() &&
               p_scb->peer_version == HFP_HSP_VERSION_UNKNOWN &&
               (p_scb->peer_features & BTA_AG_PEER_FEAT_HF_IND))) {
           p_scb->masked_features &= HFP_1_6_FEAT_MASK;
         }
       }
 
-      LogMetricHfpAgVersion(ToGdAddress(p_scb->peer_addr), p_scb->peer_version);
+      bluetooth::metrics::LogMetricHfpAgVersion(p_scb->peer_addr, p_scb->peer_version);
+
+      if (interop_match_addr(INTEROP_INBAND_RINGTONE_SET_TO_FALSE, &p_scb->peer_addr)) {
+        log::verbose("do not send inband ringtone supported for denylisted device");
+        p_scb->masked_features = p_scb->masked_features & ~(BTA_AG_FEAT_INBAND);
+      }
+
+      if (interop_match_addr_or_name(INTEROP_DISABLE_CODEC_NEGOTIATION, &p_scb->peer_addr,
+                                     &btif_storage_get_remote_device_property)) {
+        log::verbose("disable codec negotiation, remote for denylist device");
+        p_scb->masked_features = p_scb->masked_features & ~(BTA_AG_FEAT_CODEC);
+        p_scb->peer_features = p_scb->peer_features & ~(BTA_AG_PEER_FEAT_CODEC);
+      }
       log::verbose("BRSF HF: 0x{:x}, phone: 0x{:x}", p_scb->peer_features, p_scb->masked_features);
 
       /* send BRSF, send OK */
@@ -1263,8 +1279,8 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, cha
         p_scb->peer_codecs = bta_ag_parse_bac(p_arg, p_end);
         p_scb->codec_updated = true;
 
-        bool wbs_supported = hfp_hal_interface::get_wbs_supported();
-        bool swb_supported = hfp_hal_interface::get_swb_supported();
+        bool wbs_supported = bta_ag_get_wbs_supported();
+        bool swb_supported = bta_ag_get_swb_supported();
         const bool aptx_voice = is_hfp_aptx_voice_enabled() && p_scb->is_aptx_swb_codec;
         log::verbose("BTA_AG_AT_BAC_EVT aptx_voice={}", aptx_voice);
 
@@ -1336,12 +1352,29 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, cha
     case BTA_AG_LOCAL_EVT_BCC: {
       if (!bta_ag_sco_is_active_device(p_scb->peer_addr)) {
         log::warn("NOT opening SCO for EVT {} as {} is not the active HFP device",
-                  "BTA_AG_LOCAL_EVT_BCC", p_scb->peer_addr.ToStringForLogging());
+                  "BTA_AG_LOCAL_EVT_BCC", p_scb->peer_addr);
         bta_ag_send_error(p_scb, BTA_AG_ERR_OP_NOT_ALLOWED);
         break;
       }
       if (!bta_ag_is_sco_open_allowed(p_scb, "BTA_AG_LOCAL_EVT_BCC")) {
         bta_ag_send_error(p_scb, BTA_AG_ERR_OP_NOT_ALLOWED);
+        break;
+      }
+      if (com_android_bluetooth_flags_qc_send_error_at_bcc_ibr_disabled() &&
+          !p_scb->inband_enabled && p_scb->callsetup_ind == BTA_AG_CALLSETUP_INCOMING &&
+          !(p_scb->call_ind || p_scb->callheld_ind)) {
+        log::warn(
+                "Sending error for AT+BCC received when call is in ringing state"
+                " and in-band ringtone is disabled for {} device",
+                p_scb->peer_addr);
+        bta_ag_send_error(p_scb, BTA_AG_ERR_OP_NOT_ALLOWED);
+        break;
+      }
+
+      if (bta_ag_is_sco_managed_by_audio()) {
+        log::info("Received BCC, informing audio framework to open SCO");
+        event = BTA_AG_AT_BCC_EVT;
+        bta_ag_send_ok(p_scb);
         break;
       }
 
@@ -1351,6 +1384,13 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, cha
     }
     case BTA_AG_AT_QAC_EVT:
       if (!is_hfp_aptx_voice_enabled()) {
+        bta_ag_send_error(p_scb, BTA_AG_ERR_OP_NOT_SUPPORTED);
+        break;
+      }
+      if (com_android_bluetooth_flags_qc_prioritize_lc3_codec() && bta_ag_get_swb_supported() &&
+          (p_scb->peer_codecs & BTM_SCO_CODEC_LC3) &&
+          !(p_scb->disabled_codecs & BTM_SCO_CODEC_LC3)) {
+        log::warn("Phone and BT device support LC3, return error for QAC");
         bta_ag_send_error(p_scb, BTA_AG_ERR_OP_NOT_SUPPORTED);
         break;
       }
@@ -1499,7 +1539,11 @@ static void bta_ag_hsp_result(tBTA_AG_SCB* p_scb, const tBTA_AG_API_RESULT& resu
       break;
 
     case BTA_AG_INBAND_RING_RES:
-      p_scb->inband_enabled = result.data.state;
+      if (interop_match_addr(INTEROP_INBAND_RINGTONE_SET_TO_FALSE, &p_scb->peer_addr)) {
+        p_scb->inband_enabled = false;
+      } else {
+        p_scb->inband_enabled = result.data.state;
+      }
       log::verbose("inband_enabled set to {}", p_scb->inband_enabled);
       break;
 
@@ -1709,7 +1753,11 @@ static void bta_ag_hfp_result(tBTA_AG_SCB* p_scb, const tBTA_AG_API_RESULT& resu
       break;
 
     case BTA_AG_INBAND_RING_RES:
-      p_scb->inband_enabled = result.data.state;
+      if (interop_match_addr(INTEROP_INBAND_RINGTONE_SET_TO_FALSE, &p_scb->peer_addr)) {
+        p_scb->inband_enabled = false;
+      } else {
+        p_scb->inband_enabled = result.data.state;
+      }
       log::verbose("inband_enabled set to {}", p_scb->inband_enabled);
       bta_ag_send_result(p_scb, result.result, nullptr, result.data.state);
       break;
@@ -1912,12 +1960,10 @@ bool bta_ag_is_sco_open_allowed([[maybe_unused]] tBTA_AG_SCB* p_scb,
   2. LEA is active, and 3. LEA is preferred for DUPLEX */
   if (bluetooth::os::GetSystemPropertyBool(bluetooth::os::kIsDualModeAudioEnabledProperty, false)) {
     if (LeAudioClient::Get()->isDuplexPreferenceLeAudio(p_scb->peer_addr)) {
-      log::info("NOT opening SCO for EVT {} on dual mode device {}", event,
-                p_scb->peer_addr.ToStringForLogging());
+      log::info("NOT opening SCO for EVT {} on dual mode device {}", event, p_scb->peer_addr);
       return false;
     } else {
-      log::info("Opening SCO for EVT {} on dual mode device {}", event,
-                p_scb->peer_addr.ToStringForLogging());
+      log::info("Opening SCO for EVT {} on dual mode device {}", event, p_scb->peer_addr);
     }
   }
 #endif
@@ -1993,7 +2039,7 @@ void bta_ag_send_qcs(tBTA_AG_SCB* p_scb) {
  *
  ******************************************************************************/
 void bta_ag_send_qac(tBTA_AG_SCB* p_scb) {
-  if (!get_swb_codec_status(bluetooth::headset::BTHF_SWB_CODEC_VENDOR_APTX, &p_scb->peer_addr)) {
+  if (!get_swb_codec_status(bluetooth::headset::BTHF_SWB_CODEC_VENDOR_APTX, p_scb->peer_addr)) {
     log::verbose("send +QAC codecs unsupported");
     bta_ag_send_result(p_scb, BTA_AG_LOCAL_RES_QAC, SWB_CODECS_UNSUPPORTED, 0);
     return;

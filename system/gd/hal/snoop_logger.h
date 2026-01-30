@@ -27,11 +27,12 @@
 
 #include "common/circular_buffer.h"
 #include "hal/hci_hal.h"
+#include "hal/snoop_logger_file.h"
 #include "hal/snoop_logger_socket_interface.h"
 #include "hal/snoop_logger_socket_thread.h"
 #include "hal/syscall_wrapper_impl.h"
 #include "hci/hci_packets.h"
-#include "module.h"
+#include "os/handler.h"
 #include "os/repeating_alarm.h"
 
 namespace bluetooth {
@@ -141,10 +142,8 @@ private:
   profile_type_t current_profile;
 };
 
-class SnoopLogger : public ::bluetooth::Module {
+class SnoopLogger {
 public:
-  static const ModuleFactory Factory;
-
   static const std::string kBtSnoopMaxPacketsPerFileProperty;
   static const std::string kRoBuildType;
   static const std::string kBtSnoopLogModeProperty;
@@ -178,16 +177,6 @@ public:
           {kBtSnoopLogFilterProfilePbapModeProperty, kBtSnoopLogFilterProfileModeDisabled},
           {kBtSnoopLogFilterProfileMapModeProperty, kBtSnoopLogFilterProfileModeDisabled}};
 
-  // Put in header for test
-  struct PacketHeaderType {
-    uint32_t length_original;
-    uint32_t length_captured;
-    uint32_t flags;
-    uint32_t dropped_packets;
-    uint64_t timestamp;
-    uint8_t type;
-  } __attribute__((__packed__));
-
   // Struct for caching info about L2CAP Media Channel
   struct A2dpMediaChannel {
     uint16_t conn_handle;
@@ -196,13 +185,9 @@ public:
   };
 
   SnoopLogger(os::Handler* handler);
-  ~SnoopLogger() {
-    if (!com::android::bluetooth::flags::same_handler_for_all_modules()) {
-      GetHandler()->Clear();
-      GetHandler()->WaitUntilStopped(std::chrono::milliseconds(2000));
-      delete GetHandler();
-    }
-  }
+  ~SnoopLogger();
+
+  os::Handler* GetHandler();
 
   // Returns the maximum number of packets per file
   // Changes to this value is only effective after restarting Bluetooth
@@ -234,8 +219,6 @@ public:
     OUTGOING,
   };
 
-  void Start() override;
-  void Stop() override;
   void Capture(const HciPacket& packet, Direction direction, PacketType type);
 
   // Set a L2CAP channel as acceptlisted, allowing packets with that L2CAP CID
@@ -291,18 +274,13 @@ protected:
   // Max packet data size when headersfiltered option enabled
   static const size_t MAX_HCI_ACL_LEN;
 
-  void ListDependencies(ModuleList* /*list*/) const override {}
-  std::string ToString() const override { return std::string("SnoopLogger"); }
-
   SnoopLogger(os::Handler* handler, std::string snoop_log_path, std::string snooz_log_path,
               size_t max_packets_per_file, size_t max_packets_per_buffer,
               const std::string& btsnoop_mode, bool qualcomm_debug_log_enabled,
               const std::chrono::milliseconds snooz_log_life_time,
               const std::chrono::milliseconds snooz_log_delete_alarm_interval,
-              bool snoop_log_persists);
+              bool snoop_log_persists, int port = SnoopLoggerSocket::kDefaultPort);
 
-  void CloseCurrentSnoopLogFile();
-  void OpenNextSnoopLogFile();
   // Enable filters according to their sysprops
   void EnableFilters();
   // Disable all filters
@@ -330,7 +308,7 @@ protected:
                                    bluetooth::hal::ProfilesFilter& filters, bool is_received,
                                    uint16_t l2cap_channel, uint32_t& offset, uint32_t total_length);
   void FilterCapturedPacket(HciPacket& packet, Direction direction, PacketType type,
-                            uint32_t& length, PacketHeaderType header);
+                            uint32_t& length, SnoopLoggerFile::PacketHeaderType header);
 
   std::unique_ptr<SnoopLoggerSocketThread> snoop_logger_socket_thread_;
 
@@ -339,14 +317,12 @@ protected:
 #endif  // __ANDROID__
 
 private:
+  os::Handler* handler_;
   std::string btsnoop_mode_;
-  std::string snoop_log_path_;
   std::string snooz_log_path_;
-  std::ofstream btsnoop_ostream_;
-  size_t max_packets_per_file_;
+  std::unique_ptr<SnoopLoggerFile> btsnoop_file_;
   common::CircularBuffer<std::string> btsnooz_buffer_;
   bool qualcomm_debug_log_enabled_ = false;
-  size_t packet_counter_ = 0;
   mutable std::recursive_mutex file_mutex_;
   std::unique_ptr<os::RepeatingAlarm> alarm_;
   std::chrono::milliseconds snooz_log_life_time_;
@@ -354,6 +330,7 @@ private:
   SnoopLoggerSocketInterface* socket_;
   SyscallWrapperImpl syscall_if;
   bool snoop_log_persists = false;
+  int port_ = SnoopLoggerSocket::kDefaultPort;
 
   friend class SnoopLoggerTest;
 };

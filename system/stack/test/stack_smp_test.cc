@@ -15,6 +15,8 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/hci_role.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <stdarg.h>
@@ -25,6 +27,7 @@
 #include "hci/include/packet_fragmenter.h"
 #include "internal_include/stack_config.h"
 #include "stack/btm/btm_int_types.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_octets.h"
 #include "stack/include/btm_ble_api.h"
@@ -32,8 +35,6 @@
 #include "stack/smp/p_256_ecc_pp.h"
 #include "stack/smp/smp_int.h"
 #include "test/mock/mock_stack_acl.h"
-#include "types/hci_role.h"
-#include "types/raw_address.h"
 
 using testing::StrEq;
 

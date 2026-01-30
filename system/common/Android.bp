@@ -37,13 +37,16 @@ cc_library_static {
         "libcutils",
     ],
     apex_available: ["com.android.bt"],
-    min_sdk_version: "Tiramisu",
+    min_sdk_version: "36",
     header_libs: ["libbluetooth_headers"],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbluetooth_crypto_toolbox",
+        "libbluetooth_gd_os",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
-        "libbt-platform-protos-lite",
+        "libbluetooth_types",
+        "libcom.android.sysprop.bluetooth.wrapped",
     ],
 }
 
@@ -83,12 +86,14 @@ cc_test {
         "liblog",
     ],
     static_libs: [
-        "libbluetooth-types",
+        "bluetooth_flags_c_lib_for_test",
+        "libaconfig_storage_read_api_cc",
         "libbluetooth_crypto_toolbox",
+        "libbluetooth_gd_os",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
+        "libbluetooth_types",
         "libbt-common",
-        "libbt-platform-protos-lite",
         "libchrome",
         "libevent",
         "libgmock",
@@ -98,6 +103,9 @@ cc_test {
         cfi: false,
     },
     header_libs: ["libbluetooth_headers"],
+    visibility: [
+        "//platform_testing:__subpackages__",
+    ],
 }
 
 cc_test {
@@ -120,6 +128,9 @@ cc_test {
         "liblog",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
+        "libaconfig_storage_read_api_cc",
+        "libbluetooth_gd_os",
         "libbluetooth_log",
         "libbt-common",
         "libchrome",
@@ -149,6 +160,9 @@ cc_benchmark {
         "liblog",
     ],
     static_libs: [
+        "bluetooth_flags_c_lib_for_test",
+        "libaconfig_storage_read_api_cc",
+        "libbluetooth_gd_os",
         "libbluetooth_log",
         "libbt-common",
         "libchrome",

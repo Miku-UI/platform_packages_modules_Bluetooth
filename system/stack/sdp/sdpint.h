@@ -25,6 +25,8 @@
 #pragma once
 
 #include <base/functional/callback.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/uuid.h>
 
 #include <cstdint>
 #include <string>
@@ -36,8 +38,6 @@
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/sdp_callback.h"
 #include "stack/sdp/sdp_discovery_db.h"
-#include "types/bluetooth/uuid.h"
-#include "types/raw_address.h"
 
 /* Continuation length - we use a 2-byte offset */
 #define SDP_CONTINUATION_LEN 2
@@ -289,6 +289,7 @@ uint16_t sdpu_get_active_ccb_cid(const RawAddress& bd_addr);
 bool sdpu_process_pend_ccb_same_cid(const tCONN_CB& ccb);
 bool sdpu_process_pend_ccb_new_cid(const tCONN_CB& ccb);
 void sdpu_clear_pend_ccb(const tCONN_CB& ccb);
+void sdpu_clear_all_ccbs_for_cid(uint16_t cid);
 void sdpu_callback(const tCONN_CB& ccb, tSDP_REASON reason);
 
 /* Functions provided by sdp_db.cc */

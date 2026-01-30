@@ -19,6 +19,7 @@
 #include "osi/include/stack_power_telemetry.h"
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 #include <com_android_bluetooth_flags.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -32,7 +33,6 @@
 #include "stack/include/acl_api_types.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/btm_status.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth;
 
@@ -155,7 +155,7 @@ struct power_telemetry::PowerTelemetryImpl {
             osi_property_get_bool(std::string(kPowerTelemetryEnabledProperty).c_str(), true);
 
     // Enable this feature when both feature flag and sysprops turn on.
-    power_telemerty_enabled_ = com::android::bluetooth::flags::bluetooth_power_telemetry() &&
+    power_telemerty_enabled_ = com_android_bluetooth_flags_bluetooth_power_telemetry() &&
                                power_telemetry_enabled_property_;
   }
 
@@ -374,31 +374,6 @@ void power_telemetry::PowerTelemetry::LogBleAdvStopped() {
     return;
   }
   ldc.adv_list.back().active.end = current_time;
-}
-
-void power_telemetry::PowerTelemetry::LogTxPower(void* res) {
-  if (!power_telemerty_enabled_) {
-    return;
-  }
-
-  std::lock_guard<std::mutex> lock(pimpl_->dumpsys_mutex_);
-  tBTM_TX_POWER_RESULT* result = (tBTM_TX_POWER_RESULT*)res;
-  LogDataContainer& ldc = pimpl_->GetCurrentLogDataContainer();
-
-  if (result->status != tBTM_STATUS::BTM_SUCCESS) {
-    return;
-  }
-
-  for (auto it : ldc.acl.link_details_map) {
-    uint16_t handle = it.first;
-    LinkDetails lds = it.second;
-    if (lds.bd_addr == result->rem_bda) {
-      lds.tx_power_level = result->tx_power;
-      ldc.acl.link_details_map[handle] = lds;
-      break;
-    }
-  }
-  pimpl_->maybe_log_data();
 }
 
 void power_telemetry::PowerTelemetry::LogLinkDetails(uint16_t handle, const RawAddress& bd_addr,

@@ -27,6 +27,8 @@
 
 #include <base/functional/callback_forward.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/uuid.h>
 
 #include <list>
 #include <string>
@@ -36,8 +38,6 @@
 #include "hardware/bt_gatt_types.h"
 #include "macros.h"
 #include "stack/include/gatt_api.h"
-#include "types/bluetooth/uuid.h"
-#include "types/raw_address.h"
 
 #ifndef BTA_GATT_DEBUG
 #define BTA_GATT_DEBUG false
@@ -179,6 +179,7 @@ typedef struct {
   tGATT_STATUS status;
   tGATT_IF client_if;
   RawAddress remote_bda;
+  tBT_TRANSPORT transport;
   tGATT_DISCONN_REASON reason;
 } tBTA_GATTC_CLOSE;
 
@@ -500,7 +501,7 @@ void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda,
                     tBTM_BLE_CONN_TYPE connection_type, bool opportunistic);
 void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda, tBLE_ADDR_TYPE addr_type,
                     tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic,
-                    uint8_t initiating_phys, uint16_t preferred_mtu);
+                    uint8_t initiating_phys, uint16_t preferred_mtu, bool prefer_relax_mode);
 
 /*******************************************************************************
  *
@@ -524,7 +525,7 @@ void BTA_GATTC_CancelOpen(tGATT_IF client_if, const RawAddress& remote_bda, bool
  *
  * Description      Close a connection to a GATT server.
  *
- * Parameters       conn_id: connectino ID to be closed.
+ * Parameters       conn_id: connection ID to be closed.
  *
  * Returns          void
  *
@@ -651,8 +652,8 @@ typedef void (*GATT_READ_MULTI_OP_CB)(tCONN_ID conn_id, tGATT_STATUS status,
  *
  * Description      This function is called to read a characteristics value
  *
- * Parameters       conn_id - connectino ID.
- *                  handle - characteritic handle to read.
+ * Parameters       conn_id - connection ID.
+ *                  handle - characteristic handle to read.
  *
  * Returns          None
  *
@@ -773,7 +774,7 @@ tGATT_STATUS BTA_GATTC_DeregisterForNotifications(tGATT_IF client_if, const RawA
  *                  value.
  *
  * Parameters       conn_id - connection ID.
- *                  handle - GATT characteritic handle.
+ *                  handle - GATT characteristic handle.
  *                  offset - offset of the write value.
  *                  value - the value to be written.
  *
@@ -1033,7 +1034,7 @@ void BTA_GATTS_CancelOpen(tGATT_IF server_if, const RawAddress& remote_bda, bool
  *
  * Description      Close a connection  a remote device.
  *
- * Parameters       conn_id: connectino ID to be closed.
+ * Parameters       conn_id: connection ID to be closed.
  *
  * Returns          void
  *

@@ -33,14 +33,13 @@
 //       may need attention to prune from (or add to ) the inclusion set.
 #include <base/functional/bind.h>
 #include <bluetooth/log.h>
-
-#include <cstdint>
+#include <bluetooth/types/address.h>
 
 #include "audio_hal_interface/hfp_client_interface.h"
 #include "bta/ag/bta_ag_int.h"
 #include "bta/include/bta_ag_swb_aptx.h"
 #include "btm_status.h"
-#include "hci/controller_interface.h"
+#include "hci/controller.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/entry.h"
 #include "osi/include/properties.h"
@@ -50,7 +49,6 @@
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
-#include "types/raw_address.h"
 
 // Original usings
 using HfpInterface = bluetooth::audio::hfp::HfpClientInterface;
@@ -121,6 +119,15 @@ struct bta_ag_is_sco_managed_by_audio {
   bool operator()() { return body(); }
 };
 extern struct bta_ag_is_sco_managed_by_audio bta_ag_is_sco_managed_by_audio;
+
+// Name: bta_ag_set_is_sco_managed_by_audio
+// Params: bool
+// Return: void
+struct bta_ag_set_is_sco_managed_by_audio {
+  std::function<void(bool value)> body{[](bool /* value */) {}};
+  void operator()(bool value) { body(value); }
+};
+extern struct bta_ag_set_is_sco_managed_by_audio bta_ag_set_is_sco_managed_by_audio;
 
 // Name: bta_ag_sco_close
 // Params: tBTA_AG_SCB* p_scb, const tBTA_AG_DATA&
@@ -292,6 +299,26 @@ struct bta_clear_active_device {
   void operator()() { body(); }
 };
 extern struct bta_clear_active_device bta_clear_active_device;
+
+// Name: bta_ag_get_wbs_supported
+// Params:
+// Return: bool
+struct bta_ag_get_wbs_supported {
+  static bool return_value;
+  std::function<bool()> body{[]() { return return_value; }};
+  bool operator()() { return body(); }
+};
+extern struct bta_ag_get_wbs_supported bta_ag_get_wbs_supported;
+
+// Name: bta_ag_get_swb_supported
+// Params:
+// Return: bool
+struct bta_ag_get_swb_supported {
+  static bool return_value;
+  std::function<bool()> body{[]() { return return_value; }};
+  bool operator()() { return body(); }
+};
+extern struct bta_ag_get_swb_supported bta_ag_get_swb_supported;
 
 }  // namespace bta_ag_sco
 }  // namespace mock

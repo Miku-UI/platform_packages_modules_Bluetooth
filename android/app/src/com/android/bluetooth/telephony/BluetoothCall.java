@@ -19,13 +19,12 @@ package com.android.bluetooth.telephony;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.SystemProperties;
 import android.telecom.Call;
 import android.telecom.DisconnectCause;
 import android.telecom.GatewayInfo;
 import android.telecom.InCallService;
 import android.telecom.PhoneAccountHandle;
-
-import com.android.bluetooth.apishim.BluetoothCallShimImpl;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +41,8 @@ import java.util.UUID;
  * that can be mocked correctly.
  */
 class BluetoothCall {
-
+    private static final String SEND_RINGTONE_ON_DND_ENABLED =
+            "bluetooth.hfp.send_ringtone_on_dnd.enabled";
     private Call mCall;
     private UUID mCallId;
 
@@ -288,8 +288,14 @@ class BluetoothCall {
 
     // helper functions
     public boolean isSilentRingingRequested() {
-        return BluetoothCallShimImpl.newInstance()
-                .isSilentRingingRequested(getDetails().getExtras());
+        boolean isSendRingOnDndEnabled =
+                SystemProperties.getBoolean(SEND_RINGTONE_ON_DND_ENABLED, false);
+
+        Bundle extras = getDetails().getExtras();
+        return extras != null
+                && (extras.getBoolean(Call.EXTRA_SILENT_RINGING_REQUESTED)
+                        || (!isSendRingOnDndEnabled
+                                && extras.getBoolean(Call.EXTRA_IS_SUPPRESSED_BY_DO_NOT_DISTURB)));
     }
 
     public boolean isConference() {

@@ -38,6 +38,11 @@ java_library_static {
 android_test_helper_app {
     name: "PandoraServer",
 
+    visibility: [
+        "//packages/modules/Bluetooth:__subpackages__",
+        "//vendor:__subpackages__",
+    ],
+
     static_libs: [
         "PandoraServerLib",
     ],
@@ -52,7 +57,7 @@ android_test_helper_app {
     test_suites: [
         "general-tests",
     ],
-    min_sdk_version: "Tiramisu",
+    min_sdk_version: "36",
 }
 
 android_test {
@@ -65,7 +70,7 @@ android_test {
         "configs/pts_bot_tests_config_auto.json",
     ],
     test_suites: ["general-tests"],
-    min_sdk_version: "Tiramisu",
+    min_sdk_version: "36",
 }
 
 android_test {
@@ -81,5 +86,5 @@ android_test {
         "mts-bluetooth",
         "mts-bt",
     ],
-    min_sdk_version: "Tiramisu",
+    min_sdk_version: "36",
 }

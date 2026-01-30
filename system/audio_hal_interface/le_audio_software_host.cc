@@ -307,6 +307,11 @@ void LeAudioClientInterface::Sink::CancelStreamingRequest() {
 void LeAudioClientInterface::Sink::UpdateAudioConfigToHal(
         const ::le_audio::stream_config& /*offload_config*/) {}
 
+void LeAudioClientInterface::Sink::SetCodecPriority(
+        const ::bluetooth::le_audio::types::LeAudioCodecId& /*codecId*/, int32_t /*priority*/) {
+  log::info("");
+}
+
 void LeAudioClientInterface::Sink::UpdateBroadcastAudioConfigToHal(
         ::le_audio::broadcast_offload_config const& /*config*/) {}
 
@@ -316,6 +321,8 @@ void LeAudioClientInterface::Sink::SuspendedForReconfiguration() {
 }
 
 void LeAudioClientInterface::Sink::ReconfigurationComplete() { log::info(""); }
+
+void LeAudioClientInterface::Sink::StreamSuspended() { log::info(""); }
 
 size_t LeAudioClientInterface::Sink::Read(uint8_t* p_buf, uint32_t len) {
   uint32_t bytes_read = 0;
@@ -459,12 +466,18 @@ void LeAudioClientInterface::Source::CancelStreamingRequest() {
 void LeAudioClientInterface::Source::UpdateAudioConfigToHal(
         const ::le_audio::stream_config& /*offload_config*/) {}
 
+void LeAudioClientInterface::Source::SetCodecPriority(
+        const ::bluetooth::le_audio::types::LeAudioCodecId& /*codecId*/, int32_t /*priority*/) {
+  log::info("");
+}
+
 void LeAudioClientInterface::Source::SuspendedForReconfiguration() {
   log::info("");
   // TODO
 }
 
 void LeAudioClientInterface::Source::ReconfigurationComplete() { log::info(""); }
+void LeAudioClientInterface::Source::StreamSuspended() { log::info(""); }
 
 size_t LeAudioClientInterface::Source::Write(const uint8_t* p_buf, uint32_t len) {
   bool ok = UIPC_Send(*lea_uipc, UIPC_CH_ID_AV_AUDIO, 0, p_buf, len);

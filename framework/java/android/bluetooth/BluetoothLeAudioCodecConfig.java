@@ -20,6 +20,7 @@ import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -44,14 +45,24 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
     /** @hide */
     @IntDef(
             prefix = "SOURCE_CODEC_TYPE_",
-            value = {SOURCE_CODEC_TYPE_LC3, SOURCE_CODEC_TYPE_OPUS, SOURCE_CODEC_TYPE_INVALID})
+            value = {
+                SOURCE_CODEC_TYPE_LC3,
+                SOURCE_CODEC_TYPE_OPUS,
+                SOURCE_CODEC_TYPE_OPUS_HI_RES,
+                SOURCE_CODEC_TYPE_INVALID
+            })
     @Retention(RetentionPolicy.SOURCE)
     public @interface SourceCodecType {};
 
+    /** Source codec type for LC3. */
     public static final int SOURCE_CODEC_TYPE_LC3 = 0;
 
-    @FlaggedApi(Flags.FLAG_LEAUDIO_ADD_OPUS_CODEC_TYPE)
+    /** Source codec type for Opus. */
     public static final int SOURCE_CODEC_TYPE_OPUS = 1;
+
+    /** Source codec type for Opus High Resolution. */
+    @FlaggedApi(Flags.FLAG_LEAUDIO_ADD_OPUS_HI_RES_CODEC_TYPE_API)
+    public static final int SOURCE_CODEC_TYPE_OPUS_HI_RES = 2;
 
     public static final int SOURCE_CODEC_TYPE_INVALID = 1000 * 1000;
 
@@ -190,15 +201,21 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
     public static final int CHANNEL_COUNT_2 = 0x01 << 1;
 
     /**
-     * Values are the bit mask as defined in the Bluetooth Assigned Numbers, Generic Audio,
-     * Supported_Frame_Durations table
+     * These values do not follow strictly the bit mask defined in the Bluetooth Assigned Numbers,
+     * Generic Audio, Supported_Frame_Durations table, and may deviate or extend beyond what was
+     * defined there.
      *
      * @hide
      */
     @IntDef(
             flag = true,
             prefix = "FRAME_DURATION_",
-            value = {FRAME_DURATION_NONE, FRAME_DURATION_7500, FRAME_DURATION_10000})
+            value = {
+                FRAME_DURATION_NONE,
+                FRAME_DURATION_7500,
+                FRAME_DURATION_10000,
+                FRAME_DURATION_20000
+            })
     @Retention(RetentionPolicy.SOURCE)
     public @interface FrameDuration {}
 
@@ -210,6 +227,10 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
 
     /** Frame duration 10000 us. */
     public static final int FRAME_DURATION_10000 = 0x01 << 1;
+
+    /** Frame duration 20000 us. */
+    /** @hide */
+    public static final int FRAME_DURATION_20000 = 0x01 << 2;
 
     private final @SourceCodecType int mCodecType;
     private final @CodecPriority int mCodecPriority;
@@ -261,35 +282,34 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
     }
 
     /** {@link Parcelable.Creator} interface implementation. */
-    public static final @android.annotation.NonNull Parcelable.Creator<BluetoothLeAudioCodecConfig>
-            CREATOR =
-                    new Parcelable.Creator<BluetoothLeAudioCodecConfig>() {
-                        public BluetoothLeAudioCodecConfig createFromParcel(Parcel in) {
-                            int codecType = in.readInt();
-                            int codecPriority = in.readInt();
-                            int sampleRate = in.readInt();
-                            int bitsPerSample = in.readInt();
-                            int channelCount = in.readInt();
-                            int frameDuration = in.readInt();
-                            int octetsPerFrame = in.readInt();
-                            int minOctetsPerFrame = in.readInt();
-                            int maxOctetsPerFrame = in.readInt();
-                            return new BluetoothLeAudioCodecConfig(
-                                    codecType,
-                                    codecPriority,
-                                    sampleRate,
-                                    bitsPerSample,
-                                    channelCount,
-                                    frameDuration,
-                                    octetsPerFrame,
-                                    minOctetsPerFrame,
-                                    maxOctetsPerFrame);
-                        }
+    public static final @NonNull Parcelable.Creator<BluetoothLeAudioCodecConfig> CREATOR =
+            new Parcelable.Creator<BluetoothLeAudioCodecConfig>() {
+                public BluetoothLeAudioCodecConfig createFromParcel(Parcel in) {
+                    int codecType = in.readInt();
+                    int codecPriority = in.readInt();
+                    int sampleRate = in.readInt();
+                    int bitsPerSample = in.readInt();
+                    int channelCount = in.readInt();
+                    int frameDuration = in.readInt();
+                    int octetsPerFrame = in.readInt();
+                    int minOctetsPerFrame = in.readInt();
+                    int maxOctetsPerFrame = in.readInt();
+                    return new BluetoothLeAudioCodecConfig(
+                            codecType,
+                            codecPriority,
+                            sampleRate,
+                            bitsPerSample,
+                            channelCount,
+                            frameDuration,
+                            octetsPerFrame,
+                            minOctetsPerFrame,
+                            maxOctetsPerFrame);
+                }
 
-                        public BluetoothLeAudioCodecConfig[] newArray(int size) {
-                            return new BluetoothLeAudioCodecConfig[size];
-                        }
-                    };
+                public BluetoothLeAudioCodecConfig[] newArray(int size) {
+                    return new BluetoothLeAudioCodecConfig[size];
+                }
+            };
 
     @Override
     public void writeToParcel(@NonNull Parcel out, int flags) {
@@ -305,51 +325,33 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
     }
 
     private static String sampleRateToString(@SampleRate int sampleRateBit) {
-        switch (sampleRateBit) {
-            case SAMPLE_RATE_NONE:
-                return "None";
-            case SAMPLE_RATE_8000:
-                return "8 kHz";
-            case SAMPLE_RATE_11025:
-                return "11.025 kHz";
-            case SAMPLE_RATE_16000:
-                return "16 kHz";
-            case SAMPLE_RATE_22050:
-                return "22.05 kHz";
-            case SAMPLE_RATE_24000:
-                return "24 kHz";
-            case SAMPLE_RATE_32000:
-                return "32 kHz";
-            case SAMPLE_RATE_44100:
-                return "44.1 kHz";
-            case SAMPLE_RATE_48000:
-                return "48 kHz";
-            case SAMPLE_RATE_88200:
-                return "88.2 kHz";
-            case SAMPLE_RATE_96000:
-                return "96 kHz";
-            case SAMPLE_RATE_176400:
-                return "176.4 kHz";
-            case SAMPLE_RATE_192000:
-                return "192 kHz";
-            case SAMPLE_RATE_384000:
-                return "384 kHz";
-            default:
-                return "Unknown bit " + sampleRateBit;
-        }
+        return switch (sampleRateBit) {
+            case SAMPLE_RATE_NONE -> "None";
+            case SAMPLE_RATE_8000 -> "8 kHz";
+            case SAMPLE_RATE_11025 -> "11.025 kHz";
+            case SAMPLE_RATE_16000 -> "16 kHz";
+            case SAMPLE_RATE_22050 -> "22.05 kHz";
+            case SAMPLE_RATE_24000 -> "24 kHz";
+            case SAMPLE_RATE_32000 -> "32 kHz";
+            case SAMPLE_RATE_44100 -> "44.1 kHz";
+            case SAMPLE_RATE_48000 -> "48 kHz";
+            case SAMPLE_RATE_88200 -> "88.2 kHz";
+            case SAMPLE_RATE_96000 -> "96 kHz";
+            case SAMPLE_RATE_176400 -> "176.4 kHz";
+            case SAMPLE_RATE_192000 -> "192 kHz";
+            case SAMPLE_RATE_384000 -> "384 kHz";
+            default -> "Unknown bit " + sampleRateBit;
+        };
     }
 
     private static String frameDurationToString(@FrameDuration int frameDurationBit) {
-        switch (frameDurationBit) {
-            case FRAME_DURATION_NONE:
-                return "None";
-            case FRAME_DURATION_7500:
-                return "7.5 ms";
-            case FRAME_DURATION_10000:
-                return "10 ms";
-            default:
-                return "Unknown bit " + frameDurationBit;
-        }
+        return switch (frameDurationBit) {
+            case FRAME_DURATION_NONE -> "None";
+            case FRAME_DURATION_7500 -> "7.5 ms";
+            case FRAME_DURATION_10000 -> "10 ms";
+            case FRAME_DURATION_20000 -> "20 ms";
+            default -> "Unknown bit " + frameDurationBit;
+        };
     }
 
     @Override
@@ -382,6 +384,7 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
      *
      * @return the codec type
      */
+    @RequiresNoPermission
     public @SourceCodecType int getCodecType() {
         return mCodecType;
     }
@@ -391,21 +394,21 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
      *
      * @return the codec name
      */
+    @RequiresNoPermission
     public @NonNull String getCodecName() {
-        switch (mCodecType) {
-            case SOURCE_CODEC_TYPE_LC3:
-                return "LC3";
-            case SOURCE_CODEC_TYPE_INVALID:
-                return "INVALID CODEC";
-            default:
-                if (Flags.leaudioAddOpusCodecType()) {
-                    if (mCodecType == SOURCE_CODEC_TYPE_OPUS) {
-                        return "Opus";
+        return switch (mCodecType) {
+            case SOURCE_CODEC_TYPE_LC3 -> "LC3";
+            case SOURCE_CODEC_TYPE_OPUS -> "Opus";
+            case SOURCE_CODEC_TYPE_INVALID -> "INVALID CODEC";
+            default -> {
+                if (Flags.leaudioAddOpusHiResCodecTypeApi()) {
+                    if (mCodecType == SOURCE_CODEC_TYPE_OPUS_HI_RES) {
+                        yield "Opus Hi-Res";
                     }
                 }
-                break;
-        }
-        return "UNKNOWN CODEC(" + mCodecType + ")";
+                yield "UNKNOWN CODEC(" + mCodecType + ")";
+            }
+        };
     }
 
     /**
@@ -414,41 +417,49 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
      * <p>The codec selection priority is relative to other codecs: larger value means higher
      * priority.
      */
+    @RequiresNoPermission
     public @CodecPriority int getCodecPriority() {
         return mCodecPriority;
     }
 
     /** Returns the codec sample rate. */
+    @RequiresNoPermission
     public @SampleRate int getSampleRate() {
         return mSampleRate;
     }
 
     /** Returns the codec bits per sample. */
+    @RequiresNoPermission
     public @BitsPerSample int getBitsPerSample() {
         return mBitsPerSample;
     }
 
     /** Returns the codec channel mode. */
+    @RequiresNoPermission
     public @ChannelCount int getChannelCount() {
         return mChannelCount;
     }
 
     /** Returns the frame duration. */
+    @RequiresNoPermission
     public @FrameDuration int getFrameDuration() {
         return mFrameDuration;
     }
 
     /** Returns the octets per frame */
+    @RequiresNoPermission
     public int getOctetsPerFrame() {
         return mOctetsPerFrame;
     }
 
     /** Returns the minimum octets per frame */
+    @RequiresNoPermission
     public int getMinOctetsPerFrame() {
         return mMinOctetsPerFrame;
     }
 
     /** Returns the maximum octets per frame */
+    @RequiresNoPermission
     public int getMaxOctetsPerFrame() {
         return mMaxOctetsPerFrame;
     }
@@ -525,6 +536,7 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
          * @param codecType of this codec
          * @return the same Builder instance
          */
+        @RequiresNoPermission
         public @NonNull Builder setCodecType(@SourceCodecType int codecType) {
             mCodecType = codecType;
             return this;
@@ -536,6 +548,7 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
          * @param codecPriority of this codec
          * @return the same Builder instance
          */
+        @RequiresNoPermission
         public @NonNull Builder setCodecPriority(@CodecPriority int codecPriority) {
             mCodecPriority = codecPriority;
             return this;
@@ -547,6 +560,7 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
          * @param sampleRate of this codec
          * @return the same Builder instance
          */
+        @RequiresNoPermission
         public @NonNull Builder setSampleRate(@SampleRate int sampleRate) {
             mSampleRate = sampleRate;
             return this;
@@ -558,6 +572,7 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
          * @param bitsPerSample of this codec
          * @return the same Builder instance
          */
+        @RequiresNoPermission
         public @NonNull Builder setBitsPerSample(@BitsPerSample int bitsPerSample) {
             mBitsPerSample = bitsPerSample;
             return this;
@@ -569,6 +584,7 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
          * @param channelCount of this codec
          * @return the same Builder instance
          */
+        @RequiresNoPermission
         public @NonNull Builder setChannelCount(@ChannelCount int channelCount) {
             mChannelCount = channelCount;
             return this;
@@ -580,6 +596,7 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
          * @param frameDuration of this codec
          * @return the same Builder instance
          */
+        @RequiresNoPermission
         public @NonNull Builder setFrameDuration(@FrameDuration int frameDuration) {
             mFrameDuration = frameDuration;
             return this;
@@ -591,6 +608,7 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
          * @param octetsPerFrame of this codec
          * @return the same Builder instance
          */
+        @RequiresNoPermission
         public @NonNull Builder setOctetsPerFrame(int octetsPerFrame) {
             mOctetsPerFrame = octetsPerFrame;
             return this;
@@ -602,6 +620,7 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
          * @param minOctetsPerFrame of this codec
          * @return the same Builder instance
          */
+        @RequiresNoPermission
         public @NonNull Builder setMinOctetsPerFrame(int minOctetsPerFrame) {
             mMinOctetsPerFrame = minOctetsPerFrame;
             return this;
@@ -613,6 +632,7 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
          * @param maxOctetsPerFrame of this codec
          * @return the same Builder instance
          */
+        @RequiresNoPermission
         public @NonNull Builder setMaxOctetsPerFrame(int maxOctetsPerFrame) {
             mMaxOctetsPerFrame = maxOctetsPerFrame;
             return this;
@@ -623,6 +643,7 @@ public final class BluetoothLeAudioCodecConfig implements Parcelable {
          *
          * @return new BluetoothLeAudioCodecConfig built
          */
+        @RequiresNoPermission
         public @NonNull BluetoothLeAudioCodecConfig build() {
             return new BluetoothLeAudioCodecConfig(
                     mCodecType,

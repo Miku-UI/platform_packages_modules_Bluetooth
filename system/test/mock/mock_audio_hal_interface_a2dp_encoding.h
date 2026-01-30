@@ -119,14 +119,19 @@ struct get_a2dp_configuration {
   static std::optional<a2dp_configuration> return_value;
   std::function<std::optional<a2dp_configuration>(
           RawAddress peer_address, std::vector<a2dp_remote_capabilities> const& remote_seps,
-          btav_a2dp_codec_config_t const& user_preferences)>
+          btav_a2dp_codec_config_t const& user_preferences,
+          ::bluetooth::a2dp::CodecId user_preferred_codec_id)>
           body{[](RawAddress /* peer_address */,
                   std::vector<a2dp_remote_capabilities> const& /* remote_seps */,
-                  btav_a2dp_codec_config_t const& /* user_preferences */) { return return_value; }};
+                  btav_a2dp_codec_config_t const& /* user_preferences */,
+                  ::bluetooth::a2dp::CodecId /* user_preferred_codec_id */) {
+            return return_value;
+          }};
   std::optional<a2dp_configuration> operator()(
           RawAddress peer_address, std::vector<a2dp_remote_capabilities> const& remote_seps,
-          btav_a2dp_codec_config_t const& user_preferences) {
-    return body(peer_address, remote_seps, user_preferences);
+          btav_a2dp_codec_config_t const& user_preferences,
+          ::bluetooth::a2dp::CodecId user_preferred_codec_id) {
+    return body(peer_address, remote_seps, user_preferences, user_preferred_codec_id);
   }
 };
 extern struct get_a2dp_configuration get_a2dp_configuration;
@@ -179,21 +184,21 @@ struct is_opus_supported {
 extern struct is_opus_supported is_opus_supported;
 
 // Name: parse_a2dp_configuration
-// Params: btav_a2dp_codec_index_t codec_index, const uint8_t* codec_info,
+// Params: ::bluetooth::a2dp::CodecId codec_id, const uint8_t* codec_info,
 // btav_a2dp_codec_config_t* codec_parameters, std::vector<uint8_t>*
 // vendor_specific_parameters Return: tA2DP_STATUS
 struct parse_a2dp_configuration {
   static tA2DP_STATUS return_value;
-  std::function<tA2DP_STATUS(btav_a2dp_codec_index_t codec_index, const uint8_t* codec_info,
+  std::function<tA2DP_STATUS(::bluetooth::a2dp::CodecId codec_id, const uint8_t* codec_info,
                              btav_a2dp_codec_config_t* codec_parameters,
                              std::vector<uint8_t>* vendor_specific_parameters)>
-          body{[](btav_a2dp_codec_index_t /* codec_index */, const uint8_t* /* codec_info */,
+          body{[](::bluetooth::a2dp::CodecId /* codec_id */, const uint8_t* /* codec_info */,
                   btav_a2dp_codec_config_t* /* codec_parameters */,
                   std::vector<uint8_t>* /* vendor_specific_parameters */) { return return_value; }};
-  tA2DP_STATUS operator()(btav_a2dp_codec_index_t codec_index, const uint8_t* codec_info,
+  tA2DP_STATUS operator()(::bluetooth::a2dp::CodecId codec_id, const uint8_t* codec_info,
                           btav_a2dp_codec_config_t* codec_parameters,
                           std::vector<uint8_t>* vendor_specific_parameters) {
-    return body(codec_index, codec_info, codec_parameters, vendor_specific_parameters);
+    return body(codec_id, codec_info, codec_parameters, vendor_specific_parameters);
   }
 };
 extern struct parse_a2dp_configuration parse_a2dp_configuration;
@@ -232,13 +237,12 @@ extern struct set_remote_delay set_remote_delay;
 // Return: bool
 struct setup_codec {
   static bool return_value;
-  std::function<bool(A2dpCodecConfig* a2dp_config, uint16_t peer_mtu,
-                     int preferred_encoding_interval_us)>
-          body{[](A2dpCodecConfig* /* a2dp_config */, uint16_t /* peer_mtu */,
-                  int /* preferred_encoding_interval_us */) { return return_value; }};
-  bool operator()(A2dpCodecConfig* a2dp_config, uint16_t peer_mtu,
-                  int preferred_encoding_interval_us) {
-    return body(a2dp_config, peer_mtu, preferred_encoding_interval_us);
+  std::function<bool(const ::bluetooth::audio::a2dp::ahal_codec_configuration& config)> body{
+          [](const ::bluetooth::audio::a2dp::ahal_codec_configuration& /* config */) {
+            return return_value;
+          }};
+  bool operator()(const ::bluetooth::audio::a2dp::ahal_codec_configuration& config) {
+    return body(config);
   }
 };
 extern struct setup_codec setup_codec;

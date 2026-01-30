@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.map;
 
 import android.util.Log;
@@ -26,8 +27,13 @@ import java.util.List;
 
 public class BluetoothMapbMessageSms extends BluetoothMapbMessage {
 
+    private final BluetoothMapService mMapService;
     private List<SmsPdu> mSmsBodyPdus = null;
     private String mSmsBody = null;
+
+    BluetoothMapbMessageSms(BluetoothMapService mapService) {
+        mMapService = mapService;
+    }
 
     public void setSmsBodyPdus(List<SmsPdu> smsBodyPdus) {
         this.mSmsBodyPdus = smsBodyPdus;
@@ -89,8 +95,7 @@ public class BluetoothMapbMessageSms extends BluetoothMapbMessage {
                     mSmsBody.replaceAll(
                             "END:MSG",
                             "/END\\:MSG"); // Replace any occurrences of END:MSG with \END:MSG
-            String remoteAddress =
-                    BluetoothMapService.getBluetoothMapService().getRemoteDevice().getAddress();
+            String remoteAddress = mMapService.getRemoteDevice().getAddress();
             /* Fix IOT issue with PCM carkit where carkit is unable to parse
             message if carriage return is present in it */
             if (DeviceWorkArounds.addressStartsWith(remoteAddress, DeviceWorkArounds.PCM_CARKIT)) {

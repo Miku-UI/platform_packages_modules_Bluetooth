@@ -19,13 +19,14 @@
 #pragma once
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/ble_address_with_type.h>
 
 #include <cstdint>
 #include <string>
 
 #include "macros.h"
-#include "types/ble_address_with_type.h"
-#include "types/raw_address.h"
+#include "stack/btm/btm_sec_int_types.h"
 
 /*****************************************************************************
  *  Constants and data types
@@ -62,6 +63,7 @@ typedef struct {
 
 typedef struct {
   RawAddress bd_addr;
+  tBTM_KEY_MISSING_REASON reason;
 } tBTA_DM_KEY_MISSING;
 
 namespace std {

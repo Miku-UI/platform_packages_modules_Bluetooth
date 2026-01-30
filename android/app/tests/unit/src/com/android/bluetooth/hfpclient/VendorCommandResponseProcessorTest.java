@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.hfpclient;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -26,13 +25,11 @@ import static org.mockito.Mockito.doReturn;
 import android.bluetooth.BluetoothAssignedNumbers;
 import android.bluetooth.BluetoothDevice;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
 
-import com.android.bluetooth.TestUtils;
-import com.android.bluetooth.btservice.AdapterService;
+import com.android.tests.bluetooth.MockitoRule;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,8 +42,7 @@ import org.mockito.Mock;
 public class VendorCommandResponseProcessorTest {
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
-    @Mock private NativeInterface mNativeInterface;
-    @Mock private AdapterService mAdapterService;
+    @Mock private HeadsetClientNativeInterface mNativeInterface;
     @Mock private HeadsetClientService mHeadsetClientService;
 
     private static final int TEST_VENDOR_ID = BluetoothAssignedNumbers.APPLE;
@@ -57,14 +53,7 @@ public class VendorCommandResponseProcessorTest {
 
     @Before
     public void setUp() throws Exception {
-        TestUtils.setAdapterService(mAdapterService);
-
         mProcessor = new VendorCommandResponseProcessor(mHeadsetClientService, mNativeInterface);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        TestUtils.clearAdapterService(mAdapterService);
     }
 
     @Test

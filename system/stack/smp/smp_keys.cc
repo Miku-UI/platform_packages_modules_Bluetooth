@@ -26,13 +26,14 @@
 #include <base/functional/bind.h>
 #include <base/functional/callback.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
 
 #include "crypto_toolbox/crypto_toolbox.h"
-#include "hci/controller_interface.h"
+#include "hci/controller.h"
 #include "main/shim/entry.h"
 #include "p_256_ecc_pp.h"
 #include "smp_int.h"
@@ -45,7 +46,6 @@
 #include "stack/include/btm_ble_api.h"
 #include "stack/include/btm_ble_sec_api.h"
 #include "stack/include/main_thread.h"
-#include "types/raw_address.h"
 
 using bluetooth::common::BindOnce;
 using bluetooth::common::OnceCallback;

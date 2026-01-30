@@ -26,23 +26,21 @@ import android.media.browse.MediaBrowser;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
-import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
+/** Test cases for {@link Util}. */
+@RunWith(AndroidJUnit4.class)
 public class UtilTest {
     private static final String SONG_MEDIA_ID = "abc123";
     private static final String SONG_TITLE = "BT Test Song";
     private static final String SONG_ARTIST = "BT Test Artist";
     private static final String SONG_ALBUM = "BT Test Album";
 
-    private Context mContext;
-
-    @Before
-    public void setUp() {
-        mContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
-    }
+    private final Context mContext = InstrumentationRegistry.getInstrumentation().getContext();
 
     @Test
     public void getDisplayName() throws Exception {

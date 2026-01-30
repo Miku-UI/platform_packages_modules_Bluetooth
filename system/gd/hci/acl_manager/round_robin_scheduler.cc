@@ -17,6 +17,7 @@
 #include "hci/acl_manager/round_robin_scheduler.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <memory>
 #include <utility>
@@ -26,23 +27,31 @@ namespace bluetooth {
 namespace hci {
 namespace acl_manager {
 
-RoundRobinScheduler::RoundRobinScheduler(os::Handler* handler, Controller* controller,
+RoundRobinScheduler::RoundRobinScheduler(os::Handler* handler, Controller& controller,
                                          common::BidiQueueEnd<AclBuilder, AclView>* hci_queue_end)
     : handler_(handler), controller_(controller), hci_queue_end_(hci_queue_end) {
-  max_acl_packet_credits_ = controller_->GetNumAclPacketBuffers();
+  max_acl_packet_credits_ = controller_.GetNumAclPacketBuffers();
   acl_packet_credits_ = max_acl_packet_credits_;
-  hci_mtu_ = controller_->GetAclPacketLength();
-  LeBufferSize le_buffer_size = controller_->GetLeBufferSize();
+  hci_mtu_ = controller_.GetAclPacketLength();
+  LeBufferSize le_buffer_size = controller_.GetLeBufferSize();
   le_max_acl_packet_credits_ = le_buffer_size.total_num_le_packets_;
   le_acl_packet_credits_ = le_max_acl_packet_credits_;
   le_hci_mtu_ = le_buffer_size.le_data_packet_length_;
-  controller_->RegisterCompletedAclPacketsCallback(
+  controller_.RegisterCompletedAclPacketsCallback(
           handler->BindOn(this, &RoundRobinScheduler::incoming_acl_credits));
+  log::verbose("module started !!");
 }
 
 RoundRobinScheduler::~RoundRobinScheduler() {
   unregister_all_connections();
-  controller_->UnregisterCompletedAclPacketsCallback();
+  controller_.UnregisterCompletedAclPacketsCallback();
+  if (!com_android_bluetooth_flags_same_handler_for_all_modules()) {
+    handler_->Clear();
+    handler_->WaitUntilStopped(std::chrono::milliseconds(2000));
+    delete handler_;
+  }
+
+  log::verbose("module stopped !!");
 }
 
 void RoundRobinScheduler::Register(ConnectionType connection_type, uint16_t handle,
@@ -94,6 +103,10 @@ void RoundRobinScheduler::Unregister(uint16_t handle) {
   if (credits_reclaimed_from_zero) {
     start_round_robin();
   }
+}
+
+bool RoundRobinScheduler::IsRegistered(uint16_t handle) {
+  return acl_queue_handlers_.count(handle) != 0;
 }
 
 void RoundRobinScheduler::SetLinkPriority(uint16_t handle, bool high_priority) {

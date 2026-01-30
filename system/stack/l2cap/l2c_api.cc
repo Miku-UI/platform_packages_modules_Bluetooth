@@ -28,6 +28,7 @@
 
 #include <base/location.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 #include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
@@ -35,7 +36,7 @@
 #include <vector>
 
 #include "hal/snoop_logger.h"
-#include "hci/controller_interface.h"
+#include "hci/controller.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
 #include "main/shim/entry.h"
@@ -48,14 +49,13 @@
 #include "stack/include/main_thread.h"
 #include "stack/l2cap/internal/l2c_api.h"
 #include "stack/l2cap/l2c_int.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth;
 
 extern fixed_queue_t* btu_general_alarm_queue;
-tL2C_AVDT_CHANNEL_INFO av_media_channels[MAX_ACTIVE_AVDT_CONN];
+static tL2C_AVDT_CHANNEL_INFO av_media_channels[MAX_ACTIVE_AVDT_CONN];
 
-constexpr uint16_t L2CAP_LE_CREDIT_THRESHOLD = 64;
+static constexpr uint16_t L2CAP_LE_CREDIT_THRESHOLD = 64;
 
 uint16_t L2CA_RegisterWithSecurity(uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info,
                                    bool enable_snoop, tL2CAP_ERTM_INFO* p_ertm_info,
@@ -516,10 +516,13 @@ uint16_t L2CA_ConnectLECocReq(uint16_t psm, const RawAddress& p_bd_addr, tL2CAP_
   if (p_lcb == NULL) {
     /* No link. Get an LCB and start link establishment */
     p_lcb = l2cu_allocate_lcb(p_bd_addr, false, BT_TRANSPORT_LE);
-    if ((p_lcb == NULL)
-        /* currently use BR/EDR for ERTM mode l2cap connection */
-        || (!l2cu_create_conn_le(p_lcb))) {
+    if (p_lcb == NULL) {
+      log::error("allocate_lcb failed");
+      return 0;
+    }
+    if (!l2cu_create_conn_le(p_lcb)) {
       log::warn("conn not started for PSM: 0x{:04x}  p_lcb: 0x{}", psm, std::format_ptr(p_lcb));
+      l2cu_release_lcb(p_lcb);
       return 0;
     }
   }
@@ -1211,7 +1214,7 @@ bool L2CA_ConnectFixedChnl(uint16_t fixed_cid, const RawAddress& rem_bda) {
     // Restore the fixed channel if it was suspended
     l2cu_fixed_channel_restore(p_lcb, fixed_cid);
 
-    if (!com::android::bluetooth::flags::smp_connection_status_handling_when_no_acl()) {
+    if (!com_android_bluetooth_flags_smp_connection_status_handling_when_no_acl()) {
       (*l2cb.fixed_reg[fixed_cid - L2CAP_FIRST_FIXED_CHNL].pL2CA_FixedConn_Cb)(
               fixed_cid, p_lcb->remote_bd_addr, true, 0, p_lcb->transport);
       return true;

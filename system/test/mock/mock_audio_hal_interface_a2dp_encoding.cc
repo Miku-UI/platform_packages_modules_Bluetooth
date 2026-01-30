@@ -120,10 +120,11 @@ void end_session() {
 }
 std::optional<a2dp_configuration> provider::get_a2dp_configuration(
         RawAddress peer_address, std::vector<a2dp_remote_capabilities> const& remote_seps,
-        btav_a2dp_codec_config_t const& user_preferences) {
+        btav_a2dp_codec_config_t const& user_preferences,
+        ::bluetooth::a2dp::CodecId user_preferred_codec_id) {
   inc_func_call_count(__func__);
   return test::mock::audio_hal_interface_a2dp_encoding::get_a2dp_configuration(
-          peer_address, remote_seps, user_preferences);
+          peer_address, remote_seps, user_preferences, user_preferred_codec_id);
 }
 bool init(bluetooth::common::MessageLoopThread* message_loop,
           bluetooth::audio::a2dp::StreamCallbacks const* audio_port, bool offload_enabled) {
@@ -143,13 +144,13 @@ bool is_opus_supported() {
   inc_func_call_count(__func__);
   return test::mock::audio_hal_interface_a2dp_encoding::is_opus_supported();
 }
-tA2DP_STATUS provider::parse_a2dp_configuration(btav_a2dp_codec_index_t codec_index,
+tA2DP_STATUS provider::parse_a2dp_configuration(::bluetooth::a2dp::CodecId codec_id,
                                                 const uint8_t* codec_info,
                                                 btav_a2dp_codec_config_t* codec_parameters,
                                                 std::vector<uint8_t>* vendor_specific_parameters) {
   inc_func_call_count(__func__);
   return test::mock::audio_hal_interface_a2dp_encoding::parse_a2dp_configuration(
-          codec_index, codec_info, codec_parameters, vendor_specific_parameters);
+          codec_id, codec_info, codec_parameters, vendor_specific_parameters);
 }
 size_t read(uint8_t* p_buf, uint32_t len) {
   inc_func_call_count(__func__);
@@ -163,11 +164,9 @@ void set_remote_delay(uint16_t delay_report) {
   inc_func_call_count(__func__);
   test::mock::audio_hal_interface_a2dp_encoding::set_remote_delay(delay_report);
 }
-bool setup_codec(A2dpCodecConfig* a2dp_config, uint16_t peer_mtu,
-                 int preferred_encoding_interval_us) {
+bool setup_codec(const ::bluetooth::audio::a2dp::ahal_codec_configuration& config) {
   inc_func_call_count(__func__);
-  return test::mock::audio_hal_interface_a2dp_encoding::setup_codec(a2dp_config, peer_mtu,
-                                                                    preferred_encoding_interval_us);
+  return test::mock::audio_hal_interface_a2dp_encoding::setup_codec(config);
 }
 std::optional<btav_a2dp_codec_index_t> provider::sink_codec_index(const uint8_t* p_codec_info) {
   inc_func_call_count(__func__);

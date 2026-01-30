@@ -18,6 +18,7 @@
 #include "btm_api_mock.h"
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 
 #include <optional>
 
@@ -25,9 +26,9 @@
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api.h"
+#include "stack/include/btm_ble_addr.h"
 #include "stack/include/btm_ble_sec_api.h"
 #include "test/mock/mock_stack_btm_interface.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth;
 
@@ -59,6 +60,10 @@ void bluetooth::manager::SetMockBtmInterface(MockBtmInterface* mock_btm_interfac
                                                             tBT_TRANSPORT transport) {
     return btm_interface->BTM_IsAclConnectionUp(remote_bda, transport);
   };
+  mock_btm_client_interface.link_policy.BTM_GetRole = [](const RawAddress& bd_addr,
+                                                         tBT_TRANSPORT transport, tHCI_ROLE* role) {
+    return btm_interface->BTM_GetRole(bd_addr, transport, role);
+  };
 }
 
 bool BTM_IsBonded(const RawAddress& bd_addr, tBT_TRANSPORT transport) {
@@ -86,9 +91,29 @@ tBTM_SEC_DEV_REC* btm_find_dev(const RawAddress& bd_addr) {
   return btm_interface->FindDevice(bd_addr);
 }
 
+bool maybe_resolve_address(RawAddress* bda, tBLE_ADDR_TYPE* bda_type) {
+  log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
+  return btm_interface->MaybeResolveAddress(bda, bda_type);
+}
+
+bool btm_random_pseudo_to_identity_addr(RawAddress* random_pseudo, uint8_t* p_static_addr_type) {
+  log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
+  return btm_interface->BTM_RandomPseudoToIdentityAddr(random_pseudo, p_static_addr_type);
+}
+
 void acl_disconnect_from_handle(uint16_t handle, tHCI_STATUS reason, std::string /*comment*/) {
   log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
   return btm_interface->AclDisconnectFromHandle(handle, reason);
+}
+
+bool acl_peer_supports_ble_connection_subrating(const RawAddress& random_pseudo) {
+  log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
+  return btm_interface->AclPeerSupportsBleConnectionSubrating(random_pseudo);
+}
+
+bool acl_peer_supports_ble_connection_subrating_host(const RawAddress& random_pseudo) {
+  log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
+  return btm_interface->AclPeerSupportsBleConnectionSubratingHost(random_pseudo);
 }
 
 tBTM_INQ_INFO* BTM_InqDbFirst(void) {
@@ -113,4 +138,9 @@ std::optional<Octet16> BTM_BleGetPeerIRK(const RawAddress address) {
 std::optional<tBLE_BD_ADDR> BTM_BleGetIdentityAddress(const RawAddress address) {
   log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
   return btm_interface->BTM_BleGetIdentityAddress(address);
+}
+
+tBTM_STATUS BTM_GetRole(const RawAddress& address, tBT_TRANSPORT transport, tHCI_ROLE* role) {
+  log::assert_that(btm_interface != nullptr, "Mock btm interface not set!");
+  return btm_interface->BTM_GetRole(address, transport, role);
 }

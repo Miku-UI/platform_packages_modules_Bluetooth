@@ -25,20 +25,19 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 import static com.android.bluetooth.TestUtils.mockGetSystemService;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyByte;
-import static org.mockito.Mockito.anyInt;
-import static org.mockito.Mockito.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyByte;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -48,7 +47,6 @@ import android.bluetooth.BluetoothHidDevice;
 import android.bluetooth.BluetoothHidDeviceAppSdpSettings;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.IBluetoothHidDeviceCallback;
-import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Binder;
@@ -56,12 +54,13 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.os.RemoteException;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
-import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.storage.DatabaseManager;
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.hamcrest.Matcher;
 import org.hamcrest.core.AllOf;
@@ -105,8 +104,8 @@ public class HidDeviceServiceTest {
             Looper.prepare();
         }
 
-        mockGetSystemService(mAdapterService, Context.ACTIVITY_SERVICE, ActivityManager.class);
-        doReturn(mDatabaseManager).when(mAdapterService).getDatabase();
+        mockGetSystemService(mAdapterService, ActivityManager.class);
+        doReturn(mDatabaseManager).when(mAdapterService).getDatabaseManager();
         doReturn(mBinder).when(mCallback).asBinder();
 
         mInOrder = inOrder(mAdapterService);
@@ -136,7 +135,6 @@ public class HidDeviceServiceTest {
     @After
     public void tearDown() {
         mService.cleanup();
-        assertThat(HidDeviceService.getHidDeviceService()).isNull();
     }
 
     private void verifyConnectionStateIntent(int newState, int prevState) {
@@ -154,12 +152,6 @@ public class HidDeviceServiceTest {
                         MockitoHamcrest.argThat(AllOf.allOf(matchers)),
                         eq(BLUETOOTH_CONNECT),
                         any(Bundle.class));
-    }
-
-    /** Test getting HidDeviceService: getHidDeviceService(). */
-    @Test
-    public void testGetHidDeviceService() {
-        assertThat(HidDeviceService.getHidDeviceService()).isEqualTo(mService);
     }
 
     /**

@@ -42,7 +42,8 @@ import android.os.RemoteException;
 import android.os.WorkSource;
 import android.util.Log;
 
-import java.util.ArrayList;
+import com.android.bluetooth.flags.Flags;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,8 +61,7 @@ import java.util.Map;
 public final class BluetoothLeScanner {
     private static final String TAG = BluetoothLeScanner.class.getSimpleName();
 
-    private static final boolean DBG = true;
-    private static final boolean VDBG = false;
+    private static final boolean VDBG = Log.isLoggable("bluetooth", Log.VERBOSE);
 
     /**
      * Extra containing a list of ScanResults. It can have one or more results if there was no
@@ -236,12 +236,15 @@ public final class BluetoothLeScanner {
             final WorkSource workSource,
             final ScanCallback callback,
             final PendingIntent callbackIntent) {
-        BluetoothLeUtils.checkAdapterStateOn(mBluetoothAdapter);
         if (callback == null && callbackIntent == null) {
             throw new IllegalArgumentException("callback is null");
         }
         if (settings == null) {
             throw new IllegalArgumentException("settings is null");
+        }
+        if (!BluetoothLeUtils.checkAdapterStateOn(mBluetoothAdapter)) {
+            Log.w(TAG, "BLE is not available");
+            return postCallbackErrorOrReturn(callback, ScanCallback.SCAN_FAILED_INTERNAL_ERROR);
         }
         synchronized (mLeScanClients) {
             if (callback != null && mLeScanClients.containsKey(callback)) {
@@ -264,13 +267,22 @@ public final class BluetoothLeScanner {
                 return postCallbackErrorOrReturn(
                         callback, ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED);
             }
+            if (Flags.batchScanSupportCheck()) {
+                if (!mBluetoothAdapter.isOffloadedScanBatchingSupported()
+                        && settings.getReportDelayMillis() > 0) {
+                    Log.w(TAG, "Batch scan requested but not supported");
+                    return postCallbackErrorOrReturn(
+                            callback, ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED);
+                }
+            }
             if (callback != null) {
                 BleScanCallbackWrapper wrapper =
                         new BleScanCallbackWrapper(scan, filters, settings, workSource, callback);
                 wrapper.startRegistration();
             } else {
                 try {
-                    scan.startScanForIntent(callbackIntent, settings, filters, mAttributionSource);
+                    scan.registerPiAndStartScan(
+                            callbackIntent, settings, filters, mAttributionSource);
                 } catch (RemoteException e) {
                     return ScanCallback.SCAN_FAILED_INTERNAL_ERROR;
                 }
@@ -284,11 +296,14 @@ public final class BluetoothLeScanner {
     @RequiresBluetoothScanPermission
     @RequiresPermission(BLUETOOTH_SCAN)
     public void stopScan(ScanCallback callback) {
-        BluetoothLeUtils.checkAdapterStateOn(mBluetoothAdapter);
+        if (!BluetoothLeUtils.checkAdapterStateOn(mBluetoothAdapter)) {
+            Log.w(TAG, "BLE is not available");
+            return;
+        }
         synchronized (mLeScanClients) {
             BleScanCallbackWrapper wrapper = mLeScanClients.remove(callback);
             if (wrapper == null) {
-                if (DBG) Log.d(TAG, "could not find callback wrapper");
+                Log.d(TAG, "could not find callback wrapper");
                 return;
             }
             wrapper.stopLeScan();
@@ -307,7 +322,10 @@ public final class BluetoothLeScanner {
     @RequiresBluetoothScanPermission
     @RequiresPermission(BLUETOOTH_SCAN)
     public void stopScan(PendingIntent callbackIntent) {
-        BluetoothLeUtils.checkAdapterStateOn(mBluetoothAdapter);
+        if (!BluetoothLeUtils.checkAdapterStateOn(mBluetoothAdapter)) {
+            Log.w(TAG, "BLE is not available");
+            return;
+        }
         try {
             IBluetoothScan scan = mBluetoothAdapter.getBluetoothScan();
             if (scan == null) {
@@ -332,7 +350,10 @@ public final class BluetoothLeScanner {
     @RequiresBluetoothScanPermission
     @RequiresPermission(BLUETOOTH_SCAN)
     public void flushPendingScanResults(ScanCallback callback) {
-        BluetoothLeUtils.checkAdapterStateOn(mBluetoothAdapter);
+        if (!BluetoothLeUtils.checkAdapterStateOn(mBluetoothAdapter)) {
+            Log.w(TAG, "BLE is not available");
+            return;
+        }
         if (callback == null) {
             throw new IllegalArgumentException("callback cannot be null!");
         }
@@ -355,16 +376,12 @@ public final class BluetoothLeScanner {
     @SystemApi
     @RequiresBluetoothScanPermission
     @RequiresPermission(BLUETOOTH_SCAN)
+    @SuppressLint("AndroidFrameworkRequiresPermission")
     public void startTruncatedScan(
             List<TruncatedFilter> truncatedFilters,
             ScanSettings settings,
             final ScanCallback callback) {
-        int filterSize = truncatedFilters.size();
-        List<ScanFilter> scanFilters = new ArrayList<ScanFilter>(filterSize);
-        for (TruncatedFilter filter : truncatedFilters) {
-            scanFilters.add(filter.getFilter());
-        }
-        startScan(scanFilters, settings, null, callback, null);
+        Log.wtf(TAG, "startTruncatedScan is deprecated and not supported; Will be removed soon");
     }
 
     /**
@@ -517,10 +534,11 @@ public final class BluetoothLeScanner {
         @Override
         public void onScanResult(final ScanResult scanResult) {
             Attributable.setAttributionSource(scanResult, mAttributionSource);
-            if (Log.isLoggable(TAG, Log.DEBUG)) {
+            if (VDBG) {
+                Log.d(TAG, "onScanResult() - " + scanResult.toString());
+            } else if (Log.isLoggable(TAG, Log.DEBUG)) {
                 Log.d(TAG, "onScanResult() - mScannerId=" + mScannerId);
             }
-            if (VDBG) Log.d(TAG, "onScanResult() - " + scanResult.toString());
 
             // Check null in case the scan has been stopped
             synchronized (this) {
@@ -591,7 +609,6 @@ public final class BluetoothLeScanner {
         }
     }
 
-    @SuppressLint("AndroidFrameworkBluetoothPermission")
     private void postCallbackError(final ScanCallback callback, final int errorCode) {
         mHandler.post(() -> callback.onScanFailed(errorCode));
     }

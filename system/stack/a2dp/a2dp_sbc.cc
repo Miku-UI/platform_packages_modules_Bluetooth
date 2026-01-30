@@ -28,6 +28,7 @@
 #include "a2dp_sbc.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include <cstdint>
@@ -43,6 +44,7 @@
 #include "a2dp_sbc_encoder.h"
 #include "avdt_api.h"
 #include "embdrv/sbc/encoder/include/sbc_encoder.h"
+#include "gd/common/utils.h"
 #include "hardware/bt_av.h"
 #include "internal_include/bt_trace.h"
 #include "stack/include/bt_hdr.h"
@@ -65,11 +67,7 @@ typedef struct {
 
 /* SBC Source codec capabilities */
 static const tA2DP_SBC_CIE a2dp_sbc_source_caps = {
-#ifdef TARGET_FLOSS
-        (A2DP_SBC_IE_SAMP_FREQ_48 | A2DP_SBC_IE_SAMP_FREQ_44), /* samp_freq */
-#else
-        (A2DP_SBC_IE_SAMP_FREQ_44), /* samp_freq */
-#endif
+        (A2DP_SBC_IE_SAMP_FREQ_44),                         /* samp_freq */
         (A2DP_SBC_IE_CH_MD_MONO | A2DP_SBC_IE_CH_MD_JOINT), /* ch_mode */
         (A2DP_SBC_IE_BLOCKS_16 | A2DP_SBC_IE_BLOCKS_12 | A2DP_SBC_IE_BLOCKS_8 |
          A2DP_SBC_IE_BLOCKS_4),            /* block_len */
@@ -96,11 +94,7 @@ static const tA2DP_SBC_CIE a2dp_sbc_sink_caps = {
 
 /* Default SBC codec configuration */
 const tA2DP_SBC_CIE a2dp_sbc_default_config = {
-#ifdef TARGET_FLOSS
-        (A2DP_SBC_IE_SAMP_FREQ_48), /* samp_freq */
-#else
-        (A2DP_SBC_IE_SAMP_FREQ_44), /* samp_freq */
-#endif
+        A2DP_SBC_IE_SAMP_FREQ_44,          /* samp_freq */
         A2DP_SBC_IE_CH_MD_JOINT,           /* ch_mode */
         A2DP_SBC_IE_BLOCKS_16,             /* block_len */
         A2DP_SBC_IE_SUBBAND_8,             /* num_subbands */
@@ -133,6 +127,41 @@ static const tA2DP_DECODER_INTERFACE a2dp_decoder_interface_sbc = {
 static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilitySbc(const tA2DP_SBC_CIE* p_cap,
                                                        const uint8_t* p_codec_info,
                                                        bool is_capability);
+
+// Adjusts the bitpool values in case we receive invalid bitpool values
+// from remote devices.
+static void A2DP_AdjustBitpool(tA2DP_SBC_CIE* p_ie) {
+  if (bluetooth::common::IsPtsTestMode()) {
+    return;
+  }
+
+  // minbitpool < 2, then set minbitpool = 2
+  if (p_ie->min_bitpool < A2DP_SBC_IE_MIN_BITPOOL) {
+    log::verbose("min_bitpool value adjusted from: {} to {}", p_ie->min_bitpool,
+                 A2DP_SBC_IE_MIN_BITPOOL);
+    p_ie->min_bitpool = A2DP_SBC_IE_MIN_BITPOOL;
+  }
+  // minbitpool > 250, then set minbitpool = 250
+  if (p_ie->min_bitpool > A2DP_SBC_IE_MAX_BITPOOL) {
+    log::verbose("min_bitpool value adjusted from: {} to {}", p_ie->min_bitpool,
+                 A2DP_SBC_IE_MAX_BITPOOL);
+    p_ie->min_bitpool = A2DP_SBC_IE_MAX_BITPOOL;
+  }
+  // maxbitpool > 250, then set maxbitpool = 250
+  if (p_ie->max_bitpool > A2DP_SBC_IE_MAX_BITPOOL) {
+    log::verbose("max_bitpool value adjusted from: {} to {}", p_ie->max_bitpool,
+                 A2DP_SBC_IE_MAX_BITPOOL);
+    p_ie->max_bitpool = A2DP_SBC_IE_MAX_BITPOOL;
+  }
+  // minbitpool > maxbitpool, then set maxbitpool = minbitpool
+  if (p_ie->min_bitpool > p_ie->max_bitpool) {
+    p_ie->max_bitpool = p_ie->min_bitpool;
+    log::verbose(
+            "min bitpool value received for SBC is more than DUT supported Max bitpool"
+            "Clamping the max bitpool configuration further from {} to {}",
+            p_ie->max_bitpool, p_ie->min_bitpool);
+  }
+}
 
 // Builds the SBC Media Codec Capabilities byte sequence beginning from the
 // LOSC octet. |media_type| is the media type |AVDT_MEDIA_TYPE_*|.
@@ -205,6 +234,11 @@ static tA2DP_STATUS A2DP_ParseInfoSbc(tA2DP_SBC_CIE* p_ie, const uint8_t* p_code
   p_codec_info++;
   p_ie->min_bitpool = *p_codec_info++;
   p_ie->max_bitpool = *p_codec_info++;
+
+  if (com::android::bluetooth::flags::a2dp_adjust_sbc_bitpool()) {
+    A2DP_AdjustBitpool(p_ie);
+  }
+
   if (p_ie->min_bitpool < A2DP_SBC_IE_MIN_BITPOOL || p_ie->min_bitpool > A2DP_SBC_IE_MAX_BITPOOL) {
     return A2DP_INVALID_MINIMUM_BITPOOL_VALUE;
   }
@@ -1015,20 +1049,6 @@ tA2DP_STATUS A2dpCodecConfigSbcBase::setCodecConfig(const uint8_t* p_peer_codec_
     goto fail;
   }
 
-  // Try using the prefered peer codec config (if valid), instead of the peer
-  // capability.
-  if (is_capability) {
-    if (A2DP_IsCodecValidSbc(ota_codec_peer_config_)) {
-      status =
-          A2DP_ParseInfoSbc(&peer_info_cie, ota_codec_peer_config_, false);
-    }
-    if (status != A2DP_SUCCESS) {
-      // Use the peer codec capability
-      status = A2DP_ParseInfoSbc(&peer_info_cie, p_peer_codec_info, is_capability);
-      log::assert_that(status == A2DP_SUCCESS, "assert failed: status == A2DP_SUCCESS");
-    }
-  }
-
   //
   // Build the preferred configuration
   //
@@ -1097,6 +1117,7 @@ tA2DP_STATUS A2dpCodecConfigSbcBase::setCodecConfig(const uint8_t* p_peer_codec_
   if (codec_config_.sample_rate == BTAV_A2DP_CODEC_SAMPLE_RATE_NONE) {
     log::error("cannot match sample frequency: local caps = 0x{:x} peer info = 0x{:x}",
                p_a2dp_sbc_caps->samp_freq, peer_info_cie.samp_freq);
+    status = A2DP_NOT_SUPPORTED_SAMPLING_FREQUENCY;
     goto fail;
   }
 
@@ -1145,6 +1166,7 @@ tA2DP_STATUS A2dpCodecConfigSbcBase::setCodecConfig(const uint8_t* p_peer_codec_
   if (codec_config_.bits_per_sample == BTAV_A2DP_CODEC_BITS_PER_SAMPLE_NONE) {
     log::error("cannot match bits per sample: user preference = 0x{:x}",
                codec_user_config_.bits_per_sample);
+    status = A2DP_NOT_SUPPORTED_BIT_RATE;
     goto fail;
   }
 
@@ -1222,6 +1244,7 @@ tA2DP_STATUS A2dpCodecConfigSbcBase::setCodecConfig(const uint8_t* p_peer_codec_
   if (codec_config_.channel_mode == BTAV_A2DP_CODEC_CHANNEL_MODE_NONE) {
     log::error("cannot match channel mode: local caps = 0x{:x} peer info = 0x{:x}",
                p_a2dp_sbc_caps->ch_mode, peer_info_cie.ch_mode);
+    status = A2DP_NOT_SUPPORTED_CHANNELS;
     goto fail;
   }
 
@@ -1240,6 +1263,7 @@ tA2DP_STATUS A2dpCodecConfigSbcBase::setCodecConfig(const uint8_t* p_peer_codec_
   } else {
     log::error("cannot match block length: local caps = 0x{:x} peer info = 0x{:x}",
                p_a2dp_sbc_caps->block_len, peer_info_cie.block_len);
+    status = A2DP_INVALID_BLOCK_LENGTH;
     goto fail;
   }
 
@@ -1254,6 +1278,7 @@ tA2DP_STATUS A2dpCodecConfigSbcBase::setCodecConfig(const uint8_t* p_peer_codec_
   } else {
     log::error("cannot match number of sub-bands: local caps = 0x{:x} peer info = 0x{:x}",
                p_a2dp_sbc_caps->num_subbands, peer_info_cie.num_subbands);
+    status = A2DP_NOT_SUPPORTED_SUBBANDS;
     goto fail;
   }
 
@@ -1268,6 +1293,7 @@ tA2DP_STATUS A2dpCodecConfigSbcBase::setCodecConfig(const uint8_t* p_peer_codec_
   } else {
     log::error("cannot match allocation method: local caps = 0x{:x} peer info = 0x{:x}",
                p_a2dp_sbc_caps->alloc_method, peer_info_cie.alloc_method);
+    status = A2DP_NOT_SUPPORTED_ALLOCATION_METHOD;
     goto fail;
   }
 
@@ -1282,16 +1308,23 @@ tA2DP_STATUS A2dpCodecConfigSbcBase::setCodecConfig(const uint8_t* p_peer_codec_
   if (result_config_cie.max_bitpool > peer_info_cie.max_bitpool) {
     result_config_cie.max_bitpool = peer_info_cie.max_bitpool;
   }
+
+  if (com::android::bluetooth::flags::a2dp_adjust_sbc_bitpool()) {
+    A2DP_AdjustBitpool(&result_config_cie);
+  }
+
   if (result_config_cie.min_bitpool > result_config_cie.max_bitpool) {
     log::error(
             "cannot match min/max bitpool: local caps min/max = 0x{:x}/0x{:x} peer "
             "info min/max = 0x{:x}/0x{:x}",
             p_a2dp_sbc_caps->min_bitpool, p_a2dp_sbc_caps->max_bitpool, peer_info_cie.min_bitpool,
             peer_info_cie.max_bitpool);
+    status = AVDTP_UNSUPPORTED_CONFIGURATION;
     goto fail;
   }
 
   if (!A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, p_result_codec_config)) {
+    status = AVDTP_UNSUPPORTED_CONFIGURATION;
     goto fail;
   }
 

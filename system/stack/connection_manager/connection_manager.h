@@ -18,10 +18,10 @@
 
 #pragma once
 
-#include <set>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/ble_address_with_type.h>
 
-#include "types/ble_address_with_type.h"
-#include "types/raw_address.h"
+#include <set>
 
 /* Must be provided by stack to connection manager, so it can dump nice client names in dumpsys */
 std::string get_client_name(uint8_t gatt_if);
@@ -69,7 +69,7 @@ std::set<tAPP_ID> get_apps_connecting_to(const RawAddress& remote_bda);
  *
  * @return true if device added to the list, false otherwise */
 bool direct_connect_add(tAPP_ID app_id, const RawAddress& address,
-                        tBLE_ADDR_TYPE addr_type = BLE_ADDR_PUBLIC);
+                        tBLE_ADDR_TYPE addr_type = BLE_ADDR_PUBLIC, bool prefer_relax_mode = false);
 /* Remove a direct connection request.
  *
  * @return true if the request is removed, false otherwise.
@@ -85,5 +85,6 @@ void on_connection_timed_out(uint8_t app_id, const RawAddress& address);
 void on_connection_timed_out_from_shim(const RawAddress& address);
 
 bool is_background_connection(const RawAddress& address);
+bool is_direct_connection(const RawAddress& address);
 
 }  // namespace connection_manager

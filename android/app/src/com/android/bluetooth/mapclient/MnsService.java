@@ -18,6 +18,8 @@ package com.android.bluetooth.mapclient;
 
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 
+import static java.util.Objects.requireNonNull;
+
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.util.Log;
@@ -25,8 +27,7 @@ import android.util.Log;
 import com.android.bluetooth.BluetoothObexTransport;
 import com.android.bluetooth.IObexConnectionHandler;
 import com.android.bluetooth.ObexServerSockets;
-import com.android.bluetooth.Utils;
-import com.android.bluetooth.sdp.SdpManagerNativeInterface;
+import com.android.bluetooth.btservice.AdapterService;
 import com.android.obex.ServerSession;
 
 import java.io.IOException;
@@ -39,29 +40,34 @@ public class MnsService {
     private static final int MNS_VERSION = 0x0104; // MAP version 1.4
 
     private final SocketAcceptor mAcceptThread = new SocketAcceptor();
+
     private final MapClientService mMapClientService;
+    private final AdapterService mAdapterService;
 
     private ObexServerSockets mServerSockets;
 
     private volatile boolean mShutdown = false; // Used to interrupt socket accept thread
     private int mSdpHandle = -1;
 
-    MnsService(MapClientService service) {
+    MnsService(AdapterService adapterService, MapClientService service) {
         Log.v(TAG, "MnsService()");
+        mAdapterService = requireNonNull(adapterService);
         mMapClientService = service;
-        mServerSockets = ObexServerSockets.create(mAcceptThread);
-        SdpManagerNativeInterface nativeInterface = SdpManagerNativeInterface.getInstance();
-        if (!nativeInterface.isAvailable()) {
+        mServerSockets = ObexServerSockets.create(mAdapterService, mAcceptThread);
+        final var nativeInterface = mAdapterService.getSdpManagerNativeInterface();
+        if (nativeInterface.isEmpty()) {
             Log.e(TAG, "SdpManagerNativeInterface is not available");
             return;
         }
         mSdpHandle =
-                nativeInterface.createMapMnsRecord(
-                        "MAP Message Notification Service",
-                        mServerSockets.getRfcommChannel(),
-                        mServerSockets.getL2capPsm(),
-                        MNS_VERSION,
-                        MasClient.MAP_SUPPORTED_FEATURES);
+                nativeInterface
+                        .get()
+                        .createMapMnsRecord(
+                                "MAP Message Notification Service",
+                                mServerSockets.getRfcommChannel(),
+                                mServerSockets.getL2capPsm(),
+                                MNS_VERSION,
+                                MasClient.MAP_SUPPORTED_FEATURES);
     }
 
     void stop() {
@@ -81,8 +87,8 @@ public class MnsService {
         }
         int sdpHandle = mSdpHandle;
         mSdpHandle = -1;
-        SdpManagerNativeInterface nativeInterface = SdpManagerNativeInterface.getInstance();
-        if (!nativeInterface.isAvailable()) {
+        final var nativeInterface = mAdapterService.getSdpManagerNativeInterface();
+        if (nativeInterface.isEmpty()) {
             Log.e(
                     TAG,
                     "cleanUpSdpRecord failed, SdpManagerNativeInterface is not available,"
@@ -91,7 +97,7 @@ public class MnsService {
             return;
         }
         Log.i(TAG, "cleanUpSdpRecord, mSdpHandle=" + sdpHandle);
-        if (!nativeInterface.removeSdpRecord(sdpHandle)) {
+        if (!nativeInterface.get().removeSdpRecord(sdpHandle)) {
             Log.e(TAG, "cleanUpSdpRecord, removeSdpRecord failed, sdpHandle=" + sdpHandle);
         }
     }
@@ -113,30 +119,19 @@ public class MnsService {
 
         @Override
         public synchronized boolean onConnect(BluetoothDevice device, BluetoothSocket socket) {
-            Log.d(TAG, "onConnect" + device + " SOCKET: " + socket);
+            String log = "onConnect(" + device + ", " + socket + ")";
             /* Signal to the service that we have received an incoming connection.*/
             MceStateMachine stateMachine = mMapClientService.getMceStateMachineForDevice(device);
             if (stateMachine == null) {
-                Log.e(
-                        TAG,
-                        "Error: NO StateMachine for device: "
-                                + device
-                                + " (name: "
-                                + Utils.getName(device));
+                Log.e(TAG, log + ": No StateMachine");
                 return false;
             } else if (stateMachine.getState() != STATE_CONNECTED) {
-                Log.e(
-                        TAG,
-                        "Error: StateMachine for device: "
-                                + device
-                                + " (name: "
-                                + Utils.getName(device)
-                                + ") is not currently CONNECTED : "
-                                + stateMachine.getCurrentState());
+                Log.e(TAG, log + ": expected connected but got " + stateMachine.getCurrentState());
                 return false;
             }
+            Log.d(TAG, log);
             MnsObexServer srv = new MnsObexServer(stateMachine);
-            BluetoothObexTransport transport = new BluetoothObexTransport(socket);
+            BluetoothObexTransport transport = new BluetoothObexTransport(mAdapterService, socket);
             try {
                 new ServerSession(transport, srv, null);
                 return true;

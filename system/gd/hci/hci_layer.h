@@ -23,6 +23,7 @@
 
 #include "common/bidi_queue.h"
 #include "common/contextual_callback.h"
+#include "hal/hci_hal.h"
 #include "hci/acl_connection_interface.h"
 #include "hci/address.h"
 #include "hci/class_of_device.h"
@@ -36,16 +37,18 @@
 #include "hci/le_scanning_interface.h"
 #include "hci/le_security_interface.h"
 #include "hci/security_interface.h"
-#include "module.h"
 #include "os/handler.h"
+#include "storage/storage_module.h"
 
 namespace bluetooth {
 namespace hci {
 
-class HciLayer : public Module, public HciInterface {
+class HciLayer : public HciInterface {
   // LINT.IfChange
 public:
-  HciLayer();
+  HciLayer(os::Handler* handler, hal::HciHal* hci_hal, storage::StorageModule* storage);
+  /* For tests, starts HciLayer with no dependencies */
+  HciLayer(os::Handler* handler);
   HciLayer(const HciLayer&) = delete;
   HciLayer& operator=(const HciLayer&) = delete;
 
@@ -116,8 +119,12 @@ public:
   virtual LeAdvertisingInterface* GetLeAdvertisingInterface(
           common::ContextualCallback<void(LeMetaEventView)> event_handler);
 
+  virtual void ReleaseLeAdvertisingInterface();
+
   virtual LeScanningInterface* GetLeScanningInterface(
           common::ContextualCallback<void(LeMetaEventView)> event_handler);
+
+  virtual void ReleaseLeScanningInterface();
 
   virtual void RegisterForScoConnectionRequests(
           common::ContextualCallback<void(Address, ClassOfDevice, ConnectionRequestLinkType)>
@@ -129,25 +136,55 @@ public:
   virtual DistanceMeasurementInterface* GetDistanceMeasurementInterface(
           common::ContextualCallback<void(LeMetaEventView)> event_handler);
 
+  virtual void ReleaseDistanceMeasurementInterface();
+
   std::unique_ptr<InquiryInterface> GetInquiryInterface(
           common::ContextualCallback<void(EventView)> event_handler) override;
 
-  std::string ToString() const override { return "Hci Layer"; }
+  void SetLeAclDataConsumer(LeAclDataConsumer* le_acl_data_consumer) override;
+  void SetClassicAclDataConsumer(ClassicAclDataConsumer* classic_acl_data_consumer) override;
 
   static constexpr std::chrono::milliseconds kHciTimeoutMs = std::chrono::milliseconds(2000);
   static constexpr std::chrono::milliseconds kHciTimeoutRestartMs = std::chrono::milliseconds(5000);
 
-  static const ModuleFactory Factory;
-
 protected:
   // LINT.ThenChange(fuzz/fuzz_hci_layer.h)
-  void ListDependencies(ModuleList* list) const override;
 
-  void Start() override;
+protected:
+  template <typename T>
+  class CommandInterfaceImpl : public CommandInterface<T> {
+  public:
+    explicit CommandInterfaceImpl(HciInterface* hci, common::OnceCallback<void()> cleanup)
+        : hci_(hci), cleanup_(std::move(cleanup)) {}
+    explicit CommandInterfaceImpl(HciInterface* hci) : hci_(hci) {
+      cleanup_ = common::BindOnce([]() {});
+    }
+    ~CommandInterfaceImpl() { std::move(cleanup_).Run(); }
+
+    void EnqueueCommand(
+            std::unique_ptr<T> command,
+            common::ContextualOnceCallback<void(CommandCompleteView)> on_complete) override {
+      hci_->EnqueueCommand(std::move(command), std::move(on_complete));
+    }
+
+    void EnqueueCommand(
+            std::unique_ptr<T> command,
+            common::ContextualOnceCallback<void(CommandStatusView)> on_status) override {
+      hci_->EnqueueCommand(std::move(command), std::move(on_status));
+    }
+
+    void EnqueueCommand(std::unique_ptr<T> command,
+                        common::ContextualOnceCallback<void(CommandStatusOrCompleteView)>
+                                on_status_or_complete) override {
+      hci_->EnqueueCommand(std::move(command), std::move(on_status_or_complete));
+    }
+
+    HciInterface* hci_;
+    common::OnceCallback<void()> cleanup_;
+  };
 
   void StartWithNoHalDependencies(os::Handler* handler);
-
-  void Stop() override;
+  void StopWithNoHalDependencies();
 
   void LifeCycleStop();
 

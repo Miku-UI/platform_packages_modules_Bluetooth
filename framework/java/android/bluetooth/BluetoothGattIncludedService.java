@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package android.bluetooth;
 
 import android.annotation.NonNull;
+import android.annotation.RequiresNoPermission;
 import android.os.Parcel;
 import android.os.ParcelUuid;
 import android.os.Parcelable;
@@ -79,6 +81,7 @@ public class BluetoothGattIncludedService implements Parcelable {
      *
      * @return UUID of this service
      */
+    @RequiresNoPermission
     public UUID getUuid() {
         return mUuid;
     }
@@ -91,11 +94,13 @@ public class BluetoothGattIncludedService implements Parcelable {
      *
      * @return Instance ID of this service
      */
+    @RequiresNoPermission
     public int getInstanceId() {
         return mInstanceId;
     }
 
     /** Get the type of this service (primary/secondary) */
+    @RequiresNoPermission
     public int getType() {
         return mServiceType;
     }

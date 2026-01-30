@@ -34,7 +34,6 @@ package com.android.bluetooth.opp;
 
 import static android.view.WindowManager.LayoutParams.SYSTEM_FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS;
 
-import android.bluetooth.AlertActivity;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothProtoEnums;
 import android.content.BroadcastReceiver;
@@ -58,6 +57,7 @@ import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.R;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
+import com.android.bluetooth.util.AlertActivity;
 import com.android.internal.annotations.VisibleForTesting;
 
 /** This class is designed to ask user to confirm if accept incoming file; */
@@ -83,7 +83,6 @@ public class BluetoothOppIncomingFileConfirmActivity extends AlertActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        setTheme(R.style.Theme_Material_Settings_Floating);
         Log.v(TAG, "onCreate(): action = " + getIntent().getAction());
         super.onCreate(savedInstanceState);
 
@@ -227,14 +226,11 @@ public class BluetoothOppIncomingFileConfirmActivity extends AlertActivity {
             new Handler() {
                 @Override
                 public void handleMessage(Message msg) {
-                    switch (msg.what) {
-                        case DISMISS_TIMEOUT_DIALOG:
-                            Log.v(TAG, "Received DISMISS_TIMEOUT_DIALOG msg.");
-                            finish();
-                            break;
-                        default:
-                            break;
+                    if (msg.what != DISMISS_TIMEOUT_DIALOG) {
+                        return;
                     }
+                    Log.v(TAG, "Received DISMISS_TIMEOUT_DIALOG msg.");
+                    finish();
                 }
             };
 }

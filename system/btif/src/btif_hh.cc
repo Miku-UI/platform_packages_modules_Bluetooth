@@ -31,6 +31,11 @@
 
 #include <base/functional/bind.h>
 #include <bluetooth/log.h>
+#include <bluetooth/metrics/os_metrics.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/ble_address_with_type.h>
+#include <bluetooth/types/bt_transport.h>
+#include <bluetooth/types/uuid.h>
 #include <com_android_bluetooth_flags.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 #include <unistd.h>
@@ -55,17 +60,12 @@
 #include "include/hardware/bt_hh.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
-#include "main/shim/metrics_api.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/hidh_api.h"
-#include "types/ble_address_with_type.h"
-#include "types/bluetooth/uuid.h"
-#include "types/bt_transport.h"
-#include "types/raw_address.h"
 
 #define COD_HID_KEYBOARD 0x0540
 #define COD_HID_POINTING 0x0580
@@ -468,8 +468,8 @@ static void btif_hh_incoming_connection_timeout(void* data) {
                handle);
   }
   log::warn("Reject unexpected incoming HID Connection, device: {}", conn.link_spec);
-  bluetooth::shim::CountCounterMetrics(
-          android::bluetooth::CodePathCounterKeyEnum::HIDH_COUNT_INCOMING_CONNECTION_REJECTED, 1);
+  bluetooth::metrics::Counter(
+          bluetooth::metrics::CounterKey::HIDH_COUNT_INCOMING_CONNECTION_REJECTED);
 
   btif_hh_device_t* p_dev = btif_hh_find_dev_by_link_spec(conn.link_spec);
   if (p_dev != nullptr) {
@@ -479,6 +479,7 @@ static void btif_hh_incoming_connection_timeout(void* data) {
   btif_hh_cb.pending_incoming_connection = {};
 }
 
+// Todo(b/404590499): Remove when simpler_hid_connection_policy is released
 static bthh_connection_state_t hh_get_state_on_disconnect(tAclLinkSpec& link_spec) {
   btif_hh_added_device_t* added_dev = btif_hh_find_added_dev(link_spec);
   if (added_dev != nullptr) {
@@ -492,6 +493,14 @@ static void hh_connect_complete(tBTA_HH_CONN& conn, bthh_connection_state_t stat
   if (state != BTHH_CONN_STATE_CONNECTED) {
     if (conn.status == BTA_HH_OK) {
       BTA_HhClose(conn.handle);
+    }
+  }
+
+  if (com_android_bluetooth_flags_simpler_hid_connection_policy()) {
+    btif_hh_device_t* p_dev = btif_hh_find_dev_by_link_spec(conn.link_spec);
+    if (p_dev != nullptr) {
+      btif_hh_stop_vup_timer(p_dev->link_spec);
+      p_dev->dev_status = state;
     }
   }
   BTHH_STATE_UPDATE(conn.link_spec, state);
@@ -529,9 +538,54 @@ static bool hh_add_device(const tAclLinkSpec& link_spec, tBTA_HH_ATTR_MASK attr_
   }
 
   log::error("Out of space to add device");
-  bluetooth::shim::CountCounterMetrics(
-          android::bluetooth::CodePathCounterKeyEnum::HIDH_COUNT_MAX_ADDED_DEVICE_LIMIT_REACHED, 1);
+  bluetooth::metrics::Counter(
+          bluetooth::metrics::CounterKey::HIDH_COUNT_MAX_ADDED_DEVICE_LIMIT_REACHED);
   return false;
+}
+
+static bool hh_connection_allowed(const tAclLinkSpec& link_spec) {
+  // Accept connection only if reconnection is allowed for the known device,
+  // or outgoing connection was requested
+  btif_hh_added_device_t* added_dev = btif_hh_find_added_dev(link_spec);
+  if (added_dev != nullptr && added_dev->reconnect_allowed) {
+    return true;
+  } else if (std::find(btif_hh_cb.new_connection_requests.begin(),
+                       btif_hh_cb.new_connection_requests.end(),
+                       link_spec) != btif_hh_cb.new_connection_requests.end()) {
+    log::verbose("Device connection was pending for: {}, status: {}", link_spec,
+                 btif_hh_status_text(btif_hh_cb.status).c_str());
+    return true;
+  }
+
+  return false;
+}
+
+static void hh_save_incoming_connection(tBTA_HH_CONN& conn) {
+  uint64_t delay = 0;
+  if (btif_dm_is_pairing(conn.link_spec.addrt.bda)) {
+    // Remote device is trying to connect while bonding is in progress. We should wait for
+    // locally initiated connect request to plumb the remote device to UHID.
+    log::warn(
+            "Incoming HID connection during bonding, wait for local connect request {}, "
+            "handle: {}",
+            conn.link_spec, conn.handle);
+    delay = BTIF_HH_INCOMING_CONNECTION_DURING_BONDING_TIMEOUT_MS;
+  } else {
+    // Unexpected incoming connection, wait for a while before rejecting.
+    log::warn("Unexpected incoming HID connection, wait for local connect request {}, handle: {}",
+              conn.link_spec, conn.handle);
+    delay = BTIF_HH_UNEXPECTED_INCOMING_CONNECTION_TIMEOUT_MS;
+  }
+
+  if (!btif_hh_cb.pending_incoming_connection.link_spec.addrt.bda.IsEmpty()) {
+    log::error("Replacing existing pending connection {}",
+               btif_hh_cb.pending_incoming_connection.link_spec);
+    BTA_HhRemoveDev(btif_hh_cb.pending_incoming_connection.handle);
+  }
+  btif_hh_cb.pending_incoming_connection = conn;
+  alarm_cancel(btif_hh_cb.incoming_connection_timer);
+  alarm_set_on_mloop(btif_hh_cb.incoming_connection_timer, delay,
+                     btif_hh_incoming_connection_timeout, reinterpret_cast<void*>(conn.handle));
 }
 
 /*******************************************************************************
@@ -576,7 +630,8 @@ static void hh_disable_handler(tBTA_HH_STATUS& status) {
   }
 }
 
-static void hh_open_handler(tBTA_HH_CONN& conn) {
+// Todo(b/404590499): Remove when simpler_hid_connection_policy is released
+static void hh_open_handler_(tBTA_HH_CONN& conn) {
   log::debug("link spec = {}, status = {}, handle = {}", conn.link_spec, conn.status, conn.handle);
 
   // Initialize with disconnected/accepting state based on reconnection policy
@@ -599,8 +654,8 @@ static void hh_open_handler(tBTA_HH_CONN& conn) {
   }
 
   if (dev_status != BTHH_CONN_STATE_ACCEPTING && dev_status != BTHH_CONN_STATE_CONNECTING) {
-    if (com::android::bluetooth::flags::early_incoming_hid_connection() &&
-        conn.status == BTA_HH_OK && conn.link_spec.transport == BT_TRANSPORT_BR_EDR) {
+    if (com_android_bluetooth_flags_early_incoming_hid_connection() && conn.status == BTA_HH_OK &&
+        conn.link_spec.transport == BT_TRANSPORT_BR_EDR) {
       uint64_t delay = 0;
       if (btif_dm_is_pairing(conn.link_spec.addrt.bda)) {
         // Remote device is trying to connect while bonding is in progress. We should wait for
@@ -633,8 +688,8 @@ static void hh_open_handler(tBTA_HH_CONN& conn) {
 
     log::warn("Reject Incoming HID Connection, device: {}, state: {}", conn.link_spec,
               bthh_connection_state_text(dev_status));
-    bluetooth::shim::CountCounterMetrics(
-            android::bluetooth::CodePathCounterKeyEnum::HIDH_COUNT_INCOMING_CONNECTION_REJECTED, 1);
+    bluetooth::metrics::Counter(
+            bluetooth::metrics::CounterKey::HIDH_COUNT_INCOMING_CONNECTION_REJECTED);
 
     if (p_dev != nullptr) {
       p_dev->dev_status = BTHH_CONN_STATE_DISCONNECTED;
@@ -676,22 +731,63 @@ static void hh_open_handler(tBTA_HH_CONN& conn) {
 
   log::info("Found device, getting dscp info for handle {}", conn.handle);
   hh_connect_complete(conn, BTHH_CONN_STATE_CONNECTED);
+  BTA_HhGetDscpInfo(conn.handle);
+}
 
-  if (!com::android::bluetooth::flags::dont_send_hid_set_idle()) {
-    // Send set_idle if the peer_device is a keyboard
-    // TODO (b/307923455): clean this, set idle is deprecated in HID spec v1.1.1
-    if (btif_check_cod_hid_major(conn.link_spec.addrt.bda, COD_HID_KEYBOARD) ||
-        btif_check_cod_hid_major(conn.link_spec.addrt.bda, COD_HID_COMBO)) {
-      BTA_HhSetIdle(conn.handle, 0);
-    }
+static void hh_open_handler(tBTA_HH_CONN& conn) {
+  if (!com_android_bluetooth_flags_simpler_hid_connection_policy()) {
+    hh_open_handler_(conn);
+    return;
   }
+
+  if (!hh_connection_allowed(conn.link_spec)) {
+    if (com_android_bluetooth_flags_early_incoming_hid_connection() && conn.status == BTA_HH_OK &&
+        conn.link_spec.transport == BT_TRANSPORT_BR_EDR) {
+      hh_save_incoming_connection(conn);
+      return;
+    }
+
+    log::warn("Reject Incoming HID Connection, device: {}", conn.link_spec);
+    bluetooth::metrics::Counter(
+            bluetooth::metrics::CounterKey::HIDH_COUNT_INCOMING_CONNECTION_REJECTED);
+    BTA_HhClose(conn.handle);
+    return;
+  }
+  btif_hh_cb.new_connection_requests.remove(conn.link_spec);
+
+  if (conn.status != BTA_HH_OK) {
+    log::warn("Connection failed, link spec = {}, status = {}, handle = {}", conn.link_spec,
+              conn.status, conn.handle);
+    hh_connect_complete(conn, BTHH_CONN_STATE_DISCONNECTED);
+
+    // Resume background connection attempt for added HOGP device.
+    if (com_android_bluetooth_flags_reconnect_on_hogp_connection_failure() &&
+        conn.link_spec.transport == BT_TRANSPORT_LE) {
+      btif_hh_added_device_t* added_dev = btif_hh_find_added_dev(conn.link_spec);
+      if (added_dev != nullptr && added_dev->reconnect_allowed) {
+        log::info("Resuming background connection attempt for {}", conn.link_spec);
+        BTA_HhOpen(conn.link_spec, false);
+      }
+    }
+    return;
+  }
+
+  /* Initialize device driver */
+  if (!bta_hh_co_open(conn.handle, conn.sub_class, conn.attr_mask, conn.app_id, conn.link_spec)) {
+    log::warn("Failed to open uhid driver for {}", conn.link_spec);
+    hh_connect_complete(conn, BTHH_CONN_STATE_DISCONNECTED);
+    return;
+  }
+  hh_connect_complete(conn, BTHH_CONN_STATE_CONNECTED);
+
+  log::info("Connected, getting dscp info for {} handle {}", conn.link_spec, conn.handle);
   BTA_HhGetDscpInfo(conn.handle);
 }
 
 static void hh_close_handler(tBTA_HH_CBDATA& dev_status) {
   btif_hh_device_t* p_dev = btif_hh_find_connected_dev_by_handle(dev_status.handle);
   if (p_dev == nullptr) {
-    if (com::android::bluetooth::flags::early_incoming_hid_connection() &&
+    if (com_android_bluetooth_flags_early_incoming_hid_connection() &&
         btif_hh_cb.pending_incoming_connection.handle == dev_status.handle &&
         !btif_hh_cb.pending_incoming_connection.link_spec.addrt.bda.IsEmpty()) {
       log::warn("Pending incoming connection {} closed, handle: {} ",
@@ -722,7 +818,10 @@ static void hh_close_handler(tBTA_HH_CBDATA& dev_status) {
     btif_storage_remove_hid_info(p_dev->link_spec);
   }
 
-  p_dev->dev_status = hh_get_state_on_disconnect(p_dev->link_spec);
+  p_dev->dev_status = BTHH_CONN_STATE_DISCONNECTED;
+  if (!com_android_bluetooth_flags_simpler_hid_connection_policy()) {
+    p_dev->dev_status = hh_get_state_on_disconnect(p_dev->link_spec);
+  }
   bta_hh_co_close(p_dev);
   BTHH_STATE_UPDATE(p_dev->link_spec, p_dev->dev_status);
 }
@@ -904,14 +1003,15 @@ static void hh_vc_unplug_handler(tBTA_HH_CBDATA& dev_status) {
 
   /* Stop the VUP timer */
   btif_hh_stop_vup_timer(p_dev->link_spec);
-  p_dev->dev_status = hh_get_state_on_disconnect(p_dev->link_spec);
+  p_dev->dev_status = BTHH_CONN_STATE_DISCONNECTED;
+  if (!com_android_bluetooth_flags_simpler_hid_connection_policy()) {
+    p_dev->dev_status = hh_get_state_on_disconnect(p_dev->link_spec);
+  }
   BTHH_STATE_UPDATE(p_dev->link_spec, p_dev->dev_status);
 
   if (!p_dev->local_vup) {
-    bluetooth::shim::CountCounterMetrics(
-            android::bluetooth::CodePathCounterKeyEnum::
-                    HIDH_COUNT_VIRTUAL_UNPLUG_REQUESTED_BY_REMOTE_DEVICE,
-            1);
+    bluetooth::metrics::Counter(
+            bluetooth::metrics::CounterKey::HIDH_COUNT_VIRTUAL_UNPLUG_REQUESTED_BY_REMOTE_DEVICE);
   }
 
   // Remove the HID device
@@ -926,15 +1026,12 @@ static void hh_vc_unplug_handler(tBTA_HH_CBDATA& dev_status) {
 void btif_hh_load_bonded_dev(const tAclLinkSpec& link_spec_ref, tBTA_HH_ATTR_MASK attr_mask,
                              uint8_t sub_class, uint8_t app_id, tBTA_HH_DEV_DSCP_INFO dscp_info,
                              bool reconnect_allowed) {
-  btif_hh_device_t* p_dev;
-  uint8_t i;
   tAclLinkSpec link_spec = link_spec_ref;
 
   if (link_spec.transport == BT_TRANSPORT_AUTO) {
     log::warn("Resolving link spec {} transport to BREDR/LE", link_spec);
     btif_hh_transport_select(link_spec);
     reconnect_allowed = true;
-    btif_storage_set_hid_connection_policy(link_spec, reconnect_allowed);
 
     // remove and re-write the hid info
     btif_storage_remove_hid_info(link_spec);
@@ -942,6 +1039,7 @@ void btif_hh_load_bonded_dev(const tAclLinkSpec& link_spec_ref, tBTA_HH_ATTR_MAS
                                      dscp_info.product_id, dscp_info.version, dscp_info.ctry_code,
                                      dscp_info.ssr_max_latency, dscp_info.ssr_min_tout,
                                      dscp_info.descriptor.dl_len, dscp_info.descriptor.dsc_list);
+    btif_storage_set_hid_connection_policy(link_spec, reconnect_allowed);
   }
 
   if (hh_add_device(link_spec, attr_mask, reconnect_allowed)) {
@@ -952,11 +1050,7 @@ void btif_hh_load_bonded_dev(const tAclLinkSpec& link_spec_ref, tBTA_HH_ATTR_MAS
   }
 }
 
-void btif_hh_disconnected(const RawAddress& addr, tBT_TRANSPORT transport) {
-  if (!com::android::bluetooth::flags::hogp_reconnection()) {
-    return;
-  }
-
+void btif_hh_acl_disconnected(const RawAddress& addr, tBT_TRANSPORT transport) {
   // We want to reconnect HoGP in the background, so we're only interested in LE case.
   if (transport != BT_TRANSPORT_LE) {
     return;
@@ -967,7 +1061,7 @@ void btif_hh_disconnected(const RawAddress& addr, tBT_TRANSPORT transport) {
   link_spec.addrt.type = BLE_ADDR_PUBLIC;
   link_spec.transport = BT_TRANSPORT_LE;
 
-  if (com::android::bluetooth::flags::early_incoming_hid_connection() &&
+  if (com_android_bluetooth_flags_early_incoming_hid_connection() &&
       btif_hh_cb.pending_incoming_connection.link_spec == link_spec) {
     log::warn("Pending incoming connection {} closed, handle: {} ",
               btif_hh_cb.pending_incoming_connection.link_spec,
@@ -1003,7 +1097,7 @@ void btif_hh_remove_device(const tAclLinkSpec& link_spec) {
   BTHH_LOG_LINK(link_spec);
   bool announce_vup = false;
 
-  if (com::android::bluetooth::flags::early_incoming_hid_connection() &&
+  if (com_android_bluetooth_flags_early_incoming_hid_connection() &&
       btif_hh_cb.pending_incoming_connection.link_spec == link_spec) {
     log::warn("Pending incoming connection {} closed, handle: {} ",
               btif_hh_cb.pending_incoming_connection.link_spec,
@@ -1045,22 +1139,17 @@ void btif_hh_remove_device(const tAclLinkSpec& link_spec) {
       log::warn("device_num = 0");
     }
 
-    if (com::android::bluetooth::flags::remove_pending_hid_connection()) {
-      BTA_HhRemoveDev(p_dev->dev_handle);  // Remove the connection, in case it was pending
-    }
-
+    BTA_HhRemoveDev(p_dev->dev_handle);  // Remove the connection, in case it was pending
     bta_hh_co_close(p_dev);
     p_dev->dev_status = BTHH_CONN_STATE_UNKNOWN;
     p_dev->dev_handle = BTA_HH_INVALID_HANDLE;
   }
 
   // Remove pending connection if address matches
-  if (com::android::bluetooth::flags::vup_for_pending_connection()) {
-    size_t pending_connections = btif_hh_cb.new_connection_requests.remove_if(
-            [link_spec](auto ls) { return ls.addrt.bda == link_spec.addrt.bda; });
-    if (pending_connections > 0) {
-      announce_vup = true;
-    }
+  size_t pending_connections = btif_hh_cb.new_connection_requests.remove_if(
+          [link_spec](auto ls) { return ls.addrt.bda == link_spec.addrt.bda; });
+  if (pending_connections > 0) {
+    announce_vup = true;
   }
 
   if (!announce_vup) {
@@ -1085,32 +1174,15 @@ void btif_hh_remove_device(const tAclLinkSpec& link_spec) {
  ** Returns          void
  ******************************************************************************/
 static void btif_hh_remove_pending_connection(const tAclLinkSpec& link_spec) {
-  if (!com::android::bluetooth::flags::vup_for_pending_connection()) {
-    bool pending_connection = false;
-    for (auto ls : btif_hh_cb.new_connection_requests) {
-      if (ls.addrt.bda == link_spec.addrt.bda) {
-        pending_connection = true;
-        break;
-      }
-    }
-
-    if (pending_connection) {
-      btif_hh_cb.new_connection_requests.remove_if(
-              [link_spec](auto ls) { return ls.addrt.bda == link_spec.addrt.bda; });
-
-      // Notify service of disconnection to avoid state mismatch
-      do_in_jni_thread(base::Bind(
-              [](tAclLinkSpec ls) { BTHH_STATE_UPDATE(ls, BTHH_CONN_STATE_DISCONNECTED); },
-              link_spec));
-    }
-    return;
-  }
-
   size_t pending_connections = btif_hh_cb.new_connection_requests.remove_if([link_spec](auto ls) {
     if (ls.addrt.bda == link_spec.addrt.bda) {
       // Notify service of disconnection to avoid state mismatch
-      do_in_jni_thread(base::Bind(
-              [](tAclLinkSpec ls) { BTHH_STATE_UPDATE(ls, BTHH_CONN_STATE_DISCONNECTED); }, ls));
+      if (com_android_bluetooth_flags_hh_state_update_race_fix()) {
+        BTHH_STATE_UPDATE(ls, BTHH_CONN_STATE_DISCONNECTED);
+      } else {
+        do_in_jni_thread(base::Bind(
+                [](tAclLinkSpec ls) { BTHH_STATE_UPDATE(ls, BTHH_CONN_STATE_DISCONNECTED); }, ls));
+      }
 
       return true;
     }
@@ -1119,12 +1191,18 @@ static void btif_hh_remove_pending_connection(const tAclLinkSpec& link_spec) {
 
   if (pending_connections > 0) {
     log::verbose("Removed pending connections to {}", link_spec);
-    do_in_jni_thread(base::Bind(
-            [](tAclLinkSpec ls) {
-              HAL_CBACK(bt_hh_callbacks, virtual_unplug_cb, &ls.addrt.bda, ls.addrt.type,
-                        ls.transport, BTHH_OK);
-            },
-            link_spec));
+    if (com_android_bluetooth_flags_hh_state_update_race_fix()) {
+      tAclLinkSpec ls = link_spec;
+      HAL_CBACK(bt_hh_callbacks, virtual_unplug_cb, &ls.addrt.bda, ls.addrt.type, ls.transport,
+                BTHH_OK);
+    } else {
+      do_in_jni_thread(base::Bind(
+              [](tAclLinkSpec ls) {
+                HAL_CBACK(bt_hh_callbacks, virtual_unplug_cb, &ls.addrt.bda, ls.addrt.type,
+                          ls.transport, BTHH_OK);
+              },
+              link_spec));
+    }
   }
 }
 
@@ -1161,17 +1239,22 @@ bt_status_t btif_hh_virtual_unplug(const tAclLinkSpec& link_spec) {
   // Remove the connecting or added device
   if (btif_hh_find_dev_by_link_spec(link_spec) != nullptr ||
       btif_hh_find_added_dev(link_spec) != nullptr) {
-    if (!com::android::bluetooth::flags::vup_for_pending_connection()) {
-      // Remove pending connection if address matches
-      btif_hh_cb.new_connection_requests.remove_if(
-              [link_spec](auto ls) { return ls.addrt.bda == link_spec.addrt.bda; });
-    }
     btif_hh_remove_device(link_spec);
     BTA_DmRemoveDevice(link_spec.addrt.bda);
     return BT_STATUS_SUCCESS;
   }
 
   btif_hh_remove_pending_connection(link_spec);
+  return BT_STATUS_DEVICE_NOT_FOUND;
+}
+
+bt_status_t btif_hh_virtual_unplug_from_main(const tAclLinkSpec& link_spec) {
+  if (btif_hh_find_dev_by_link_spec(link_spec) != nullptr ||
+      btif_hh_find_added_dev(link_spec) != nullptr) {
+    do_in_jni_thread(base::Bind([](tAclLinkSpec link_spec) { btif_hh_virtual_unplug(link_spec); },
+                                link_spec));
+    return BT_STATUS_SUCCESS;
+  }
   return BT_STATUS_DEVICE_NOT_FOUND;
 }
 
@@ -1192,10 +1275,8 @@ bt_status_t btif_hh_connect(const tAclLinkSpec& link_spec) {
   if (!p_dev && btif_hh_cb.device_num >= BTIF_HH_MAX_HID) {
     // No space for more HID device now.
     log::warn("Error, exceeded the maximum supported HID device number {}", BTIF_HH_MAX_HID);
-    bluetooth::shim::CountCounterMetrics(
-            android::bluetooth::CodePathCounterKeyEnum::
-                    HIDH_COUNT_CONNECT_REQ_WHEN_MAX_DEVICE_LIMIT_REACHED,
-            1);
+    bluetooth::metrics::Counter(
+            bluetooth::metrics::CounterKey::HIDH_COUNT_CONNECT_REQ_WHEN_MAX_DEVICE_LIMIT_REACHED);
     return BT_STATUS_NOMEM;
   }
 
@@ -1226,16 +1307,22 @@ bt_status_t btif_hh_connect(const tAclLinkSpec& link_spec) {
   }
 
   // Add the new connection to the pending list
-  if (!com::android::bluetooth::flags::pending_hid_connection_cancellation() ||
-      added_dev == nullptr) {
+  if (added_dev == nullptr) {
     btif_hh_cb.new_connection_requests.push_back(link_spec);
   }
 
-  do_in_jni_thread(base::Bind(
-          [](tAclLinkSpec link_spec) { BTHH_STATE_UPDATE(link_spec, BTHH_CONN_STATE_CONNECTING); },
-          link_spec));
+  if (com_android_bluetooth_flags_hh_state_update_race_fix()) {
+    tAclLinkSpec ls = link_spec;
+    BTHH_STATE_UPDATE(ls, BTHH_CONN_STATE_CONNECTING);
+  } else {
+    do_in_jni_thread(base::Bind(
+            [](tAclLinkSpec link_spec) {
+              BTHH_STATE_UPDATE(link_spec, BTHH_CONN_STATE_CONNECTING);
+            },
+            link_spec));
+  }
 
-  if (com::android::bluetooth::flags::early_incoming_hid_connection() &&
+  if (com_android_bluetooth_flags_early_incoming_hid_connection() &&
       btif_hh_cb.pending_incoming_connection.link_spec == link_spec) {
     log::info("Resume pending incoming connection {}", link_spec);
     tBTA_HH_CONN conn = btif_hh_cb.pending_incoming_connection;
@@ -1245,7 +1332,7 @@ bt_status_t btif_hh_connect(const tAclLinkSpec& link_spec) {
     return BT_STATUS_SUCCESS;
   }
 
-  /* Not checking the NORMALLY_Connectible flags from sdp record, and anyways
+  /* Not checking the NORMALLY_Connectable flags from sdp record, and anyways
    sending this request from host, for subsequent user initiated connection.
    If the remote is not in pagescan mode, we will do 2 retries to connect before
    giving up */
@@ -1262,14 +1349,15 @@ bt_status_t btif_hh_connect(const tAclLinkSpec& link_spec) {
  * Returns          void
  *
  ******************************************************************************/
-static void btif_hh_disconnect(const tAclLinkSpec& link_spec) {
+static bool btif_hh_disconnect(const tAclLinkSpec& link_spec) {
   btif_hh_device_t* p_dev = btif_hh_find_connected_dev_by_link_spec(link_spec);
   if (p_dev == nullptr) {
     log::warn("Unable to disconnect unknown HID device:{}", link_spec);
-    return;
+    return false;
   }
   log::debug("Disconnect and close request for HID device:{}", link_spec);
   BTA_HhClose(p_dev->dev_handle);
+  return true;
 }
 
 /*******************************************************************************
@@ -1532,7 +1620,10 @@ static void btif_hh_handle_evt(uint16_t event, char* p_param) {
     case BTIF_HH_CONNECT_REQ_EVT: {
       log::debug("BTIF_HH_CONNECT_REQ_EVT: link spec:{}", link_spec);
       if (btif_hh_connect(link_spec) == BT_STATUS_SUCCESS) {
-        BTHH_STATE_UPDATE(link_spec, BTHH_CONN_STATE_CONNECTING);
+        if (!com_android_bluetooth_flags_hh_state_update_race_fix()) {
+          // No need to update state after flag, it has been updated in btif_hh_connect.
+          BTHH_STATE_UPDATE(link_spec, BTHH_CONN_STATE_CONNECTING);
+        }
       } else {
         BTHH_STATE_UPDATE(link_spec, BTHH_CONN_STATE_DISCONNECTED);
       }
@@ -1540,8 +1631,9 @@ static void btif_hh_handle_evt(uint16_t event, char* p_param) {
 
     case BTIF_HH_DISCONNECT_REQ_EVT: {
       log::debug("BTIF_HH_DISCONNECT_REQ_EVT: link spec:{}", link_spec);
-      btif_hh_disconnect(link_spec);
-      BTHH_STATE_UPDATE(link_spec, BTHH_CONN_STATE_DISCONNECTING);
+      if (btif_hh_disconnect(link_spec)) {
+        BTHH_STATE_UPDATE(link_spec, BTHH_CONN_STATE_DISCONNECTING);
+      }
     } break;
 
     case BTIF_HH_VUP_REQ_EVT: {
@@ -1571,10 +1663,10 @@ static void btif_hh_timer_timeout(void* data) {
   tBTA_HH p_data;
   int param_len = sizeof(tBTA_HH_CBDATA);
 
-  log::verbose("");
   if (p_dev->dev_status != BTHH_CONN_STATE_CONNECTED) {
     return;
   }
+  log::warn("Virtual unplug timeout for {}", p_dev->link_spec);
 
   memset(&p_data, 0, sizeof(tBTA_HH));
   p_data.dev_status.status = BTA_HH_ERR;  // tBTA_HH_STATUS
@@ -1759,9 +1851,7 @@ static bt_status_t disconnect(RawAddress* bd_addr, tBLE_ADDR_TYPE addr_type,
                 bthh_connection_state_text(p_dev->dev_status));
       p_dev->dev_status = BTHH_CONN_STATE_DISCONNECTED;
 
-      if (com::android::bluetooth::flags::pending_hid_connection_cancellation()) {
-        btif_hh_cb.new_connection_requests.remove(link_spec);
-      }
+      btif_hh_cb.new_connection_requests.remove(link_spec);
       return BT_STATUS_DONE;
     } else if (std::find(btif_hh_cb.new_connection_requests.begin(),
                          btif_hh_cb.new_connection_requests.end(),
@@ -2030,8 +2120,7 @@ static bt_status_t get_report(RawAddress* bd_addr, tBLE_ADDR_TYPE addr_type,
     return BT_STATUS_DEVICE_NOT_FOUND;
   } else if (((int)reportType) <= BTA_HH_RPTT_RESRV || ((int)reportType) > BTA_HH_RPTT_FEATURE) {
     log::error("report type={} not supported", reportType);
-    bluetooth::shim::CountCounterMetrics(
-            android::bluetooth::CodePathCounterKeyEnum::HIDH_COUNT_WRONG_REPORT_TYPE, 1);
+    bluetooth::metrics::Counter(bluetooth::metrics::CounterKey::HIDH_COUNT_WRONG_REPORT_TYPE);
     return BT_STATUS_UNSUPPORTED;
   } else {
     BTA_HhGetReport(p_dev->dev_handle, reportType, reportId, bufferSize);
@@ -2102,8 +2191,7 @@ static bt_status_t set_report(RawAddress* bd_addr, tBLE_ADDR_TYPE addr_type,
     return BT_STATUS_DEVICE_NOT_FOUND;
   } else if (((int)reportType) <= BTA_HH_RPTT_RESRV || ((int)reportType) > BTA_HH_RPTT_FEATURE) {
     log::error("report type={} not supported", reportType);
-    bluetooth::shim::CountCounterMetrics(
-            android::bluetooth::CodePathCounterKeyEnum::HIDH_COUNT_WRONG_REPORT_TYPE, 1);
+    bluetooth::metrics::Counter(bluetooth::metrics::CounterKey::HIDH_COUNT_WRONG_REPORT_TYPE);
     return BT_STATUS_UNSUPPORTED;
   } else {
     int hex_bytes_filled;

@@ -12,16 +12,6 @@ flag {
 }
 
 flag {
-    name: "browsing_refactor"
-    namespace: "bluetooth"
-    description: "Broadcast all players instead of BT player, remove MediaBrowser preload, support package modification"
-    bug: "338156685"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "get_all_element_attributes_empty"
     namespace: "bluetooth"
     description: "Return all attributes even if empty when requesting all attributes with GetElementAttributes"
@@ -32,18 +22,35 @@ flag {
 }
 
 flag {
-    name: "set_addressed_player"
+    name: "avrcp_16_default"
     namespace: "bluetooth"
-    description: "Implement SetAddressedPlayer"
-    bug: "352279986"
+    description: "Set AVRCP 1.6 as default AVRCP version"
+    bug: "374271695"
+}
+
+flag {
+    name: "set_a2dp_active_device_through_adapter_service"
+    namespace: "bluetooth"
+    description: "Instead of calling A2dpService#setActiveDevice, call AdapterService#setActiveDevice"
+    bug: "419448067"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "avrcp_16_default"
+    name: "implement_get_image_from_descriptor_for_cover_art"
     namespace: "bluetooth"
-    description: "Set AVRCP 1.6 as default AVRCP version"
-    bug: "374271695"
+    description: "Implement getImage from descriptor for cover art in AVRCP for IOP, some devices request image not 200*200"
+    bug: "427472266"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "use_returned_absolute_volume"
+    namespace: "bluetooth"
+    description: "Use the volume returned in an accepted SetAbsoluteVolume command"
+    bug: "429364070"
 }

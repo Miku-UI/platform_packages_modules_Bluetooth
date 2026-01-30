@@ -21,6 +21,9 @@
 #include "btif_config.h"
 
 #include <bluetooth/log.h>
+#include <bluetooth/metrics/metric_id_api.h>
+#include <bluetooth/metrics/os_metrics.h>
+#include <bluetooth/types/address.h>
 #include <openssl/rand.h>
 #include <unistd.h>
 
@@ -34,11 +37,8 @@
 #include "btif_keystore.h"
 #include "common/address_obfuscator.h"
 #include "main/shim/config.h"
-#include "main/shim/metric_id_api.h"
-#include "main/shim/metrics_api.h"
 #include "main/shim/shim.h"
 #include "storage/config_keys.h"
-#include "types/raw_address.h"
 
 #define TEMPORARY_SECTION_CAPACITY 10000
 
@@ -48,17 +48,10 @@
 #define TIME_STRING_LENGTH sizeof("YYYY-MM-DD HH:MM:SS")
 #define DISABLED "disabled"
 
-using bluetooth::bluetooth_keystore::BluetoothKeystoreInterface;
 using bluetooth::common::AddressObfuscator;
 using namespace bluetooth;
 
 // Key attestation
-static const std::string ENCRYPTED_STR = "encrypted";
-static const std::string CONFIG_FILE_PREFIX = "bt_config-origin";
-static const std::string CONFIG_FILE_HASH = "hash";
-static const std::string encrypt_key_name_list[] = {"LinkKey",     "LE_KEY_PENC",  "LE_KEY_PID",
-                                                    "LE_KEY_LID",  "LE_KEY_PCSRK", "LE_KEY_LENC",
-                                                    "LE_KEY_LCSRK"};
 
 /**
  * Read metrics salt from config file, if salt is invalid or does not exist,
@@ -112,7 +105,7 @@ static void init_metric_id_allocator() {
       // there is one metric id under this mac_address
       int id = 0;
       btif_config_get_int(addr_str, BTIF_STORAGE_KEY_METRICS_ID_KEY, &id);
-      if (bluetooth::shim::IsValidIdFromMetricIdAllocator(id)) {
+      if (bluetooth::metrics::IsValidIdFromMetricIdAllocator(id)) {
         paired_device_map[mac_address] = id;
         is_valid_id_found = true;
       }
@@ -129,15 +122,15 @@ static void init_metric_id_allocator() {
   auto forget_device_callback = [](const RawAddress& address, const int /* id */) {
     return btif_config_remove(address.ToString(), BTIF_STORAGE_KEY_METRICS_ID_KEY);
   };
-  if (!bluetooth::shim::InitMetricIdAllocator(paired_device_map, std::move(save_device_callback),
-                                              std::move(forget_device_callback))) {
+  if (!bluetooth::metrics::InitMetricIdAllocator(paired_device_map, std::move(save_device_callback),
+                                                 std::move(forget_device_callback))) {
     log::fatal("Failed to initialize MetricIdAllocator");
   }
 
   // Add device_without_id
   for (auto& address : addresses_without_id) {
-    bluetooth::shim::AllocateIdFromMetricIdAllocator(address);
-    bluetooth::shim::SaveDeviceOnMetricIdAllocator(address);
+    bluetooth::metrics::AllocateIdFromMetricIdAllocator(address);
+    bluetooth::metrics::SaveDeviceOnMetricIdAllocator(address);
   }
 }
 
@@ -161,7 +154,7 @@ static future_t* clean_up(void) {
                    "assert failed: bluetooth::shim::is_gd_stack_started_up()");
   // GD storage module cleanup by itself
   std::unique_lock<std::recursive_mutex> lock(config_lock);
-  bluetooth::shim::CloseMetricIdAllocator();
+  bluetooth::metrics::CloseMetricIdAllocator();
   return future_new_immediate(FUTURE_SUCCESS);
 }
 
@@ -291,10 +284,10 @@ std::vector<RawAddress> btif_config_get_paired_devices() {
   std::vector<RawAddress> result;
   result.reserve(names.size());
   for (const auto& name : names) {
-    RawAddress addr = {};
+    auto addr = RawAddress::FromString(name);
     // Gather up known devices from configuration section names
-    if (RawAddress::FromString(name, addr)) {
-      result.emplace_back(addr);
+    if (addr.has_value()) {
+      result.emplace_back(addr.value());
     }
   }
   return result;

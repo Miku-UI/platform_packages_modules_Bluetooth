@@ -18,13 +18,14 @@ package com.android.bluetooth.bass_client;
 
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
+import static android.bluetooth.BluetoothDevice.TRANSPORT_LE;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
-import static com.android.bluetooth.flags.Flags.leaudioBigDependsOnAudioState;
-import static com.android.bluetooth.flags.Flags.leaudioBroadcastReceiveStateProcessingRefactor;
-import static com.android.bluetooth.flags.Flags.leaudioBroadcastResyncHelper;
+import static com.android.bluetooth.flags.Flags.leaudioBisSyncControl;
+import static com.android.bluetooth.flags.Flags.leaudioBroadcastSimplifySetBcastCode;
+import static com.android.bluetooth.flags.Flags.leaudioIntentBroadcastInStateMachineCleanup;
 
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
@@ -41,9 +42,11 @@ import android.bluetooth.BluetoothLeBroadcastChannel;
 import android.bluetooth.BluetoothLeBroadcastMetadata;
 import android.bluetooth.BluetoothLeBroadcastReceiveState;
 import android.bluetooth.BluetoothLeBroadcastSubgroup;
+import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.le.PeriodicAdvertisingCallback;
+import android.bluetooth.le.PeriodicAdvertisingManager;
 import android.content.AttributionSource;
 import android.content.Intent;
 import android.os.Binder;
@@ -53,7 +56,6 @@ import android.os.SystemClock;
 import android.provider.DeviceConfig;
 import android.util.Log;
 
-import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
@@ -75,6 +77,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Scanner;
 import java.util.UUID;
 import java.util.stream.IntStream;
@@ -89,6 +92,8 @@ class BassClientStateMachine extends StateMachine {
     private static final byte OPCODE_SET_BCAST_PIN = 0x04;
     private static final byte OPCODE_REMOVE_SOURCE = 0x05;
     private static final int UPDATE_SOURCE_FIXED_LENGTH = 6;
+    private static final int UPDATE_SOURCE_SUBGROUP_FIXED_LENGTH = 5;
+    private static final int UPDATE_SOURCE_BIS_SYNC_LENGTH = 4;
     private static final int BROADCAST_SOURCE_ID_LENGTH = 3;
 
     static final int CONNECT = 1;
@@ -107,8 +112,7 @@ class BassClientStateMachine extends StateMachine {
     static final int SWITCH_BCAST_SOURCE = 14;
     static final int CANCEL_PENDING_SOURCE_OPERATION = 15;
     static final int INITIATE_PA_SYNC_TRANSFER = 16;
-
-    private final int mConnectTimeoutMs;
+    static final int UPDATE_METADATA = 17;
 
     // Type of argument for set broadcast code operation
     static final int ARGTYPE_METADATA = 1;
@@ -118,9 +122,8 @@ class BassClientStateMachine extends StateMachine {
 
     /*key is combination of sourceId, Address and advSid for this hashmap*/
     private final Map<Integer, BluetoothLeBroadcastReceiveState>
-            mBluetoothLeBroadcastReceiveStates =
-                    new HashMap<Integer, BluetoothLeBroadcastReceiveState>();
-    private final Map<Integer, BluetoothLeBroadcastMetadata> mCurrentMetadata = new HashMap();
+            mBluetoothLeBroadcastReceiveStates = new HashMap<>();
+    private final Map<Integer, BluetoothLeBroadcastMetadata> mCurrentMetadata = new HashMap<>();
     private final Disconnected mDisconnected = new Disconnected();
     private final Connected mConnected = new Connected();
     private final Connecting mConnecting = new Connecting();
@@ -128,18 +131,21 @@ class BassClientStateMachine extends StateMachine {
     private final Map<Integer, LeAudioBroadcastSyncStats> mBroadcastSyncStats =
             new LinkedHashMap<>();
 
+    private final AdapterService mAdapterService;
+    private final BluetoothAdapter mAdapter;
+    private final PeriodicAdvertisingManager mPeriodicAdvertisingManager;
+
     @VisibleForTesting
-    final List<BluetoothGattCharacteristic> mBroadcastCharacteristics =
-            new ArrayList<BluetoothGattCharacteristic>();
+    final List<BluetoothGattCharacteristic> mBroadcastCharacteristics = new ArrayList<>();
 
     @VisibleForTesting BluetoothDevice mDevice;
 
+    private State mCurrentState = mDisconnected;
     private boolean mIsAllowedList = false;
     private int mLastConnectionState = -1;
     @VisibleForTesting boolean mMTUChangeRequested = false;
     @VisibleForTesting boolean mDiscoveryInitiated = false;
     @VisibleForTesting BassClientService mService;
-    AdapterService mAdapterService;
     @VisibleForTesting BluetoothGattCharacteristic mBroadcastScanControlPoint;
     private boolean mBassStateReady = false;
     @VisibleForTesting int mNumOfBroadcastReceiverStates = 0;
@@ -147,10 +153,12 @@ class BassClientStateMachine extends StateMachine {
     @VisibleForTesting int mPendingOperation = -1;
     @VisibleForTesting byte mPendingSourceId = -1;
     @VisibleForTesting BluetoothLeBroadcastMetadata mPendingMetadata = null;
+
+    // !leaudioBroadcastSimplifySetBcastCode()
     private BluetoothLeBroadcastMetadata mSetBroadcastPINMetadata = null;
     @VisibleForTesting boolean mSetBroadcastCodePending = false;
-    private final Map<Integer, Boolean> mPendingRemove = new HashMap();
-    private boolean mDefNoPAS = false;
+
+    private final Map<Integer, Boolean> mPendingRemove = new HashMap<>();
     private boolean mForceSB = false;
     @VisibleForTesting byte mNextSourceId = 0;
     private boolean mAllowReconnect = false;
@@ -164,13 +172,14 @@ class BassClientStateMachine extends StateMachine {
             BluetoothDevice device,
             BassClientService svc,
             AdapterService adapterService,
-            Looper looper,
-            int connectTimeoutMs) {
+            PeriodicAdvertisingManager periodicAdvertisingManager,
+            Looper looper) {
         super(TAG + "(" + device + ")", looper);
         mDevice = device;
         mService = svc;
         mAdapterService = adapterService;
-        mConnectTimeoutMs = connectTimeoutMs;
+        mAdapter = mAdapterService.getSystemService(BluetoothManager.class).getAdapter();
+        mPeriodicAdvertisingManager = periodicAdvertisingManager;
         addState(mDisconnected);
         addState(mConnected);
         addState(mConnecting);
@@ -181,11 +190,6 @@ class BassClientStateMachine extends StateMachine {
             mIsAllowedList =
                     DeviceConfig.getBoolean(
                             DeviceConfig.NAMESPACE_BLUETOOTH, "persist.vendor.service.bt.wl", true);
-            mDefNoPAS =
-                    DeviceConfig.getBoolean(
-                            DeviceConfig.NAMESPACE_BLUETOOTH,
-                            "persist.vendor.service.bt.defNoPAS",
-                            false);
             mForceSB =
                     DeviceConfig.getBoolean(
                             DeviceConfig.NAMESPACE_BLUETOOTH,
@@ -194,6 +198,8 @@ class BassClientStateMachine extends StateMachine {
         } finally {
             Binder.restoreCallingIdentity(token);
         }
+
+        start();
     }
 
     private static class LeAudioBroadcastSyncStats {
@@ -221,19 +227,19 @@ class BassClientStateMachine extends StateMachine {
                             .BROADCAST_AUDIO_SYNC_REPORTED__SYNC_STATUS__SYNC_STATUS_SYNC_REQUESTED;
         }
 
-        public void updatePaSyncedTime(long paSyncedTime) {
+        void updatePaSyncedTime(long paSyncedTime) {
             if (mSourcePaSyncedTime == 0) {
                 mSourcePaSyncedTime = paSyncedTime;
             }
         }
 
-        public void updateBisSyncedTime(long bisSyncedTime) {
+        void updateBisSyncedTime(long bisSyncedTime) {
             if (mSourceBisSyncedTime == 0) {
                 mSourceBisSyncedTime = bisSyncedTime;
             }
         }
 
-        public void updateSyncStatus(int status) {
+        void updateSyncStatus(int status) {
             if (mSyncStatus
                     != BluetoothStatsLog
                             .BROADCAST_AUDIO_SYNC_REPORTED__SYNC_STATUS__SYNC_STATUS_AUDIO_SYNC_SUCCESS) {
@@ -247,7 +253,7 @@ class BassClientStateMachine extends StateMachine {
             }
         }
 
-        public void logBroadcastSyncMetrics(long stopTime) {
+        void logBroadcastSyncMetrics(long stopTime) {
             long syncDurationMs =
                     (mSourceBisSyncedTime > 0) ? (stopTime - mSourceBisSyncedTime) : 0;
             long latencyPaSyncedMs =
@@ -284,26 +290,6 @@ class BassClientStateMachine extends StateMachine {
         }
     }
 
-    static BassClientStateMachine make(
-            BluetoothDevice device,
-            BassClientService svc,
-            AdapterService adapterService,
-            Looper looper) {
-        Log.d(TAG, "make for device " + device);
-
-        if (!BassClientPeriodicAdvertisingManager
-                .initializePeriodicAdvertisingManagerOnDefaultAdapter()) {
-            Log.e(TAG, "Failed to initialize Periodic Advertising Manager on Default Adapter");
-            return null;
-        }
-
-        BassClientStateMachine bassClientSm =
-                new BassClientStateMachine(
-                        device, svc, adapterService, looper, BassConstants.CONNECT_TIMEOUT_MS);
-        bassClientSm.start();
-        return bassClientSm;
-    }
-
     static void destroy(BassClientStateMachine stateMachine) {
         Log.i(TAG, "destroy");
         if (stateMachine == null) {
@@ -315,16 +301,24 @@ class BassClientStateMachine extends StateMachine {
     }
 
     public void doQuit() {
-        log("doQuit for device " + mDevice);
+        Log.d(TAG, "doQuit for device " + mDevice);
+        int currentState = getConnectionState();
+        if (leaudioIntentBroadcastInStateMachineCleanup()
+                && currentState != STATE_DISCONNECTED
+                && mLastConnectionState != -1) {
+            // Broadcast CONNECTION_STATE_CHANGED when state machine is turned off while
+            // the device is connected
+            broadcastConnectionState(mDevice, currentState, STATE_DISCONNECTED);
+        }
         quitNow();
     }
 
     public void cleanup() {
-        log("cleanup for device " + mDevice);
+        Log.d(TAG, "cleanup for device " + mDevice);
         clearCharsCache();
 
         if (mBluetoothGatt != null) {
-            log("disconnect gatt");
+            Log.d(TAG, "disconnect gatt");
             mBluetoothGatt.disconnect();
             mBluetoothGatt.close();
             mBluetoothGatt = null;
@@ -431,7 +425,7 @@ class BassClientStateMachine extends StateMachine {
     }
 
     private void broadcastReceiverState(BluetoothLeBroadcastReceiveState state, int sourceId) {
-        log("broadcastReceiverState: " + mDevice);
+        Log.d(TAG, "broadcastReceiverState: " + mDevice);
         mService.getCallbacks().notifyReceiveStateChanged(mDevice, sourceId, state);
     }
 
@@ -440,6 +434,7 @@ class BassClientStateMachine extends StateMachine {
         return IntStream.range(0, data.length).parallel().allMatch(i -> data[i] == 0);
     }
 
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     private void processPASyncState(BluetoothLeBroadcastReceiveState recvState) {
         int serviceData = 0;
         if (recvState == null) {
@@ -448,7 +443,7 @@ class BassClientStateMachine extends StateMachine {
         }
         int state = recvState.getPaSyncState();
         if (state == BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_SYNCINFO_REQUEST) {
-            log("Initiate PAST procedure");
+            Log.i(TAG, "Initiate PAST procedure");
             int sourceId = recvState.getSourceId();
             if (mService.isLocalBroadcast(recvState)) {
                 int advHandle = recvState.getSourceAdvertisingSid();
@@ -457,21 +452,16 @@ class BassClientStateMachine extends StateMachine {
                 // Address we set in the Source Address can differ from the address in the air
                 serviceData =
                         serviceData | BassConstants.ADV_ADDRESS_DONT_MATCHES_SOURCE_ADV_ADDRESS;
-                log(
+                Log.d(
+                        TAG,
                         "Initiate local broadcast PAST for: "
                                 + mDevice
                                 + ", advSID/Handle: "
                                 + advHandle
                                 + ", serviceData: "
                                 + serviceData);
-                BluetoothMethodProxy.getInstance()
-                        .periodicAdvertisingManagerTransferSetInfo(
-                                BassClientPeriodicAdvertisingManager
-                                        .getPeriodicAdvertisingManager(),
-                                mDevice,
-                                serviceData,
-                                advHandle,
-                                mLocalPeriodicAdvCallback);
+                mPeriodicAdvertisingManager.transferSetInfo(
+                        mDevice, serviceData, advHandle, mLocalPeriodicAdvCallback);
             } else {
                 int broadcastId = recvState.getBroadcastId();
                 PeriodicAdvertisementResult result =
@@ -490,6 +480,7 @@ class BassClientStateMachine extends StateMachine {
         }
     }
 
+    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     private void initiatePaSyncTransfer(int syncHandle, int sourceId) {
         if (syncHandle != BassConstants.INVALID_SYNC_HANDLE
                 && sourceId != BassConstants.INVALID_SOURCE_ID) {
@@ -500,19 +491,15 @@ class BassClientStateMachine extends StateMachine {
             serviceData = serviceData & (~BassConstants.ADV_ADDRESS_DONT_MATCHES_EXT_ADV_ADDRESS);
             serviceData =
                     serviceData & (~BassConstants.ADV_ADDRESS_DONT_MATCHES_SOURCE_ADV_ADDRESS);
-            log(
+            Log.d(
+                    TAG,
                     "Initiate PAST for: "
                             + mDevice
                             + ", syncHandle: "
                             + syncHandle
                             + ", serviceData: "
                             + serviceData);
-            BluetoothMethodProxy.getInstance()
-                    .periodicAdvertisingManagerTransferSync(
-                            BassClientPeriodicAdvertisingManager.getPeriodicAdvertisingManager(),
-                            mDevice,
-                            serviceData,
-                            syncHandle);
+            mPeriodicAdvertisingManager.transferSync(mDevice, serviceData, syncHandle);
         } else {
             Log.e(
                     TAG,
@@ -622,277 +609,33 @@ class BassClientStateMachine extends StateMachine {
     }
 
     private void checkAndUpdateBroadcastCode(BluetoothLeBroadcastReceiveState recvState) {
-        log("checkAndUpdateBroadcastCode");
+        Log.d(TAG, "checkAndUpdateBroadcastCode");
         // Whenever receive state indicated code requested, assistant should set the broadcast code
         // Valid code will be checked later in convertRecvStateToSetBroadcastCodeByteArray
         if (recvState.getBigEncryptionState()
-                        == BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_CODE_REQUIRED
-                && (leaudioBigDependsOnAudioState() || mSetBroadcastCodePending)) {
-            log("Update the Broadcast now");
-            if (mSetBroadcastPINMetadata != null) {
-                setCurrentBroadcastMetadata(recvState.getSourceId(), mSetBroadcastPINMetadata);
-            }
-            Message m = obtainMessage(BassClientStateMachine.SET_BCAST_CODE);
-            m.obj = recvState;
-            m.arg1 = ARGTYPE_RCVSTATE;
-            sendMessage(m);
-            mSetBroadcastCodePending = false;
-            mSetBroadcastPINMetadata = null;
-        }
-    }
-
-    private BluetoothLeBroadcastReceiveState parseBroadcastReceiverStateObsolete(
-            byte[] receiverState) {
-        byte sourceId = 0;
-        if (receiverState.length > 0) {
-            sourceId = receiverState[BassConstants.BCAST_RCVR_STATE_SRC_ID_IDX];
-        }
-        log("processBroadcastReceiverState: receiverState length: " + receiverState.length);
-
-        BluetoothLeBroadcastReceiveState recvState = null;
-        if (receiverState.length == 0
-                || isEmpty(Arrays.copyOfRange(receiverState, 1, receiverState.length - 1))) {
-            byte[] emptyBluetoothDeviceAddress = Utils.getBytesFromAddress("00:00:00:00:00:00");
-            if (mPendingOperation == REMOVE_BCAST_SOURCE) {
-                recvState =
-                        new BluetoothLeBroadcastReceiveState(
-                                mPendingSourceId,
-                                BluetoothDevice.ADDRESS_TYPE_PUBLIC, // sourceAddressType
-                                mAdapterService.getDeviceFromByte(
-                                        emptyBluetoothDeviceAddress), // sourceDev
-                                0, // sourceAdvertisingSid
-                                0, // broadcastId
-                                BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_IDLE, // paSyncState
-                                // bigEncryptionState
-                                BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_NOT_ENCRYPTED,
-                                null, // badCode
-                                0, // numSubgroups
-                                Arrays.asList(new Long[0]), // bisSyncState
-                                Arrays.asList(
-                                        new BluetoothLeAudioContentMetadata[0]) // subgroupMetadata
-                                );
-            } else if (receiverState.length == 0) {
-                if (mBluetoothLeBroadcastReceiveStates != null) {
-                    mNextSourceId = (byte) mBluetoothLeBroadcastReceiveStates.size();
+                == BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_CODE_REQUIRED) {
+            Log.d(TAG, "Update the Broadcast now");
+            if (!leaudioBroadcastSimplifySetBcastCode()) {
+                if (mSetBroadcastPINMetadata != null) {
+                    setCurrentBroadcastMetadata(recvState.getSourceId(), mSetBroadcastPINMetadata);
                 }
-                if (mNextSourceId >= mNumOfBroadcastReceiverStates) {
-                    Log.e(TAG, "reached the remote supported max SourceInfos");
-                    return null;
-                }
-                mNextSourceId++;
-                recvState =
-                        new BluetoothLeBroadcastReceiveState(
-                                mNextSourceId,
-                                BluetoothDevice.ADDRESS_TYPE_PUBLIC, // sourceAddressType
-                                mAdapterService.getDeviceFromByte(
-                                        emptyBluetoothDeviceAddress), // sourceDev
-                                0, // sourceAdvertisingSid
-                                0, // broadcastId
-                                BluetoothLeBroadcastReceiveState.PA_SYNC_STATE_IDLE, // paSyncState
-                                // bigEncryptionState
-                                BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_NOT_ENCRYPTED,
-                                null, // badCode
-                                0, // numSubgroups
-                                Arrays.asList(new Long[0]), // bisSyncState
-                                Arrays.asList(
-                                        new BluetoothLeAudioContentMetadata[0]) // subgroupMetadata
-                                );
-            }
-        } else {
-            byte paSyncState = receiverState[BassConstants.BCAST_RCVR_STATE_PA_SYNC_IDX];
-            byte bigEncryptionStatus = receiverState[BassConstants.BCAST_RCVR_STATE_ENC_STATUS_IDX];
-            byte[] badBroadcastCode = null;
-            int badBroadcastCodeLen = 0;
-            if (bigEncryptionStatus
-                    == BluetoothLeBroadcastReceiveState.BIG_ENCRYPTION_STATE_BAD_CODE) {
-                badBroadcastCode = new byte[BassConstants.BCAST_RCVR_STATE_BADCODE_SIZE];
-                System.arraycopy(
-                        receiverState,
-                        BassConstants.BCAST_RCVR_STATE_BADCODE_START_IDX,
-                        badBroadcastCode,
-                        0,
-                        BassConstants.BCAST_RCVR_STATE_BADCODE_SIZE);
-                badBroadcastCodeLen = BassConstants.BCAST_RCVR_STATE_BADCODE_SIZE;
-            }
-            byte numSubGroups =
-                    receiverState[
-                            BassConstants.BCAST_RCVR_STATE_BADCODE_START_IDX + badBroadcastCodeLen];
-            int offset = BassConstants.BCAST_RCVR_STATE_BADCODE_START_IDX + badBroadcastCodeLen + 1;
-            ArrayList<BluetoothLeAudioContentMetadata> metadataList =
-                    new ArrayList<BluetoothLeAudioContentMetadata>();
-            ArrayList<Long> bisSyncState = new ArrayList<Long>();
-            for (int i = 0; i < numSubGroups; i++) {
-                byte[] bisSyncIndex = new byte[Long.BYTES];
-                System.arraycopy(
-                        receiverState,
-                        offset,
-                        bisSyncIndex,
-                        0,
-                        BassConstants.BCAST_RCVR_STATE_BIS_SYNC_SIZE);
-                offset += BassConstants.BCAST_RCVR_STATE_BIS_SYNC_SIZE;
-                bisSyncState.add((long) Utils.byteArrayToLong(bisSyncIndex));
-
-                int metaDataLength = receiverState[offset++] & 0xFF;
-                if (metaDataLength > 0) {
-                    log("metadata of length: " + metaDataLength + "is available");
-                    byte[] metaData = new byte[metaDataLength];
-                    System.arraycopy(receiverState, offset, metaData, 0, metaDataLength);
-                    offset += metaDataLength;
-                    metadataList.add(BluetoothLeAudioContentMetadata.fromRawBytes(metaData));
-                } else {
-                    metadataList.add(BluetoothLeAudioContentMetadata.fromRawBytes(new byte[0]));
-                }
-            }
-            byte[] broadcastIdBytes = new byte[BROADCAST_SOURCE_ID_LENGTH];
-            System.arraycopy(
-                    receiverState,
-                    BassConstants.BCAST_RCVR_STATE_SRC_BCAST_ID_START_IDX,
-                    broadcastIdBytes,
-                    0,
-                    BROADCAST_SOURCE_ID_LENGTH);
-            int broadcastId = BassUtils.parseBroadcastId(broadcastIdBytes);
-            byte[] sourceAddress = new byte[BassConstants.BCAST_RCVR_STATE_SRC_ADDR_SIZE];
-            System.arraycopy(
-                    receiverState,
-                    BassConstants.BCAST_RCVR_STATE_SRC_ADDR_START_IDX,
-                    sourceAddress,
-                    0,
-                    BassConstants.BCAST_RCVR_STATE_SRC_ADDR_SIZE);
-            byte sourceAddressType =
-                    receiverState[BassConstants.BCAST_RCVR_STATE_SRC_ADDR_TYPE_IDX];
-            Utils.reverse(sourceAddress);
-            String address = Utils.getAddressStringFromByte(sourceAddress);
-            BluetoothDevice device =
-                    BluetoothAdapter.getDefaultAdapter()
-                            .getRemoteLeDevice(address, sourceAddressType);
-            byte sourceAdvSid = receiverState[BassConstants.BCAST_RCVR_STATE_SRC_ADV_SID_IDX];
-            recvState =
-                    new BluetoothLeBroadcastReceiveState(
-                            sourceId,
-                            (int) sourceAddressType,
-                            device,
-                            sourceAdvSid,
-                            broadcastId,
-                            (int) paSyncState,
-                            (int) bigEncryptionStatus,
-                            badBroadcastCode,
-                            numSubGroups,
-                            bisSyncState,
-                            metadataList);
-        }
-        return recvState;
-    }
-
-    private void processBroadcastReceiverStateObsolete(
-            byte[] receiverState, BluetoothGattCharacteristic characteristic) {
-        log("processBroadcastReceiverState: characteristic:" + characteristic);
-        BluetoothLeBroadcastReceiveState recvState =
-                parseBroadcastReceiverStateObsolete(receiverState);
-        if (recvState == null) {
-            log("processBroadcastReceiverState: Null recvState");
-            return;
-        } else if (recvState.getSourceId() == -1) {
-            log("processBroadcastReceiverState: invalid index: " + recvState.getSourceId());
-            return;
-        }
-        int sourceId = recvState.getSourceId();
-        BluetoothLeBroadcastReceiveState oldRecvState =
-                mBluetoothLeBroadcastReceiveStates.get(characteristic.getInstanceId());
-        if (oldRecvState == null) {
-            log("Initial Read and Populating values");
-            if (mBluetoothLeBroadcastReceiveStates.size() == mNumOfBroadcastReceiverStates) {
-                Log.e(TAG, "reached the Max SourceInfos");
-                return;
-            }
-            mBluetoothLeBroadcastReceiveStates.put(characteristic.getInstanceId(), recvState);
-            if (!isSourceAbsent(recvState)) {
-                checkAndUpdateBroadcastCode(recvState);
-                processPASyncState(recvState);
-            }
-            if (leaudioBroadcastResyncHelper()) {
-                // Notify service BASS state ready for operations
-                mBassStateReady = true;
-                mService.getCallbacks().notifyBassStateReady(mDevice);
-            }
-        } else {
-            log("Updated receiver state: " + recvState);
-            mBluetoothLeBroadcastReceiveStates.replace(characteristic.getInstanceId(), recvState);
-            if (isSourceAbsent(oldRecvState)) {
-                log("New Source Addition");
-                removeMessages(CANCEL_PENDING_SOURCE_OPERATION);
-                mService.getCallbacks()
-                        .notifySourceAdded(
-                                mDevice, recvState, BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST);
-                if (mPendingMetadata != null) {
-                    setCurrentBroadcastMetadata(sourceId, mPendingMetadata);
-                    mPendingMetadata = null;
-                }
-                checkAndUpdateBroadcastCode(recvState);
-                processPASyncState(recvState);
-                processSyncStateChangeStats(recvState);
+                Message m = obtainMessage(BassClientStateMachine.SET_BCAST_CODE);
+                m.obj = recvState;
+                m.arg1 = ARGTYPE_RCVSTATE;
+                sendMessage(m);
+                mSetBroadcastCodePending = false;
+                mSetBroadcastPINMetadata = null;
             } else {
-                if (isSourceAbsent(recvState)) {
-                    BluetoothDevice removedDevice = oldRecvState.getSourceDevice();
-                    log("sourceInfo removal " + removedDevice);
-                    int prevSourceId = oldRecvState.getSourceId();
-                    BluetoothLeBroadcastMetadata metaData =
-                            getCurrentBroadcastMetadata(prevSourceId);
-                    if (metaData != null) {
-                        logBroadcastSyncStatsWithStatus(
-                                metaData.getBroadcastId(),
-                                BluetoothStatsLog
-                                        .BROADCAST_AUDIO_SYNC_REPORTED__SYNC_STATUS__SYNC_STATUS_UNKNOWN);
-                    }
-
-                    setCurrentBroadcastMetadata(prevSourceId, null);
-                    if (mPendingSourceToSwitch != null) {
-                        // Source remove is triggered by switch source request
-                        mService.getCallbacks()
-                                .notifySourceRemoved(
-                                        mDevice,
-                                        prevSourceId,
-                                        BluetoothStatusCodes.REASON_LOCAL_STACK_REQUEST);
-                        log("Switching to new source");
-                        Message message = obtainMessage(ADD_BCAST_SOURCE);
-                        message.obj = mPendingSourceToSwitch;
-                        sendMessage(message);
-                    } else {
-                        mService.getCallbacks()
-                                .notifySourceRemoved(
-                                        mDevice,
-                                        prevSourceId,
-                                        BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST);
-                    }
-                } else {
-                    log("update to an existing recvState");
-                    if (mPendingMetadata != null) {
-                        setCurrentBroadcastMetadata(sourceId, mPendingMetadata);
-                        mPendingMetadata = null;
-                    }
-                    removeMessages(CANCEL_PENDING_SOURCE_OPERATION);
-                    mService.getCallbacks()
-                            .notifySourceModified(
-                                    mDevice,
-                                    sourceId,
-                                    BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST);
-                    checkAndUpdateBroadcastCode(recvState);
-                    processPASyncState(recvState);
-                    processSyncStateChangeStats(recvState);
-
-                    if (isPendingRemove(sourceId) && !isSyncedToTheSource(sourceId)) {
-                        Message message = obtainMessage(REMOVE_BCAST_SOURCE);
-                        message.arg1 = sourceId;
-                        sendMessage(message);
-                    }
-                }
+                Message m = obtainMessage(BassClientStateMachine.SET_BCAST_CODE);
+                m.obj = recvState;
+                sendMessage(m);
             }
         }
-        broadcastReceiverState(recvState, sourceId);
     }
 
     private BluetoothLeBroadcastReceiveState parseBroadcastReceiverState(
             byte[] receiverState, int previousSourceId) {
-        log("parseBroadcastReceiverState: receiverState length: " + receiverState.length);
+        Log.d(TAG, "parseBroadcastReceiverState: receiverState length: " + receiverState.length);
 
         BluetoothLeBroadcastReceiveState recvState = null;
         if (receiverState.length == 0) {
@@ -916,7 +659,7 @@ class BassClientStateMachine extends StateMachine {
                                         new BluetoothLeAudioContentMetadata[0]) // subgroupMetadata
                                 );
             } else {
-                log("parseBroadcastReceiverState: unknown sourceId");
+                Log.d(TAG, "parseBroadcastReceiverState: unknown sourceId");
             }
         } else {
             byte sourceId = receiverState[BassConstants.BCAST_RCVR_STATE_SRC_ID_IDX];
@@ -939,9 +682,8 @@ class BassClientStateMachine extends StateMachine {
                     receiverState[
                             BassConstants.BCAST_RCVR_STATE_BADCODE_START_IDX + badBroadcastCodeLen];
             int offset = BassConstants.BCAST_RCVR_STATE_BADCODE_START_IDX + badBroadcastCodeLen + 1;
-            ArrayList<BluetoothLeAudioContentMetadata> metadataList =
-                    new ArrayList<BluetoothLeAudioContentMetadata>();
-            ArrayList<Long> bisSyncState = new ArrayList<Long>();
+            ArrayList<BluetoothLeAudioContentMetadata> metadataList = new ArrayList<>();
+            ArrayList<Long> bisSyncState = new ArrayList<>();
             for (int i = 0; i < numSubGroups; i++) {
                 byte[] bisSyncIndex = new byte[Long.BYTES];
                 System.arraycopy(
@@ -955,7 +697,7 @@ class BassClientStateMachine extends StateMachine {
 
                 int metaDataLength = receiverState[offset++] & 0xFF;
                 if (metaDataLength > 0) {
-                    log("metadata of length: " + metaDataLength + "is available");
+                    Log.d(TAG, "metadata of length: " + metaDataLength + "is available");
                     byte[] metaData = new byte[metaDataLength];
                     System.arraycopy(receiverState, offset, metaData, 0, metaDataLength);
                     offset += metaDataLength;
@@ -983,9 +725,7 @@ class BassClientStateMachine extends StateMachine {
                     receiverState[BassConstants.BCAST_RCVR_STATE_SRC_ADDR_TYPE_IDX];
             Utils.reverse(sourceAddress);
             String address = Utils.getAddressStringFromByte(sourceAddress);
-            BluetoothDevice device =
-                    BluetoothAdapter.getDefaultAdapter()
-                            .getRemoteLeDevice(address, sourceAddressType);
+            BluetoothDevice device = mAdapter.getRemoteLeDevice(address, sourceAddressType);
             byte sourceAdvSid = receiverState[BassConstants.BCAST_RCVR_STATE_SRC_ADV_SID_IDX];
             recvState =
                     new BluetoothLeBroadcastReceiveState(
@@ -1004,9 +744,56 @@ class BassClientStateMachine extends StateMachine {
         return recvState;
     }
 
+    private void updateMetadataWithReceiveStateIfBisSyncStateChanged(
+            BluetoothLeBroadcastReceiveState recvState) {
+        int sourceId = recvState.getSourceId();
+        BluetoothLeBroadcastMetadata metadata = getCurrentBroadcastMetadata(sourceId);
+
+        if (metadata == null
+                || metadata.getBroadcastId() != recvState.getBroadcastId()
+                || metadata.getSubgroups().size() != recvState.getNumSubgroups()) {
+            return;
+        }
+
+        BluetoothLeBroadcastMetadata.Builder newMetadataBuilder =
+                new BluetoothLeBroadcastMetadata.Builder(metadata);
+        newMetadataBuilder.clearSubgroup();
+
+        for (int i = 0; i < recvState.getNumSubgroups(); i++) {
+            Long bisSyncState = recvState.getBisSyncState().get(i);
+            BluetoothLeBroadcastSubgroup currentMetadataSubgroup = metadata.getSubgroups().get(i);
+            BluetoothLeBroadcastSubgroup.Builder newSubgroupBuilder =
+                    new BluetoothLeBroadcastSubgroup.Builder(currentMetadataSubgroup);
+            newSubgroupBuilder.clearChannel();
+
+            for (BluetoothLeBroadcastChannel channel : currentMetadataSubgroup.getChannels()) {
+                BluetoothLeBroadcastChannel channelToAdd = channel;
+                if (!channel.isSelected()
+                        && (bisSyncState & (1L << (channel.getChannelIndex() - 1))) != 0) {
+                    // Only set selected flag to true if the bit is 1 AND if it's not already
+                    // true.
+                    Log.d(
+                            TAG,
+                            "updateMetadataWithReceiveStateIfBisSyncStateChanged: Updating"
+                                    + " channel as selected, id: "
+                                    + channel.getChannelIndex());
+                    channelToAdd =
+                            new BluetoothLeBroadcastChannel.Builder(channel)
+                                    .setSelected(true)
+                                    .build();
+                }
+                newSubgroupBuilder.addChannel(channelToAdd);
+            }
+            newMetadataBuilder.addSubgroup(newSubgroupBuilder.build());
+        }
+
+        setCurrentBroadcastMetadata(sourceId, newMetadataBuilder.build());
+    }
+
     private void processBroadcastReceiverState(
             byte[] receiverState, BluetoothGattCharacteristic characteristic) {
-        log(
+        Log.d(
+                TAG,
                 "processBroadcastReceiverState: characteristic:"
                         + characteristic
                         + ", instanceId:"
@@ -1028,25 +815,24 @@ class BassClientStateMachine extends StateMachine {
         BluetoothLeBroadcastReceiveState recvState =
                 parseBroadcastReceiverState(receiverState, prevSourceId);
         if (recvState == null) {
-            log("processBroadcastReceiverState: Null recvState");
+            Log.d(TAG, "processBroadcastReceiverState: Null recvState");
             return;
         }
 
-        log("processBroadcastReceiverState: Updated receiver state: " + recvState);
+        Log.d(TAG, "processBroadcastReceiverState: Updated receiver state: " + recvState);
         mBluetoothLeBroadcastReceiveStates.put(characteristic.getInstanceId(), recvState);
         int sourceId = recvState.getSourceId();
 
         if (isSourceAbsent(prevRecvState) && isSourcePresent(recvState)) {
-            log("processBroadcastReceiverState: Source Addition");
+            Log.d(TAG, "processBroadcastReceiverState: Source Addition");
             removeMessages(CANCEL_PENDING_SOURCE_OPERATION);
-            if (mPendingMetadata != null) {
+            if ((mPendingMetadata != null)
+                    && (mPendingMetadata.getBroadcastId() == recvState.getBroadcastId())) {
                 setCurrentBroadcastMetadata(sourceId, mPendingMetadata);
-                mPendingMetadata = null;
-            }
-            if (mPendingOperation == ADD_BCAST_SOURCE) {
                 mService.getCallbacks()
                         .notifySourceAdded(
                                 mDevice, recvState, BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST);
+                mPendingMetadata = null;
             } else {
                 mService.getCallbacks()
                         .notifySourceAdded(
@@ -1056,9 +842,10 @@ class BassClientStateMachine extends StateMachine {
             processPASyncState(recvState);
             processSyncStateChangeStats(recvState);
         } else if (isSourcePresent(prevRecvState) && isSourcePresent(recvState)) {
-            log("processBroadcastReceiverState: Source Update");
+            Log.d(TAG, "processBroadcastReceiverState: Source Update");
             removeMessages(CANCEL_PENDING_SOURCE_OPERATION);
-            if (mPendingMetadata != null) {
+            if ((mPendingMetadata != null)
+                    && (mPendingMetadata.getBroadcastId() == recvState.getBroadcastId())) {
                 setCurrentBroadcastMetadata(sourceId, mPendingMetadata);
                 mPendingMetadata = null;
             }
@@ -1074,9 +861,14 @@ class BassClientStateMachine extends StateMachine {
                 message.arg1 = sourceId;
                 sendMessage(message);
             }
+
+            if (!Objects.equals(prevRecvState.getBisSyncState(), recvState.getBisSyncState())) {
+                // Update metadata channel state if BIS sync state changed
+                updateMetadataWithReceiveStateIfBisSyncStateChanged(recvState);
+            }
         } else if (isSourcePresent(prevRecvState) && isSourceAbsent(recvState)) {
             BluetoothDevice removedDevice = prevRecvState.getSourceDevice();
-            log("processBroadcastReceiverState: Source Removal " + removedDevice);
+            Log.d(TAG, "processBroadcastReceiverState: Source Removal " + removedDevice);
             BluetoothLeBroadcastMetadata metaData = getCurrentBroadcastMetadata(sourceId);
             if (metaData != null) {
                 logBroadcastSyncStatsWithStatus(
@@ -1090,7 +882,7 @@ class BassClientStateMachine extends StateMachine {
                 mService.getCallbacks()
                         .notifySourceRemoved(
                                 mDevice, sourceId, BluetoothStatusCodes.REASON_LOCAL_STACK_REQUEST);
-                log("processBroadcastReceiverState: Source Switching");
+                Log.d(TAG, "processBroadcastReceiverState: Source Switching");
                 Message message = obtainMessage(ADD_BCAST_SOURCE);
                 message.obj = mPendingSourceToSwitch;
                 sendMessage(message);
@@ -1099,6 +891,18 @@ class BassClientStateMachine extends StateMachine {
                         .notifySourceRemoved(
                                 mDevice, sourceId, BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST);
             } else {
+                if (mPendingOperation == UPDATE_BCAST_SOURCE
+                        && hasPendingSourceOperation(prevRecvState.getBroadcastId())) {
+                    Log.d(
+                            TAG,
+                            "processBroadcastReceiverState: Source removed by remote, clear pending"
+                                    + " operations for this source");
+                    removeMessages(CANCEL_PENDING_SOURCE_OPERATION);
+                    mPendingMetadata = null;
+                    if (isPendingRemove(sourceId)) {
+                        setPendingRemove(sourceId, false);
+                    }
+                }
                 mService.getCallbacks()
                         .notifySourceRemoved(
                                 mDevice, sourceId, BluetoothStatusCodes.REASON_REMOTE_REQUEST);
@@ -1113,14 +917,15 @@ class BassClientStateMachine extends StateMachine {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             boolean isStateChanged = false;
-            log("onConnectionStateChange : Status=" + status + ", newState=" + newState);
+            Log.d(TAG, "onConnectionStateChange : Status=" + status + ", newState=" + newState);
             if (newState == STATE_CONNECTED && getConnectionState() != STATE_CONNECTED) {
                 isStateChanged = true;
                 Log.w(TAG, "BassClient Connected from Disconnected state: " + mDevice);
                 if (mService.okToConnect(mDevice)) {
-                    log("BassClient Connected to: " + mDevice);
+                    Log.d(TAG, "BassClient Connected to: " + mDevice);
                     if (mBluetoothGatt != null) {
-                        log(
+                        Log.d(
+                                TAG,
                                 "Attempting to start service discovery:"
                                         + mBluetoothGatt.discoverServices());
                         mDiscoveryInitiated = true;
@@ -1137,7 +942,7 @@ class BassClientStateMachine extends StateMachine {
             } else if (newState == STATE_DISCONNECTED
                     && getConnectionState() != STATE_DISCONNECTED) {
                 isStateChanged = true;
-                log("Disconnected from Bass GATT server.");
+                Log.d(TAG, "Disconnected from Bass GATT server.");
             }
             if (isStateChanged) {
                 Message m = obtainMessage(CONNECTION_STATE_CHANGED);
@@ -1148,7 +953,7 @@ class BassClientStateMachine extends StateMachine {
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            log("onServicesDiscovered:" + status);
+            Log.d(TAG, "onServicesDiscovered:" + status);
             if (mDiscoveryInitiated) {
                 mDiscoveryInitiated = false;
                 if (status == BluetoothGatt.GATT_SUCCESS && mBluetoothGatt != null) {
@@ -1164,7 +969,7 @@ class BassClientStateMachine extends StateMachine {
                     mService.getCallbacks().notifyBassStateSetupFailed(mDevice);
                 }
             } else {
-                log("remote initiated callback");
+                Log.d(TAG, "remote initiated callback");
             }
         }
 
@@ -1173,7 +978,7 @@ class BassClientStateMachine extends StateMachine {
                 BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             if (status == BluetoothGatt.GATT_SUCCESS
                     && characteristic.getUuid().equals(BassConstants.BASS_BCAST_RECEIVER_STATE)) {
-                log("onCharacteristicRead: BASS_BCAST_RECEIVER_STATE: status" + status);
+                Log.d(TAG, "onCharacteristicRead: BASS_BCAST_RECEIVER_STATE: status" + status);
                 if (characteristic.getValue() == null) {
                     Log.e(TAG, "Remote receiver state is NULL");
                     return;
@@ -1183,24 +988,19 @@ class BassClientStateMachine extends StateMachine {
                         characteristic.getValue(),
                         0,
                         characteristic.getValue().length);
-                if (leaudioBroadcastReceiveStateProcessingRefactor()) {
-                    processBroadcastReceiverState(characteristic.getValue(), characteristic);
-                    mNumOfReadyBroadcastReceiverStates++;
-                    if (mNumOfReadyBroadcastReceiverStates == mNumOfBroadcastReceiverStates) {
-                        // Notify service BASS state ready for operations
-                        mBassStateReady = true;
-                        mService.getCallbacks().notifyBassStateReady(mDevice);
-                    }
-                } else {
-                    processBroadcastReceiverStateObsolete(
-                            characteristic.getValue(), characteristic);
+                processBroadcastReceiverState(characteristic.getValue(), characteristic);
+                mNumOfReadyBroadcastReceiverStates++;
+                if (mNumOfReadyBroadcastReceiverStates == mNumOfBroadcastReceiverStates) {
+                    // Notify service BASS state ready for operations
+                    mBassStateReady = true;
+                    mService.getCallbacks().notifyBassStateReady(mDevice);
                 }
             }
             // switch to receiving notifications after initial characteristic read
             BluetoothGattDescriptor desc =
                     characteristic.getDescriptor(BassConstants.CLIENT_CHARACTERISTIC_CONFIG);
             if (mBluetoothGatt != null && desc != null) {
-                log("Setting the value for Desc");
+                Log.d(TAG, "Setting the value for Desc");
                 mBluetoothGatt.setCharacteristicNotification(characteristic, /* enable */ true);
                 desc.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
                 mBluetoothGatt.writeDescriptor(desc);
@@ -1228,7 +1028,10 @@ class BassClientStateMachine extends StateMachine {
                 acquireAllBassChars();
                 mMTUChangeRequested = false;
             } else {
-                log("onMtuChanged is remote initiated trigger, mBluetoothGatt:" + mBluetoothGatt);
+                Log.d(
+                        TAG,
+                        "onMtuChanged is remote initiated trigger, mBluetoothGatt:"
+                                + mBluetoothGatt);
             }
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
@@ -1248,12 +1051,7 @@ class BassClientStateMachine extends StateMachine {
                     Log.e(TAG, "Remote receiver state is NULL");
                     return;
                 }
-                if (leaudioBroadcastReceiveStateProcessingRefactor()) {
-                    processBroadcastReceiverState(characteristic.getValue(), characteristic);
-                } else {
-                    processBroadcastReceiverStateObsolete(
-                            characteristic.getValue(), characteristic);
-                }
+                processBroadcastReceiverState(characteristic.getValue(), characteristic);
             }
         }
 
@@ -1267,10 +1065,10 @@ class BassClientStateMachine extends StateMachine {
     }
 
     /** Internal periodic Advertising manager callback */
-    private final class PACallback extends PeriodicAdvertisingCallback {
+    private static final class PACallback extends PeriodicAdvertisingCallback {
         @Override
         public void onSyncTransferred(BluetoothDevice device, int status) {
-            log("onSyncTransferred: device=" + device + ", status =" + status);
+            Log.i(TAG, "onSyncTransferred: device=" + device + ", status =" + status);
         }
     }
 
@@ -1295,7 +1093,7 @@ class BassClientStateMachine extends StateMachine {
                         mService,
                         autoConnect,
                         mGattCallback,
-                        BluetoothDevice.TRANSPORT_LE,
+                        TRANSPORT_LE,
                         (BluetoothDevice.PHY_LE_1M_MASK
                                 | BluetoothDevice.PHY_LE_2M_MASK
                                 | BluetoothDevice.PHY_LE_CODED_MASK),
@@ -1310,26 +1108,25 @@ class BassClientStateMachine extends StateMachine {
 
     /** getAllSources */
     public List<BluetoothLeBroadcastReceiveState> getAllSources() {
-        List list = new ArrayList(mBluetoothLeBroadcastReceiveStates.values());
-        return list;
+        return new ArrayList<>(mBluetoothLeBroadcastReceiveStates.values());
     }
 
     void acquireAllBassChars() {
         clearCharsCache();
         BluetoothGattService service = null;
         if (mBluetoothGatt != null) {
-            log("getting Bass Service handle");
+            Log.d(TAG, "getting Bass Service handle");
             service = mBluetoothGatt.getService(BassConstants.BASS_UUID);
         }
         if (service == null) {
-            log("acquireAllBassChars: BASS service not found");
+            Log.d(TAG, "acquireAllBassChars: BASS service not found");
             return;
         }
-        log("found BASS_SERVICE");
+        Log.d(TAG, "found BASS_SERVICE");
         List<BluetoothGattCharacteristic> allChars = service.getCharacteristics();
         int numOfChars = allChars.size();
         mNumOfBroadcastReceiverStates = numOfChars - 1;
-        log("Total number of chars" + numOfChars);
+        Log.d(TAG, "Total number of chars" + numOfChars);
         for (int i = 0; i < allChars.size(); i++) {
             if (allChars.get(i).getUuid().equals(BassConstants.BASS_BCAST_AUDIO_SCAN_CTRL_POINT)) {
                 int properties = allChars.get(i).getProperties();
@@ -1342,10 +1139,10 @@ class BassClientStateMachine extends StateMachine {
                                     + "properties!");
                 } else {
                     mBroadcastScanControlPoint = allChars.get(i);
-                    log("Index of ScanCtrlPoint:" + i);
+                    Log.d(TAG, "Index of ScanCtrlPoint:" + i);
                 }
             } else {
-                log("Reading " + i + "th ReceiverState");
+                Log.d(TAG, "Reading " + i + "th ReceiverState");
                 mBroadcastCharacteristics.add(allChars.get(i));
                 Message m = obtainMessage(READ_BASS_CHARACTERISTICS);
                 m.obj = allChars.get(i);
@@ -1377,7 +1174,9 @@ class BassClientStateMachine extends StateMachine {
     class Disconnected extends State {
         @Override
         public void enter() {
-            log(
+            mCurrentState = this;
+            Log.d(
+                    TAG,
                     "Enter Disconnected("
                             + mDevice
                             + "): "
@@ -1387,7 +1186,7 @@ class BassClientStateMachine extends StateMachine {
             mNextSourceId = 0;
             removeDeferredMessages(DISCONNECT);
             if (mLastConnectionState == -1) {
-                log("no Broadcast of initial profile state ");
+                Log.d(TAG, "no Broadcast of initial profile state ");
             } else {
                 broadcastConnectionState(mDevice, mLastConnectionState, STATE_DISCONNECTED);
                 if (mLastConnectionState != STATE_DISCONNECTED) {
@@ -1401,7 +1200,8 @@ class BassClientStateMachine extends StateMachine {
 
         @Override
         public void exit() {
-            log(
+            Log.d(
+                    TAG,
                     "Exit Disconnected("
                             + mDevice
                             + "): "
@@ -1411,14 +1211,15 @@ class BassClientStateMachine extends StateMachine {
 
         @Override
         public boolean processMessage(Message message) {
-            log(
+            Log.d(
+                    TAG,
                     "Disconnected process message("
                             + mDevice
                             + "): "
                             + messageWhatToString(message.what));
             switch (message.what) {
-                case CONNECT:
-                    log("Connecting to " + mDevice);
+                case CONNECT -> {
+                    Log.d(TAG, "Connecting to " + mDevice);
                     if (mBluetoothGatt != null) {
                         Log.d(TAG, "clear off, pending wl connection");
                         mBluetoothGatt.disconnect();
@@ -1431,32 +1232,33 @@ class BassClientStateMachine extends StateMachine {
                     } else {
                         Log.e(TAG, "Disconnected: error connecting to " + mDevice);
                     }
-                    break;
-                case DISCONNECT:
+                }
+                case DISCONNECT -> {
                     // Disconnect if there's an ongoing background connection
                     mAllowReconnect = false;
                     if (mBluetoothGatt != null) {
-                        log("Cancelling the background connection to " + mDevice);
+                        Log.d(TAG, "Cancelling the background connection to " + mDevice);
                         mBluetoothGatt.disconnect();
                         mBluetoothGatt.close();
                         mBluetoothGatt = null;
                     } else {
                         Log.d(TAG, "Disconnected: DISCONNECT ignored: " + mDevice);
                     }
-                    break;
-                case CONNECTION_STATE_CHANGED:
+                }
+                case CONNECTION_STATE_CHANGED -> {
                     int state = (int) message.obj;
                     Log.w(TAG, "connection state changed:" + state);
                     if (state == STATE_CONNECTED) {
-                        log("remote/wl connection");
+                        Log.d(TAG, "remote/wl connection");
                         transitionTo(mConnected);
                     } else {
                         Log.w(TAG, "Disconnected: Connection failed to " + mDevice);
                     }
-                    break;
-                default:
-                    log("DISCONNECTED: not handled message:" + message.what);
+                }
+                default -> {
+                    Log.d(TAG, "DISCONNECTED: not handled message:" + message.what);
                     return NOT_HANDLED;
+                }
             }
             return HANDLED;
         }
@@ -1466,18 +1268,21 @@ class BassClientStateMachine extends StateMachine {
     class Connecting extends State {
         @Override
         public void enter() {
-            log(
+            mCurrentState = this;
+            Log.d(
+                    TAG,
                     "Enter Connecting("
                             + mDevice
                             + "): "
                             + messageWhatToString(getCurrentMessage().what));
-            sendMessageDelayed(CONNECT_TIMEOUT, mDevice, mConnectTimeoutMs);
+            sendMessageDelayed(CONNECT_TIMEOUT, mDevice, BassConstants.CONNECT_TIMEOUT_MS);
             broadcastConnectionState(mDevice, mLastConnectionState, STATE_CONNECTING);
         }
 
         @Override
         public void exit() {
-            log(
+            Log.d(
+                    TAG,
                     "Exit Connecting("
                             + mDevice
                             + "): "
@@ -1488,25 +1293,23 @@ class BassClientStateMachine extends StateMachine {
 
         @Override
         public boolean processMessage(Message message) {
-            log(
+            Log.d(
+                    TAG,
                     "Connecting process message("
                             + mDevice
                             + "): "
                             + messageWhatToString(message.what));
             switch (message.what) {
-                case CONNECT:
-                    log("Already Connecting to " + mDevice);
-                    log("Ignore this connection request " + mDevice);
-                    break;
-                case DISCONNECT:
+                case CONNECT -> Log.d(TAG, "Already Connecting to " + mDevice);
+                case DISCONNECT -> {
                     Log.w(TAG, "Connecting: DISCONNECT deferred: " + mDevice);
                     deferMessage(message);
-                    break;
-                case READ_BASS_CHARACTERISTICS:
+                }
+                case READ_BASS_CHARACTERISTICS -> {
                     Log.w(TAG, "defer READ_BASS_CHARACTERISTICS requested!: " + mDevice);
                     deferMessage(message);
-                    break;
-                case CONNECTION_STATE_CHANGED:
+                }
+                case CONNECTION_STATE_CHANGED -> {
                     int state = (int) message.obj;
                     Log.w(TAG, "Connecting: connection state changed:" + state);
                     if (state == STATE_CONNECTED) {
@@ -1516,8 +1319,8 @@ class BassClientStateMachine extends StateMachine {
                         resetBluetoothGatt();
                         transitionTo(mDisconnected);
                     }
-                    break;
-                case CONNECT_TIMEOUT:
+                }
+                case CONNECT_TIMEOUT -> {
                     Log.w(TAG, "CONNECT_TIMEOUT");
                     BluetoothDevice device = (BluetoothDevice) message.obj;
                     if (!mDevice.equals(device)) {
@@ -1526,10 +1329,11 @@ class BassClientStateMachine extends StateMachine {
                     }
                     resetBluetoothGatt();
                     transitionTo(mDisconnected);
-                    break;
-                default:
-                    log("CONNECTING: not handled message:" + message.what);
+                }
+                default -> {
+                    Log.d(TAG, "CONNECTING: not handled message:" + message.what);
                     return NOT_HANDLED;
+                }
             }
             return HANDLED;
         }
@@ -1551,7 +1355,8 @@ class BassClientStateMachine extends StateMachine {
         return bisSync;
     }
 
-    private byte[] convertMetadataToAddSourceByteArray(BluetoothLeBroadcastMetadata metaData) {
+    private static byte[] convertMetadataToAddSourceByteArray(
+            BluetoothLeBroadcastMetadata metaData) {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         BluetoothDevice advSource = metaData.getSourceDevice();
 
@@ -1575,13 +1380,7 @@ class BassClientStateMachine extends StateMachine {
         stream.write((metaData.getBroadcastId() & 0x0000000000FF0000) >>> 16);
 
         // PA_Sync
-        if (mDefNoPAS) {
-            // Synchronize to PA – PAST not available
-            stream.write(0x02);
-        } else {
-            // Synchronize to PA – PAST available
-            stream.write(0x01);
-        }
+        stream.write((byte) BassConstants.PA_SYNC_PAST_AVAILABLE);
 
         // PA_Interval
         stream.write((metaData.getPaSyncInterval() & 0x00000000000000FF));
@@ -1619,15 +1418,21 @@ class BassClientStateMachine extends StateMachine {
             int sourceId, BluetoothLeBroadcastMetadata metaData, int paSync) {
         BluetoothLeBroadcastReceiveState existingState =
                 getBroadcastReceiveStateForSourceId(sourceId);
+
         if (existingState == null) {
-            log("no existing SI for update source op");
+            Log.e(TAG, "Existing receive state must be known before update");
             return null;
         }
+
         int numSubGroups =
                 (metaData != null)
                         ? metaData.getSubgroups().size()
                         : existingState.getNumSubgroups();
-        byte[] res = new byte[UPDATE_SOURCE_FIXED_LENGTH + numSubGroups * 5];
+
+        byte[] res =
+                new byte
+                        [UPDATE_SOURCE_FIXED_LENGTH
+                                + numSubGroups * UPDATE_SOURCE_SUBGROUP_FIXED_LENGTH];
         int offset = 0;
         // Opcode
         res[offset++] = OPCODE_UPDATE_SOURCE;
@@ -1674,7 +1479,8 @@ class BassClientStateMachine extends StateMachine {
                 // Keep using BIS index from remote receive state
                 bisIndexValue = currentBisIndexValue;
             }
-            log(
+            Log.d(
+                    TAG,
                     "UPDATE_BCAST_SOURCE: bisIndexValue from: "
                             + currentBisIndexValue
                             + " to: "
@@ -1687,7 +1493,94 @@ class BassClientStateMachine extends StateMachine {
             // Metadata_Length; On Modify source, don't update any Metadata
             res[offset++] = 0;
         }
-        log("UPDATE_BCAST_SOURCE in Bytes");
+
+        Log.d(TAG, "UPDATE_BCAST_SOURCE in Bytes");
+        BassUtils.printByteArray(res);
+        return res;
+    }
+
+    private byte[] convertToUpdateSourceByteArray(
+            int sourceId,
+            BluetoothLeBroadcastMetadata metadata,
+            boolean paSync,
+            boolean hasChannelPreference) {
+        BluetoothLeBroadcastReceiveState existingState =
+                getBroadcastReceiveStateForSourceId(sourceId);
+
+        if (existingState == null) {
+            Log.e(TAG, "Existing receive state must be known before update");
+            return null;
+        }
+
+        int numSubgroups =
+                (metadata != null)
+                        ? metadata.getSubgroups().size()
+                        : existingState.getNumSubgroups();
+
+        byte[] res =
+                new byte
+                        [UPDATE_SOURCE_FIXED_LENGTH
+                                + numSubgroups * UPDATE_SOURCE_SUBGROUP_FIXED_LENGTH];
+        int offset = 0;
+        // Opcode
+        res[offset++] = OPCODE_UPDATE_SOURCE;
+        // Source_ID
+        res[offset++] = (byte) sourceId;
+        // PA_Sync
+        if (paSync) {
+            res[offset++] = (byte) BassConstants.PA_SYNC_PAST_AVAILABLE;
+        } else {
+            res[offset++] = (byte) BassConstants.PA_SYNC_DO_NOT_SYNC;
+        }
+        // PA_Interval
+        res[offset++] = (byte) 0xFF;
+        res[offset++] = (byte) 0xFF;
+        // Num_Subgroups
+        res[offset++] = (byte) numSubgroups;
+
+        // BIS_Sync
+        for (int i = 0; i < numSubgroups; i++) {
+            long bisSync = BassConstants.BIS_SYNC_DO_NOT_SYNC_TO_BIS;
+            long currentBisIndexValue = BassConstants.BIS_SYNC_NO_PREFERENCE;
+
+            if (i < existingState.getBisSyncState().size()) {
+                currentBisIndexValue = existingState.getBisSyncState().get(i);
+            }
+
+            if (metadata != null) {
+                BluetoothLeBroadcastSubgroup subgroup = metadata.getSubgroups().get(i);
+                List<BluetoothLeBroadcastChannel> channels = subgroup.getChannels();
+
+                if (hasChannelPreference || subgroup.hasChannelPreference()) {
+                    for (BluetoothLeBroadcastChannel channel : channels) {
+                        bisSync |=
+                                channel.isSelected() ? (1L << (channel.getChannelIndex() - 1)) : 0L;
+                    }
+                } else {
+                    bisSync = BassConstants.BIS_SYNC_NO_PREFERENCE;
+                }
+            } else {
+                if (paSync) {
+                    // Keep using BIS index from remote receive state
+                    bisSync = currentBisIndexValue;
+                }
+            }
+
+            Log.d(
+                    TAG,
+                    "UPDATE_BCAST_SOURCE: bisSync from: "
+                            + currentBisIndexValue
+                            + " to: "
+                            + bisSync);
+
+            for (int j = 0; j < UPDATE_SOURCE_BIS_SYNC_LENGTH; j++) {
+                res[offset++] = (byte) ((bisSync >>> (j * 8)) & 0xFF);
+            }
+            // Metadata_Length; On Modify source, don't update any Metadata
+            res[offset++] = 0;
+        }
+
+        Log.d(TAG, "UPDATE_BCAST_SOURCE in Bytes");
         BassUtils.printByteArray(res);
         return res;
     }
@@ -1699,7 +1592,8 @@ class BassClientStateMachine extends StateMachine {
         res[0] = OPCODE_SET_BCAST_PIN;
         // Source_ID
         res[1] = (byte) recvState.getSourceId();
-        log(
+        Log.d(
+                TAG,
                 "convertRecvStateToSetBroadcastCodeByteArray: Source device : "
                         + recvState.getSourceDevice());
         BluetoothLeBroadcastMetadata metaData =
@@ -1714,13 +1608,13 @@ class BassClientStateMachine extends StateMachine {
             Log.e(TAG, "actual PIN is null");
             return null;
         } else {
-            log("byte array broadcast Code:" + Arrays.toString(actualPIN));
-            log("pinLength:" + actualPIN.length);
+            Log.d(TAG, "byte array broadcast Code:" + Arrays.toString(actualPIN));
+            Log.d(TAG, "pinLength:" + actualPIN.length);
             // Broadcast_Code, Fill the PIN code in the Last Position
             // This effectively adds padding zeros to MSB positions when the broadcast code
             // is shorter than 16 octets, skip the first 2 bytes for opcode and source_id.
             System.arraycopy(actualPIN, 0, res, 2, actualPIN.length);
-            log("SET_BCAST_PIN in Bytes");
+            Log.d(TAG, "SET_BCAST_PIN in Bytes");
             BassUtils.printByteArray(res);
         }
         return res;
@@ -1732,13 +1626,13 @@ class BassClientStateMachine extends StateMachine {
         Iterator<BluetoothLeBroadcastReceiveState> iterator = recvStates.iterator();
         boolean retval = false;
         if (mForceSB) {
-            log("force SB is set");
+            Log.d(TAG, "force SB is set");
             return true;
         }
         while (iterator.hasNext()) {
             BluetoothLeBroadcastReceiveState state = iterator.next();
             if (state == null) {
-                log("Source state is null");
+                Log.d(TAG, "Source state is null");
                 continue;
             }
             if (sourceId == state.getSourceId()
@@ -1749,7 +1643,7 @@ class BassClientStateMachine extends StateMachine {
                 break;
             }
         }
-        log("IsItRightTimeToUpdateBroadcastPIN returning:" + retval);
+        Log.d(TAG, "IsItRightTimeToUpdateBroadcastPIN returning:" + retval);
         return retval;
     }
 
@@ -1757,7 +1651,9 @@ class BassClientStateMachine extends StateMachine {
     class Connected extends State {
         @Override
         public void enter() {
-            log(
+            mCurrentState = this;
+            Log.d(
+                    TAG,
                     "Enter Connected("
                             + mDevice
                             + "): "
@@ -1770,7 +1666,8 @@ class BassClientStateMachine extends StateMachine {
 
         @Override
         public void exit() {
-            log(
+            Log.d(
+                    TAG,
                     "Exit Connected("
                             + mDevice
                             + "): "
@@ -1791,16 +1688,113 @@ class BassClientStateMachine extends StateMachine {
             mBluetoothGatt.writeCharacteristic(mBroadcastScanControlPoint);
         }
 
+        private void handleSourceSynchronizationChange(
+                int sourceId,
+                boolean paSync,
+                boolean hasChannelPreference,
+                BluetoothLeBroadcastMetadata metadata,
+                boolean setPendingRemove) {
+            Log.d(
+                    TAG,
+                    "handleSourceSynchronizationChange: sourceId: "
+                            + sourceId
+                            + ", paSync: "
+                            + paSync
+                            + ", hasChannelPreference: "
+                            + hasChannelPreference
+                            + ", setPendingRemove: "
+                            + setPendingRemove
+                            + ", metadata: "
+                            + metadata);
+            // Convert the source from either metadata or remote receive state
+            byte[] updateSourceInfo =
+                    convertToUpdateSourceByteArray(
+                            sourceId, metadata, paSync, hasChannelPreference);
+            if (updateSourceInfo == null) {
+                Log.e(TAG, "update source: source Info is NULL");
+                return;
+            }
+            if (mBluetoothGatt != null && mBroadcastScanControlPoint != null) {
+                writeBassControlPoint(updateSourceInfo);
+                mPendingOperation = UPDATE_BCAST_SOURCE;
+                mPendingSourceId = (byte) sourceId;
+
+                /* Mark source as pending remove after sink stop synchronization */
+                if (setPendingRemove) {
+                    setPendingRemove(sourceId, /* remove */ true);
+                }
+
+                if (!leaudioBroadcastSimplifySetBcastCode()) {
+                    if (metadata != null
+                            && metadata.isEncrypted()
+                            && metadata.getBroadcastCode() != null) {
+                        mSetBroadcastCodePending = true;
+                    }
+                }
+                mPendingMetadata = metadata;
+                transitionTo(mConnectedProcessing);
+                sendMessageDelayed(
+                        GATT_TXN_TIMEOUT, UPDATE_BCAST_SOURCE, BassConstants.GATT_TXN_TIMEOUT_MS);
+                // convertToUpdateSourceByteArray ensures receive state valid for sourceId
+                sendMessageDelayed(
+                        CANCEL_PENDING_SOURCE_OPERATION,
+                        getBroadcastReceiveStateForSourceId(sourceId).getBroadcastId(),
+                        BassConstants.SOURCE_OPERATION_TIMEOUT_MS);
+            } else {
+                Log.e(TAG, "UPDATE_BCAST_SOURCE: no Bluetooth Gatt handle, Fatal");
+                mService.getCallbacks()
+                        .notifySourceModifyFailed(
+                                mDevice, sourceId, BluetoothStatusCodes.ERROR_UNKNOWN);
+            }
+        }
+
+        private void handleSourceRemove(int sourceId) {
+            Log.d(TAG, "Removing Broadcast source, sourceId: " + sourceId);
+            byte[] removeSourceInfo = new byte[2];
+            removeSourceInfo[0] = OPCODE_REMOVE_SOURCE;
+            removeSourceInfo[1] = (byte) sourceId;
+            if (mBluetoothGatt != null && mBroadcastScanControlPoint != null) {
+                if (isPendingRemove(sourceId)) {
+                    setPendingRemove(sourceId, /* remove */ false);
+                }
+
+                writeBassControlPoint(removeSourceInfo);
+                mPendingOperation = REMOVE_BCAST_SOURCE;
+                mPendingSourceId = (byte) sourceId;
+                transitionTo(mConnectedProcessing);
+                sendMessageDelayed(
+                        GATT_TXN_TIMEOUT, REMOVE_BCAST_SOURCE, BassConstants.GATT_TXN_TIMEOUT_MS);
+            } else {
+                Log.e(TAG, "REMOVE_BCAST_SOURCE: no Bluetooth Gatt handle, Fatal");
+                mService.getCallbacks()
+                        .notifySourceRemoveFailed(
+                                mDevice, sourceId, BluetoothStatusCodes.ERROR_UNKNOWN);
+                if (mPendingSourceToSwitch != null) {
+                    // Switching source failed
+                    // Need to notify add source failure for service to cleanup
+                    mService.getCallbacks()
+                            .notifySourceAddFailed(
+                                    mDevice,
+                                    mPendingSourceToSwitch,
+                                    BluetoothStatusCodes.ERROR_UNKNOWN);
+                    mPendingSourceToSwitch = null;
+                }
+            }
+        }
+
         @Override
         public boolean processMessage(Message message) {
-            log("Connected process message(" + mDevice + "): " + messageWhatToString(message.what));
+            Log.d(
+                    TAG,
+                    "Connected process message("
+                            + mDevice
+                            + "): "
+                            + messageWhatToString(message.what));
             BluetoothLeBroadcastMetadata metaData;
             switch (message.what) {
-                case CONNECT:
-                    Log.w(TAG, "Connected: CONNECT ignored: " + mDevice);
-                    break;
-                case DISCONNECT:
-                    log("Disconnecting from " + mDevice);
+                case CONNECT -> Log.w(TAG, "Connected: CONNECT ignored: " + mDevice);
+                case DISCONNECT -> {
+                    Log.d(TAG, "Disconnecting from " + mDevice);
                     mAllowReconnect = false;
                     if (mBluetoothGatt != null) {
                         mService.handleDeviceDisconnection(mDevice, true);
@@ -1809,10 +1803,10 @@ class BassClientStateMachine extends StateMachine {
                         mBluetoothGatt = null;
                         transitionTo(mDisconnected);
                     } else {
-                        log("mBluetoothGatt is null");
+                        Log.d(TAG, "mBluetoothGatt is null");
                     }
-                    break;
-                case CONNECTION_STATE_CHANGED:
+                }
+                case CONNECTION_STATE_CHANGED -> {
                     int state = (int) message.obj;
                     Log.w(TAG, "Connected:connection state changed:" + state);
                     if (state == STATE_CONNECTED) {
@@ -1823,8 +1817,8 @@ class BassClientStateMachine extends StateMachine {
                         resetBluetoothGatt();
                         transitionTo(mDisconnected);
                     }
-                    break;
-                case READ_BASS_CHARACTERISTICS:
+                }
+                case READ_BASS_CHARACTERISTICS -> {
                     BluetoothGattCharacteristic characteristic =
                             (BluetoothGattCharacteristic) message.obj;
                     if (mBluetoothGatt != null) {
@@ -1833,26 +1827,26 @@ class BassClientStateMachine extends StateMachine {
                     } else {
                         Log.e(TAG, "READ_BASS_CHARACTERISTICS is ignored, Gatt handle is null");
                     }
-                    break;
-                case START_SCAN_OFFLOAD:
+                }
+                case START_SCAN_OFFLOAD -> {
                     if (mBluetoothGatt != null && mBroadcastScanControlPoint != null) {
                         writeBassControlPoint(REMOTE_SCAN_START);
                         mPendingOperation = message.what;
                         transitionTo(mConnectedProcessing);
                     } else {
-                        log("no Bluetooth Gatt handle, may need to fetch write");
+                        Log.d(TAG, "no Bluetooth Gatt handle, may need to fetch write");
                     }
-                    break;
-                case STOP_SCAN_OFFLOAD:
+                }
+                case STOP_SCAN_OFFLOAD -> {
                     if (mBluetoothGatt != null && mBroadcastScanControlPoint != null) {
                         writeBassControlPoint(REMOTE_SCAN_STOP);
                         mPendingOperation = message.what;
                         transitionTo(mConnectedProcessing);
                     } else {
-                        log("no Bluetooth Gatt handle, may need to fetch write");
+                        Log.d(TAG, "no Bluetooth Gatt handle, may need to fetch write");
                     }
-                    break;
-                case SWITCH_BCAST_SOURCE:
+                }
+                case SWITCH_BCAST_SOURCE -> {
                     metaData = (BluetoothLeBroadcastMetadata) message.obj;
                     int sourceIdToRemove = message.arg1;
                     // Save pending source to be added once existing source got removed
@@ -1860,8 +1854,10 @@ class BassClientStateMachine extends StateMachine {
                     // Remove the source first
                     BluetoothLeBroadcastMetadata metaDataToUpdate =
                             getCurrentBroadcastMetadata(sourceIdToRemove);
-                    if (metaDataToUpdate != null && isSyncedToTheSource(sourceIdToRemove)) {
-                        log("SWITCH_BCAST_SOURCE force source to lost PA sync");
+                    if (!leaudioBisSyncControl()
+                            && metaDataToUpdate != null
+                            && isSyncedToTheSource(sourceIdToRemove)) {
+                        Log.d(TAG, "SWITCH_BCAST_SOURCE force source to lost PA sync");
                         Message msg = obtainMessage(UPDATE_BCAST_SOURCE);
                         msg.arg1 = sourceIdToRemove;
                         msg.arg2 = BassConstants.PA_SYNC_DO_NOT_SYNC;
@@ -1873,8 +1869,8 @@ class BassClientStateMachine extends StateMachine {
                         msg.arg1 = sourceIdToRemove;
                         sendMessage(msg);
                     }
-                    break;
-                case ADD_BCAST_SOURCE:
+                }
+                case ADD_BCAST_SOURCE -> {
                     metaData = (BluetoothLeBroadcastMetadata) message.obj;
                     byte[] addSourceInfo = convertMetadataToAddSourceByteArray(metaData);
                     if (addSourceInfo == null) {
@@ -1893,8 +1889,10 @@ class BassClientStateMachine extends StateMachine {
                         writeBassControlPoint(addSourceInfo);
                         mPendingOperation = message.what;
                         mPendingMetadata = metaData;
-                        if (metaData.isEncrypted() && (metaData.getBroadcastCode() != null)) {
-                            mSetBroadcastCodePending = true;
+                        if (!leaudioBroadcastSimplifySetBcastCode()) {
+                            if (metaData.isEncrypted() && (metaData.getBroadcastCode() != null)) {
+                                mSetBroadcastCodePending = true;
+                            }
                         }
                         transitionTo(mConnectedProcessing);
                         sendMessageDelayed(
@@ -1917,65 +1915,91 @@ class BassClientStateMachine extends StateMachine {
                         // Clear pending source to switch when starting to add this new source
                         mPendingSourceToSwitch = null;
                     }
-                    break;
-                case UPDATE_BCAST_SOURCE:
-                    metaData = (BluetoothLeBroadcastMetadata) message.obj;
-                    int sourceId = message.arg1;
-                    int paSync = message.arg2;
-                    log("Updating Broadcast source: " + metaData);
-                    // Convert the source from either metadata or remote receive state
-                    byte[] updateSourceInfo =
-                            convertToUpdateSourceByteArray(sourceId, metaData, paSync);
-                    if (updateSourceInfo == null) {
-                        Log.e(TAG, "update source: source Info is NULL");
-                        break;
-                    }
-                    if (mBluetoothGatt != null && mBroadcastScanControlPoint != null) {
-                        writeBassControlPoint(updateSourceInfo);
-                        mPendingOperation = message.what;
-                        mPendingSourceId = (byte) sourceId;
-                        if (paSync == BassConstants.PA_SYNC_DO_NOT_SYNC) {
-                            setPendingRemove(sourceId, /* remove */ true);
-                        }
-                        if (metaData != null
-                                && metaData.isEncrypted()
-                                && metaData.getBroadcastCode() != null) {
-                            mSetBroadcastCodePending = true;
-                        }
-                        mPendingMetadata = metaData;
-                        transitionTo(mConnectedProcessing);
-                        sendMessageDelayed(
-                                GATT_TXN_TIMEOUT,
-                                UPDATE_BCAST_SOURCE,
-                                BassConstants.GATT_TXN_TIMEOUT_MS);
-                        // convertToUpdateSourceByteArray ensures receive state valid for sourceId
-                        sendMessageDelayed(
-                                CANCEL_PENDING_SOURCE_OPERATION,
-                                getBroadcastReceiveStateForSourceId(sourceId).getBroadcastId(),
-                                BassConstants.SOURCE_OPERATION_TIMEOUT_MS);
+                }
+                case UPDATE_BCAST_SOURCE -> {
+                    if (leaudioBisSyncControl()) {
+                        boolean paSync = (message.arg2 & BassConstants.FLAG_SYNC_PA) != 0;
+                        boolean hasChannelPreference =
+                                (message.arg2 & BassConstants.FLAG_SYNC_BIS_CHANNEL_PREFERENCE)
+                                        != 0;
+
+                        handleSourceSynchronizationChange(
+                                message.arg1,
+                                paSync,
+                                hasChannelPreference,
+                                (BluetoothLeBroadcastMetadata) message.obj,
+                                false /* setPendingRemove */);
                     } else {
-                        Log.e(TAG, "UPDATE_BCAST_SOURCE: no Bluetooth Gatt handle, Fatal");
-                        mService.getCallbacks()
-                                .notifySourceModifyFailed(
-                                        mDevice, sourceId, BluetoothStatusCodes.ERROR_UNKNOWN);
+                        metaData = (BluetoothLeBroadcastMetadata) message.obj;
+                        int sourceId = message.arg1;
+                        int paSync = message.arg2;
+                        Log.d(TAG, "Updating Broadcast source: " + metaData);
+                        // Convert the source from either metadata or remote receive state
+                        byte[] updateSourceInfo =
+                                convertToUpdateSourceByteArray(sourceId, metaData, paSync);
+                        if (updateSourceInfo == null) {
+                            Log.e(TAG, "update source: source Info is NULL");
+                            break;
+                        }
+                        if (mBluetoothGatt != null && mBroadcastScanControlPoint != null) {
+                            writeBassControlPoint(updateSourceInfo);
+                            mPendingOperation = message.what;
+                            mPendingSourceId = (byte) sourceId;
+                            if (paSync == BassConstants.PA_SYNC_DO_NOT_SYNC) {
+                                setPendingRemove(sourceId, /* remove */ true);
+                            }
+                            if (!leaudioBroadcastSimplifySetBcastCode()) {
+                                if (metaData != null
+                                        && metaData.isEncrypted()
+                                        && metaData.getBroadcastCode() != null) {
+                                    mSetBroadcastCodePending = true;
+                                }
+                            }
+                            mPendingMetadata = metaData;
+                            transitionTo(mConnectedProcessing);
+                            sendMessageDelayed(
+                                    GATT_TXN_TIMEOUT,
+                                    UPDATE_BCAST_SOURCE,
+                                    BassConstants.GATT_TXN_TIMEOUT_MS);
+                            // convertToUpdateSourceByteArray ensures receive state valid for
+                            // sourceId
+                            sendMessageDelayed(
+                                    CANCEL_PENDING_SOURCE_OPERATION,
+                                    getBroadcastReceiveStateForSourceId(sourceId).getBroadcastId(),
+                                    BassConstants.SOURCE_OPERATION_TIMEOUT_MS);
+                        } else {
+                            Log.e(TAG, "UPDATE_BCAST_SOURCE: no Bluetooth Gatt handle, Fatal");
+                            mService.getCallbacks()
+                                    .notifySourceModifyFailed(
+                                            mDevice, sourceId, BluetoothStatusCodes.ERROR_UNKNOWN);
+                        }
                     }
-                    break;
-                case SET_BCAST_CODE:
-                    int argType = message.arg1;
-                    mSetBroadcastCodePending = false;
+                }
+                case SET_BCAST_CODE -> {
                     BluetoothLeBroadcastReceiveState recvState = null;
-                    if (argType == ARGTYPE_METADATA) {
-                        mSetBroadcastPINMetadata = (BluetoothLeBroadcastMetadata) message.obj;
-                        mSetBroadcastCodePending = true;
+                    if (!leaudioBroadcastSimplifySetBcastCode()) {
+                        int argType = message.arg1;
+                        mSetBroadcastCodePending = false;
+                        if (argType == ARGTYPE_METADATA) {
+                            mSetBroadcastPINMetadata = (BluetoothLeBroadcastMetadata) message.obj;
+                            mSetBroadcastCodePending = true;
+                        } else {
+                            recvState = (BluetoothLeBroadcastReceiveState) message.obj;
+                            if (!isItRightTimeToUpdateBroadcastPin(
+                                    (byte) recvState.getSourceId())) {
+                                mSetBroadcastCodePending = true;
+                            }
+                        }
+                        if (mSetBroadcastCodePending == true) {
+                            Log.d(TAG, "Ignore SET_BCAST now, but restore it for later");
+                            break;
+                        }
                     } else {
                         recvState = (BluetoothLeBroadcastReceiveState) message.obj;
                         if (!isItRightTimeToUpdateBroadcastPin((byte) recvState.getSourceId())) {
-                            mSetBroadcastCodePending = true;
+                            Log.d(TAG, "Ignore SET_BCAST now, but restore it for later");
+                            break;
                         }
-                    }
-                    if (mSetBroadcastCodePending == true) {
-                        log("Ignore SET_BCAST now, but restore it for later");
-                        break;
                     }
                     byte[] setBroadcastPINcmd =
                             convertRecvStateToSetBroadcastCodeByteArray(recvState);
@@ -1993,81 +2017,102 @@ class BassClientStateMachine extends StateMachine {
                                 SET_BCAST_CODE,
                                 BassConstants.GATT_TXN_TIMEOUT_MS);
                     }
-                    break;
-                case REMOVE_BCAST_SOURCE:
-                    byte sid = (byte) message.arg1;
-                    log("Removing Broadcast source, sourceId: " + sid);
-                    byte[] removeSourceInfo = new byte[2];
-                    removeSourceInfo[0] = OPCODE_REMOVE_SOURCE;
-                    removeSourceInfo[1] = sid;
-                    if (mBluetoothGatt != null && mBroadcastScanControlPoint != null) {
-                        if (isPendingRemove((int) sid)) {
-                            setPendingRemove((int) sid, /* remove */ false);
+                }
+                case REMOVE_BCAST_SOURCE -> {
+                    if (leaudioBisSyncControl()) {
+                        int sourceId = message.arg1;
+
+                        /* In case of source being synced PA or BIS, synchronization needs to be
+                         * stopped prior.
+                         */
+                        if (isSyncedToTheSource(sourceId)) {
+                            handleSourceSynchronizationChange(
+                                    sourceId,
+                                    false, /* paSync */
+                                    false, /* hasChannelPreference */
+                                    null, /* metadata */
+                                    true /* setPendingRemove*/);
+                            break;
                         }
 
-                        writeBassControlPoint(removeSourceInfo);
-                        mPendingOperation = message.what;
-                        mPendingSourceId = sid;
-                        transitionTo(mConnectedProcessing);
-                        sendMessageDelayed(
-                                GATT_TXN_TIMEOUT,
-                                REMOVE_BCAST_SOURCE,
-                                BassConstants.GATT_TXN_TIMEOUT_MS);
+                        handleSourceRemove(sourceId);
                     } else {
-                        Log.e(TAG, "REMOVE_BCAST_SOURCE: no Bluetooth Gatt handle, Fatal");
-                        mService.getCallbacks()
-                                .notifySourceRemoveFailed(
-                                        mDevice, sid, BluetoothStatusCodes.ERROR_UNKNOWN);
-                        if (mPendingSourceToSwitch != null) {
-                            // Switching source failed
-                            // Need to notify add source failure for service to cleanup
+                        byte sid = (byte) message.arg1;
+                        Log.d(TAG, "Removing Broadcast source, sourceId: " + sid);
+                        byte[] removeSourceInfo = new byte[2];
+                        removeSourceInfo[0] = OPCODE_REMOVE_SOURCE;
+                        removeSourceInfo[1] = sid;
+                        if (mBluetoothGatt != null && mBroadcastScanControlPoint != null) {
+                            if (isPendingRemove((int) sid)) {
+                                setPendingRemove((int) sid, /* remove */ false);
+                            }
+
+                            writeBassControlPoint(removeSourceInfo);
+                            mPendingOperation = message.what;
+                            mPendingSourceId = sid;
+                            transitionTo(mConnectedProcessing);
+                            sendMessageDelayed(
+                                    GATT_TXN_TIMEOUT,
+                                    REMOVE_BCAST_SOURCE,
+                                    BassConstants.GATT_TXN_TIMEOUT_MS);
+                        } else {
+                            Log.e(TAG, "REMOVE_BCAST_SOURCE: no Bluetooth Gatt handle, Fatal");
                             mService.getCallbacks()
-                                    .notifySourceAddFailed(
-                                            mDevice,
-                                            mPendingSourceToSwitch,
-                                            BluetoothStatusCodes.ERROR_UNKNOWN);
-                            mPendingSourceToSwitch = null;
+                                    .notifySourceRemoveFailed(
+                                            mDevice, sid, BluetoothStatusCodes.ERROR_UNKNOWN);
+                            if (mPendingSourceToSwitch != null) {
+                                // Switching source failed
+                                // Need to notify add source failure for service to cleanup
+                                mService.getCallbacks()
+                                        .notifySourceAddFailed(
+                                                mDevice,
+                                                mPendingSourceToSwitch,
+                                                BluetoothStatusCodes.ERROR_UNKNOWN);
+                                mPendingSourceToSwitch = null;
+                            }
                         }
                     }
-                    break;
-                case CANCEL_PENDING_SOURCE_OPERATION:
+                }
+                case CANCEL_PENDING_SOURCE_OPERATION -> {
                     int broadcastId = message.arg1;
                     cancelPendingSourceOperation(broadcastId);
-                    break;
-                case INITIATE_PA_SYNC_TRANSFER:
+                }
+                case INITIATE_PA_SYNC_TRANSFER -> {
                     int syncHandle = message.arg1;
                     int sourceIdForPast = message.arg2;
                     initiatePaSyncTransfer(syncHandle, sourceIdForPast);
-                    break;
-                default:
-                    log("CONNECTED: not handled message:" + message.what);
+                }
+                case UPDATE_METADATA -> {
+                    int sourceIdForUpdateMetadata = message.arg1;
+                    metaData = (BluetoothLeBroadcastMetadata) message.obj;
+                    setCurrentBroadcastMetadata(sourceIdForUpdateMetadata, metaData);
+                    updateMetadataWithReceiveStateIfBisSyncStateChanged(
+                            getBroadcastReceiveStateForSourceId(sourceIdForUpdateMetadata));
+                }
+                default -> {
+                    Log.d(TAG, "CONNECTED: not handled message:" + message.what);
                     return NOT_HANDLED;
+                }
             }
             return HANDLED;
         }
     }
 
     private static boolean isSuccess(int status) {
-        boolean ret = false;
-        switch (status) {
-            case BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST:
-            case BluetoothStatusCodes.REASON_LOCAL_STACK_REQUEST:
-            case BluetoothStatusCodes.REASON_REMOTE_REQUEST:
-            case BluetoothStatusCodes.REASON_SYSTEM_POLICY:
-                ret = true;
-                break;
-            default:
-                break;
-        }
-        return ret;
+        return switch (status) {
+            case BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST,
+                    BluetoothStatusCodes.REASON_LOCAL_STACK_REQUEST,
+                    BluetoothStatusCodes.REASON_REMOTE_REQUEST,
+                    BluetoothStatusCodes.REASON_SYSTEM_POLICY ->
+                    true;
+            default -> false;
+        };
     }
 
     void sendPendingCallbacks(int pendingOp, int status) {
         switch (pendingOp) {
-            case START_SCAN_OFFLOAD:
-                log("sendPendingCallbacks: START_SCAN_OFFLOAD");
-                break;
-            case ADD_BCAST_SOURCE:
+            case START_SCAN_OFFLOAD -> Log.d(TAG, "sendPendingCallbacks: START_SCAN_OFFLOAD");
+            case ADD_BCAST_SOURCE -> {
                 if (!isSuccess(status)) {
                     if (mPendingMetadata != null) {
                         mService.getCallbacks()
@@ -2076,16 +2121,16 @@ class BassClientStateMachine extends StateMachine {
                     }
                     removeMessages(CANCEL_PENDING_SOURCE_OPERATION);
                 }
-                break;
-            case UPDATE_BCAST_SOURCE:
+            }
+            case UPDATE_BCAST_SOURCE -> {
                 if (!isSuccess(status)) {
                     mService.getCallbacks()
                             .notifySourceModifyFailed(mDevice, mPendingSourceId, status);
                     mPendingMetadata = null;
                     removeMessages(CANCEL_PENDING_SOURCE_OPERATION);
                 }
-                break;
-            case REMOVE_BCAST_SOURCE:
+            }
+            case REMOVE_BCAST_SOURCE -> {
                 if (!isSuccess(status)) {
                     mService.getCallbacks()
                             .notifySourceRemoveFailed(mDevice, mPendingSourceId, status);
@@ -2097,13 +2142,9 @@ class BassClientStateMachine extends StateMachine {
                         mPendingSourceToSwitch = null;
                     }
                 }
-                break;
-            case SET_BCAST_CODE:
-                log("sendPendingCallbacks: SET_BCAST_CODE");
-                break;
-            default:
-                log("sendPendingCallbacks: unhandled case");
-                break;
+            }
+            case SET_BCAST_CODE -> Log.d(TAG, "sendPendingCallbacks: SET_BCAST_CODE");
+            default -> Log.d(TAG, "sendPendingCallbacks: unhandled case");
         }
     }
 
@@ -2112,7 +2153,9 @@ class BassClientStateMachine extends StateMachine {
     class ConnectedProcessing extends State {
         @Override
         public void enter() {
-            log(
+            mCurrentState = this;
+            Log.d(
+                    TAG,
                     "Enter ConnectedProcessing("
                             + mDevice
                             + "): "
@@ -2126,7 +2169,8 @@ class BassClientStateMachine extends StateMachine {
                 mPendingMetadata = null;
             }
 
-            log(
+            Log.d(
+                    TAG,
                     "Exit ConnectedProcessing("
                             + mDevice
                             + "): "
@@ -2135,16 +2179,15 @@ class BassClientStateMachine extends StateMachine {
 
         @Override
         public boolean processMessage(Message message) {
-            log(
+            Log.d(
+                    TAG,
                     "ConnectedProcessing process message("
                             + mDevice
                             + "): "
                             + messageWhatToString(message.what));
             switch (message.what) {
-                case CONNECT:
-                    Log.w(TAG, "CONNECT request is ignored" + mDevice);
-                    break;
-                case DISCONNECT:
+                case CONNECT -> Log.w(TAG, "CONNECT request is ignored" + mDevice);
+                case DISCONNECT -> {
                     Log.w(TAG, "DISCONNECT requested!: " + mDevice);
                     mAllowReconnect = false;
                     if (mBluetoothGatt != null) {
@@ -2154,14 +2197,14 @@ class BassClientStateMachine extends StateMachine {
                         mBluetoothGatt = null;
                         transitionTo(mDisconnected);
                     } else {
-                        log("mBluetoothGatt is null");
+                        Log.d(TAG, "mBluetoothGatt is null");
                     }
-                    break;
-                case READ_BASS_CHARACTERISTICS:
+                }
+                case READ_BASS_CHARACTERISTICS -> {
                     Log.w(TAG, "defer READ_BASS_CHARACTERISTICS requested!: " + mDevice);
                     deferMessage(message);
-                    break;
-                case CONNECTION_STATE_CHANGED:
+                }
+                case CONNECTION_STATE_CHANGED -> {
                     int state = (int) message.obj;
                     Log.w(TAG, "ConnectedProcessing: connection state changed:" + state);
                     if (state == STATE_CONNECTED) {
@@ -2172,11 +2215,11 @@ class BassClientStateMachine extends StateMachine {
                         resetBluetoothGatt();
                         transitionTo(mDisconnected);
                     }
-                    break;
-                case GATT_TXN_PROCESSED:
+                }
+                case GATT_TXN_PROCESSED -> {
                     removeMessages(GATT_TXN_TIMEOUT);
                     int status = (int) message.arg1;
-                    log("GATT transaction processed for" + mDevice);
+                    Log.d(TAG, "GATT transaction processed for" + mDevice);
                     if (status == BluetoothGatt.GATT_SUCCESS) {
                         sendPendingCallbacks(
                                 mPendingOperation, BluetoothStatusCodes.REASON_LOCAL_APP_REQUEST);
@@ -2184,9 +2227,9 @@ class BassClientStateMachine extends StateMachine {
                         sendPendingCallbacks(mPendingOperation, BluetoothStatusCodes.ERROR_UNKNOWN);
                     }
                     transitionTo(mConnected);
-                    break;
-                case GATT_TXN_TIMEOUT:
-                    log("GATT transaction timeout for" + mDevice);
+                }
+                case GATT_TXN_TIMEOUT -> {
+                    Log.d(TAG, "GATT transaction timeout for" + mDevice);
                     sendPendingCallbacks(mPendingOperation, BluetoothStatusCodes.ERROR_UNKNOWN);
                     mPendingOperation = -1;
                     mPendingSourceId = -1;
@@ -2195,36 +2238,39 @@ class BassClientStateMachine extends StateMachine {
                         mPendingMetadata = null;
                     }
                     transitionTo(mConnected);
-                    break;
-                case START_SCAN_OFFLOAD:
-                case STOP_SCAN_OFFLOAD:
-                case ADD_BCAST_SOURCE:
-                case SET_BCAST_CODE:
-                case REMOVE_BCAST_SOURCE:
-                case SWITCH_BCAST_SOURCE:
-                case INITIATE_PA_SYNC_TRANSFER:
-                    log(
+                }
+                case START_SCAN_OFFLOAD,
+                        STOP_SCAN_OFFLOAD,
+                        ADD_BCAST_SOURCE,
+                        SET_BCAST_CODE,
+                        REMOVE_BCAST_SOURCE,
+                        SWITCH_BCAST_SOURCE,
+                        INITIATE_PA_SYNC_TRANSFER,
+                        UPDATE_METADATA -> {
+                    Log.d(
+                            TAG,
                             "defer the message: "
                                     + messageWhatToString(message.what)
                                     + ", so that it will be processed later");
                     deferMessage(message);
-                    break;
-                case CANCEL_PENDING_SOURCE_OPERATION:
+                }
+                case CANCEL_PENDING_SOURCE_OPERATION -> {
                     int broadcastId = message.arg1;
                     cancelPendingSourceOperation(broadcastId);
-                    break;
-                default:
-                    log("ConnectedProcessing: not handled message:" + message.what);
+                }
+                default -> {
+                    Log.d(TAG, "ConnectedProcessing: not handled message:" + message.what);
                     return NOT_HANDLED;
+                }
             }
             return HANDLED;
         }
     }
 
     void broadcastConnectionState(BluetoothDevice device, int fromState, int toState) {
-        log("broadcastConnectionState " + device + ": " + fromState + "->" + toState);
+        Log.d(TAG, "broadcastConnectionState " + device + ": " + fromState + "->" + toState);
         if (fromState == STATE_CONNECTED && toState == STATE_CONNECTED) {
-            log("CONNECTED->CONNECTED: Ignore");
+            Log.d(TAG, "CONNECTED->CONNECTED: Ignore");
             return;
         }
 
@@ -2244,22 +2290,16 @@ class BassClientStateMachine extends StateMachine {
     }
 
     int getConnectionState() {
-        String currentState = "Unknown";
-        if (getCurrentState() != null) {
-            currentState = getCurrentState().getName();
-        }
-        switch (currentState) {
-            case "Disconnected":
-                return STATE_DISCONNECTED;
-            case "Connecting":
-                return STATE_CONNECTING;
-            case "Connected":
-            case "ConnectedProcessing":
-                return STATE_CONNECTED;
-            default:
+        String currentState = mCurrentState.getName();
+        return switch (currentState) {
+            case "Disconnected" -> STATE_DISCONNECTED;
+            case "Connecting" -> STATE_CONNECTING;
+            case "Connected", "ConnectedProcessing" -> STATE_CONNECTED;
+            default -> {
                 Log.e(TAG, "Bad currentState: " + currentState);
-                return STATE_DISCONNECTED;
-        }
+                yield STATE_DISCONNECTED;
+            }
+        };
     }
 
     int getMaximumSourceCapacity() {
@@ -2279,50 +2319,35 @@ class BassClientStateMachine extends StateMachine {
     }
 
     synchronized boolean isConnected() {
-        return (getCurrentState() == mConnected) || (getCurrentState() == mConnectedProcessing);
+        return (mCurrentState == mConnected) || (mCurrentState == mConnectedProcessing);
     }
 
     public static String messageWhatToString(int what) {
-        switch (what) {
-            case CONNECT:
-                return "CONNECT";
-            case DISCONNECT:
-                return "DISCONNECT";
-            case CONNECTION_STATE_CHANGED:
-                return "CONNECTION_STATE_CHANGED";
-            case GATT_TXN_PROCESSED:
-                return "GATT_TXN_PROCESSED";
-            case READ_BASS_CHARACTERISTICS:
-                return "READ_BASS_CHARACTERISTICS";
-            case START_SCAN_OFFLOAD:
-                return "START_SCAN_OFFLOAD";
-            case STOP_SCAN_OFFLOAD:
-                return "STOP_SCAN_OFFLOAD";
-            case ADD_BCAST_SOURCE:
-                return "ADD_BCAST_SOURCE";
-            case UPDATE_BCAST_SOURCE:
-                return "UPDATE_BCAST_SOURCE";
-            case SET_BCAST_CODE:
-                return "SET_BCAST_CODE";
-            case REMOVE_BCAST_SOURCE:
-                return "REMOVE_BCAST_SOURCE";
-            case SWITCH_BCAST_SOURCE:
-                return "SWITCH_BCAST_SOURCE";
-            case CONNECT_TIMEOUT:
-                return "CONNECT_TIMEOUT";
-            case CANCEL_PENDING_SOURCE_OPERATION:
-                return "CANCEL_PENDING_SOURCE_OPERATION";
-            case INITIATE_PA_SYNC_TRANSFER:
-                return "INITIATE_PA_SYNC_TRANSFER";
-            default:
-                break;
-        }
-        return Integer.toString(what);
+        return switch (what) {
+            case CONNECT -> "CONNECT";
+            case DISCONNECT -> "DISCONNECT";
+            case CONNECTION_STATE_CHANGED -> "CONNECTION_STATE_CHANGED";
+            case GATT_TXN_PROCESSED -> "GATT_TXN_PROCESSED";
+            case READ_BASS_CHARACTERISTICS -> "READ_BASS_CHARACTERISTICS";
+            case START_SCAN_OFFLOAD -> "START_SCAN_OFFLOAD";
+            case STOP_SCAN_OFFLOAD -> "STOP_SCAN_OFFLOAD";
+            case ADD_BCAST_SOURCE -> "ADD_BCAST_SOURCE";
+            case UPDATE_BCAST_SOURCE -> "UPDATE_BCAST_SOURCE";
+            case SET_BCAST_CODE -> "SET_BCAST_CODE";
+            case REMOVE_BCAST_SOURCE -> "REMOVE_BCAST_SOURCE";
+            case SWITCH_BCAST_SOURCE -> "SWITCH_BCAST_SOURCE";
+            case CONNECT_TIMEOUT -> "CONNECT_TIMEOUT";
+            case CANCEL_PENDING_SOURCE_OPERATION -> "CANCEL_PENDING_SOURCE_OPERATION";
+            case INITIATE_PA_SYNC_TRANSFER -> "INITIATE_PA_SYNC_TRANSFER";
+            case UPDATE_METADATA -> "UPDATE_METADATA";
+            default -> Integer.toString(what);
+        };
     }
 
     /** Dump info */
     public void dump(StringBuilder sb) {
         ProfileService.println(sb, "mDevice: " + mDevice);
+        ProfileService.println(sb, "mCurrentState: " + mCurrentState.getName());
         ProfileService.println(sb, "  StateMachine: " + this);
         // Dump the state machine logs
         StringWriter stringWriter = new StringWriter();
@@ -2342,11 +2367,6 @@ class BassClientStateMachine extends StateMachine {
             BluetoothLeBroadcastReceiveState state = entry.getValue();
             sb.append(state);
         }
-    }
-
-    @Override
-    protected void log(String msg) {
-        super.log(msg);
     }
 
     private static void logByteArray(String prefix, byte[] value, int offset, int count) {

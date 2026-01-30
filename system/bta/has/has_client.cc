@@ -19,6 +19,9 @@
 #include <base/functional/callback.h>
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/bt_transport.h>
+#include <bluetooth/types/uuid.h>
 #include <com_android_bluetooth_flags.h>
 #include <hardware/bt_gatt_types.h>
 #include <hardware/bt_has.h>
@@ -43,6 +46,7 @@
 #include "bta_gatt_queue.h"
 #include "bta_has_api.h"
 #include "bta_le_audio_uuids.h"
+#include "btif/include/btif_profile_storage.h"
 #include "btm_ble_api_types.h"
 #include "btm_sec.h"
 #include "btm_sec_api_types.h"
@@ -57,10 +61,8 @@
 #include "has_types.h"
 #include "osi/include/alarm.h"
 #include "osi/include/properties.h"
+#include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_types.h"
-#include "types/bluetooth/uuid.h"
-#include "types/bt_transport.h"
-#include "types/raw_address.h"
 
 using base::Closure;
 using bluetooth::Uuid;
@@ -84,21 +86,6 @@ using bluetooth::le_audio::has::kUuidHearingAidPresetControlPoint;
 using bluetooth::le_audio::has::PresetCtpChangeId;
 using bluetooth::le_audio::has::PresetCtpOpcode;
 using namespace bluetooth;
-
-void btif_storage_add_leaudio_has_device(const RawAddress& address,
-                                         std::vector<uint8_t> presets_bin, uint8_t features,
-                                         uint8_t active_preset);
-bool btif_storage_get_leaudio_has_presets(const RawAddress& address,
-                                          std::vector<uint8_t>& presets_bin,
-                                          uint8_t& active_preset);
-void btif_storage_set_leaudio_has_presets(const RawAddress& address,
-                                          std::vector<uint8_t> presets_bin);
-bool btif_storage_get_leaudio_has_features(const RawAddress& address, uint8_t& features);
-void btif_storage_set_leaudio_has_features(const RawAddress& address, uint8_t features);
-void btif_storage_set_leaudio_has_active_preset(const RawAddress& address, uint8_t active_preset);
-void btif_storage_remove_leaudio_has(const RawAddress& address);
-
-bool gatt_profile_get_eatt_support(const RawAddress& remote_bda);
 
 namespace {
 class HasClientImpl;
@@ -170,47 +157,15 @@ public:
       return;
     }
 
-    if (com::android::bluetooth::flags::hap_connect_only_requested_device()) {
-      auto device =
-              std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(address));
-      if (device == devices_.end()) {
-        devices_.emplace_back(address, true);
+    auto device = std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(address));
+    if (device == devices_.end()) {
+      devices_.emplace_back(address, true);
+      BTA_GATTC_Open(gatt_if_, address, BTM_BLE_DIRECT_CONNECTION, false);
+
+    } else {
+      device->is_connecting_actively = true;
+      if (!device->IsConnected()) {
         BTA_GATTC_Open(gatt_if_, address, BTM_BLE_DIRECT_CONNECTION, false);
-
-      } else {
-        device->is_connecting_actively = true;
-        if (!device->IsConnected()) {
-          BTA_GATTC_Open(gatt_if_, address, BTM_BLE_DIRECT_CONNECTION, false);
-        }
-      }
-      return;
-    }
-
-    std::vector<RawAddress> addresses = {address};
-    auto csis_api = CsisClient::Get();
-    if (csis_api != nullptr) {
-      // Connect entire CAS set of devices
-      auto group_id =
-              csis_api->GetGroupId(address, bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE));
-      addresses = csis_api->GetDeviceList(group_id);
-    }
-
-    if (addresses.empty()) {
-      log::warn("{} is not part of any set", address);
-      addresses = {address};
-    }
-
-    for (auto const& addr : addresses) {
-      auto device = std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(addr));
-      if (device == devices_.end()) {
-        devices_.emplace_back(addr, true);
-        BTA_GATTC_Open(gatt_if_, addr, BTM_BLE_DIRECT_CONNECTION, false);
-
-      } else {
-        device->is_connecting_actively = true;
-        if (!device->IsConnected()) {
-          BTA_GATTC_Open(gatt_if_, addr, BTM_BLE_DIRECT_CONNECTION, false);
-        }
       }
     }
   }
@@ -235,75 +190,30 @@ public:
   void Disconnect(const RawAddress& address) override {
     log::debug("{}", address);
 
-    if (com::android::bluetooth::flags::hap_connect_only_requested_device()) {
-      auto device =
-              std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(address));
-      if (device == devices_.end()) {
-        log::warn("Device not connected to profile{}", address);
-        return;
-      }
-
-      auto conn_id = device->conn_id;
-      auto is_connecting_actively = device->is_connecting_actively;
-
-      DoDisconnectCleanUp(*device);
-      devices_.erase(device);
-
-      if (conn_id != GATT_INVALID_CONN_ID) {
-        BTA_GATTC_Close(conn_id);
-        callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
-      } else {
-        /* Removes active connection. */
-        if (is_connecting_actively) {
-          BTA_GATTC_CancelOpen(gatt_if_, address, true);
-          callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
-        } else {
-          /* Removes all registrations for connection. */
-          BTA_GATTC_CancelOpen(gatt_if_, address, false);
-        }
-      }
+    auto device = std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(address));
+    if (device == devices_.end()) {
+      log::warn("Device not connected to profile{}", address);
       return;
     }
 
-    std::vector<RawAddress> addresses = {address};
-    auto csis_api = CsisClient::Get();
-    if (csis_api != nullptr) {
-      // Disconnect entire CAS set of devices
-      auto group_id =
-              csis_api->GetGroupId(address, bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE));
-      addresses = csis_api->GetDeviceList(group_id);
-    }
+    auto conn_id = device->conn_id;
+    auto is_connecting_actively = device->is_connecting_actively;
 
-    if (addresses.empty()) {
-      log::warn("{} is not part of any set", address);
-      addresses = {address};
-    }
+    DoDisconnectCleanUp(*device);
+    devices_.erase(device);
 
-    for (auto const& addr : addresses) {
-      auto device = std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(addr));
-      if (device == devices_.end()) {
-        log::warn("Device not connected to profile{}", addr);
-        return;
-      }
-
-      auto conn_id = device->conn_id;
-      auto is_connecting_actively = device->is_connecting_actively;
-      DoDisconnectCleanUp(*device);
-      devices_.erase(device);
-
-      if (conn_id != GATT_INVALID_CONN_ID) {
-        BTA_GATTC_Close(conn_id);
-        callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, addr);
+    if (conn_id != GATT_INVALID_CONN_ID) {
+      BTA_GATTC_Close(conn_id);
+      callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
+    } else {
+      /* Removes active connection. */
+      if (is_connecting_actively) {
+        BTA_GATTC_CancelOpen(gatt_if_, address, true);
+        callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
       } else {
-        /* Removes active connection. */
-        if (is_connecting_actively) {
-          BTA_GATTC_CancelOpen(gatt_if_, addr, true);
-          callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, addr);
-        }
+        /* Removes all registrations for connection. */
+        BTA_GATTC_CancelOpen(gatt_if_, address, false);
       }
-
-      /* Removes all registrations for connection. */
-      BTA_GATTC_CancelOpen(0, addr, false);
     }
   }
 
@@ -381,6 +291,8 @@ public:
     if (status == GATT_DATABASE_OUT_OF_SYNC) {
       log::info("Database out of sync for {}", device->addr);
       ClearDeviceInformationAndStartSearch(device);
+    } else {
+      log::warn("{}: operation was not a success: status={}", device->addr, status);
     }
   }
 
@@ -415,6 +327,8 @@ public:
     if (status == GATT_DATABASE_OUT_OF_SYNC) {
       log::info("Database out of sync for {}", device->addr);
       ClearDeviceInformationAndStartSearch(device);
+    } else {
+      log::warn("{}: operation was not a success: status={}", device->addr, status);
     }
   }
 
@@ -448,7 +362,7 @@ public:
       log::info("Database out of sync for {}", device->addr);
       ClearDeviceInformationAndStartSearch(device);
     } else {
-      log::error("Devices {}: Control point not usable. Disconnecting!", device->addr);
+      log::error("{}: Control point not usable, status={}. Disconnecting!", device->addr, status);
       CleanAndDisconnectByConnId(conn_id);
     }
   }
@@ -494,7 +408,7 @@ public:
       log::info("Database out of sync for {}", device->addr);
       ClearDeviceInformationAndStartSearch(device);
     } else {
-      log::error("Devices {}: Control point not usable. Disconnecting!", device->addr);
+      log::error("{}: Control point not usable, status={}. Disconnecting!", device->addr, status);
       CleanAndDisconnectByConnId(conn_id);
     }
   }
@@ -982,7 +896,7 @@ public:
       return;
     }
 
-    log::debug("preset idx: {}", preset_index);
+    log::debug("{}: preset idx: {}", address, preset_index);
 
     /* Due to mandatory control point notifications or indications, preset
      * details are always up to date. However we have to be able to do the
@@ -1004,6 +918,20 @@ public:
     } else {
       CpPresetIndexOperation(HasCtpOp(address, PresetCtpOpcode::READ_PRESETS, preset_index));
     }
+  }
+
+  void GetAllPresetInfo(const RawAddress& address) override {
+    auto device = std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(address));
+    if (device == devices_.end()) {
+      log::warn("Device not connected to profile{}", address);
+      return;
+    }
+
+    log::debug("{}", address);
+
+    CpReadAllPresetsOperation(HasCtpOp(device->addr, PresetCtpOpcode::READ_PRESETS,
+                                       bluetooth::le_audio::has::kStartPresetIndex,
+                                       bluetooth::le_audio::has::kMaxNumOfPresets));
   }
 
   void SetPresetName(std::variant<RawAddress, int> addr_or_group_id, uint8_t preset_index,
@@ -1045,11 +973,14 @@ public:
   }
 
   void OnGroupOpCoordinatorTimeout(void* /*p*/) {
-    log::error(
-            "Coordinated operation timeout:  not all the devices notified their "
-            "state change on time.");
+    log::error("Not all the devices notified their state change on time.");
 
-    /* Clear pending group operations */
+    if (com_android_bluetooth_flags_synchronize_preset_can_timeout()) {
+      for (auto op : pending_group_operation_timeouts_) {
+        callbacks_->OnActivePresetSelectError(op.second.operation.addr_or_group,
+                                              ErrorCode::TIMEOUT);
+      }
+    }
     pending_group_operation_timeouts_.clear();
     HasCtpGroupOpCoordinator::Cleanup();
   }
@@ -1384,65 +1315,67 @@ private:
       device.ctp_notifications_.pop_front();
     }
 
-    if (device.isGattServiceValid()) {
-      /* Update preset values in the storage */
-      std::vector<uint8_t> presets_bin;
-      if (device.SerializePresets(presets_bin)) {
-        btif_storage_set_leaudio_has_presets(device.addr, presets_bin);
+    if (!device.isGattServiceValid()) {
+      return;
+    }
+    /* Update preset values in the storage */
+    std::vector<uint8_t> presets_bin;
+    if (device.SerializePresets(presets_bin)) {
+      btif_storage_set_leaudio_has_presets(device.addr, presets_bin);
+    }
+
+    /* Check for the matching coordinated group op. to use group callbacks */
+    for (auto it = pending_group_operation_timeouts_.rbegin();
+         it != pending_group_operation_timeouts_.rend(); ++it) {
+      auto& group_op_coordinator = it->second;
+
+      /* Here we interested only in valid preset name changes */
+      if (!((group_op_coordinator.operation.opcode == PresetCtpOpcode::WRITE_PRESET_NAME) &&
+            group_op_coordinator.operation.name.has_value())) {
+        continue;
       }
 
-      /* Check for the matching coordinated group op. to use group callbacks */
-      for (auto it = pending_group_operation_timeouts_.rbegin();
-           it != pending_group_operation_timeouts_.rend(); ++it) {
-        auto& group_op_coordinator = it->second;
-
-        /* Here we interested only in valid preset name changes */
-        if (!((group_op_coordinator.operation.opcode == PresetCtpOpcode::WRITE_PRESET_NAME) &&
-              group_op_coordinator.operation.name.has_value())) {
-          continue;
-        }
-
-        /* Match preset update results with the triggering operation */
-        auto renamed_preset_info = std::find_if(
-                updated_infos.begin(), updated_infos.end(),
-                [&group_op_coordinator](const auto& info) {
-                  return group_op_coordinator.operation.name.value() == info.preset_name;
-                });
-        if (renamed_preset_info == updated_infos.end()) {
-          continue;
-        }
-
-        if (group_op_coordinator.SetCompleted(device.addr)) {
-          group_op_coordinator.preset_info_verification_list.push_back(*renamed_preset_info);
-
-          /* Call the proper group operation completion callback */
-          if (group_op_coordinator.IsFullyCompleted()) {
-            callbacks_->OnPresetInfo(group_op_coordinator.operation.GetGroupId(),
-                                     PresetInfoReason::PRESET_INFO_UPDATE, {*renamed_preset_info});
-            pending_group_operation_timeouts_.erase(it->first);
-          }
-
-          /* Erase it from the 'updated_infos' since later we'll be sending
-           * this as a group callback when the other device completes the
-           * coordinated group name change.
-           *
-           * WARNING: There might an issue with callbacks call reordering due to
-           *  some of them being kept for group callbacks called later, when all
-           *  the grouped devices complete the coordinated group rename
-           *  operation. In most cases this should not be a major problem.
-           */
-          updated_infos.erase(renamed_preset_info);
-          break;
-        }
+      /* Match preset update results with the triggering operation */
+      auto renamed_preset_info =
+              std::find_if(updated_infos.begin(), updated_infos.end(),
+                           [&group_op_coordinator](const auto& info) {
+                             return group_op_coordinator.operation.name.value() == info.preset_name;
+                           });
+      if (renamed_preset_info == updated_infos.end()) {
+        continue;
       }
 
-      if (!updated_infos.empty()) {
-        callbacks_->OnPresetInfo(device.addr, PresetInfoReason::PRESET_INFO_UPDATE, updated_infos);
+      if (!group_op_coordinator.SetCompleted(device.addr)) {
+        continue;
+      }
+      group_op_coordinator.preset_info_verification_list.push_back(*renamed_preset_info);
+
+      /* Call the proper group operation completion callback */
+      if (group_op_coordinator.IsFullyCompleted()) {
+        callbacks_->OnPresetInfo(group_op_coordinator.operation.GetGroupId(),
+                                 PresetInfoReason::PRESET_INFO_UPDATE, {*renamed_preset_info});
+        pending_group_operation_timeouts_.erase(it->first);
       }
 
-      if (!deleted_infos.empty()) {
-        callbacks_->OnPresetInfo(device.addr, PresetInfoReason::PRESET_DELETED, deleted_infos);
-      }
+      /* Erase it from the 'updated_infos' since later we'll be sending
+       * this as a group callback when the other device completes the
+       * coordinated group name change.
+       *
+       * WARNING: There might an issue with callbacks call reordering due to
+       *  some of them being kept for group callbacks called later, when all
+       *  the grouped devices complete the coordinated group rename
+       *  operation. In most cases this should not be a major problem.
+       */
+      updated_infos.erase(renamed_preset_info);
+      break;
+    }
+
+    if (!updated_infos.empty()) {
+      callbacks_->OnPresetInfo(device.addr, PresetInfoReason::PRESET_INFO_UPDATE, updated_infos);
+    }
+
+    if (!deleted_infos.empty()) {
+      callbacks_->OnPresetInfo(device.addr, PresetInfoReason::PRESET_DELETED, deleted_infos);
     }
   }
 
@@ -1656,45 +1589,88 @@ private:
     /* If svc not marked valid, this might be the last validation step. */
     MarkDeviceValidIfInInitialDiscovery(*device);
 
-    if (device->isGattServiceValid()) {
-      if (pending_group_operation_timeouts_.empty()) {
+    if (!device->isGattServiceValid()) {
+      return;
+    }
+    // Always report the current active preset to upper layer to reflect the remote state.
+    // Android may not always be aware of the origin of the changes and shouldn't delay the event
+    if (com_android_bluetooth_flags_synchronize_preset_can_timeout()) {
+      callbacks_->OnActivePresetSelected(device->addr, device->currently_active_preset);
+    }
+    if (pending_group_operation_timeouts_.empty()) {
+      if (!com_android_bluetooth_flags_synchronize_preset_can_timeout()) {
         callbacks_->OnActivePresetSelected(device->addr, device->currently_active_preset);
-      } else {
-        for (auto it = pending_group_operation_timeouts_.rbegin();
-             it != pending_group_operation_timeouts_.rend(); ++it) {
-          auto& group_op_coordinator = it->second;
+      }
+      return;
+    }
 
-          bool matches = false;
-          switch (group_op_coordinator.operation.opcode) {
-            case PresetCtpOpcode::SET_ACTIVE_PRESET:
-              [[fallthrough]];
-            case PresetCtpOpcode::SET_NEXT_PRESET:
-              [[fallthrough]];
-            case PresetCtpOpcode::SET_PREV_PRESET:
-              [[fallthrough]];
-            case PresetCtpOpcode::SET_ACTIVE_PRESET_SYNC:
-              [[fallthrough]];
-            case PresetCtpOpcode::SET_NEXT_PRESET_SYNC:
-              [[fallthrough]];
-            case PresetCtpOpcode::SET_PREV_PRESET_SYNC: {
-              if (group_op_coordinator.SetCompleted(device->addr)) {
-                matches = true;
-                break;
-              }
-            } break;
-            default:
-              /* Ignore */
+    if (com_android_bluetooth_flags_hap_safely_erase_pending_operation_timeout()) {
+      for (auto it = pending_group_operation_timeouts_.rbegin();
+           it != pending_group_operation_timeouts_.rend();) {
+        auto& group_op_coordinator = it->second;
+
+        bool matches = false;
+        switch (group_op_coordinator.operation.opcode) {
+          case PresetCtpOpcode::SET_ACTIVE_PRESET:
+          case PresetCtpOpcode::SET_NEXT_PRESET:
+          case PresetCtpOpcode::SET_PREV_PRESET:
+          case PresetCtpOpcode::SET_ACTIVE_PRESET_SYNC:
+          case PresetCtpOpcode::SET_NEXT_PRESET_SYNC:
+          case PresetCtpOpcode::SET_PREV_PRESET_SYNC: {
+            if (group_op_coordinator.SetCompleted(device->addr)) {
+              matches = true;
               break;
+            }
+          } break;
+          default:
+            /* Ignore */
+            break;
+        }
+        if (group_op_coordinator.IsFullyCompleted()) {
+          if (!com_android_bluetooth_flags_synchronize_preset_can_timeout()) {
+            callbacks_->OnActivePresetSelectedForGroup(group_op_coordinator.operation.GetGroupId(),
+                                                       device->currently_active_preset);
           }
-          if (group_op_coordinator.IsFullyCompleted()) {
-            callbacks_->OnActivePresetSelected(group_op_coordinator.operation.GetGroupId(),
-                                               device->currently_active_preset);
-            pending_group_operation_timeouts_.erase(it->first);
-          }
-          if (matches) {
+          it = decltype(it)(pending_group_operation_timeouts_.erase(std::next(it).base()));
+        } else {
+          ++it;
+        }
+        if (matches) {
+          break;
+        }
+      }
+      return;
+    }
+    for (auto it = pending_group_operation_timeouts_.rbegin();
+         it != pending_group_operation_timeouts_.rend(); ++it) {
+      auto& group_op_coordinator = it->second;
+
+      bool matches = false;
+      switch (group_op_coordinator.operation.opcode) {
+        case PresetCtpOpcode::SET_ACTIVE_PRESET:
+        case PresetCtpOpcode::SET_NEXT_PRESET:
+        case PresetCtpOpcode::SET_PREV_PRESET:
+        case PresetCtpOpcode::SET_ACTIVE_PRESET_SYNC:
+        case PresetCtpOpcode::SET_NEXT_PRESET_SYNC:
+        case PresetCtpOpcode::SET_PREV_PRESET_SYNC: {
+          if (group_op_coordinator.SetCompleted(device->addr)) {
+            matches = true;
             break;
           }
+        } break;
+        default:
+          /* Ignore */
+          break;
+      }
+      if (group_op_coordinator.IsFullyCompleted()) {
+        if (!com_android_bluetooth_flags_synchronize_preset_can_timeout()) {
+          callbacks_->OnActivePresetSelectedForGroup(group_op_coordinator.operation.GetGroupId(),
+                                                     device->currently_active_preset);
         }
+        pending_group_operation_timeouts_.erase(it->first);
+      }
+      if (matches) {
+        break;
       }
     }
   }
@@ -1929,7 +1905,7 @@ private:
       return false;
     }
 
-    /* If deatails are loaded from storage we are done here */
+    /* If details are loaded from storage we are done here */
     if (LoadHasDetailsFromStorage(device)) {
       return true;
     }
@@ -2012,9 +1988,7 @@ private:
     }
 
     device->conn_id = evt.conn_id;
-    if (com::android::bluetooth::flags::gatt_queue_cleanup_connected()) {
-      BtaGattQueue::Clean(evt.conn_id);
-    }
+    BtaGattQueue::Clean(evt.conn_id);
     if (BTM_SecIsLeSecurityPending(device->addr)) {
       /* if security collision happened, wait for encryption done
        * (BTA_GATTC_ENC_CMPL_CB_EVT)
@@ -2145,7 +2119,7 @@ private:
     }
   }
 
-  void ClearDeviceInformationAndStartSearch(HasDevice* device) {
+  void ClearDeviceInformationAndStartSearch(HasDevice* device, bool search_request = true) {
     if (!device) {
       log::error("Device is null");
       return;
@@ -2163,7 +2137,10 @@ private:
     BtaGattQueue::Clean(device->conn_id);
     device->ClearSvcData();
     btif_storage_remove_leaudio_has(device->addr);
-    BTA_GATTC_ServiceSearchRequest(device->conn_id, kUuidHearingAccessService);
+
+    if (search_request) {
+      BTA_GATTC_ServiceSearchRequest(device->conn_id, kUuidHearingAccessService);
+    }
   }
 
   void OnGattServiceChangeEvent(const RawAddress& address) {
@@ -2173,7 +2150,7 @@ private:
       return;
     }
     log::info("{}", address);
-    ClearDeviceInformationAndStartSearch(&(*device));
+    ClearDeviceInformationAndStartSearch(&(*device), false);
   }
 
   void OnGattServiceDiscoveryDoneEvent(const RawAddress& address) {
@@ -2239,8 +2216,7 @@ private:
   std::list<HasDevice> devices_;
   std::list<HasCtpOp> pending_operations_;
 
-  typedef std::map<decltype(HasCtpOp::op_id), HasCtpGroupOpCoordinator> has_operation_timeouts_t;
-  has_operation_timeouts_t pending_group_operation_timeouts_;
+  std::map<decltype(HasCtpOp::op_id), HasCtpGroupOpCoordinator> pending_group_operation_timeouts_;
 };
 
 }  // namespace

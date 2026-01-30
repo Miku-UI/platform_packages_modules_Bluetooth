@@ -29,6 +29,7 @@
 #include <utility>
 #include <vector>
 
+#include "android_bluetooth_sysprop.h"
 #include "audio_hal_client/audio_hal_client.h"
 #include "audio_set_configurations_generated.h"
 #include "audio_set_scenarios_generated.h"
@@ -39,6 +40,7 @@
 #include "flatbuffers/vector.h"
 #include "le_audio/le_audio_types.h"
 #include "le_audio_set_configuration_provider.h"
+#include "osi/include/properties.h"
 
 using bluetooth::le_audio::types::AseConfiguration;
 using bluetooth::le_audio::types::AudioSetConfiguration;
@@ -55,11 +57,17 @@ static const std::vector<std::pair<const char* /*schema*/, const char* /*content
                                "audio_set_configurations.bfbs",
                                "/apex/com.android.bt/etc/bluetooth/le_audio/"
                                "audio_set_configurations.json"}};
+
 static const std::vector<std::pair<const char* /*schema*/, const char* /*content*/>>
-        kLeAudioSetScenarios = {{"/apex/com.android.bt/etc/bluetooth/"
-                                 "le_audio/audio_set_scenarios.bfbs",
-                                 "/apex/com.android.bt/etc/bluetooth/"
-                                 "le_audio/audio_set_scenarios.json"}};
+        kLeAudioSetScenarios = {{"/apex/com.android.bt/etc/bluetooth/le_audio/"
+                                 "audio_set_scenarios.bfbs",
+                                 "/apex/com.android.bt/etc/bluetooth/le_audio/"
+                                 "audio_set_scenarios.json"}};
+static const std::vector<std::pair<const char* /*schema*/, const char* /*content*/>>
+        kLeAudioTestSetScenarios = {{"/apex/com.android.bt/etc/bluetooth/le_audio/"
+                                     "audio_set_scenarios.bfbs",
+                                     "/apex/com.android.bt/etc/bluetooth/le_audio/"
+                                     "audio_set_scenarios_test.json"}};
 #elif defined(TARGET_FLOSS)
 static const std::vector<std::pair<const char* /*schema*/, const char* /*content*/>>
         kLeAudioSetConfigs = {{"/etc/bluetooth/le_audio/audio_set_configurations.bfbs",
@@ -67,11 +75,16 @@ static const std::vector<std::pair<const char* /*schema*/, const char* /*content
 static const std::vector<std::pair<const char* /*schema*/, const char* /*content*/>>
         kLeAudioSetScenarios = {{"/etc/bluetooth/le_audio/audio_set_scenarios.bfbs",
                                  "/etc/bluetooth/le_audio/audio_set_scenarios.json"}};
+static const std::vector<std::pair<const char* /*schema*/, const char* /*content*/>>
+        kLeAudioTestSetScenarios = {{"/etc/bluetooth/le_audio/audio_set_scenarios.bfbs",
+                                     "/etc/bluetooth/le_audio/audio_set_scenarios_test.json"}};
 #else
 static const std::vector<std::pair<const char* /*schema*/, const char* /*content*/>>
         kLeAudioSetConfigs = {{"audio_set_configurations.bfbs", "audio_set_configurations.json"}};
 static const std::vector<std::pair<const char* /*schema*/, const char* /*content*/>>
         kLeAudioSetScenarios = {{"audio_set_scenarios.bfbs", "audio_set_scenarios.json"}};
+static const std::vector<std::pair<const char* /*schema*/, const char* /*content*/>>
+        kLeAudioTestSetScenarios = {{"audio_set_scenarios.bfbs", "audio_set_scenarios_test.json"}};
 #endif
 
 /** Provides a set configurations for the given context type */
@@ -79,7 +92,14 @@ struct AudioSetConfigurationProviderJson {
   static constexpr auto kDefaultScenario = "Media";
 
   AudioSetConfigurationProviderJson(types::CodecLocation location) {
-    log::assert_that(LoadContent(kLeAudioSetConfigs, kLeAudioSetScenarios, location),
+    bool is_software_datapath_supported_test =
+            android::sysprop::bluetooth::LeAudio::is_software_datapath_supported_test().value_or(
+                    false);
+    const auto& selected_scenarios =
+            is_software_datapath_supported_test ? kLeAudioTestSetScenarios : kLeAudioSetScenarios;
+    log::info("Using set scenarios: {}", selected_scenarios.back().second);
+
+    log::assert_that(LoadContent(kLeAudioSetConfigs, selected_scenarios, location),
                      ": Unable to load le audio set configuration files.");
   }
 
@@ -319,6 +339,14 @@ private:
     }
 
     types::BidirectionalPair<std::vector<AseConfiguration>> subconfigs;
+
+    uint8_t packing_type = bluetooth::hci::kIsoCigPackingSequential;
+
+    if (android::sysprop::bluetooth::LeAudio::iso_interleaved_packing_enabled().value_or(false)) {
+      log::info("Switching to default interleaved packing for CIG.");
+      packing_type = bluetooth::hci::kIsoCigPackingInterleaved;
+    }
+
     if (codec_cfg != nullptr && codec_cfg->subconfigurations()) {
       /* Load subconfigurations */
       for (auto subconfig : *codec_cfg->subconfigurations()) {
@@ -335,7 +363,7 @@ private:
 
     return {
             .name = flat_cfg->name()->c_str(),
-            .packing = bluetooth::hci::kIsoCigPackingSequential,
+            .packing = packing_type,
             .confs = std::move(subconfigs),
     };
   }
@@ -451,6 +479,7 @@ private:
   }
 
   bool LoadScenariosFromFiles(const char* schema_file, const char* content_file) {
+    log::debug(": Loading scenarios from file: {}, {}", content_file, schema_file);
     flatbuffers::Parser scenarios_parser_;
     std::string scenarios_schema_binary_content;
     bool ok = flatbuffers::LoadFile(schema_file, true, &scenarios_schema_binary_content);
@@ -513,13 +542,17 @@ private:
           std::vector<std::pair<const char* /*schema*/, const char* /*content*/>> scenario_files,
           types::CodecLocation location) {
     for (auto [schema, content] : config_files) {
+      log::debug("Loading configs from files. Schema: {}, content: {}.", schema, content);
       if (!LoadConfigurationsFromFiles(schema, content, location)) {
+        log::error("Error loading configs. Schema: {}, content: {}.", schema, content);
         return false;
       }
     }
 
     for (auto [schema, content] : scenario_files) {
+      log::debug("Loading scenarios from files. Schema: {}, content: {}.", schema, content);
       if (!LoadScenariosFromFiles(schema, content)) {
+        log::error("Error loading scenarios. Schema: {}, content: {}.", schema, content);
         return false;
       }
     }
@@ -542,44 +575,12 @@ struct AudioSetConfigurationProvider::impl {
 
   bool IsRunning() { return config_provider_impl_ ? true : false; }
 
-  void Dump(int fd) {
-    std::stringstream stream;
-
-    for (LeAudioContextType context : types::kLeAudioContextAllTypesArray) {
-      auto confs = Get()->GetConfigurations(context);
-      stream << "\n  === Configurations for context type: " << (int)context
-             << ", num: " << (confs == nullptr ? 0 : confs->size()) << " \n";
-      if (confs && confs->size() > 0) {
-        for (const auto& conf : *confs) {
-          stream << "  name: " << conf->name << " \n";
-          for (const auto direction :
-               {types::kLeAudioDirectionSink, types::kLeAudioDirectionSource}) {
-            stream << "   ASE configs for direction: "
-                   << (direction == types::kLeAudioDirectionSink ? "Sink (speaker)\n"
-                                                                 : "Source (microphone)\n");
-            for (const auto& ent : conf->confs.get(direction)) {
-              stream << "    ASE config: " << "     qos->target latency: "
-                     << +ent.qos.target_latency << " \n"
-                     << "     qos->retransmission_number: " << +ent.qos.retransmission_number
-                     << " \n"
-                     << "     qos->max_transport_latency: " << +ent.qos.max_transport_latency
-                     << " \n"
-                     << "     channel count per ISO stream: "
-                     << +ent.codec.GetChannelCountPerIsoStream() << "\n";
-            }
-          }
-        }
-      }
-    }
-    dprintf(fd, "%s", stream.str().c_str());
-  }
-
   const AudioSetConfigurationProvider& config_provider_;
   std::unique_ptr<AudioSetConfigurationProviderJson> config_provider_impl_;
 };
 
 static std::unique_ptr<AudioSetConfigurationProvider> config_provider;
-std::mutex instance_mutex;
+static std::mutex instance_mutex;
 
 AudioSetConfigurationProvider::AudioSetConfigurationProvider()
     : pimpl_(std::make_unique<AudioSetConfigurationProvider::impl>(*this)) {}
@@ -593,20 +594,6 @@ void AudioSetConfigurationProvider::Initialize(types::CodecLocation location) {
   if (!config_provider->pimpl_->IsRunning()) {
     config_provider->pimpl_->Initialize(location);
   }
-}
-
-void AudioSetConfigurationProvider::DebugDump(int fd) {
-  std::scoped_lock<std::mutex> lock(instance_mutex);
-  if (!config_provider || !config_provider->pimpl_->IsRunning()) {
-    dprintf(fd,
-            "\n AudioSetConfigurationProvider not initialized: config provider: "
-            "%d, pimpl: %d \n",
-            config_provider != nullptr,
-            (config_provider == nullptr ? 0 : config_provider->pimpl_->IsRunning()));
-    return;
-  }
-  dprintf(fd, "\n AudioSetConfigurationProvider: \n");
-  config_provider->pimpl_->Dump(fd);
 }
 
 void AudioSetConfigurationProvider::Cleanup() {

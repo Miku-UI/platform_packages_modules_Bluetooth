@@ -28,6 +28,10 @@
 
 #include <base/functional/bind.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/ble_address_with_type.h>
+#include <bluetooth/types/bt_transport.h>
+#include <bluetooth/types/uuid.h>
 #include <com_android_bluetooth_flags.h>
 #include <hardware/bluetooth.h>
 #include <hardware/bt_gatt.h>
@@ -45,10 +49,6 @@
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/main_thread.h"
-#include "types/ble_address_with_type.h"
-#include "types/bluetooth/uuid.h"
-#include "types/bt_transport.h"
-#include "types/raw_address.h"
 
 using base::Bind;
 using bluetooth::Uuid;
@@ -69,6 +69,21 @@ tBT_TRANSPORT to_bt_transport(int val) {
   }
   log::warn("Passed unexpected transport value:{}", val);
   return BT_TRANSPORT_AUTO;
+}
+
+int to_java_transport(tBT_TRANSPORT transport) {
+  switch (transport) {
+    case BT_TRANSPORT_AUTO:
+      return 0;
+    case BT_TRANSPORT_BR_EDR:
+      return 1;
+    case BT_TRANSPORT_LE:
+      return 2;
+    default:
+      break;
+  }
+  log::warn("Passed unexpected transport value:{}", transport);
+  return 0;
 }
 }  // namespace
 
@@ -161,13 +176,15 @@ static void btapp_gatts_handle_cback(uint16_t event, char* p_param) {
       btif_gatt_check_encrypted_link(p_data->conn.remote_bda, p_data->conn.transport);
 
       HAL_CBACK(callbacks, server->connection_cb, static_cast<int>(p_data->conn.conn_id),
-                p_data->conn.server_if, true, p_data->conn.remote_bda);
+                p_data->conn.server_if, to_java_transport(p_data->conn.transport), true,
+                p_data->conn.remote_bda);
       break;
     }
 
     case BTA_GATTS_DISCONNECT_EVT: {
       HAL_CBACK(callbacks, server->connection_cb, static_cast<int>(p_data->conn.conn_id),
-                p_data->conn.server_if, false, p_data->conn.remote_bda);
+                p_data->conn.server_if, to_java_transport(p_data->conn.transport), false,
+                p_data->conn.remote_bda);
       break;
     }
 
@@ -362,7 +379,7 @@ static void add_service_impl(int server_if, vector<btgatt_db_element_t> service)
   // refactored, and one can distinguish stack-internal aps from external apps
   if (service[0].uuid == Uuid::From16Bit(UUID_SERVCLASS_GATT_SERVER) ||
       service[0].uuid == Uuid::From16Bit(UUID_SERVCLASS_GAP_SERVER)) {
-    log::error("Attept to register restricted service");
+    log::error("Attempt to register restricted service");
     auto callbacks = bt_gatt_callbacks;
     HAL_CBACK(callbacks, server->service_added_cb, BT_STATUS_AUTH_REJECTED, server_if,
               service.data(), service.size());

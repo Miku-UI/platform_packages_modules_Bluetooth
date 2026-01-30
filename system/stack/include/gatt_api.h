@@ -19,6 +19,9 @@
 #define GATT_API_H
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/bt_transport.h>
+#include <bluetooth/types/uuid.h>
 
 #include <cstdint>
 #include <list>
@@ -32,9 +35,6 @@
 #include "macros.h"
 #include "stack/include/btm_ble_api_types.h"
 #include "stack/include/hci_error_code.h"
-#include "types/bluetooth/uuid.h"
-#include "types/bt_transport.h"
-#include "types/raw_address.h"
 
 /*****************************************************************************
  *  Constants
@@ -1175,7 +1175,8 @@ void GATT_StartIf(tGATT_IF gatt_if);
 [[nodiscard]] bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
                                 tBLE_ADDR_TYPE addr_type, tBTM_BLE_CONN_TYPE connection_type,
                                 tBT_TRANSPORT transport, bool opportunistic,
-                                uint8_t initiating_phys, uint16_t preferred_transport);
+                                uint8_t initiating_phys, uint16_t preferred_transport,
+                                bool prefer_relax_mode);
 [[nodiscard]] bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
                                 tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport,
                                 bool opportunistic);

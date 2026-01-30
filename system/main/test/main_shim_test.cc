@@ -15,6 +15,9 @@
  */
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/ble_address_with_type.h>
+#include <bluetooth/types/hci_role.h>
 #include <fcntl.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -30,15 +33,15 @@
 
 #include "btif/include/btif_hh.h"
 #include "hal/hci_hal.h"
-#include "hci/acl_manager.h"
+#include "hci/acl_manager/acl_manager_classic_mock.h"
+#include "hci/acl_manager/acl_manager_le_mock.h"
 #include "hci/acl_manager/classic_acl_connection.h"
 #include "hci/acl_manager/connection_management_callbacks.h"
 #include "hci/acl_manager/le_acl_connection.h"
 #include "hci/acl_manager/le_connection_management_callbacks.h"
-#include "hci/acl_manager_mock.h"
 #include "hci/address.h"
 #include "hci/address_with_type.h"
-#include "hci/controller_interface_mock.h"
+#include "hci/controller_mock.h"
 #include "hci/distance_measurement_manager_mock.h"
 #include "hci/include/packet_fragmenter.h"
 #include "hci/le_advertising_manager_mock.h"
@@ -58,17 +61,15 @@
 #include "packet/packet_view.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec_cb.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/hci_error_code.h"
+#include "stack/include/main_thread.h"
 #include "stack/l2cap/l2c_int.h"
 #include "test/common/jni_thread.h"
-#include "test/common/main_handler.h"
 #include "test/common/mock_functions.h"
 #include "test/mock/mock_main_shim_entry.h"
-#include "types/ble_address_with_type.h"
-#include "types/hci_role.h"
-#include "types/raw_address.h"
 
 using ::testing::_;
 
@@ -78,14 +79,10 @@ using HciHandle = uint16_t;
 
 namespace test = bluetooth::hci::testing;
 
-const uint8_t kMaxAddressResolutionSize = 16;
-
 tL2C_CB l2cb;
 tBTM_CB btm_cb;
 tBTM_SEC_CB btm_sec_cb;
 btif_hh_cb_t btif_hh_cb;
-
-struct bluetooth::hci::LeScanningManager::impl : public bluetooth::hci::LeAddressManagerCallback {};
 
 namespace {
 const hci::Address kAddress = {{0x11, 0x22, 0x33, 0x44, 0x55, 0x66}};
@@ -180,7 +177,6 @@ shim::acl_interface_t acl_interface{
         .link.classic.on_sniff_subrating = nullptr,
         .link.classic.on_read_clock_complete = nullptr,
         .link.classic.on_read_clock_offset_complete = nullptr,
-        .link.classic.on_read_failed_contact_counter_complete = nullptr,
         .link.classic.on_read_link_policy_settings_complete = nullptr,
         .link.classic.on_read_link_quality_complete = nullptr,
         .link.classic.on_read_link_supervision_timeout_complete = nullptr,
@@ -316,14 +312,9 @@ extern os::Handler* mock_handler_;
 }  // namespace testing
 }  // namespace shim
 
-namespace hal {
-const ModuleFactory HciHal::Factory = ModuleFactory([]() { return nullptr; });
-}  // namespace hal
-
 }  // namespace bluetooth
 
 class MainShimTest : public testing::Test {
-public:
 protected:
   void SetUp() override {
     main_thread_start_up();
@@ -333,7 +324,9 @@ protected:
     handler_ = new os::Handler(thread_);
 
     /* extern */ test::mock_controller_ =
-            std::make_unique<bluetooth::hci::testing::MockControllerInterface>();
+            std::make_unique<bluetooth::hci::testing::MockController>();
+    /* extern */ test::mock_acl_manager_classic_ =
+            std::make_unique<bluetooth::hci::acl_manager::testing::MockAclManagerClassic>();
     /* extern */ test::mock_acl_manager_ =
             std::make_unique<bluetooth::hci::testing::MockAclManager>();
     /* extern */ test::mock_le_scanning_manager_ =
@@ -344,8 +337,9 @@ protected:
             new bluetooth::hci::testing::MockDistanceMeasurementManager();
   }
   void TearDown() override {
-    test::mock_controller_.reset();
     test::mock_acl_manager_.release();
+    test::mock_acl_manager_classic_.release();
+    test::mock_controller_.reset();
     delete test::mock_le_advertising_manager_;
     test::mock_le_advertising_manager_ = nullptr;
     delete test::mock_le_scanning_manager_;
@@ -366,11 +360,11 @@ protected:
 
   // Convenience method to create ACL objects
   std::unique_ptr<shim::Acl> MakeAcl() {
-    EXPECT_CALL(*test::mock_acl_manager_, RegisterCallbacks(_, _)).Times(1);
+    EXPECT_CALL(*test::mock_acl_manager_classic_, RegisterCallbacks(_, _)).Times(1);
     EXPECT_CALL(*test::mock_acl_manager_, RegisterLeCallbacks(_, _)).Times(1);
     EXPECT_CALL(*test::mock_controller_, RegisterCompletedMonitorAclPacketsCallback(_)).Times(1);
     EXPECT_CALL(*test::mock_controller_, UnregisterCompletedMonitorAclPacketsCallback).Times(1);
-    return std::make_unique<shim::Acl>(handler_, GetMockAclInterface(), kMaxAddressResolutionSize);
+    return std::make_unique<shim::Acl>(handler_, GetMockAclInterface());
   }
 };
 
@@ -383,7 +377,7 @@ protected:
     acl_ = MakeAcl();
 
     // Create connection
-    EXPECT_CALL(*test::mock_acl_manager_, CreateConnection(_)).Times(1);
+    EXPECT_CALL(*test::mock_acl_manager_classic_, CreateConnection(_)).Times(1);
     acl_->CreateClassicConnection(address);
 
     // Respond with a mock connection created
@@ -454,7 +448,7 @@ TEST_F(MainShimTest, connect_and_disconnect) {
   auto acl = MakeAcl();
 
   // Create connection
-  EXPECT_CALL(*test::mock_acl_manager_, CreateConnection(_)).Times(1);
+  EXPECT_CALL(*test::mock_acl_manager_classic_, CreateConnection(_)).Times(1);
   acl->CreateClassicConnection(address);
 
   // Respond with a mock connection created
@@ -598,7 +592,7 @@ TEST_F(MainShimTest, DISABLED_BleScannerInterfaceImpl_OnScanResult) {
 
 TEST_F(MainShimTest, DISABLED_LeShimAclConnection_local_disconnect) {
   auto acl = MakeAcl();
-  EXPECT_CALL(*test::mock_acl_manager_, CreateLeConnection(_, _)).Times(1);
+  EXPECT_CALL(*test::mock_acl_manager_, CreateLeConnection(_, _, _)).Times(1);
 
   hci::AddressWithType local_address(hci::Address{{0x01, 0x02, 0x03, 0x04, 0x05, 0x6}},
                                      hci::AddressType::RANDOM_DEVICE_ADDRESS);

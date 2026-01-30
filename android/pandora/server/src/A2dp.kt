@@ -28,7 +28,13 @@ import android.bluetooth.BluetoothProfile.STATE_DISCONNECTED
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.media.*
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.media.AudioRouting
+import android.media.AudioTrack
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.google.protobuf.BoolValue
 import com.google.protobuf.ByteString
@@ -43,8 +49,11 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.channels.trySendBlocking
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -60,13 +69,24 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
     private val scope: CoroutineScope
     private val flow: Flow<Intent>
 
-    private val audioManager = context.getSystemService(AudioManager::class.java)!!
+    private val audioManager: AudioManager by lazy {
+        val manager = context.getSystemService(AudioManager::class.java)
+        requireNotNull(manager) { "AudioManager service not available" }
+        manager
+    }
 
-    private val bluetoothManager = context.getSystemService(BluetoothManager::class.java)!!
+    private val bluetoothManager: BluetoothManager by lazy {
+        val manager = context.getSystemService(BluetoothManager::class.java)
+        requireNotNull(manager) { "BluetoothManager service not available" }
+        manager
+    }
+
     private val bluetoothAdapter = bluetoothManager.adapter
     private val bluetoothA2dp = getProfileProxy<BluetoothA2dp>(context, BluetoothProfile.A2DP)
 
     private var audioTrack: AudioTrack? = null
+
+    private val handler = Handler(Looper.getMainLooper())
 
     init {
         scope = CoroutineScope(Dispatchers.Default.limitedParallelism(1))
@@ -146,9 +166,6 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
 
     override fun start(request: StartRequest, responseObserver: StreamObserver<StartResponse>) {
         grpcUnary<StartResponse>(scope, responseObserver) {
-            if (audioTrack == null) {
-                audioTrack = buildAudioTrack()
-            }
             val device = bluetoothAdapter.getRemoteDevice(request.source.cookie.toString("UTF-8"))
             Log.i(TAG, "start: device=$device")
 
@@ -160,8 +177,81 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
             // already.
             bluetoothA2dp.setActiveDevice(device)
 
+            // wait until a2dp device is added as an audio device
+            val audioDeviceAddedFlow = callbackFlow {
+                val audioDeviceCallback =
+                    object : AudioDeviceCallback() {
+                        override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+                            addedDevices
+                                .firstOrNull {
+                                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP &&
+                                        it.address.equals(device.getAddress())
+                                }
+                                ?.let {
+                                    Log.d(
+                                        TAG,
+                                        "TYPE_BLUETOOTH_A2DP added with address: ${it.address}",
+                                    )
+                                    trySendBlocking(null)
+                                }
+                        }
+                    }
+
+                audioManager.registerAudioDeviceCallback(audioDeviceCallback, handler)
+
+                val outputDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                outputDevices
+                    .firstOrNull {
+                        it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP &&
+                            it.address == device.address
+                    }
+                    ?.let { trySendBlocking(null) }
+
+                awaitClose { audioManager.unregisterAudioDeviceCallback(audioDeviceCallback) }
+            }
+            audioDeviceAddedFlow.first()
+
             // Play an audio track.
-            audioTrack!!.play()
+            audioTrack = buildAudioTrack()
+            val localAudioTrack = audioTrack ?: throw RuntimeException("audioTrack is null")
+            localAudioTrack.play()
+
+            // wait a2dp device is selected as routed device
+            val audioRoutingFlow = callbackFlow {
+                val audioRoutingListener =
+                    object : AudioRouting.OnRoutingChangedListener {
+                        override fun onRoutingChanged(router: AudioRouting) {
+                            if (router.routedDevice.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                                Log.d(TAG, "Route to TYPE_BLUETOOTH_A2DP")
+                                trySendBlocking(null)
+                            } else {
+                                val outputDevices =
+                                    audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                                for (outputDevice in outputDevices) {
+                                    Log.d(
+                                        TAG,
+                                        "available output device in listener:${outputDevice.type}",
+                                    )
+                                    if (outputDevice.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                                        val result = router.setPreferredDevice(outputDevice)
+                                        Log.d(TAG, "setPreferredDevice result:$result")
+                                        trySendBlocking(null)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                localAudioTrack.addOnRoutingChangedListener(audioRoutingListener, handler)
+
+                if (localAudioTrack.routedDevice.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                    Log.d(TAG, "already route to TYPE_BLUETOOTH_A2DP")
+                    trySendBlocking(null)
+                }
+
+                awaitClose { localAudioTrack.removeOnRoutingChangedListener(audioRoutingListener) }
+            }
+            audioRoutingFlow.first()
 
             // If A2dp is not already playing, wait for it
             if (!bluetoothA2dp.isA2dpPlaying(device)) {
@@ -200,7 +290,11 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
                     .filter { it.getBluetoothDeviceExtra() == device }
                     .map { it.getIntExtra(BluetoothA2dp.EXTRA_STATE, BluetoothAdapter.ERROR) }
 
-            audioTrack!!.pause()
+            audioTrack?.let {
+                it.pause()
+                it.flush()
+            } ?: throw RuntimeException("audioTrack is null")
+
             withTimeoutOrNull(timeoutMillis) {
                 a2dpPlayingStateFlow.filter { it == BluetoothA2dp.STATE_NOT_PLAYING }.first()
             }
@@ -253,11 +347,19 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
     ): StreamObserver<PlaybackAudioRequest> {
         Log.i(TAG, "playbackAudio")
 
-        if (audioTrack!!.getPlayState() != AudioTrack.PLAYSTATE_PLAYING) {
-            responseObserver.onError(
-                Status.UNKNOWN.withDescription("AudioTrack is not started").asException()
-            )
+        audioTrack?.let { nonNullAudioTrack ->
+            if (nonNullAudioTrack.playState != AudioTrack.PLAYSTATE_PLAYING) {
+                responseObserver.onError(
+                    Status.UNKNOWN.withDescription("AudioTrack is not started").asException()
+                )
+            }
         }
+            ?: run {
+                responseObserver.onError(
+                    Status.UNKNOWN.withDescription("AudioTrack is null").asException()
+                )
+                throw IllegalStateException("audioTrack is null")
+            }
 
         // Volume is maxed out to avoid any amplitude modification of the provided audio data,
         // enabling the test runner to do comparisons between input and output audio signal.
@@ -278,15 +380,29 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
         return object : StreamObserver<PlaybackAudioRequest> {
             override fun onNext(request: PlaybackAudioRequest) {
                 val data = request.data.toByteArray()
-                val written = synchronized(audioTrack!!) { audioTrack!!.write(data, 0, data.size) }
-                if (written != data.size) {
-                    responseObserver.onError(
-                        Status.UNKNOWN.withDescription("AudioTrack write failed").asException()
-                    )
+                Log.i(TAG, "onNext: AudioTrack writes data=$data")
+                audioTrack?.let { nonNullAudioTrack ->
+                    val written =
+                        synchronized(nonNullAudioTrack) {
+                            nonNullAudioTrack.write(data, 0, data.size)
+                        }
+                    if (written != data.size) {
+                        Log.e(TAG, "onNext: AudioTrack write failed")
+                        responseObserver.onError(
+                            Status.UNKNOWN.withDescription("AudioTrack write failed").asException()
+                        )
+                    }
                 }
+                    ?: run {
+                        responseObserver.onError(
+                            Status.UNKNOWN.withDescription("audioTrack is null").asException()
+                        )
+                        throw IllegalStateException("audioTrack is null")
+                    }
             }
 
             override fun onError(t: Throwable) {
+                Log.e(TAG, "onError: error=${t.toString()}")
                 t.printStackTrace()
                 val sw = StringWriter()
                 t.printStackTrace(PrintWriter(sw))
@@ -296,6 +412,7 @@ class A2dp(val context: Context) : A2DPImplBase(), Closeable {
             }
 
             override fun onCompleted() {
+                Log.i(TAG, "onCompleted")
                 responseObserver.onNext(PlaybackAudioResponse.getDefaultInstance())
                 responseObserver.onCompleted()
             }

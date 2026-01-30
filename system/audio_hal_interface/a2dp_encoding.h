@@ -58,6 +58,16 @@ public:
   virtual Status SetLatencyMode(bool /*low_latency*/) const { return Status::FAILURE; }
 };
 
+struct ahal_codec_configuration {
+  uint16_t peer_mtu;
+  int preferred_encoding_interval_us;
+  int codec_bitrate;
+  uint8_t codec_specific_information_elements[AVDT_CODEC_SIZE];
+  btav_a2dp_codec_config_t codec_config;
+
+  std::string ToString() const;
+};
+
 bool update_codec_offloading_capabilities(
         const std::vector<btav_a2dp_codec_config_t>& framework_preference,
         bool supports_a2dp_hw_offload_v2);
@@ -76,8 +86,7 @@ bool init(bluetooth::common::MessageLoopThread* message_loop,
 void cleanup();
 
 // Set up the codec into BluetoothAudio HAL
-bool setup_codec(A2dpCodecConfig* a2dp_config, uint16_t peer_mtu,
-                 int preferred_encoding_interval_us);
+bool setup_codec(const ahal_codec_configuration& config);
 
 // Set low latency buffer mode allowed or disallowed
 void set_audio_low_latency_mode_allowed(bool allowed);
@@ -179,18 +188,22 @@ struct a2dp_remote_capabilities {
 // discovered remote SEPs.
 std::optional<a2dp_configuration> get_a2dp_configuration(
         RawAddress peer_address, std::vector<a2dp_remote_capabilities> const& remote_seps,
-        btav_a2dp_codec_config_t const& user_preferences);
+        btav_a2dp_codec_config_t const& user_preferences,
+        ::bluetooth::a2dp::CodecId user_preferred_codec_id);
 
 // Query the codec parameters from the audio HAL.
 // The HAL is expected to parse the codec configuration
 // received from the peer and decide whether accept
 // the it or not.
-tA2DP_STATUS parse_a2dp_configuration(btav_a2dp_codec_index_t codec_index,
+tA2DP_STATUS parse_a2dp_configuration(::bluetooth::a2dp::CodecId codec_id,
                                       const uint8_t* codec_info,
                                       btav_a2dp_codec_config_t* codec_parameters,
                                       std::vector<uint8_t>* vendor_specific_parameters);
 
 }  // namespace provider
+
+std::optional<btav_a2dp_hal_provider_info_t> get_provider_info();
+
 }  // namespace a2dp
 }  // namespace audio
 }  // namespace bluetooth

@@ -25,6 +25,8 @@
 
 #include "bta_pan_api.h"
 
+#include <bluetooth/types/address.h>
+
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -36,13 +38,8 @@
 #include "osi/include/compat.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/main_thread.h"
-#include "types/raw_address.h"
 
 static const tBTA_SYS_REG bta_pan_reg = {bta_pan_hdl_event, BTA_PanDisable};
-
-std::string user_service_name; /* Service name for PANU role */
-std::string gn_service_name;   /* Service name for GN role */
-std::string nap_service_name;  /* Service name for NAP role */
 
 #ifndef PAN_SECURITY
 #define PAN_SECURITY \

@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <bluetooth/types/address.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <cstdint>
 
-#include "hci/controller_interface_mock.h"
+#include "hci/controller_mock.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/acl_hci_link_interface.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "test/common/mock_functions.h"
 #include "test/mock/mock_main_shim_entry.h"
-#include "types/raw_address.h"
 
 using testing::Return;
 
@@ -50,7 +50,7 @@ class StackBtmPowerMode : public testing::Test {
 protected:
   void SetUp() override {
     bluetooth::hci::testing::mock_controller_ =
-            std::make_unique<bluetooth::hci::testing::MockControllerInterface>();
+            std::make_unique<bluetooth::hci::testing::MockController>();
     ON_CALL(*bluetooth::hci::testing::mock_controller_, SupportsSniffMode)
             .WillByDefault(Return(true));
     power_mode_callback_queue.clear();

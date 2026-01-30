@@ -26,6 +26,8 @@
 #include <functional>
 
 // Original included files, if any
+#include <bluetooth/types/address.h>
+
 #include <vector>
 
 #include "bta/include/bta_av_api.h"
@@ -34,7 +36,6 @@
 #include "stack/include/a2dp_constants.h"
 #include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
-#include "types/raw_address.h"
 
 // Original usings
 
@@ -298,17 +299,6 @@ struct bta_av_co_is_supported_codec {
   bool operator()(btav_a2dp_codec_index_t codec_index) { return body(codec_index); }
 };
 extern struct bta_av_co_is_supported_codec bta_av_co_is_supported_codec;
-
-// Name: bta_av_co_set_active_peer
-// Params: const RawAddress& peer_address
-// Return: bool
-struct bta_av_co_set_active_peer {
-  static bool return_value;
-  std::function<bool(const RawAddress& peer_address)> body{
-          [](const RawAddress& /* peer_address */) { return return_value; }};
-  bool operator()(const RawAddress& peer_address) { return body(peer_address); }
-};
-extern struct bta_av_co_set_active_peer bta_av_co_set_active_peer;
 
 // Name: bta_av_co_set_codec_audio_config
 // Params: const btav_a2dp_codec_config_t& codec_audio_config

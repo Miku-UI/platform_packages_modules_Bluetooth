@@ -18,6 +18,7 @@ package com.android.bluetooth.avrcpcontroller;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.database.Cursor;
@@ -26,9 +27,12 @@ import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
+import com.android.bluetooth.btservice.AdapterService;
+
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * A provider of downloaded cover art images.
@@ -47,10 +51,6 @@ import java.io.IOException;
  */
 public class AvrcpCoverArtProvider extends ContentProvider {
     private static final String TAG = AvrcpCoverArtProvider.class.getSimpleName();
-
-    private BluetoothAdapter mAdapter;
-
-    public AvrcpCoverArtProvider() {}
 
     static final String AUTHORITY = "com.android.bluetooth.avrcpcontroller.AvrcpCoverArtProvider";
     static final Uri CONTENT_URI = Uri.parse("content://" + AUTHORITY);
@@ -74,49 +74,6 @@ public class AvrcpCoverArtProvider extends ContentProvider {
         return uri;
     }
 
-    private static Bitmap getImage(BluetoothDevice device, String imageUuid) {
-        AvrcpControllerService service = AvrcpControllerService.getAvrcpControllerService();
-        if (service == null) {
-            debug("Failed to get service, cover art not available");
-            return null;
-        }
-
-        AvrcpCoverArtManager manager = service.getCoverArtManager();
-        if (manager == null) {
-            debug("Failed to get cover art manager. Cover art may not be enabled.");
-            return null;
-        }
-        return manager.getImage(device, imageUuid);
-    }
-
-    private static ParcelFileDescriptor getImageDescriptor(BluetoothDevice device, String imageUuid)
-            throws FileNotFoundException, IOException {
-        debug("getImageDescriptor(" + device + ", " + imageUuid + ")");
-        Bitmap image = getImage(device, imageUuid);
-        if (image == null) {
-            debug("Could not get requested image");
-            throw new FileNotFoundException();
-        }
-
-        final ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createPipe();
-        Thread transferThread =
-                new Thread() {
-                    public void run() {
-                        try {
-                            FileOutputStream fout =
-                                    new ParcelFileDescriptor.AutoCloseOutputStream(pipe[1]);
-                            image.compress(Bitmap.CompressFormat.PNG, 100, fout);
-                            fout.flush();
-                            fout.close();
-                        } catch (IOException e) {
-                            /* Something bad must have happened writing the image data */
-                        }
-                    }
-                };
-        transferThread.start();
-        return pipe[0];
-    }
-
     @Override
     public ParcelFileDescriptor openFile(Uri uri, String mode) throws FileNotFoundException {
         debug("openFile(" + uri + ", '" + mode + "')");
@@ -130,8 +87,10 @@ public class AvrcpCoverArtProvider extends ContentProvider {
             throw new FileNotFoundException();
         }
 
+        BluetoothAdapter adapter =
+                getContext().getSystemService(BluetoothManager.class).getAdapter();
         try {
-            device = mAdapter.getRemoteDevice(address);
+            device = adapter.getRemoteDevice(address);
         } catch (IllegalArgumentException e) {
             throw new FileNotFoundException();
         }
@@ -148,7 +107,6 @@ public class AvrcpCoverArtProvider extends ContentProvider {
 
     @Override
     public boolean onCreate() {
-        mAdapter = BluetoothAdapter.getDefaultAdapter();
         return true;
     }
 
@@ -180,6 +138,51 @@ public class AvrcpCoverArtProvider extends ContentProvider {
     @Override
     public String getType(Uri uri) {
         return null;
+    }
+
+    private static ParcelFileDescriptor getImageDescriptor(BluetoothDevice device, String imageUuid)
+            throws FileNotFoundException, IOException {
+        debug("getImageDescriptor(" + device + ", " + imageUuid + ")");
+        Bitmap image = getImage(device, imageUuid);
+        if (image == null) {
+            debug("Could not get requested image");
+            throw new FileNotFoundException();
+        }
+
+        final ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createPipe();
+        Thread transferThread =
+                new Thread() {
+                    public void run() {
+                        try {
+                            FileOutputStream fout =
+                                    new ParcelFileDescriptor.AutoCloseOutputStream(pipe[1]);
+                            image.compress(Bitmap.CompressFormat.PNG, 100, fout);
+                            fout.flush();
+                            fout.close();
+                        } catch (IOException e) {
+                            /* Something bad must have happened writing the image data */
+                        }
+                    }
+                };
+        transferThread.start();
+        return pipe[0];
+    }
+
+    private static Bitmap getImage(BluetoothDevice device, String imageUuid) {
+        final var avrcpController =
+                Optional.ofNullable(AdapterService.deprecatedGetAdapterService())
+                        .flatMap(AdapterService::getAvrcpControllerService);
+        if (avrcpController.isEmpty()) {
+            debug("Failed to get service, cover art not available");
+            return null;
+        }
+
+        AvrcpCoverArtManager manager = avrcpController.get().getCoverArtManager();
+        if (manager == null) {
+            debug("Failed to get cover art manager. Cover art may not be enabled.");
+            return null;
+        }
+        return manager.getImage(device, imageUuid);
     }
 
     private static void debug(String msg) {

@@ -18,7 +18,6 @@ package com.android.bluetooth.pbap;
 
 import static android.view.WindowManager.LayoutParams.SYSTEM_FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS;
 
-import android.bluetooth.AlertActivity;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothProtoEnums;
@@ -43,6 +42,7 @@ import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.R;
 import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
+import com.android.bluetooth.util.AlertActivity;
 import com.android.internal.annotations.VisibleForTesting;
 
 /**
@@ -120,35 +120,27 @@ public class BluetoothPbapActivity extends AlertActivity
     }
 
     private void showPbapDialog(int id) {
-        switch (id) {
-            case DIALOG_YES_NO_AUTH:
-                mAlertBuilder.setTitle(getString(R.string.pbap_session_key_dialog_header));
-                mAlertBuilder.setView(createView(DIALOG_YES_NO_AUTH));
-                mAlertBuilder.setPositiveButton(
-                        android.R.string.ok, (dialog, which) -> onPositive());
-                mAlertBuilder.setNegativeButton(
-                        android.R.string.cancel, (dialog, which) -> onNegative());
-                setupAlert();
-                changeButtonEnabled(DialogInterface.BUTTON_POSITIVE, false);
-                break;
-            default:
-                break;
+        if (id != DIALOG_YES_NO_AUTH) {
+            return;
         }
+        mAlertBuilder.setTitle(getString(R.string.pbap_session_key_dialog_header));
+        mAlertBuilder.setView(createView(DIALOG_YES_NO_AUTH));
+        mAlertBuilder.setPositiveButton(android.R.string.ok, (dialog, which) -> onPositive());
+        mAlertBuilder.setNegativeButton(android.R.string.cancel, (dialog, which) -> onNegative());
+        setupAlert();
+        changeButtonEnabled(DialogInterface.BUTTON_POSITIVE, false);
     }
 
     private String createDisplayText(final int id) {
-        switch (id) {
-            case DIALOG_YES_NO_AUTH:
-                String mMessage2 = getString(R.string.pbap_session_key_dialog_title, mDevice);
-                return mMessage2;
-            default:
-                return null;
-        }
+        return switch (id) {
+            case DIALOG_YES_NO_AUTH -> getString(R.string.pbap_session_key_dialog_title, mDevice);
+            default -> null;
+        };
     }
 
     private View createView(final int id) {
-        switch (id) {
-            case DIALOG_YES_NO_AUTH:
+        return switch (id) {
+            case DIALOG_YES_NO_AUTH -> {
                 mView = getLayoutInflater().inflate(R.layout.auth, null);
                 mMessageView = (TextView) mView.findViewById(R.id.message);
                 mMessageView.setText(createDisplayText(id));
@@ -156,10 +148,10 @@ public class BluetoothPbapActivity extends AlertActivity
                 mKeyView.addTextChangedListener(this);
                 mKeyView.setFilters(
                         new InputFilter[] {new LengthFilter(BLUETOOTH_OBEX_AUTHKEY_MAX_LENGTH)});
-                return mView;
-            default:
-                return null;
-        }
+                yield mView;
+            }
+            default -> null;
+        };
     }
 
     @VisibleForTesting
@@ -198,7 +190,7 @@ public class BluetoothPbapActivity extends AlertActivity
         if (extraName != null) {
             intent.putExtra(extraName, extraValue);
         }
-        sendBroadcast(intent);
+        BluetoothMethodProxy.getInstance().contextSendBroadcast(this, intent);
     }
 
     @VisibleForTesting
@@ -262,14 +254,11 @@ public class BluetoothPbapActivity extends AlertActivity
             new Handler() {
                 @Override
                 public void handleMessage(Message msg) {
-                    switch (msg.what) {
-                        case DISMISS_TIMEOUT_DIALOG:
-                            Log.v(TAG, "Received DISMISS_TIMEOUT_DIALOG msg.");
-                            finish();
-                            break;
-                        default:
-                            break;
+                    if (msg.what != DISMISS_TIMEOUT_DIALOG) {
+                        return;
                     }
+                    Log.v(TAG, "Received DISMISS_TIMEOUT_DIALOG msg.");
+                    finish();
                 }
             };
 }

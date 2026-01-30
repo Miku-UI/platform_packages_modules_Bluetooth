@@ -28,6 +28,9 @@
 
 #include <android_bluetooth_sysprop.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/bt_transport.h>
+#include <bluetooth/types/hci_role.h>
 #include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
@@ -38,7 +41,6 @@
 #include "a2dp_codec_api.h"
 #include "a2dp_constants.h"
 #include "a2dp_sbc_constants.h"
-#include "audio_hal_interface/a2dp_encoding.h"
 #include "avdt_api.h"
 #include "avrc_api.h"
 #include "avrc_defs.h"
@@ -79,9 +81,6 @@
 #include "stack/include/btm_status.h"
 #include "stack/include/l2cap_interface.h"
 #include "storage/config_keys.h"
-#include "types/bt_transport.h"
-#include "types/hci_role.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth;
 
@@ -118,7 +117,7 @@ constexpr char kBtmLogTag[] = "A2DP";
 /* Time to wait for open from SNK when signaling is initiated from SNK. */
 /* If not, we abort and try to initiate the connection as SRC. */
 #ifndef BTA_AV_ACCEPT_OPEN_TIMEOUT_MS
-#define BTA_AV_ACCEPT_OPEN_TIMEOUT_MS (2 * 1000) /* 2 seconds */
+#define BTA_AV_ACCEPT_OPEN_TIMEOUT_MS (10 * 1000) /* 10 seconds */
 #endif
 
 static void bta_av_accept_open_timer_cback(void* data);
@@ -607,7 +606,7 @@ void bta_av_switch_role(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
   p_scb->wait &= ~(BTA_AV_WAIT_ROLE_SW_RES_OPEN | BTA_AV_WAIT_ROLE_SW_RES_START);
 
   if (p_scb->q_tag == BTA_AV_Q_TAG_OPEN) {
-    if (bta_av_switch_if_needed(p_scb) || !bta_av_link_role_ok(p_scb, A2DP_SET_MULTL_BIT)) {
+    if (!bta_av_link_role_ok(p_scb, A2DP_SET_MULTL_BIT)) {
       p_scb->wait |= BTA_AV_WAIT_ROLE_SW_RES_OPEN;
     } else {
       /* this should not happen in theory. Just in case...
@@ -655,7 +654,10 @@ void bta_av_role_res(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       p_scb->wait &= ~BTA_AV_WAIT_ROLE_SW_BITS;
       if (p_data->role_res.hci_status != HCI_SUCCESS) {
         p_scb->role &= ~BTA_AV_ROLE_START_INT;
-        bta_sys_idle(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->PeerAddress());
+        bta_sys_idle(BTA_ID_AV,
+                     com_android_bluetooth_flags_a2dp_pm_app_id() ? p_scb->app_id
+                                                                  : bta_av_cb.audio_open_cnt,
+                     p_scb->PeerAddress());
         /* start failed because of role switch. */
         tBTA_AV bta_av_data = {
                 .start =
@@ -752,7 +754,7 @@ void bta_av_do_disc_a2dp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
   switch (p_data->api_open.switch_res) {
     case BTA_AV_RS_NONE:
-      if (bta_av_switch_if_needed(p_scb) || !bta_av_link_role_ok(p_scb, A2DP_SET_MULTL_BIT)) {
+      if (!bta_av_link_role_ok(p_scb, A2DP_SET_MULTL_BIT)) {
         /* waiting for role switch result. save the api to control block */
         memcpy(&p_scb->q_info.open, &p_data->api_open, sizeof(tBTA_AV_API_OPEN));
         p_scb->wait |= BTA_AV_WAIT_ROLE_SW_RES_OPEN;
@@ -863,6 +865,7 @@ void bta_av_cleanup(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
   /* if de-registering shut everything down */
   msg.hdr.layer_specific = p_scb->hndl;
   p_scb->started = false;
+  p_scb->suspending = false;
   p_scb->use_rtp_header_marker_bit = false;
   p_scb->cong = false;
   p_scb->role = role;
@@ -871,12 +874,11 @@ void bta_av_cleanup(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
   p_scb->num_disc_snks = 0;
   p_scb->coll_mask = 0;
   p_scb->uuid_int = 0;
+  p_scb->cfg = p_scb->default_sep_cfg;
   alarm_cancel(p_scb->avrc_ct_timer);
   alarm_cancel(p_scb->link_signalling_timer);
   alarm_cancel(p_scb->accept_signalling_timer);
-  if (com::android::bluetooth::flags::avdt_handle_signaling_on_peer_failure()) {
-    alarm_cancel(p_scb->accept_open_timer);
-  }
+  alarm_cancel(p_scb->accept_open_timer);
 
   if (p_scb->deregistering) {
     /* remove stream */
@@ -1009,9 +1011,7 @@ void bta_av_disconnect_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
   alarm_cancel(p_scb->link_signalling_timer);
   alarm_cancel(p_scb->accept_signalling_timer);
   alarm_cancel(p_scb->avrc_ct_timer);
-  if (com::android::bluetooth::flags::avdt_handle_signaling_on_peer_failure()) {
-    alarm_cancel(p_scb->accept_open_timer);
-  }
+  alarm_cancel(p_scb->accept_open_timer);
   // conn_lcb is the index bitmask of all used LCBs, and since LCB and SCB use
   // the same index, it should be safe to use SCB index here.
   if ((bta_av_cb.conn_lcb & (1 << p_scb->hdi)) != 0) {
@@ -1072,7 +1072,6 @@ void bta_av_security_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  ******************************************************************************/
 void bta_av_setconfig_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   uint8_t avdt_handle = p_data->ci_setconfig.avdt_handle;
-  int i;
   uint8_t local_sep;
 
   /* we like this codec_type. find the sep_idx */
@@ -1119,18 +1118,16 @@ void bta_av_setconfig_rsp(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
       p_scb->uuid_int = p_scb->open_api.uuid;
     }
     bta_av_discover_req(p_scb, NULL);
-    if (com::android::bluetooth::flags::avdt_handle_signaling_on_peer_failure()) {
-      // Set timer to initiate stream opening if peer doesn't
-      if (!p_scb->accept_open_timer) {
-        p_scb->accept_open_timer = alarm_new("accept_open_timer");
-      }
-      const uint64_t accept_open_timeout =
-              android::sysprop::bluetooth::A2dp::avdt_accept_open_timeout_ms().value_or(
-                      BTA_AV_ACCEPT_OPEN_TIMEOUT_MS);
-      log::debug("accept_open_timeout = {} ms", accept_open_timeout);
-      alarm_set_on_mloop(p_scb->accept_open_timer, accept_open_timeout,
-                         bta_av_accept_open_timer_cback, UINT_TO_PTR(p_scb->hdi));
+    // Set timer to initiate stream opening if peer doesn't
+    if (!p_scb->accept_open_timer) {
+      p_scb->accept_open_timer = alarm_new("accept_open_timer");
     }
+    const uint64_t accept_open_timeout =
+            android::sysprop::bluetooth::A2dp::avdt_accept_open_timeout_ms().value_or(
+                    BTA_AV_ACCEPT_OPEN_TIMEOUT_MS);
+    log::debug("accept_open_timeout = {} ms", accept_open_timeout);
+    alarm_set_on_mloop(p_scb->accept_open_timer, accept_open_timeout,
+                       bta_av_accept_open_timer_cback, UINT_TO_PTR(p_scb->hdi));
   }
 }
 
@@ -1150,9 +1147,7 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
 
   log::verbose("peer {} bta_handle: 0x{:x}", p_scb->PeerAddress(), p_scb->hndl);
 
-  if (com::android::bluetooth::flags::avdt_handle_signaling_on_peer_failure()) {
-    alarm_cancel(p_scb->accept_open_timer);
-  }
+  alarm_cancel(p_scb->accept_open_timer);
   msg.hdr.layer_specific = p_scb->hndl;
   msg.is_up = true;
   msg.peer_addr = p_scb->PeerAddress();
@@ -1160,6 +1155,7 @@ void bta_av_str_opened(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   bta_av_conn_chg(reinterpret_cast<tBTA_AV_DATA*>(&msg));
   /* set the congestion flag, so AV would not send media packets by accident */
   p_scb->cong = true;
+  p_scb->suspending = false;
   // Don't use AVDTP SUSPEND for restrict listed devices
   btif_storage_get_stored_remote_name(p_scb->PeerAddress(), remote_name);
   if (interop_match_name(INTEROP_DISABLE_AVDTP_SUSPEND, remote_name) ||
@@ -1320,6 +1316,7 @@ void bta_av_do_close(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
 
   /* close stream */
   p_scb->started = false;
+  p_scb->suspending = false;
   p_scb->use_rtp_header_marker_bit = false;
 
   /* drop the buffers queued in L2CAP */
@@ -1668,50 +1665,51 @@ void bta_av_open_failed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_av_getcap_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
-  AvdtpSepConfig cfg = p_scb->cfg;
+  AvdtpSepConfig result_sep_cfg = p_scb->cfg;
   uint8_t media_type = A2DP_GetMediaType(p_scb->peer_cap.codec_info);
   tAVDT_SEP_INFO* p_info = &p_scb->sep_info[p_scb->sep_info_idx];
 
-  cfg.num_codec = 1;
-  cfg.num_protect = p_scb->peer_cap.num_protect;
-  memcpy(cfg.codec_info, p_scb->peer_cap.codec_info, AVDT_CODEC_SIZE);
-  memcpy(cfg.protect_info, p_scb->peer_cap.protect_info, AVDT_PROTECT_SIZE);
+  result_sep_cfg.num_codec = 1;
+  result_sep_cfg.num_protect = p_scb->peer_cap.num_protect;
+  memcpy(result_sep_cfg.codec_info, p_scb->peer_cap.codec_info, AVDT_CODEC_SIZE);
+  memcpy(result_sep_cfg.protect_info, p_scb->peer_cap.protect_info, AVDT_PROTECT_SIZE);
 
-  log::verbose("peer {} bta_handle:0x{:x} num_codec:{} psc_mask=0x{:x}", p_scb->PeerAddress(),
-               p_scb->hndl, p_scb->peer_cap.num_codec, p_scb->cfg.psc_mask);
-  log::verbose("media type 0x{:x}, 0x{:x}", media_type, p_scb->media_type);
-  log::verbose("codec: {}", A2DP_CodecInfoString(p_scb->cfg.codec_info));
+  log::verbose("peer addres: {}, bta_handle: 0x{:x}", p_scb->PeerAddress(), p_scb->hndl);
+  log::verbose("local psc_mask: 0x{:x}, remote psc_mask: 0x{:x}", p_scb->cfg.psc_mask,
+               p_scb->peer_cap.psc_mask);
+  log::verbose("current local codec cfg: {}", A2DP_CodecInfoString(p_scb->cfg.codec_info));
+
+  log::verbose("remote num_codec:{}", p_scb->peer_cap.num_codec);
+  log::verbose("local media_type: 0x{:x}, remote media_type: 0x{:x}", p_scb->media_type,
+               media_type);
 
   /* if codec present and we get a codec configuration */
   if ((p_scb->peer_cap.num_codec != 0) && (media_type == p_scb->media_type) &&
-      (p_scb->p_cos->getcfg(p_scb->hndl, p_scb->PeerAddress(), cfg.codec_info, &p_scb->sep_info_idx,
-                            p_info->seid, &cfg.num_protect, cfg.protect_info) == A2DP_SUCCESS)) {
-    /* UUID for which connection was initiatied */
-    uint16_t uuid_int = p_scb->uuid_int;
-
+      (p_scb->p_cos->getcfg(p_scb->hndl, p_scb->PeerAddress(), result_sep_cfg.codec_info,
+                            &p_scb->sep_info_idx, p_info->seid, &result_sep_cfg.num_protect,
+                            result_sep_cfg.protect_info) == A2DP_SUCCESS)) {
     /* save copy of codec configuration */
-    p_scb->cfg = cfg;
+    p_scb->cfg = result_sep_cfg;
 
-    log::verbose("result: sep_info_idx={}", p_scb->sep_info_idx);
-    log::verbose("codec: {}", A2DP_CodecInfoString(p_scb->cfg.codec_info));
+    log::info("peer addres: {}, bta_handle: 0x{:x}", p_scb->PeerAddress(), p_scb->hndl);
+    log::verbose("result sep_info_idx: {}", p_scb->sep_info_idx);
+    log::verbose("result codec cfg: {}", A2DP_CodecInfoString(p_scb->cfg.codec_info));
 
-    log::verbose("initiator UUID = 0x{:x}", uuid_int);
-    if (uuid_int == UUID_SERVCLASS_AUDIO_SOURCE) {
+    log::verbose("initiator UUID: 0x{:x}", p_scb->uuid_int);
+    if (p_scb->uuid_int == UUID_SERVCLASS_AUDIO_SOURCE) {
       bta_av_adjust_seps_idx(p_scb, bta_av_get_scb_handle(p_scb, AVDT_TSEP_SRC));
-    } else if (uuid_int == UUID_SERVCLASS_AUDIO_SINK) {
+    } else if (p_scb->uuid_int == UUID_SERVCLASS_AUDIO_SINK) {
       bta_av_adjust_seps_idx(p_scb, bta_av_get_scb_handle(p_scb, AVDT_TSEP_SNK));
     }
-    log::info("sep_idx={} avdt_handle={} bta_handle=0x{:x}", p_scb->sep_idx, p_scb->avdt_handle,
-              p_scb->hndl);
+    log::info("current sep_idx: {} avdt_handle: {}", p_scb->sep_idx, p_scb->avdt_handle);
 
     /* use only the services peer supports */
-    cfg.psc_mask &= p_scb->peer_cap.psc_mask;
-    p_scb->cur_psc_mask = cfg.psc_mask;
-    log::verbose("peer {} bta_handle:0x{:x} sep_idx:{} sep_info_idx:{} cur_psc_mask:0x{:x}",
-                 p_scb->PeerAddress(), p_scb->hndl, p_scb->sep_idx, p_scb->sep_info_idx,
-                 p_scb->cur_psc_mask);
+    result_sep_cfg.psc_mask &= p_scb->peer_cap.psc_mask;
+    p_scb->cur_psc_mask = result_sep_cfg.psc_mask;
+    log::verbose("result cur_psc_mask:0x{:x}, local psc_mask: 0x{:x}, remote psc_mask: 0x{:x}",
+                 p_scb->cur_psc_mask, p_scb->cfg.psc_mask, p_scb->peer_cap.psc_mask);
 
-    if ((uuid_int == UUID_SERVCLASS_AUDIO_SINK) &&
+    if ((p_scb->uuid_int == UUID_SERVCLASS_AUDIO_SINK) &&
         (p_scb->seps[p_scb->sep_idx].p_app_sink_data_cback != NULL)) {
       log::verbose("configure decoder for Sink connection");
       tBTA_AV_MEDIA av_sink_codec_info = {
@@ -1725,13 +1723,18 @@ void bta_av_getcap_results(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
               p_scb->PeerAddress(), BTA_AV_SINK_MEDIA_CFG_EVT, &av_sink_codec_info);
     }
 
-    if (uuid_int == UUID_SERVCLASS_AUDIO_SOURCE) {
-      A2DP_AdjustCodec(cfg.codec_info);
+    if (p_scb->uuid_int == UUID_SERVCLASS_AUDIO_SOURCE) {
+      A2DP_AdjustCodec(result_sep_cfg.codec_info);
+    }
+
+    if (com_android_bluetooth_flags_a2dp_cancel_acceptor_alarm_for_avdt_init()) {
+      /* ensure stack does not initiate AVDT configuration after timeout */
+      alarm_cancel(p_scb->accept_signalling_timer);
     }
 
     /* open the stream */
     AVDT_OpenReq(p_scb->seps[p_scb->sep_idx].av_handle, p_scb->PeerAddress(), p_scb->hdi,
-                 p_scb->sep_info[p_scb->sep_info_idx].seid, &cfg);
+                 p_scb->sep_info[p_scb->sep_info_idx].seid, &result_sep_cfg);
   } else {
     /* try the next stream, if any */
     p_scb->sep_info_idx++;
@@ -1766,11 +1769,11 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   tBTA_AV bta_av_data;
 
   bta_av_data = {
-    .reject =
-    {
-      .bd_addr = p_scb->PeerAddress(),
-      .hndl = p_scb->hndl,
-    },
+          .reject =
+                  {
+                          .bd_addr = p_scb->PeerAddress(),
+                          .hndl = p_scb->hndl,
+                  },
   };
 
   (*bta_av_cb.p_cback)(BTA_AV_REJECT_EVT, &bta_av_data);
@@ -1786,6 +1789,10 @@ void bta_av_setconfig_rej(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_av_discover_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
+  if (com_android_bluetooth_flags_a2dp_cancel_acceptor_alarm_for_avdt_init()) {
+    /* ensure stack does not initiate AVDT configuration after timeout */
+    alarm_cancel(p_scb->accept_signalling_timer);
+  }
   /* send avdtp discover request */
 
   AVDT_DiscoverReq(p_scb->PeerAddress(), p_scb->hdi, p_scb->sep_info, BTA_AV_NUM_SEPS,
@@ -1822,7 +1829,7 @@ void bta_av_do_start(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
             p_scb->PeerAddress(), bta_av_cb.sco_occupied, p_scb->role, p_scb->started, p_scb->wait);
   if (bta_av_cb.sco_occupied) {
     log::warn("A2dp stream start failed");
-    bta_av_start_failed(p_scb, p_data);
+    bta_av_start_failed(p_scb, nullptr);
     return;
   }
 
@@ -1856,14 +1863,17 @@ void bta_av_do_start(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   }
 
   p_scb->role |= BTA_AV_ROLE_START_INT;
-  bta_sys_busy(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->PeerAddress());
+  bta_sys_busy(
+          BTA_ID_AV,
+          com_android_bluetooth_flags_a2dp_pm_app_id() ? p_scb->app_id : bta_av_cb.audio_open_cnt,
+          p_scb->PeerAddress());
   /* disallow role switch during streaming, only if we are the central role
    * i.e. allow role switch, if we are peripheral.
    * It would not hurt us, if the peer device wants us to be central
    * disable sniff mode unconditionally during streaming */
   tHCI_ROLE cur_role;
-  if ((get_btm_client_interface().link_policy.BTM_GetRole(p_scb->PeerAddress(), &cur_role) ==
-       tBTM_STATUS::BTM_SUCCESS) &&
+  if ((get_btm_client_interface().link_policy.BTM_GetRole(p_scb->PeerAddress(), BT_TRANSPORT_BR_EDR,
+                                                          &cur_role) == tBTM_STATUS::BTM_SUCCESS) &&
       (cur_role == HCI_ROLE_CENTRAL)) {
     BTM_block_role_switch_and_sniff_mode_for(p_scb->PeerAddress());
   } else {
@@ -1873,7 +1883,7 @@ void bta_av_do_start(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   uint16_t result = AVDT_StartReq(&p_scb->avdt_handle, 1);
   if (result != AVDT_SUCCESS) {
     log::error("AVDT_StartReq failed for peer {} result:{}", p_scb->PeerAddress(), result);
-    bta_av_start_failed(p_scb, p_data);
+    bta_av_start_failed(p_scb, nullptr);
   } else if (p_data) {
     bta_av_set_use_latency_mode(p_scb, p_data->do_start.use_latency_mode);
   }
@@ -1898,8 +1908,13 @@ void bta_av_str_stopped(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   log::info("peer {} bta_handle:0x{:x} audio_open_cnt:{}, p_data {} start:{}", p_scb->PeerAddress(),
             p_scb->hndl, bta_av_cb.audio_open_cnt, std::format_ptr(p_data), start);
 
-  bta_sys_idle(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->PeerAddress());
-  BTM_unblock_role_switch_and_sniff_mode_for(p_scb->PeerAddress());
+  if (!com_android_bluetooth_flags_delay_sniff_subrating()) {
+    bta_sys_idle(
+            BTA_ID_AV,
+            com_android_bluetooth_flags_a2dp_pm_app_id() ? p_scb->app_id : bta_av_cb.audio_open_cnt,
+            p_scb->PeerAddress());
+    BTM_unblock_role_switch_and_sniff_mode_for(p_scb->PeerAddress());
+  }
 
   if (p_scb->co_started) {
     if (bta_av_cb.offload_started_hndl == p_scb->hndl) {
@@ -1915,6 +1930,14 @@ void bta_av_str_stopped(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     p_scb->co_started = false;
 
     p_scb->p_cos->stop(p_scb->hndl, p_scb->PeerAddress());
+  }
+
+  if (com_android_bluetooth_flags_delay_sniff_subrating()) {
+    log::info("Delayed Sniff Subrating");
+    bta_sys_idle(BTA_ID_AV,
+                 com_android_bluetooth_flags_a2dp_pm_app_id() ? p_scb->app_id : p_scb->hdi,
+                 p_scb->PeerAddress());
+    BTM_unblock_role_switch_and_sniff_mode_for(p_scb->PeerAddress());
   }
 
   /* if q_info.a2dp_list is not empty, drop it now */
@@ -1942,9 +1965,11 @@ void bta_av_str_stopped(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   suspend_rsp.hndl = p_scb->hndl;
 
   if (p_data && p_data->api_stop.suspend) {
-    log::verbose("peer {} suspending: {}, sup:{}", p_scb->PeerAddress(), start, p_scb->suspend_sup);
-    if ((start) && (p_scb->suspend_sup)) {
+    log::verbose("peer {} suspending: {}, sup:{}, suspending: {}", p_scb->PeerAddress(), start,
+                 p_scb->suspend_sup, p_scb->suspending);
+    if ((start) && (p_scb->suspend_sup) && !p_scb->suspending) {
       sus_evt = false;
+      p_scb->suspending = true;
       p_scb->l2c_bufs = 0;
       AVDT_SuspendReq(&p_scb->avdt_handle, 1);
     }
@@ -1986,7 +2011,6 @@ void bta_av_str_stopped(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  *
  ******************************************************************************/
 void bta_av_reconfig(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
-  AvdtpSepConfig* p_cfg;
   tBTA_AV_API_STOP stop = {};
   tBTA_AV_API_RCFG* p_rcfg = &p_data->api_reconfig;
 
@@ -1994,8 +2018,6 @@ void bta_av_reconfig(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
                p_scb->sep_info_idx);
 
   p_scb->num_recfg = 0;
-  /* store the new configuration in control block */
-  p_cfg = &p_scb->cfg;
 
   alarm_cancel(p_scb->avrc_ct_timer);
 
@@ -2009,11 +2031,14 @@ void bta_av_reconfig(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
                  std::format("{} => {}", A2DP_CodecName(p_scb->cfg.codec_info),
                              A2DP_CodecName(p_rcfg->codec_info)));
 
-  p_cfg->num_protect = p_rcfg->num_protect;
-  memcpy(p_cfg->codec_info, p_rcfg->codec_info, AVDT_CODEC_SIZE);
-  memcpy(p_cfg->protect_info, p_rcfg->p_protect_info, p_rcfg->num_protect);
+  p_scb->cfg.num_protect = p_rcfg->num_protect;
+  memcpy(p_scb->cfg.codec_info, p_rcfg->codec_info, AVDT_CODEC_SIZE);
+  memcpy(p_scb->cfg.protect_info, p_rcfg->p_protect_info, p_rcfg->num_protect);
   p_scb->rcfg_idx = p_rcfg->sep_info_idx;
-  p_cfg->psc_mask = p_scb->cur_psc_mask;
+  p_scb->cfg.psc_mask = p_scb->cur_psc_mask;
+  log::verbose("p_scb->cfg.psc_mask: {}", p_scb->cfg.psc_mask);
+  log::debug("p_scb->sep_info_idx={} p_scb->rcfg_idx={} p_rcfg->sep_info_idx={}",
+             p_scb->sep_info_idx, p_scb->rcfg_idx, p_rcfg->sep_info_idx);
 
   // If the requested SEP index is same as the current one, then we
   // can Suspend->Reconfigure->Start.
@@ -2037,7 +2062,7 @@ void bta_av_reconfig(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   } else {
     // Close the stream first, and then Configure it
     log::verbose("Close/Open started: {} state: {} num_protect: {}", p_scb->started, p_scb->state,
-                 p_cfg->num_protect);
+                 p_scb->cfg.num_protect);
     if (p_scb->started) {
       // Close->Configure->Open->Start
       if ((p_scb->rcfg_idx != p_scb->sep_info_idx) && p_scb->recfg_sup) {
@@ -2254,7 +2279,10 @@ void bta_av_start_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   if (p_data && (p_data->hdr.offset != BTA_AV_RS_NONE)) {
     p_scb->wait &= ~BTA_AV_WAIT_ROLE_SW_BITS;
     if (p_data->hdr.offset == BTA_AV_RS_FAIL) {
-      bta_sys_idle(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->PeerAddress());
+      bta_sys_idle(BTA_ID_AV,
+                   com_android_bluetooth_flags_a2dp_pm_app_id() ? p_scb->app_id
+                                                                : bta_av_cb.audio_open_cnt,
+                   p_scb->PeerAddress());
       tBTA_AV bta_av_data = {
               .start =
                       {
@@ -2303,7 +2331,10 @@ void bta_av_start_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   /* tell role manager to check M/S role */
   bta_sys_conn_open(BTA_ID_AV, p_scb->app_id, p_scb->PeerAddress());
 
-  bta_sys_busy(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->PeerAddress());
+  bta_sys_busy(
+          BTA_ID_AV,
+          com_android_bluetooth_flags_a2dp_pm_app_id() ? p_scb->app_id : bta_av_cb.audio_open_cnt,
+          p_scb->PeerAddress());
 
   if (p_scb->media_type == AVDT_MEDIA_TYPE_AUDIO) {
     /* in normal logic, conns should be bta_av_cb.audio_count - 1,
@@ -2337,7 +2368,8 @@ void bta_av_start_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
        * Because it would not hurt source, if the peer device wants source to be
        * central.
        * disable sniff mode unconditionally during streaming */
-      if ((get_btm_client_interface().link_policy.BTM_GetRole(p_scb->PeerAddress(), &cur_role) ==
+      if ((get_btm_client_interface().link_policy.BTM_GetRole(p_scb->PeerAddress(),
+                                                              BT_TRANSPORT_BR_EDR, &cur_role) ==
            tBTM_STATUS::BTM_SUCCESS) &&
           (cur_role == HCI_ROLE_CENTRAL)) {
         BTM_block_role_switch_and_sniff_mode_for(p_scb->PeerAddress());
@@ -2396,13 +2428,25 @@ void bta_av_start_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
  * Returns          void
  *
  ******************************************************************************/
-void bta_av_start_failed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
-  log::error("peer {} bta_handle:0x{:x} audio_open_cnt:{} started:{} co_started:{}",
+void bta_av_start_failed(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
+  uint8_t err_code = p_data ? p_data->str_msg.msg.start_cfm.err_code : -1;
+
+  log::error("peer {} bta_handle:0x{:x} audio_open_cnt:{} started:{} co_started:{} status:{}",
              p_scb->PeerAddress(), p_scb->hndl, bta_av_cb.audio_open_cnt, p_scb->started,
-             p_scb->co_started);
+             p_scb->co_started, err_code);
 
   if (!p_scb->started && !p_scb->co_started) {
-    bta_sys_idle(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->PeerAddress());
+    bta_sys_idle(
+            BTA_ID_AV,
+            com_android_bluetooth_flags_a2dp_pm_app_id() ? p_scb->app_id : bta_av_cb.audio_open_cnt,
+            p_scb->PeerAddress());
+
+    if (com_android_bluetooth_flags_avdt_close_on_start_failure_bad_state() &&
+        err_code == AVDT_ERR_BAD_STATE) {
+      /* START failed. Close connection. */
+      bta_av_ssm_execute(p_scb, BTA_AV_API_CLOSE_EVT, NULL);
+    }
+
     notify_start_failed(p_scb);
   }
 
@@ -2499,9 +2543,11 @@ void bta_av_clr_cong(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /* p_data */) {
 void bta_av_suspend_cfm(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   tBTA_AV_SUSPEND suspend_rsp = {};
   uint8_t err_code = p_data->str_msg.msg.hdr.err_code;
+  p_scb->suspending = false;
 
-  log::verbose("peer {} bta_handle:0x{:x} audio_open_cnt:{} err_code:{}", p_scb->PeerAddress(),
-               p_scb->hndl, bta_av_cb.audio_open_cnt, err_code);
+  log::verbose("peer {} bta_handle:0x{:x} audio_open_cnt:{} err_code:{} scb_started:{}",
+               p_scb->PeerAddress(), p_scb->hndl, bta_av_cb.audio_open_cnt, err_code,
+               p_scb->started);
 
   if (!p_scb->started) {
     /* handle the condition where there is a collision of SUSPEND req from
@@ -2513,9 +2559,7 @@ void bta_av_suspend_cfm(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   }
 
   suspend_rsp.status = BTA_AV_SUCCESS;
-  bool handle_bad_state = (err_code != AVDT_ERR_BAD_STATE) ||
-                          com::android::bluetooth::flags::avdt_handle_suspend_cfm_bad_state();
-  if (err_code && handle_bad_state) {
+  if (err_code) {
     suspend_rsp.status = BTA_AV_FAIL;
 
     log::error("suspend failed, closing connection");
@@ -2532,7 +2576,10 @@ void bta_av_suspend_cfm(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     p_scb->cong = false;
   }
 
-  bta_sys_idle(BTA_ID_AV, bta_av_cb.audio_open_cnt, p_scb->PeerAddress());
+  bta_sys_idle(
+          BTA_ID_AV,
+          com_android_bluetooth_flags_a2dp_pm_app_id() ? p_scb->app_id : bta_av_cb.audio_open_cnt,
+          p_scb->PeerAddress());
   BTM_unblock_role_switch_and_sniff_mode_for(p_scb->PeerAddress());
 
   /* in case that we received suspend_ind, we may need to call co_stop here */
@@ -2584,23 +2631,24 @@ void bta_av_rcfg_str_ok(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     p_scb->p_cos->update_mtu(p_scb->hndl, p_scb->PeerAddress(), p_scb->stream_mtu);
   }
 
-  if (com::android::bluetooth::flags::fix_avdt_rconfig_not_setting_l2cap()) {
-    /* Set the media channel as high priority */
-    if (!stack::l2cap::get_interface().L2CA_SetTxPriority(p_scb->l2c_cid,
-                                                          L2CAP_CHNL_PRIORITY_HIGH)) {
-      log::warn("Unable to set L2CAP Tx priority peer:{} cid:{}", p_scb->PeerAddress(),
-                p_scb->l2c_cid);
-    }
-
-    if (!stack::l2cap::get_interface().L2CA_SetChnlFlushability(p_scb->l2c_cid, true)) {
-      log::warn("Unable to set L2CAP flush peer:{} cid:{}", p_scb->PeerAddress(), p_scb->l2c_cid);
-    }
-
-    stack::l2cap::get_interface().L2CA_SetMediaStreamChannel(p_scb->l2c_cid, true);
+  /* Set the media channel as high priority */
+  if (!stack::l2cap::get_interface().L2CA_SetTxPriority(p_scb->l2c_cid,
+                                                        L2CAP_CHNL_PRIORITY_HIGH)) {
+    log::warn("Unable to set L2CAP Tx priority peer:{} cid:{}", p_scb->PeerAddress(),
+              p_scb->l2c_cid);
   }
+
+  if (!stack::l2cap::get_interface().L2CA_SetChnlFlushability(p_scb->l2c_cid, true)) {
+    log::warn("Unable to set L2CAP flush peer:{} cid:{}", p_scb->PeerAddress(), p_scb->l2c_cid);
+  }
+
+  stack::l2cap::get_interface().L2CA_SetMediaStreamChannel(p_scb->l2c_cid, true);
 
   /* rc listen */
   bta_av_st_rc_timer(p_scb, NULL);
+
+  /* Allow local suspend again */
+  p_scb->suspending = false;
 
   /* No need to keep the role bits once reconfig is done. */
   p_scb->role &= ~BTA_AV_ROLE_AD_ACP;
@@ -2730,11 +2778,12 @@ void bta_av_rcfg_discntd(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /*p_data*/) {
  ******************************************************************************/
 void bta_av_suspend_cont(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
   uint8_t err_code = p_data->str_msg.msg.hdr.err_code;
-
   log::verbose("err_code={}", err_code);
 
   p_scb->started = false;
   p_scb->cong = false;
+  p_scb->suspending = false;
+
   if (err_code) {
     if (AVDT_ERR_CONNECT == err_code) {
       /* report failure */
@@ -2984,11 +3033,9 @@ void bta_av_open_at_inc(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* p_data) {
     /* SNK did not start signalling or failed to complete the AVDT configuration in time. */
     /* API was called N seconds timeout. */
     /* We need to switch to INIT state and start opening connection. */
-    if (com::android::bluetooth::flags::avdt_handle_signaling_on_peer_failure()) {
-      // Reset peer device
-      bta_av_cco_close(p_scb, p_data);
-      alarm_cancel(p_scb->avrc_ct_timer);
-    }
+    // Reset peer device
+    bta_av_cco_close(p_scb, p_data);
+    alarm_cancel(p_scb->avrc_ct_timer);
     p_scb->coll_mask = 0;
     bta_av_set_scb_sst_init(p_scb);
 
@@ -3184,7 +3231,7 @@ void bta_av_offload_req(tBTA_AV_SCB* p_scb, tBTA_AV_DATA* /*p_data*/) {
   A2dpCodecConfig* codec_config = bta_av_get_a2dp_current_codec();
   log::assert_that(codec_config != nullptr, "assert failed: codec_config != nullptr");
 
-  if (::bluetooth::audio::a2dp::provider::supports_codec(codec_config->codecIndex())) {
+  if (codec_config->isHardwareProviderCodec()) {
     bta_av_vendor_offload_start_v2(p_scb, static_cast<A2dpCodecConfigExt*>(codec_config));
   } else {
     bta_av_offload_codec_builder(p_scb, &offload_start);

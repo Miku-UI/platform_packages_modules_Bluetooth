@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.mapclient;
 
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.getTestDevice;
 
 import static org.mockito.Mockito.verify;
@@ -27,8 +27,10 @@ import android.bluetooth.BluetoothDevice;
 import android.content.AttributionSource;
 import android.net.Uri;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
-import androidx.test.runner.AndroidJUnit4;
+
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -43,9 +45,9 @@ public class MapClientServiceBinderTest {
 
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
+    @Mock private AttributionSource mAttributionSource;
     @Mock private MapClientService mService;
 
-    private final AttributionSource mAttributionSource = new AttributionSource.Builder(1).build();
     private final BluetoothDevice mDevice = getTestDevice(65);
 
     private MapClientServiceBinder mBinder;

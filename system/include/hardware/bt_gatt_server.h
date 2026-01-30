@@ -17,10 +17,10 @@
 #ifndef ANDROID_INCLUDE_BT_GATT_SERVER_H
 #define ANDROID_INCLUDE_BT_GATT_SERVER_H
 
+#include <bluetooth/types/address.h>
 #include <stdint.h>
 
 #include "bt_gatt_types.h"
-#include "types/raw_address.h"
 
 __BEGIN_DECLS
 
@@ -47,7 +47,7 @@ typedef void (*register_server_callback)(int status, int server_if,
 
 /** Callback indicating that a remote device has connected or been disconnected
  */
-typedef void (*connection_callback)(int conn_id, int server_if, int connected,
+typedef void (*connection_callback)(int conn_id, int server_if, int transport, int connected,
                                     const RawAddress& bda);
 
 /** Callback invoked in response to create_service */

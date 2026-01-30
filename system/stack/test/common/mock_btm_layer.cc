@@ -18,10 +18,11 @@
 
 #include "mock_btm_layer.h"
 
+#include <bluetooth/types/address.h>
+
 #include "stack/include/acl_api.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/rfcdefs.h"
-#include "types/raw_address.h"
 
 static bluetooth::manager::MockBtmSecurityInternalInterface* btm_security_internal_interface =
         nullptr;
@@ -30,17 +31,3 @@ void bluetooth::manager::SetMockSecurityInternalInterface(
         MockBtmSecurityInternalInterface* mock_btm_security_internal_interface) {
   btm_security_internal_interface = mock_btm_security_internal_interface;
 }
-
-uint16_t BTM_GetMaxPacketSize(const RawAddress& /*addr*/) { return RFCOMM_DEFAULT_MTU; }
-
-bool BTM_IsAclConnectionUp(const RawAddress& /*remote_bda*/, tBT_TRANSPORT /*transport*/) {
-  return true;
-}
-
-struct btm_client_interface_t btm_client_interface = {
-        .peer =
-                {
-                        .BTM_IsAclConnectionUp = BTM_IsAclConnectionUp,
-                        .BTM_GetMaxPacketSize = BTM_GetMaxPacketSize,
-                },
-};

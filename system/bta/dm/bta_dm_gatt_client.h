@@ -16,6 +16,9 @@
 
 #pragma once
 
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/uuid.h>
+
 #include <cstdint>
 #include <string>
 
@@ -23,8 +26,6 @@
 #include "gd/common/circular_buffer.h"
 #include "include/hardware/bt_common_types.h"
 #include "stack/include/btm_ble_api_types.h"
-#include "types/bluetooth/uuid.h"
-#include "types/raw_address.h"
 
 //
 // Interface as a GATT client for bta clients
@@ -40,7 +41,7 @@ struct gatt_interface_t {
   void (*BTA_GATTC_ServiceSearchRequest)(tCONN_ID conn_id, const bluetooth::Uuid* p_srvc_uuid);
   void (*BTA_GATTC_Open)(tGATT_IF client_if, const RawAddress& remote_bda,
                          tBTM_BLE_CONN_TYPE connection_type, bool opportunistic,
-                         uint16_t preferred_mtu);
+                         uint16_t preferred_mtu, bool prefer_relax_mode);
 };
 
 //

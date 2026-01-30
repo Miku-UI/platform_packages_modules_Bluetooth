@@ -25,8 +25,6 @@ import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.util.Log;
 
-import com.android.modules.utils.build.SdkLevel;
-
 import java.util.concurrent.atomic.AtomicLong;
 
 /** SapRilReceiver is the AIDL implementation of ISapRilReceiver */
@@ -170,7 +168,7 @@ public class SapRilReceiver implements ISapRilReceiver {
             Log.d(TAG, "serviceDied");
             // todo: temp hack to send delayed message so that rild is back up by then
             mSapServerMsgHandler.sendMessageDelayed(
-                    mSapServerMsgHandler.obtainMessage(SapServer.SAP_PROXY_DEAD, (long) 0),
+                    mSapServerMsgHandler.obtainMessage(SapServer.SAP_PROXY_DEAD, 0L),
                     SapServer.ISAP_GET_SERVICE_DELAY_MILLIS);
         }
     }
@@ -361,7 +359,7 @@ public class SapRilReceiver implements ISapRilReceiver {
 
     /** Check if AIDL is supported */
     public static boolean isAidlSupported() {
-        return SdkLevel.isAtLeastU() && ServiceManager.isDeclared(HAL_INSTANCE_NAME);
+        return ServiceManager.isDeclared(HAL_INSTANCE_NAME);
     }
 
     /** Obtain a valid sapProxy */

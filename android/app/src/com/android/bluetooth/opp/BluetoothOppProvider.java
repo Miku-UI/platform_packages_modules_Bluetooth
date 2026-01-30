@@ -201,15 +201,11 @@ public final class BluetoothOppProvider extends ContentProvider {
 
     @Override
     public String getType(Uri uri) {
-        int match = sURIMatcher.match(uri);
-        switch (match) {
-            case SHARES:
-                return SHARE_LIST_TYPE;
-            case SHARES_ID:
-                return SHARE_TYPE;
-            default:
-                throw new IllegalArgumentException("Unknown URI in getType(): " + uri);
-        }
+        return switch (sURIMatcher.match(uri)) {
+            case SHARES -> SHARE_LIST_TYPE;
+            case SHARES_ID -> SHARE_TYPE;
+            default -> throw new IllegalArgumentException("Unknown URI in getType(): " + uri);
+        };
     }
 
     private static void copyString(String key, ContentValues from, ContentValues to) {
@@ -381,16 +377,13 @@ public final class BluetoothOppProvider extends ContentProvider {
 
         int match = sURIMatcher.match(uri);
         switch (match) {
-            case SHARES:
-                qb.setTables(DB_TABLE);
-                break;
-            case SHARES_ID:
+            case SHARES -> qb.setTables(DB_TABLE);
+            case SHARES_ID -> {
                 qb.setTables(DB_TABLE);
                 qb.appendWhere(BluetoothShare._ID + "=");
                 qb.appendWhere(uri.getPathSegments().get(1));
-                break;
-            default:
-                throw new IllegalArgumentException("Unknown URI: " + uri);
+            }
+            default -> throw new IllegalArgumentException("Unknown URI: " + uri);
         }
 
         // The following is a large enough debug operation such that we want to guard it with an

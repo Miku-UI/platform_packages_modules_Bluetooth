@@ -42,6 +42,7 @@ UUID_TO_SERVICE_NAME = {
     0x1800: "Generic Access",
     0x1801: "Generic Attribute service",
     0x1855: "TMAS",
+    0x7F64: "VAPS",
     # Custom UUIDs
     0xc26cf572_3369_4cf2_b5cc_d2cd130f5b2c: "Android Auto Compatibility",
 }
@@ -129,7 +130,8 @@ class SDPProxy(ProfileProxy):
         """
 
         uuid_list = uuids.split(", ")
-        reported_services = list(map(lambda uuid: UUID_TO_SERVICE_NAME.get(int(uuid, 16), uuid), uuid_list))
+        reported_services = list(
+            map(lambda uuid: UUID_TO_SERVICE_NAME.get(int(uuid, 16), uuid), uuid_list))
         test = unittest.TestCase()
 
         # yapf: disable
@@ -149,6 +151,7 @@ class SDPProxy(ProfileProxy):
             "PANU",
             "TMAS",
             "Phonebook Access - PSE",
+            "VAPS",
             "OBEXObjectPush",
             "Android Auto Compatibility",
         ]
@@ -157,6 +160,7 @@ class SDPProxy(ProfileProxy):
             "A/V_RemoteControlController",
             "Android Auto Compatibility",
             "TMAS",
+            "VAPS",
         ]
         # Service that can be in any order. This should never be extended
         movable_services = [
@@ -171,12 +175,15 @@ class SDPProxy(ProfileProxy):
         movable_services = list(filterfalse(optional_not_present, movable_services))
 
         # 1st: Check that the movable service are present in whatever order:
-        movable_services_names_without_optional = list(filter(lambda x: x in movable_services, reported_services))
+        movable_services_names_without_optional = list(
+            filter(lambda x: x in movable_services, reported_services))
         test.assertCountEqual(movable_services_names_without_optional, movable_services)
 
         # 2nd: Check that all the services except the movable are in the specified order
-        reported_services = list(filterfalse(lambda key: key in movable_services, reported_services))
-        expected_services_without_movable = list(filterfalse(lambda key: key in movable_services, expected_services))
+        reported_services = list(filterfalse(lambda key: key in movable_services,
+                                             reported_services))
+        expected_services_without_movable = list(
+            filterfalse(lambda key: key in movable_services, expected_services))
         test.assertEqual(reported_services, expected_services_without_movable)
 
         return "OK"

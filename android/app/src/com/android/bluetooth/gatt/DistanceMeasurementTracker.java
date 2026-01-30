@@ -17,6 +17,7 @@
 package com.android.bluetooth.gatt;
 
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.le.ChannelSoundingParams;
 import android.bluetooth.le.DistanceMeasurementParams;
 import android.bluetooth.le.IDistanceMeasurementCallback;
 import android.os.Handler;
@@ -27,11 +28,15 @@ import java.util.UUID;
 
 /** Manages information of apps that registered distance measurement */
 class DistanceMeasurementTracker {
-    private static final String TAG = DistanceMeasurementTracker.class.getSimpleName();
+    private static final String TAG =
+            GattUtil.TAG_PREFIX + DistanceMeasurementTracker.class.getSimpleName();
 
+    final int mAppUid;
     final BluetoothDevice mDevice;
     final String mIdentityAddress;
     final int mInterval; // Report interval in ms
+    final int mSightType;
+    final int mLocationType;
     final IDistanceMeasurementCallback mCallback;
     private final DistanceMeasurementManager mManager;
     private final UUID mUuid;
@@ -43,18 +48,27 @@ class DistanceMeasurementTracker {
 
     DistanceMeasurementTracker(
             DistanceMeasurementManager manager,
+            int appUid,
             DistanceMeasurementParams params,
             String identityAddress,
             UUID uuid,
             int interval,
             IDistanceMeasurementCallback callback) {
         mManager = manager;
+        mAppUid = appUid;
         mDevice = params.getDevice();
         mIdentityAddress = identityAddress;
         mUuid = uuid;
         mInterval = interval;
         mDuration = params.getDurationSeconds();
         mMethod = params.getMethodId();
+        if (params.getChannelSoundingParams() != null) {
+            mSightType = params.getChannelSoundingParams().getSightType();
+            mLocationType = params.getChannelSoundingParams().getLocationType();
+        } else {
+            mSightType = ChannelSoundingParams.SIGHT_TYPE_UNKNOWN;
+            mLocationType = ChannelSoundingParams.LOCATION_TYPE_UNKNOWN;
+        }
         mCallback = callback;
     }
 

@@ -19,11 +19,11 @@ package com.android.bluetooth.csip;
 
 import static java.util.Objects.requireNonNull;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.util.Log;
 
 import com.android.bluetooth.Utils;
+import com.android.bluetooth.btservice.AdapterService;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.UUID;
@@ -32,10 +32,13 @@ import java.util.UUID;
 public class CsipSetCoordinatorNativeInterface {
     private static final String TAG = CsipSetCoordinatorNativeInterface.class.getSimpleName();
 
-    private final BluetoothAdapter mAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final AdapterService mAdapterService;
+    private final CsipSetCoordinatorService mService;
 
-    CsipSetCoordinatorNativeInterface() {
-        requireNonNull(mAdapter);
+    CsipSetCoordinatorNativeInterface(
+            AdapterService adapterService, CsipSetCoordinatorService service) {
+        mAdapterService = requireNonNull(adapterService);
+        mService = service;
     }
 
     void init() {
@@ -55,7 +58,7 @@ public class CsipSetCoordinatorNativeInterface {
     }
 
     BluetoothDevice getDevice(byte[] address) {
-        return mAdapter.getRemoteDevice(address);
+        return mAdapterService.getRemoteDevice(Utils.getAddressStringFromByte(address));
     }
 
     private static byte[] getByteAddress(BluetoothDevice device) {
@@ -63,16 +66,6 @@ public class CsipSetCoordinatorNativeInterface {
             return Utils.getBytesFromAddress("00:00:00:00:00:00");
         }
         return Utils.getBytesFromAddress(device.getAddress());
-    }
-
-    private static void sendMessageToService(CsipSetCoordinatorStackEvent event) {
-        CsipSetCoordinatorService service =
-                CsipSetCoordinatorService.getCsipSetCoordinatorService();
-        if (service != null) {
-            service.messageFromNative(event);
-        } else {
-            Log.e(TAG, "Event ignored, service not available: " + event);
-        }
     }
 
     // Callbacks from the native stack back into the Java framework.
@@ -89,7 +82,7 @@ public class CsipSetCoordinatorNativeInterface {
         event.valueInt1 = state;
 
         Log.d(TAG, "onConnectionStateChanged: " + event);
-        sendMessageToService(event);
+        mService.messageFromNative(event);
     }
 
     /** Device availability */
@@ -107,7 +100,7 @@ public class CsipSetCoordinatorNativeInterface {
         event.valueUuid1 = uuid;
 
         Log.d(TAG, "onDeviceAvailable: " + event);
-        sendMessageToService(event);
+        mService.messageFromNative(event);
     }
 
     // Callbacks from the native stack back into the Java framework.
@@ -123,7 +116,7 @@ public class CsipSetCoordinatorNativeInterface {
         event.device = getDevice(address);
         event.valueInt1 = groupId;
         Log.d(TAG, "onSetMemberAvailable: " + event);
-        sendMessageToService(event);
+        mService.messageFromNative(event);
     }
 
     /**
@@ -142,7 +135,7 @@ public class CsipSetCoordinatorNativeInterface {
         event.valueInt2 = status;
         event.valueBool1 = locked;
         Log.d(TAG, "onGroupLockChanged: " + event);
-        sendMessageToService(event);
+        mService.messageFromNative(event);
     }
 
     /**

@@ -20,6 +20,7 @@ import android.Manifest.permission.BLUETOOTH_ADVERTISE
 import android.Manifest.permission.BLUETOOTH_PRIVILEGED
 import android.annotation.RequiresPermission
 import android.bluetooth.IBluetoothAdvertise
+import android.bluetooth.IBluetoothGattServerCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertisingSetParameters
 import android.bluetooth.le.IAdvertisingSetCallback
@@ -28,22 +29,28 @@ import android.content.AttributionSource
 import android.content.Context
 import com.android.bluetooth.Utils
 
+private const val TAG = "AdvertiseBinder"
+
 class AdvertiseBinder(
-    private val mContext: Context,
-    private val mAdvertiseManager: AdvertiseManager,
+    private val context: Context,
+    private val advertiseManager: AdvertiseManager,
 ) : IBluetoothAdvertise.Stub() {
-    @Volatile private var mIsAvailable = true
+
+    @Volatile private var isAvailable = true
 
     fun cleanup() {
-        mIsAvailable = false
+        isAvailable = false
     }
 
     @RequiresPermission(BLUETOOTH_ADVERTISE)
-    private fun getManager(source: AttributionSource): AdvertiseManager? {
-        if (!Utils.checkAdvertisePermissionForDataDelivery(mContext, source, "AdvertiseManager")) {
-            return null
+    private fun withManagerRunOnAdvertiseThread(
+        source: AttributionSource,
+        block: AdvertiseManager.() -> Unit,
+    ) {
+        if (!isAvailable || !Utils.checkAdvertisePermissionForDataDelivery(context, source, TAG)) {
+            return
         }
-        return if (mIsAvailable) mAdvertiseManager else null
+        advertiseManager.doOnAdvertiseThread { advertiseManager.block() }
     }
 
     override fun startAdvertisingSet(
@@ -54,47 +61,41 @@ class AdvertiseBinder(
         periodicData: AdvertiseData?,
         duration: Int,
         maxExtAdvEvents: Int,
-        serverIf: Int,
+        gattServerCallback: IBluetoothGattServerCallback?,
         callback: IAdvertisingSetCallback,
         source: AttributionSource,
     ) {
         if (
             parameters.ownAddressType != AdvertisingSetParameters.ADDRESS_TYPE_DEFAULT ||
-                serverIf != 0 ||
+                gattServerCallback != null ||
                 parameters.isDirected
         ) {
-            mContext.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null)
+            context.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null)
         }
 
-        getManager(source)?.let { manager ->
-            manager.doOnAdvertiseThread {
-                manager.startAdvertisingSet(
-                    parameters,
-                    advertiseData,
-                    scanResponse,
-                    periodicParameters,
-                    periodicData,
-                    duration,
-                    maxExtAdvEvents,
-                    serverIf,
-                    callback,
-                    source,
-                )
-            }
+        withManagerRunOnAdvertiseThread(source) {
+            startAdvertisingSet(
+                parameters,
+                advertiseData,
+                scanResponse,
+                periodicParameters,
+                periodicData,
+                duration,
+                maxExtAdvEvents,
+                gattServerCallback,
+                callback,
+                source,
+            )
         }
     }
 
     override fun stopAdvertisingSet(callback: IAdvertisingSetCallback, source: AttributionSource) {
-        getManager(source)?.let { manager ->
-            manager.doOnAdvertiseThread { manager.stopAdvertisingSet(callback) }
-        }
+        withManagerRunOnAdvertiseThread(source) { stopAdvertisingSet(callback) }
     }
 
     override fun getOwnAddress(advertiserId: Int, source: AttributionSource) {
-        mContext.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null)
-        getManager(source)?.let { manager ->
-            manager.doOnAdvertiseThread { manager.getOwnAddress(advertiserId) }
-        }
+        context.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null)
+        withManagerRunOnAdvertiseThread(source) { getOwnAddress(advertiserId) }
     }
 
     override fun enableAdvertisingSet(
@@ -104,10 +105,8 @@ class AdvertiseBinder(
         maxExtAdvEvents: Int,
         source: AttributionSource,
     ) {
-        getManager(source)?.let { manager ->
-            manager.doOnAdvertiseThread {
-                manager.enableAdvertisingSet(advertiserId, enable, duration, maxExtAdvEvents)
-            }
+        withManagerRunOnAdvertiseThread(source) {
+            enableAdvertisingSet(advertiserId, enable, duration, maxExtAdvEvents)
         }
     }
 
@@ -116,9 +115,7 @@ class AdvertiseBinder(
         data: AdvertiseData?,
         source: AttributionSource,
     ) {
-        getManager(source)?.let { manager ->
-            manager.doOnAdvertiseThread { manager.setAdvertisingData(advertiserId, data) }
-        }
+        withManagerRunOnAdvertiseThread(source) { setAdvertisingData(advertiserId, data) }
     }
 
     override fun setScanResponseData(
@@ -126,9 +123,7 @@ class AdvertiseBinder(
         data: AdvertiseData?,
         source: AttributionSource,
     ) {
-        getManager(source)?.let { manager ->
-            manager.doOnAdvertiseThread { manager.setScanResponseData(advertiserId, data) }
-        }
+        withManagerRunOnAdvertiseThread(source) { setScanResponseData(advertiserId, data) }
     }
 
     override fun setAdvertisingParameters(
@@ -140,12 +135,10 @@ class AdvertiseBinder(
             parameters.ownAddressType != AdvertisingSetParameters.ADDRESS_TYPE_DEFAULT ||
                 parameters.isDirected
         ) {
-            mContext.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null)
+            context.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null)
         }
-        getManager(source)?.let { manager ->
-            manager.doOnAdvertiseThread {
-                manager.setAdvertisingParameters(advertiserId, parameters)
-            }
+        withManagerRunOnAdvertiseThread(source) {
+            setAdvertisingParameters(advertiserId, parameters)
         }
     }
 
@@ -154,10 +147,8 @@ class AdvertiseBinder(
         parameters: PeriodicAdvertisingParameters?,
         source: AttributionSource,
     ) {
-        getManager(source)?.let { manager ->
-            manager.doOnAdvertiseThread {
-                manager.setPeriodicAdvertisingParameters(advertiserId, parameters)
-            }
+        withManagerRunOnAdvertiseThread(source) {
+            setPeriodicAdvertisingParameters(advertiserId, parameters)
         }
     }
 
@@ -166,9 +157,7 @@ class AdvertiseBinder(
         data: AdvertiseData?,
         source: AttributionSource,
     ) {
-        getManager(source)?.let { manager ->
-            manager.doOnAdvertiseThread { manager.setPeriodicAdvertisingData(advertiserId, data) }
-        }
+        withManagerRunOnAdvertiseThread(source) { setPeriodicAdvertisingData(advertiserId, data) }
     }
 
     override fun setPeriodicAdvertisingEnable(
@@ -176,10 +165,8 @@ class AdvertiseBinder(
         enable: Boolean,
         source: AttributionSource,
     ) {
-        getManager(source)?.let { manager ->
-            manager.doOnAdvertiseThread {
-                manager.setPeriodicAdvertisingEnable(advertiserId, enable)
-            }
+        withManagerRunOnAdvertiseThread(source) {
+            setPeriodicAdvertisingEnable(advertiserId, enable)
         }
     }
 }

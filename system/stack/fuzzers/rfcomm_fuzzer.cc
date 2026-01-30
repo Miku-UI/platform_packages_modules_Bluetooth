@@ -29,6 +29,7 @@
 #include "stack/include/port_api.h"
 #include "stack/include/rfcdefs.h"
 #include "stack/test/common/stack_test_packet_utils.h"
+#include "stack_rfcomm_test_utils.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_btif_config.h"
 #include "test/mock/mock_main_shim_entry.h"
@@ -37,11 +38,8 @@
 #include "test/mock/mock_stack_l2cap_api.h"
 #include "test/mock/mock_stack_l2cap_ble.h"
 #include "test/mock/mock_stack_l2cap_interface.h"
-#include "test/rfcomm/stack_rfcomm_test_utils.h"
 
-using ::testing::_;
 using ::testing::NiceMock;
-using ::testing::Return;
 using ::testing::Unused;
 
 namespace bluetooth {
@@ -58,12 +56,11 @@ namespace {
 
 tL2CAP_APPL_INFO appl_info;
 bluetooth::rfcomm::MockRfcommCallback* rfcomm_callback = nullptr;
-tBTM_SEC_CALLBACK* security_callback = nullptr;
 
 constexpr uint8_t kDummyId = 0x77;
-constexpr uint8_t kDummyRemoteAddr[] = {0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC};
+constexpr RawAddress kDummyRemoteAddr({0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC});
 constexpr uint16_t kDummyCID = 0x1234;
-constexpr uint8_t kDummyAddr[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+constexpr RawAddress kDummyAddr({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
 
 void port_mgmt_cback(const tPORT_RESULT code, uint16_t port_handle) {
   rfcomm_callback->PortManagementCallback(code, port_handle, 0);
@@ -79,21 +76,20 @@ public:
   NiceMock<bluetooth::rfcomm::MockRfcommCallback> mock_rfcomm_callback;
 
   FakeBtStack() {
-    ON_CALL(mock_l2cap_interface, L2CA_DataWrite)
-        .WillByDefault([](Unused, BT_HDR* hdr) {
-          osi_free(hdr);
-          return tL2CAP_DW_RESULT::SUCCESS;
-        });
-    ON_CALL(mock_l2cap_interface, L2CA_ConnectReq)
-        .WillByDefault([](Unused, Unused) { return kDummyCID; });
-    ON_CALL(mock_l2cap_interface, L2CA_DisconnectReq)
-        .WillByDefault([](Unused) { return true; });
+    ON_CALL(mock_l2cap_interface, L2CA_DataWrite).WillByDefault([](Unused, BT_HDR* hdr) {
+      osi_free(hdr);
+      return tL2CAP_DW_RESULT::SUCCESS;
+    });
+    ON_CALL(mock_l2cap_interface, L2CA_ConnectReq).WillByDefault([](Unused, Unused) {
+      return kDummyCID;
+    });
+    ON_CALL(mock_l2cap_interface, L2CA_DisconnectReq).WillByDefault([](Unused) { return true; });
     ON_CALL(mock_l2cap_interface, L2CA_Register)
-      .WillByDefault([](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, Unused, Unused,
-          Unused, Unused, Unused) {
-        appl_info = p_cb_info;
-        return psm;
-      });
+            .WillByDefault([](uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, Unused, Unused,
+                              Unused, Unused, Unused) {
+              appl_info = p_cb_info;
+              return psm;
+            });
     bluetooth::testing::stack::l2cap::set_interface(&mock_l2cap_interface);
 
     rfcomm_callback = &mock_rfcomm_callback;

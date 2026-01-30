@@ -24,11 +24,12 @@
 #ifndef SMP_API_H
 #define SMP_API_H
 
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/ble_address_with_type.h>
+
 #include <cstdint>
 
 #include "smp_api_types.h"
-#include "types/ble_address_with_type.h"
-#include "types/raw_address.h"
 
 /*****************************************************************************
  *  External Function Declarations
@@ -216,6 +217,6 @@ bool smp_proc_ltk_request(const RawAddress& bda);
 // Proceed to send LTK, DIV and ER to central if bonding the devices.
 void smp_link_encrypted(const RawAddress& bda, uint8_t encr_enable);
 
-void smp_cancel_start_encryption_attempt();
+void smp_cancel_start_encryption_attempt(const RawAddress& bda);
 
 #endif /* SMP_API_H */

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.hfpclient;
 
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
@@ -35,7 +36,6 @@ import android.telecom.TelecomManager;
 import android.util.Log;
 
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.pbapclient.PbapClientService;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -89,13 +89,13 @@ public class HfpClientConnectionService extends ConnectionService {
 
     /** Send a device connection state changed event to this service */
     public static void onConnectionStateChanged(
-            BluetoothDevice device, int newState, int oldState) {
+            AdapterService adapterService, BluetoothDevice device, int newState, int oldState) {
         HfpClientConnectionService service = getInstance();
         if (service == null) {
             Log.e(TAG, "onConnectionStateChanged: HFP Client Connection Service not started");
             return;
         }
-        service.onConnectionStateChangedInternal(device, newState, oldState);
+        service.onConnectionStateChangedInternal(adapterService, device, newState, oldState);
     }
 
     /** Send a device call state changed event to this service */
@@ -123,7 +123,7 @@ public class HfpClientConnectionService extends ConnectionService {
     // --------------------------------------------------------------------------------------------//
 
     private void onConnectionStateChangedInternal(
-            BluetoothDevice device, int newState, int oldState) {
+            AdapterService adapterService, BluetoothDevice device, int newState, int oldState) {
         if (newState == STATE_CONNECTED) {
             Log.d(TAG, "Established connection with " + device);
 
@@ -144,22 +144,19 @@ public class HfpClientConnectionService extends ConnectionService {
                 block.cleanup();
             }
         }
-        AdapterService adapterService = AdapterService.getAdapterService();
-        if (adapterService != null && adapterService.getRemoteDevices() != null) {
-            adapterService
-                    .getRemoteDevices()
-                    .handleHeadsetClientConnectionStateChanged(device, oldState, newState);
-        }
-        adapterService.notifyProfileConnectionStateChangeToGatt(
+        adapterService
+                .getRemoteDevices()
+                .handleHeadsetClientConnectionStateChanged(device, oldState, newState);
+        adapterService.notifyProfileConnectionStateChangeToScan(
                 BluetoothProfile.HEADSET_CLIENT, oldState, newState);
-        if (PbapClientService.getPbapClientService() != null) {
-            PbapClientService.getPbapClientService()
-                    .handleHeadsetClientConnectionStateChanged(device, oldState, newState);
-        }
-        if (adapterService != null) {
-            adapterService.updateProfileConnectionAdapterProperties(
-                    device, BluetoothProfile.HEADSET_CLIENT, newState, oldState);
-        }
+        adapterService
+                .getPbapClientService()
+                .ifPresent(
+                        pC ->
+                                pC.handleHeadsetClientConnectionStateChanged(
+                                        device, oldState, newState));
+        adapterService.updateProfileConnectionAdapterProperties(
+                device, BluetoothProfile.HEADSET_CLIENT, newState, oldState);
     }
 
     private void onCallChangedInternal(BluetoothDevice device, HfpClientCall call) {
@@ -329,12 +326,12 @@ public class HfpClientConnectionService extends ConnectionService {
     // --------------------------------------------------------------------------------------------//
 
     private BluetoothDevice getDevice(PhoneAccountHandle handle) {
-        BluetoothAdapter adapter = getSystemService(BluetoothManager.class).getAdapter();
         PhoneAccount account = mTelecomManager.getPhoneAccount(handle);
         if (account == null) {
             return null;
         }
         String btAddr = account.getAddress().getSchemeSpecificPart();
+        BluetoothAdapter adapter = getSystemService(BluetoothManager.class).getAdapter();
         return adapter.getRemoteDevice(btAddr);
     }
 
@@ -346,8 +343,7 @@ public class HfpClientConnectionService extends ConnectionService {
             return null;
         }
 
-        HfpClientDeviceBlock block =
-                HfpClientDeviceBlock.Factory.build(device, this, mServiceInterface);
+        HfpClientDeviceBlock block = new HfpClientDeviceBlock(device, this, mServiceInterface);
         mDeviceBlocks.put(device, block);
         return block;
     }

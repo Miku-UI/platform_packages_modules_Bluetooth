@@ -26,8 +26,10 @@ from mmi2grpc._modem import Modem
 from mmi2grpc._rootcanal import RootCanal
 from mmi2grpc.a2dp import A2DPProxy
 from mmi2grpc.avrcp import AVRCPProxy
+from mmi2grpc.bap import BAPProxy
 from mmi2grpc.gap import GAPProxy
 from mmi2grpc.gatt import GATTProxy
+from mmi2grpc.gmap import GMAPProxy
 from mmi2grpc.hap import HAPProxy
 from mmi2grpc.hfp import HFPProxy
 from mmi2grpc.hid import HIDProxy
@@ -75,8 +77,10 @@ class IUT:
         # Profile proxies.
         self._a2dp = None
         self._avrcp = None
+        self._bap = None
         self._bnep = None
         self._gatt = None
+        self._gmap = None
         self._hap = None
         self._gap = None
         self._hfp = None
@@ -94,15 +98,27 @@ class IUT:
 
     def __enter__(self):
         """Resets the IUT when starting a PTS test."""
+
+        print(f"Connecting to RootCanal at port {self.rootcanal_control_port}", file=sys.stderr)
         self.rootcanal = RootCanal(port=self.rootcanal_control_port)
         self.rootcanal.move_in_range()
 
+        print(f"Connecting to Modem at port {self.modem_simulator_port}", file=sys.stderr)
         self.modem = Modem(port=self.modem_simulator_port)
 
-        # Note: we don't keep a single gRPC channel instance in the IUT class
-        # because reset is allowed to close the gRPC server.
-        with grpc.insecure_channel(f'localhost:{self.pandora_server_port}') as channel:
-            self._retry(Host(channel).FactoryReset)(wait_for_ready=True)
+        try:
+            # Note: we don't keep a single gRPC channel instance in the IUT class
+            # because reset is allowed to close the gRPC server.
+            print(f"Connecting to Pandora server at port {self.pandora_server_port}",
+                  file=sys.stderr)
+            with grpc.insecure_channel(f'localhost:{self.pandora_server_port}') as channel:
+                print("Executing FactoryReset", file=sys.stderr)
+                Host(channel).FactoryReset(wait_for_ready=True, timeout=15.0)
+        except grpc.RpcError as exn:
+            # FactoryReset might be cancelled before completion by the gRPC server
+            # shutdown.
+            if exn.code() != grpc.StatusCode.CANCELLED:
+                raise exn
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         self.rootcanal.close()
@@ -113,9 +129,11 @@ class IUT:
 
         self._a2dp = None
         self._avrcp = None
+        self._bap = None
         self._bnep = None
         self._gatt = None
         self._gap = None
+        self._gmap = None
         self._hfp = None
         self._l2cap = None
         self._hid = None
@@ -157,7 +175,8 @@ class IUT:
         def read_local_address():
             with grpc.insecure_channel(f"localhost:{self.pandora_server_port}") as channel:
                 nonlocal mut_address
-                mut_address = self._retry(Host(channel).ReadLocalAddress)(wait_for_ready=True).address
+                mut_address = self._retry(
+                    Host(channel).ReadLocalAddress)(wait_for_ready=True).address
 
         thread = Thread(target=read_local_address)
         thread.start()
@@ -201,22 +220,38 @@ class IUT:
         # Handles AVRCP and AVCTP MMIs.
         if profile in ("AVRCP", "AVCTP"):
             if not self._avrcp:
-                self._avrcp = AVRCPProxy(grpc.insecure_channel(f"localhost:{self.pandora_server_port}"))
+                self._avrcp = AVRCPProxy(
+                    grpc.insecure_channel(f"localhost:{self.pandora_server_port}"))
             return self._avrcp.interact(test, interaction, description, pts_address)
+        # Handles BAP MMIs.
+        if profile in ("BAP",):
+            if not self._bap:
+                self._bap = BAPProxy(grpc.insecure_channel(f"localhost:{self.pandora_server_port}"),
+                                     self.rootcanal)
+            return self._bap.interact(test, interaction, description, pts_address)
         # Handles GATT MMIs.
         if profile in ("GATT"):
             if not self._gatt:
-                self._gatt = GATTProxy(grpc.insecure_channel(f"localhost:{self.pandora_server_port}"), self.rootcanal)
+                self._gatt = GATTProxy(
+                    grpc.insecure_channel(f"localhost:{self.pandora_server_port}"), self.rootcanal)
             return self._gatt.interact(test, interaction, description, pts_address)
         # Handles GAP MMIs.
         if profile in ("GAP"):
             if not self._gap:
-                self._gap = GAPProxy(grpc.insecure_channel(f"localhost:{self.pandora_server_port}"), self.rootcanal)
+                self._gap = GAPProxy(grpc.insecure_channel(f"localhost:{self.pandora_server_port}"),
+                                     self.rootcanal)
             return self._gap.interact(test, interaction, description, pts_address)
+        # Handles GMAP MMIs.
+        if profile in ("GMAP",):
+            if not self._gmap:
+                self._gmap = GMAPProxy(
+                    grpc.insecure_channel(f"localhost:{self.pandora_server_port}"), self.rootcanal)
+            return self._gmap.interact(test, interaction, description, pts_address)
         # Handles GAP MMIs.
         if profile in ("HAP"):
             if not self._hap:
-                self._hap = HAPProxy(grpc.insecure_channel(f'localhost:{self.pandora_server_port}'), self.rootcanal)
+                self._hap = HAPProxy(grpc.insecure_channel(f'localhost:{self.pandora_server_port}'),
+                                     self.rootcanal)
             return self._hap.interact(test, interaction, description, pts_address)
         # Handles HFP MMIs.
         if profile in ("HFP"):
@@ -239,12 +274,14 @@ class IUT:
         # Handles HOGP MMIs.
         if profile in ("HOGP"):
             if not self._hogp:
-                self._hogp = HOGPProxy(grpc.insecure_channel(f"localhost:{self.pandora_server_port}"), self.rootcanal)
+                self._hogp = HOGPProxy(
+                    grpc.insecure_channel(f"localhost:{self.pandora_server_port}"), self.rootcanal)
             return self._hogp.interact(test, interaction, description, pts_address)
         # Instantiates L2CAP proxy and reroutes corresponding MMIs to it.
         if profile in ("L2CAP"):
             if not self._l2cap:
-                self._l2cap = L2CAPProxy(grpc.insecure_channel(f"localhost:{self.pandora_server_port}"), self.rootcanal)
+                self._l2cap = L2CAPProxy(
+                    grpc.insecure_channel(f"localhost:{self.pandora_server_port}"), self.rootcanal)
             return self._l2cap.interact(test, interaction, description, pts_address)
         # Handles MAP MMIs.
         if profile in ("MAP"):
@@ -264,12 +301,14 @@ class IUT:
         # Instantiates PBAP proxy and reroutes corresponding MMIs to it.
         if profile in ("PBAP"):
             if not self._pbap:
-                self._pbap = PBAPProxy(grpc.insecure_channel(f"localhost:{self.pandora_server_port}"))
+                self._pbap = PBAPProxy(
+                    grpc.insecure_channel(f"localhost:{self.pandora_server_port}"))
             return self._pbap.interact(test, interaction, description, pts_address)
         # Handles RFCOMM MMIs.
         if profile in ("RFCOMM"):
             if not self._rfcomm:
-                self._rfcomm = RFCOMMProxy(grpc.insecure_channel(f"localhost:{self.pandora_server_port}"))
+                self._rfcomm = RFCOMMProxy(
+                    grpc.insecure_channel(f"localhost:{self.pandora_server_port}"))
             return self._rfcomm.interact(test, interaction, description, pts_address)
         # Handles SDP MMIs.
         if profile in ("SDP"):
@@ -279,12 +318,14 @@ class IUT:
         # Handles SM MMIs.
         if profile in ("SM"):
             if not self._sm:
-                self._sm = SMProxy(grpc.insecure_channel(f"localhost:{self.pandora_server_port}"), self.rootcanal)
+                self._sm = SMProxy(grpc.insecure_channel(f"localhost:{self.pandora_server_port}"),
+                                   self.rootcanal)
             return self._sm.interact(test, interaction, description, pts_address)
         # HandlesVCP MMIs.
         if profile in ("VCP"):
             if not self._vcp:
-                self._vcp = VCPProxy(grpc.insecure_channel(f"localhost:{self.pandora_server_port}"), self.rootcanal)
+                self._vcp = VCPProxy(grpc.insecure_channel(f"localhost:{self.pandora_server_port}"),
+                                     self.rootcanal)
             return self._vcp.interact(test, interaction, description, pts_address)
 
         # Handles unsupported profiles.

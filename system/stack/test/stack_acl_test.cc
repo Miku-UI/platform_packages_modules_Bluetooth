@@ -13,22 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/hci_role.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <cstdint>
 
-#include "hci/controller_interface_mock.h"
+#include "hci/controller_mock.h"
 #include "stack/acl/acl.h"
 #include "stack/btm/btm_int_types.h"
+#include "stack/btm/internal/btm_api.h"
 #include "stack/btm/security_device_record.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/acl_hci_link_interface.h"
 #include "stack/include/hcidefs.h"
 #include "test/common/mock_functions.h"
 #include "test/mock/mock_main_shim_entry.h"
-#include "types/hci_role.h"
-#include "types/raw_address.h"
 
 tBTM_CB btm_cb;
 
@@ -49,7 +50,7 @@ protected:
   void SetUp() override {
     reset_mock_function_count_map();
     bluetooth::hci::testing::mock_controller_ =
-            std::make_unique<bluetooth::hci::testing::MockControllerInterface>();
+            std::make_unique<bluetooth::hci::testing::MockController>();
   }
   void TearDown() override { bluetooth::hci::testing::mock_controller_.reset(); }
 
@@ -62,8 +63,10 @@ TEST_F(StackAclTest, acl_process_extended_features) {
   const uint16_t hci_handle = 0x123;
   const tBT_TRANSPORT transport = BT_TRANSPORT_LE;
   const tHCI_ROLE link_role = HCI_ROLE_CENTRAL;
+  const tAclLinkSpec link_spec = {.addrt = {.type = BLE_ADDR_PUBLIC, .bda = kRawAddress},
+                                  .transport = transport};
 
-  btm_acl_created(kRawAddress, hci_handle, link_role, transport);
+  btm_acl_created(link_spec, hci_handle, link_role);
   tACL_CONN* p_acl = btm_acl_for_bda(kRawAddress, transport);
   ASSERT_NE(nullptr, p_acl);
 

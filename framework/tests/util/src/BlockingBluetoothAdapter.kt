@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package android.bluetooth.test_utils
 
 import android.Manifest.permission.BLUETOOTH_CONNECT
@@ -49,7 +50,7 @@ import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 
-private const val TAG: String = "BlockingBluetoothAdapter"
+private const val TAG = "BlockingBluetoothAdapter"
 // There is no access to the module only API Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE
 private const val BLE_SCAN_ALWAYS_AVAILABLE = "ble_scan_always_enabled"
 

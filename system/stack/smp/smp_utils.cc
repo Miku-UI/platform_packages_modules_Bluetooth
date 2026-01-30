@@ -24,19 +24,20 @@
 #define LOG_TAG "smp"
 
 #include <bluetooth/log.h>
+#include <bluetooth/metrics/bluetooth_event.h>
+#include <bluetooth/metrics/os_metrics.h>
+#include <bluetooth/types/address.h>
 #include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <cstring>
 
 #include "crypto_toolbox/crypto_toolbox.h"
-#include "hci/controller_interface.h"
+#include "hci/controller.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/stack_config.h"
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
-#include "main/shim/metrics_api.h"
-#include "metrics/bluetooth_event.h"
 #include "osi/include/allocator.h"
 #include "p_256_ecc_pp.h"
 #include "smp_int.h"
@@ -52,7 +53,6 @@
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/smp_status.h"
-#include "types/raw_address.h"
 
 #define SMP_PAIRING_REQ_SIZE 7
 #define SMP_CONFIRM_CMD_SIZE (OCTET16_LEN + 1)
@@ -320,7 +320,7 @@ void smp_log_metrics(const RawAddress& bd_addr, bool is_outgoing, const uint8_t*
   uint8_t failure_reason = 0;
   if (raw_cmd == SMP_OPCODE_PAIRING_FAILED && buf_len >= 1) {
     STREAM_TO_UINT8(failure_reason, p_buf);
-    bluetooth::shim::LogMetricLePairingFail(bd_addr, failure_reason, is_outgoing);
+    bluetooth::metrics::LogLePairingFail(bd_addr, failure_reason, is_outgoing);
   }
   if (smp_cb.is_pair_cancel) {
     failure_reason = SMP_USER_CANCELLED;  // Tracking pairing cancellations
@@ -330,8 +330,8 @@ void smp_log_metrics(const RawAddress& bd_addr, bool is_outgoing, const uint8_t*
   android::bluetooth::DirectionEnum direction =
           is_outgoing ? android::bluetooth::DirectionEnum::DIRECTION_OUTGOING
                       : android::bluetooth::DirectionEnum::DIRECTION_INCOMING;
-  bluetooth::shim::LogMetricSmpPairingEvent(bd_addr, metric_cmd, direction,
-                                            static_cast<uint16_t>(failure_reason));
+  bluetooth::metrics::LogMetricSmpPairingEvent(bd_addr, metric_cmd, direction,
+                                               static_cast<uint16_t>(failure_reason));
 }
 
 /*******************************************************************************
@@ -354,38 +354,15 @@ static bool smp_send_msg_to_L2CAP(const RawAddress& rem_bda, BT_HDR* p_toL2CAP) 
   smp_log_metrics(rem_bda, true /* outgoing */, p_toL2CAP->data + p_toL2CAP->offset, p_toL2CAP->len,
                   smp_cb.smp_over_br /* is_over_br */);
 
-  if (com::android::bluetooth::flags::l2cap_tx_complete_cb_info()) {
-    /* Unacked needs to be incremented before calling SendFixedChnlData */
-    smp_cb.total_tx_unacked++;
-    l2cap_ret = stack::l2cap::get_interface().L2CA_SendFixedChnlData(fixed_cid, rem_bda, p_toL2CAP);
-    if (l2cap_ret == tL2CAP_DW_RESULT::FAILED) {
-      smp_cb.total_tx_unacked--;
-      log::error("SMP failed to pass msg to L2CAP");
-      return false;
-    }
-    log::verbose("l2cap_tx_complete_cb_info is enabled");
-    return true;
-  }
-
+  /* Unacked needs to be incremented before calling SendFixedChnlData */
+  smp_cb.total_tx_unacked++;
   l2cap_ret = stack::l2cap::get_interface().L2CA_SendFixedChnlData(fixed_cid, rem_bda, p_toL2CAP);
   if (l2cap_ret == tL2CAP_DW_RESULT::FAILED) {
+    smp_cb.total_tx_unacked--;
     log::error("SMP failed to pass msg to L2CAP");
     return false;
-  } else {
-    tSMP_CB* p_cb = &smp_cb;
-
-    log::verbose("l2cap_tx_complete_cb_info is disabled");
-    if (p_cb->wait_for_authorization_complete) {
-      tSMP_INT_DATA smp_int_data;
-      smp_int_data.status = SMP_SUCCESS;
-      if (fixed_cid == L2CAP_SMP_CID) {
-        smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &smp_int_data);
-      } else {
-        smp_br_state_machine_event(p_cb, SMP_BR_AUTH_CMPL_EVT, &smp_int_data);
-      }
-    }
-    return true;
   }
+  return true;
 }
 
 /*******************************************************************************
@@ -458,6 +435,7 @@ void smp_rsp_timeout(void* /* data */) {
  * Returns          void
  *
  ******************************************************************************/
+/* TODO(b/436319185): Remove when the flag conclude_le_pairing_immediately is shipped */
 void smp_delayed_auth_complete_timeout(void* /* data */) {
   /*
    * Waited for potential pair failure. Send SMP_AUTH_CMPL_EVT if
@@ -903,6 +881,13 @@ void tSMP_CB::reset() {
   this->init_security_mode = init_security_mode;
   this->smp_rsp_timer_ent = smp_rsp_timer_ent;
   this->delayed_auth_timer_ent = delayed_auth_timer_ent;
+
+  /* Initialize failure case for certification */
+  smp_cb.cert_failure =
+          static_cast<tSMP_STATUS>(stack_config_get_interface()->get_pts_smp_failure_case());
+  if (smp_cb.cert_failure) {
+    log::error("PTS FAILURE MODE IN EFFECT (CASE {})", smp_cb.cert_failure);
+  }
 }
 
 /*******************************************************************************
@@ -1012,8 +997,8 @@ void smp_proc_pairing_cmpl(tSMP_CB* p_cb) {
     if (metric_status > SMP_MAX_FAIL_RSN_PER_SPEC) {
       metric_status |= SMP_METRIC_STATUS_INTERNAL_FLAG;
     }
-    bluetooth::shim::LogMetricSmpPairingEvent(p_cb->pairing_bda, metric_cmd, direction,
-                                              metric_status);
+    bluetooth::metrics::LogMetricSmpPairingEvent(p_cb->pairing_bda, metric_cmd, direction,
+                                                 metric_status);
   }
 
   if (p_cb->status == SMP_SUCCESS && p_cb->smp_over_br) {
@@ -1428,9 +1413,9 @@ void smp_collect_local_ble_address(uint8_t* le_addr, tSMP_CB* p_cb) {
   RawAddress bda;
   uint8_t* p = le_addr;
 
-  log::verbose("addr:{}", p_cb->pairing_bda);
-
   BTM_ReadConnectionAddr(p_cb->pairing_bda, bda, &addr_type, true);
+  log::debug("pairing_addr:{}, bda:{}, addr_type:{}", p_cb->pairing_bda, bda, addr_type);
+
   BDADDR_TO_STREAM(p, bda);
   UINT8_TO_STREAM(p, addr_type);
 }
@@ -1450,12 +1435,11 @@ void smp_collect_peer_ble_address(uint8_t* le_addr, tSMP_CB* p_cb) {
   RawAddress bda;
   uint8_t* p = le_addr;
 
-  log::verbose("addr:{}", p_cb->pairing_bda);
-
   if (!BTM_ReadRemoteConnectionAddr(p_cb->pairing_bda, bda, &addr_type, true)) {
-    log::error("can not collect peer le addr information for unknown device");
+    log::error("can not collect peer le addr information for unknown device {}", p_cb->pairing_bda);
     return;
   }
+  log::verbose("p_cb->pairing_bda:{}, bda:{}, addr_type:{}", p_cb->pairing_bda, bda, addr_type);
 
   BDADDR_TO_STREAM(p, bda);
   UINT8_TO_STREAM(p, addr_type);

@@ -2,90 +2,10 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "clear_auth_collision_state_on_pairing_complete"
-    namespace: "bluetooth"
-    description: "Clear authentication collision state on pairing conclusion"
-    bug: "358116527"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "guest_mode_bond"
-    namespace: "bluetooth"
-    description: "Do not remove guest mode bonded devices on BT restart in guest mode"
-    bug: "349882273"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "remove_dup_pairing_response_in_oob_pairing"
-    namespace: "bluetooth"
-    description: "Avoid sending duplicate pairing response when device is in peripheral role & OOB pairing mode chosen"
-    bug: "351948689"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "donot_queue_dup_rnr"
-    namespace: "bluetooth"
-    description: "Avoid queueing second RNR as part of ssp process"
-    bug: "361839492"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "read_le_appearance"
-    namespace: "bluetooth"
-    description: "Read GATT Appearance characteristic on new LE connections"
-    bug: "362367900"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "clear_pairing_state_when_no_devrec"
     namespace: "bluetooth"
     description: "Clear pairing state on early bond failure due to connection timeout and devrec is not created"
     bug: "364321751"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "donot_validate_bond_state_from_profiles"
-    namespace: "bluetooth"
-    description: "do not validate bond state from profiles for incoming connections as stack already ensures secure service access"
-    bug: "353738134"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "save_peer_csrk_after_ltk_gen"
-    namespace: "bluetooth"
-    description: "save peer csrk after ltk generated so that right security level is marked as part of peer csrk"
-    bug: "365567905"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "wait_for_lea_disc_on_le_acl_stat"
-    namespace: "bluetooth"
-    description: "Check for LE ACL status before waiting on LEA discovery"
-    bug: "369687005"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -102,90 +22,10 @@ flag {
 }
 
 flag {
-    name: "prevent_service_connections_on_remove_bond"
-    namespace: "bluetooth"
-    description: "Disable service connections on remove bond"
-    bug: "378736590"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "donot_update_sec_flags_on_csrk_save"
-    namespace: "bluetooth"
-    description: "Updating sec flags while saving csrk info can cause setting securith level wrongly as security level might have not determined at that time"
-    bug: "379109304"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "ignore_auth_req_when_collision_timer_active"
     namespace: "bluetooth"
     description: "Ignore authentication request when collision timer is still active"
     bug: "380328715"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "remove_device_in_main_thread"
-    namespace: "bluetooth"
-    description: "Device must be removed in main thread"
-    bug: "381275933"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "bonded_device_smp_failure_handling"
-    namespace: "bluetooth"
-    description: "Don't remove bond on SMP failure for bonded devices in peripheral role"
-    bug: "385181815"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "peripheral_auth_req"
-    namespace: "bluetooth"
-    description: "Use appropriate authentication requirements for SMP security request in peripheral role"
-    bug: "385202199"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "le_appearance_after_ctkd"
-    namespace: "bluetooth"
-    description: "Allow read of LE appearance after CTKD if class of device is unknown"
-    bug: "386835787"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "create_metadata_after_bonding"
-    namespace: "bluetooth"
-    description: "Don't create metadata before the device is bonded"
-    bug: "387523991"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "le_encryption_refresh_failure_handling"
-    namespace: "bluetooth"
-    description: "Don't remove bond on LE encryption refresh failure"
-    bug: "393396710"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -206,16 +46,6 @@ flag {
     namespace: "bluetooth"
     description: "Correctly track temporary pairing status"
     bug: "397705157"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "auto_transport_pairing"
-    namespace: "bluetooth"
-    description: "Fix transport selection for auto transport pairing"
-    bug: "398329326"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -252,16 +82,6 @@ flag {
 }
 
 flag {
-    name: "le_peripheral_enc_failure"
-    namespace: "bluetooth"
-    description: "Don't remove bond on LE encryption failure in peripheral role with bonded device, instead just disconnect the link"
-    bug: "403313352"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "immediate_encryption_after_pairing"
     namespace: "bluetooth"
     description: "Encrypt BR/EDR link immediately after pairing"
@@ -276,6 +96,204 @@ flag {
     namespace: "bluetooth"
     description: "Don't cancel SMP pairing if encryption fails for unrelated device"
     bug: "404658828"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "separate_encryption_queue"
+    namespace: "bluetooth"
+    description: "Create separate pending encryption queue"
+    bug: "405594028"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "ignore_le_smp_conn_when_sm_over_br_progress"
+    namespace: "bluetooth"
+    description: "Ignore LE SMP connection when smp over br is still in progress"
+    bug: "405996470"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "non_bonded_device_properties"
+    namespace: "bluetooth"
+    description: "ACL disconnection should not remove device properties for devices which were never bonded"
+    bug: "406602074"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "reset_collision_state_on_encryption"
+    namespace: "bluetooth"
+    description: "Reset encryption collision state if peer successfully encrypts the link before collision timer expires"
+    bug: "410105844"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "retain_address_type"
+    namespace: "bluetooth"
+    description: "Set correct address type in BluetoothDevice objects created by the Android Bluetooth"
+    bug: "407277344"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "bond_loss_transport_check"
+    namespace: "bluetooth"
+    description: "Bond loss should not be detected on transport not bonded"
+    bug: "411214547"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "bond_state_machine_looper"
+    namespace: "bluetooth"
+    description: "Use main looper in BondStateMachine"
+    bug: "412423957"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "bonding_initiator_state_reset"
+    namespace: "bluetooth"
+    description: "Reset bonding initiator state only if both transports are disconnected"
+    bug: "413483250"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "identity_to_pseudo_addr"
+    namespace: "bluetooth"
+    description: "Convert identity address to pseudo address during connection"
+    bug: "414509356"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "always_set_identity_addr"
+    namespace: "bluetooth"
+    description: "Always set the identity address of the bonded devices"
+    bug: "415404383"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "link_status_api"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Add Link Status API to BluetoothDevice"
+    bug: "419143231"
+}
+
+flag {
+    name: "le_address_map_update"
+    namespace: "bluetooth"
+    description: "Update address map for LE devices as well"
+    bug: "424898845"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_ongoing_rnr_while_bonding"
+    namespace: "bluetooth"
+    description: "Fix pairing failure when RNR onging"
+    bug: "430623282"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "concurrent_incoming_outgoing_pairing"
+    namespace: "bluetooth"
+    description: "Handle concurrent incoming and outgoing pairing requests"
+    bug: "431870814"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "role_switch_after_encryption"
+    namespace: "bluetooth"
+    description: "Role switch after encryption if security procedure was initiated locally"
+    bug: "431669341"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "skip_excess_name_discovery"
+    namespace: "bluetooth"
+    description: "Skip name discovery during BR/EDR pairing if the name is already known"
+    bug: "434973460"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "conclude_le_pairing_immediately"
+    namespace: "bluetooth"
+    description: "Do add unnecessary delay to conclude LE pairing"
+    bug: "436319185"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "avoid_ctkd_for_temp_pairing"
+    namespace: "bluetooth"
+    description: "Do not perform CTKD for temporary pairing"
+    bug: "436957985"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "pairing_collision_with_same_device"
+    namespace: "bluetooth"
+    description: "Continue pairing if collision is detected with the same device"
+    bug: "438291410"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "reject_bond_request_during_bonding"
+    namespace: "bluetooth"
+    description: "Don't accept new bond request when bonding"
+    bug: "439861848"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

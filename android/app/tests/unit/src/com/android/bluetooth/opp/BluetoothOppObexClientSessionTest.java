@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.opp;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
 import static com.android.bluetooth.TestUtils.mockGetSystemService;
 import static com.android.bluetooth.opp.BluetoothOppObexSession.MSG_SESSION_COMPLETE;
 import static com.android.bluetooth.opp.BluetoothOppObexSession.MSG_SHARE_INTERRUPTED;
@@ -39,12 +38,13 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.PowerManager;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
-import androidx.test.runner.AndroidJUnit4;
 
 import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.BluetoothObexTransport;
 import com.android.obex.ClientSession;
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.After;
 import org.junit.Before;
@@ -64,22 +64,21 @@ import java.util.concurrent.TimeUnit;
 public class BluetoothOppObexClientSessionTest {
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
-    @Mock private Context mContext;
+    @Mock private Context mMockContext;
     @Mock private BluetoothMethodProxy mMethodProxy;
     @Mock private BluetoothObexTransport mTransport;
 
-    private final Context mTargetContext =
-            InstrumentationRegistry.getInstrumentation().getTargetContext();
-    private final PowerManager mPowerManager = mTargetContext.getSystemService(PowerManager.class);
+    private final Context mContext = InstrumentationRegistry.getInstrumentation().getContext();
+    private final PowerManager mPowerManager = mContext.getSystemService(PowerManager.class);
 
-    BluetoothOppObexClientSession mClientSession;
+    private BluetoothOppObexClientSession mClientSession;
 
     @Before
     public void setUp() throws IOException {
-        mockGetSystemService(mContext, Context.NOTIFICATION_SERVICE, NotificationManager.class);
-        mockGetSystemService(mContext, Context.POWER_SERVICE, PowerManager.class, mPowerManager);
+        mockGetSystemService(mMockContext, NotificationManager.class);
+        mockGetSystemService(mMockContext, PowerManager.class, mPowerManager);
 
-        mClientSession = new BluetoothOppObexClientSession(mContext, mTransport);
+        mClientSession = new BluetoothOppObexClientSession(mMockContext, mTransport);
 
         // to control the mServerSession.mSession
         InputStream input = mock(InputStream.class);

@@ -23,6 +23,7 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/uuid.h>
 #include <com_android_bluetooth_flags.h>
 #include <string.h>
 
@@ -39,7 +40,6 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/l2cap_types.h"
-#include "types/bluetooth/uuid.h"
 
 #define GATT_MTU_REQ_MIN_LEN 2
 #define L2CAP_PKT_OVERHEAD 4
@@ -418,15 +418,10 @@ static void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op
     }
   } else { /* nothing needs to be executed , send response now */
     log::warn("gatt_process_exec_write_req: no prepare write pending");
-    if (com::android::bluetooth::flags::fix_execute_write_no_pending()) {
-      uint16_t payload_size = gatt_tcb_get_payload_size(tcb, cid);
-      BT_HDR* p_buf =
-              attp_build_sr_msg(tcb, GATT_RSP_EXEC_WRITE, (tGATT_SR_MSG*)NULL, payload_size);
-      if (p_buf != NULL) {
-        attp_send_sr_msg(tcb, cid, p_buf);
-      } else {
-        gatt_send_error_rsp(tcb, cid, GATT_ERROR, GATT_REQ_EXEC_WRITE, 0, false);
-      }
+    uint16_t payload_size = gatt_tcb_get_payload_size(tcb, cid);
+    BT_HDR* p_buf = attp_build_sr_msg(tcb, GATT_RSP_EXEC_WRITE, (tGATT_SR_MSG*)NULL, payload_size);
+    if (p_buf != NULL) {
+      attp_send_sr_msg(tcb, cid, p_buf);
     } else {
       gatt_send_error_rsp(tcb, cid, GATT_ERROR, GATT_REQ_EXEC_WRITE, 0, false);
     }
@@ -480,7 +475,13 @@ static void gatt_process_read_multi_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op
     STREAM_TO_UINT16(handle, p);
 
     auto it = gatt_sr_find_i_rcb_by_handle(handle);
-    if (it != gatt_cb.srv_list_info->end()) {
+    auto srv_list_info = gatt_cb.srv_list_info;
+    if (srv_list_info == nullptr) {
+      err = GATT_WRONG_STATE;
+      return;
+    }
+
+    if (it != srv_list_info->end()) {
       multi_req->handles[multi_req->num_handles++] = handle;
 
       /* check read permission */
@@ -565,7 +566,12 @@ static tGATT_STATUS gatt_build_primary_service_rsp(BT_HDR* p_msg, tGATT_TCB& tcb
 
   uint16_t payload_size = gatt_tcb_get_payload_size(tcb, cid);
 
-  for (tGATT_SRV_LIST_ELEM& el : *gatt_cb.srv_list_info) {
+  auto srv_list_info = gatt_cb.srv_list_info;
+  if (srv_list_info == nullptr) {
+    return GATT_WRONG_STATE;
+  }
+
+  for (tGATT_SRV_LIST_ELEM& el : *srv_list_info) {
     if (el.s_hdl < s_hdl || el.s_hdl > e_hdl || el.type != GATT_UUID_PRI_SERVICE) {
       continue;
     }
@@ -820,7 +826,13 @@ static void gatts_process_find_info(tGATT_TCB& tcb, uint16_t cid, uint8_t op_cod
 
   buf_len = payload_size - 2;
 
-  for (tGATT_SRV_LIST_ELEM& el : *gatt_cb.srv_list_info) {
+  auto srv_list_info = gatt_cb.srv_list_info;
+  if (srv_list_info == nullptr) {
+    osi_free(p_msg);
+    return;
+  }
+
+  for (tGATT_SRV_LIST_ELEM& el : *srv_list_info) {
     if (el.s_hdl <= e_hdl && el.e_hdl >= s_hdl) {
       reason = gatt_build_find_info_rsp(el, p_msg, buf_len, s_hdl, e_hdl);
       if (reason == GATT_NO_RESOURCES) {
@@ -884,7 +896,8 @@ static void gatts_process_mtu_req(tGATT_TCB& tcb, uint16_t cid, uint16_t len, ui
             tcb.payload_size);
 
   if (get_btm_client_interface().ble.BTM_SetBleDataLength(
-              tcb.peer_bda, tcb.payload_size + L2CAP_PKT_OVERHEAD) != tBTM_STATUS::BTM_SUCCESS) {
+              tcb.peer_bda, tcb.payload_size + L2CAP_PKT_OVERHEAD,
+              /*is_privileged_client*/ false) != tBTM_STATUS::BTM_SUCCESS) {
     log::warn("Unable to set BLE data length peer:{} mtu:{}", tcb.peer_bda,
               tcb.payload_size + L2CAP_PKT_OVERHEAD);
   }
@@ -960,7 +973,13 @@ static void gatts_process_read_by_type_req(tGATT_TCB& tcb, uint16_t cid, uint8_t
   uint16_t buf_len = payload_size - 2;
 
   reason = GATT_NOT_FOUND;
-  for (tGATT_SRV_LIST_ELEM& el : *gatt_cb.srv_list_info) {
+  auto srv_list_info = gatt_cb.srv_list_info;
+  if (srv_list_info == nullptr) {
+    osi_free(p_msg);
+    return;
+  }
+
+  for (tGATT_SRV_LIST_ELEM& el : *srv_list_info) {
     if (el.s_hdl <= e_hdl && el.e_hdl >= s_hdl) {
       tGATT_SEC_FLAG sec_flag;
       uint8_t key_size;
@@ -1184,7 +1203,12 @@ static void gatts_process_attribute_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op
 #endif
 
   if (GATT_HANDLE_IS_VALID(handle)) {
-    for (auto& el : *gatt_cb.srv_list_info) {
+    auto srv_list_info = gatt_cb.srv_list_info;
+    if (srv_list_info == nullptr) {
+      return;
+    }
+
+    for (auto& el : *srv_list_info) {
       if (el.s_hdl <= handle && el.e_hdl >= handle) {
         for (const auto& attr : el.p_db->attr_list) {
           if (attr.handle == handle) {
@@ -1320,7 +1344,13 @@ static void gatts_process_value_conf(tGATT_TCB& tcb, uint16_t cid, uint8_t op_co
   if (continue_processing) {
     tGATTS_DATA gatts_data;
     gatts_data.handle = handle;
-    for (auto& el : *gatt_cb.srv_list_info) {
+
+    auto srv_list_info = gatt_cb.srv_list_info;
+    if (srv_list_info == nullptr) {
+      return;
+    }
+
+    for (auto& el : *srv_list_info) {
       if (el.s_hdl <= handle && el.e_hdl >= handle) {
         uint32_t trans_id = gatt_sr_enqueue_cmd(tcb, cid, op_code, handle);
         tCONN_ID conn_id = gatt_create_conn_id(tcb.tcb_idx, el.gatt_if);

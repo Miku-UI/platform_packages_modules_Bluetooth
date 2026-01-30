@@ -16,10 +16,10 @@
 
 #pragma once
 
+#include <bluetooth/types/address.h>
+
 #include <cstdint>
 #include <memory>
-
-#include "types/raw_address.h"
 
 namespace power_telemetry {
 
@@ -50,15 +50,11 @@ public:
 
   void LogSniffStarted(uint16_t handle, const RawAddress& bdaddr);
   void LogSniffStopped(uint16_t handle, const RawAddress& bdaddr);
-  void LogAclTxPowerLevel(uint16_t handle, uint8_t txPower);
   void LogInqScanStarted();
   void LogInqScanStopped();
   void LogBleScan(uint16_t num_resps);
   void LogBleAdvStarted();
   void LogBleAdvStopped();
-
-  void LogTxPower(void* res);
-  void LogTrafficData();
 
   void Dumpsys(int32_t fd);
 

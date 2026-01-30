@@ -21,6 +21,7 @@
 #include <base/functional/bind.h>
 #include <base/location.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 #include <hardware/bt_vc.h>
 
 #include <atomic>
@@ -35,7 +36,6 @@
 #include "btif/include/btif_profile_storage.h"
 #include "btif_le_audio.h"
 #include "stack/include/main_thread.h"
-#include "types/raw_address.h"
 
 using base::Bind;
 using base::Unretained;
@@ -81,10 +81,10 @@ class VolumeControlInterfaceImpl : public VolumeControlInterface, public VolumeC
                           Unretained(callbacks_), group_id, volume, mute, isAutonomous));
   }
 
-  void OnDeviceAvailable(const RawAddress& address, uint8_t num_offset,
+  void OnDeviceAvailable(const RawAddress& address, int group_id, uint8_t num_offset,
                          uint8_t num_inputs) override {
     do_in_jni_thread(Bind(&VolumeControlCallbacks::OnDeviceAvailable, Unretained(callbacks_),
-                          address, num_offset, num_inputs));
+                          address, group_id, num_offset, num_inputs));
   }
 
   /* Callbacks for Volume Offset Control Service (VOCS) - Extended Audio Outputs

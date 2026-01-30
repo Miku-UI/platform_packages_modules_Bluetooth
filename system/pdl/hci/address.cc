@@ -18,6 +18,8 @@
 
 #include "hci/address.h"
 
+#include <bluetooth/types/address.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
@@ -38,6 +40,16 @@ Address::Address(std::initializer_list<uint8_t> l) {
   std::copy(l.begin(), std::min(l.begin() + kLength, l.end()), data());
 }
 
+Address::Address(const RawAddress& address)
+    : address({
+              address.address[5],
+              address.address[4],
+              address.address[3],
+              address.address[2],
+              address.address[1],
+              address.address[0],
+      }) {}
+
 std::string Address::_ToMaskedColonSepHexString(int bytes_to_mask) const {
   std::stringstream ss;
   int count = 0;
@@ -57,8 +69,6 @@ std::string Address::_ToMaskedColonSepHexString(int bytes_to_mask) const {
 std::string Address::ToString() const { return _ToMaskedColonSepHexString(0); }
 
 std::string Address::ToColonSepHexString() const { return _ToMaskedColonSepHexString(0); }
-
-std::string Address::ToStringForLogging() const { return _ToMaskedColonSepHexString(0); }
 
 std::string Address::ToRedactedStringForLogging() const { return _ToMaskedColonSepHexString(4); }
 

@@ -17,6 +17,7 @@
 #define LOG_TAG "bluetooth-a2dp"
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 #include <jni.h>
 #include <nativehelper/JNIHelp.h>
 #include <nativehelper/scoped_local_ref.h>
@@ -33,7 +34,6 @@
 #include "com_android_bluetooth.h"
 #include "hardware/bluetooth.h"
 #include "hardware/bt_av.h"
-#include "types/raw_address.h"
 
 namespace android {
 
@@ -45,6 +45,7 @@ static struct {
   jmethodID onConnectionStateChanged;
   jmethodID onAudioStateChanged;
   jmethodID onCodecConfigChanged;
+  jmethodID onAudioDelayReported;
   jmethodID isMandatoryCodecPreferred;
 } android_bluetooth_A2dpNativeCallback;
 
@@ -75,9 +76,22 @@ static std::shared_timed_mutex interface_mutex;
 static jobject mCallbacksObj = nullptr;
 static std::shared_timed_mutex callbacks_mutex;
 
+static jobject newBluetoothCodecType(CallbackEnv& env, btav_a2dp_codec_index_t codec_type) {
+  for (auto const& codec : supported_codecs) {
+    if (codec.codec_capabilities.codec_type == codec_type) {
+      return env->NewObject(android_bluetooth_BluetoothCodecType.clazz,
+                            android_bluetooth_BluetoothCodecType.constructor, codec_type,
+                            codec.codec_id, env->NewStringUTF(codec.name.c_str()));
+    }
+  }
+
+  log::warn("unable to create BluetoothCodecStatus from codec type {}", codec_type);
+  return nullptr;
+}
+
 static void bta2dp_connection_state_callback(const RawAddress& bd_addr,
                                              btav_connection_state_t state,
-                                             const btav_error_t& /* error */) {
+                                             const btav_error_t& error) {
   log::info("{}: state: {}", bd_addr, dump_av_conn_state(state));
 
   std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
@@ -94,10 +108,10 @@ static void bta2dp_connection_state_callback(const RawAddress& bd_addr,
   }
 
   sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
-                                   reinterpret_cast<const jbyte*>(bd_addr.address));
+                                   reinterpret_cast<const jbyte*>(bd_addr.address.data()));
   sCallbackEnv->CallVoidMethod(mCallbacksObj,
                                android_bluetooth_A2dpNativeCallback.onConnectionStateChanged,
-                               addr.get(), (jint)state);
+                               addr.get(), (jint)state, (jint)error.error_code);
 }
 
 static void bta2dp_audio_state_callback(const RawAddress& bd_addr, btav_audio_state_t state) {
@@ -117,7 +131,7 @@ static void bta2dp_audio_state_callback(const RawAddress& bd_addr, btav_audio_st
   }
 
   sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
-                                   reinterpret_cast<const jbyte*>(bd_addr.address));
+                                   reinterpret_cast<const jbyte*>(bd_addr.address.data()));
   sCallbackEnv->CallVoidMethod(mCallbacksObj,
                                android_bluetooth_A2dpNativeCallback.onAudioStateChanged, addr.get(),
                                (jint)state);
@@ -140,7 +154,8 @@ static void bta2dp_audio_config_callback(
 
   jobject codecConfigObj = sCallbackEnv->NewObject(
           android_bluetooth_BluetoothCodecConfig.clazz,
-          android_bluetooth_BluetoothCodecConfig.constructor, (jint)codec_config.codec_type,
+          android_bluetooth_BluetoothCodecConfig.constructor,
+          newBluetoothCodecType(sCallbackEnv, codec_config.codec_type),
           (jint)codec_config.codec_priority, (jint)codec_config.sample_rate,
           (jint)codec_config.bits_per_sample, (jint)codec_config.channel_mode,
           (jlong)codec_config.codec_specific_1, (jlong)codec_config.codec_specific_2,
@@ -153,10 +168,12 @@ static void bta2dp_audio_config_callback(
   for (auto const& cap : codecs_local_capabilities) {
     jobject capObj = sCallbackEnv->NewObject(
             android_bluetooth_BluetoothCodecConfig.clazz,
-            android_bluetooth_BluetoothCodecConfig.constructor, (jint)cap.codec_type,
-            (jint)cap.codec_priority, (jint)cap.sample_rate, (jint)cap.bits_per_sample,
-            (jint)cap.channel_mode, (jlong)cap.codec_specific_1, (jlong)cap.codec_specific_2,
-            (jlong)cap.codec_specific_3, (jlong)cap.codec_specific_4);
+            android_bluetooth_BluetoothCodecConfig.constructor,
+            newBluetoothCodecType(sCallbackEnv, cap.codec_type), (jint)cap.codec_priority,
+            (jint)cap.sample_rate, (jint)cap.bits_per_sample, (jint)cap.channel_mode,
+            (jlong)cap.codec_specific_1, (jlong)cap.codec_specific_2, (jlong)cap.codec_specific_3,
+            (jlong)cap.codec_specific_4);
+
     sCallbackEnv->SetObjectArrayElement(local_capabilities_array, i++, capObj);
     sCallbackEnv->DeleteLocalRef(capObj);
   }
@@ -168,10 +185,11 @@ static void bta2dp_audio_config_callback(
   for (auto const& cap : codecs_selectable_capabilities) {
     jobject capObj = sCallbackEnv->NewObject(
             android_bluetooth_BluetoothCodecConfig.clazz,
-            android_bluetooth_BluetoothCodecConfig.constructor, (jint)cap.codec_type,
-            (jint)cap.codec_priority, (jint)cap.sample_rate, (jint)cap.bits_per_sample,
-            (jint)cap.channel_mode, (jlong)cap.codec_specific_1, (jlong)cap.codec_specific_2,
-            (jlong)cap.codec_specific_3, (jlong)cap.codec_specific_4);
+            android_bluetooth_BluetoothCodecConfig.constructor,
+            newBluetoothCodecType(sCallbackEnv, cap.codec_type), (jint)cap.codec_priority,
+            (jint)cap.sample_rate, (jint)cap.bits_per_sample, (jint)cap.channel_mode,
+            (jlong)cap.codec_specific_1, (jlong)cap.codec_specific_2, (jlong)cap.codec_specific_3,
+            (jlong)cap.codec_specific_4);
     sCallbackEnv->SetObjectArrayElement(selectable_capabilities_array, i++, capObj);
     sCallbackEnv->DeleteLocalRef(capObj);
   }
@@ -183,7 +201,7 @@ static void bta2dp_audio_config_callback(
     return;
   }
   sCallbackEnv->SetByteArrayRegion(addr.get(), 0, RawAddress::kLength,
-                                   reinterpret_cast<const jbyte*>(bd_addr.address));
+                                   reinterpret_cast<const jbyte*>(bd_addr.address.data()));
 
   sCallbackEnv->CallVoidMethod(
           mCallbacksObj, android_bluetooth_A2dpNativeCallback.onCodecConfigChanged, addr.get(),
@@ -206,10 +224,32 @@ static bool bta2dp_mandatory_codec_preferred_callback(const RawAddress& bd_addr)
     return false;
   }
   sCallbackEnv->SetByteArrayRegion(addr.get(), 0, RawAddress::kLength,
-                                   reinterpret_cast<const jbyte*>(bd_addr.address));
+                                   reinterpret_cast<const jbyte*>(bd_addr.address.data()));
   return sCallbackEnv->CallBooleanMethod(
           mCallbacksObj, android_bluetooth_A2dpNativeCallback.isMandatoryCodecPreferred,
           addr.get());
+}
+
+static void bta2dp_audio_delay_reported_callback(const RawAddress& bd_addr, int delay) {
+  log::info("bd_addr={} delay={}", bd_addr, delay);
+
+  std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
+  CallbackEnv sCallbackEnv(__func__);
+  if (!sCallbackEnv.valid() || mCallbacksObj == nullptr) {
+    return;
+  }
+
+  ScopedLocalRef<jbyteArray> addr(sCallbackEnv.get(),
+                                  sCallbackEnv->NewByteArray(RawAddress::kLength));
+  if (!addr.get()) {
+    log::error("Fail to new jbyteArray bd addr");
+    return;
+  }
+  sCallbackEnv->SetByteArrayRegion(addr.get(), 0, RawAddress::kLength,
+                                   reinterpret_cast<const jbyte*>(bd_addr.address.data()));
+  sCallbackEnv->CallVoidMethod(mCallbacksObj,
+                               android_bluetooth_A2dpNativeCallback.onAudioDelayReported,
+                               addr.get(), (jint)delay);
 }
 
 static btav_source_callbacks_t sBluetoothA2dpCallbacks = {
@@ -218,6 +258,7 @@ static btav_source_callbacks_t sBluetoothA2dpCallbacks = {
         bta2dp_audio_state_callback,
         bta2dp_audio_config_callback,
         bta2dp_mandatory_codec_preferred_callback,
+        bta2dp_audio_delay_reported_callback,
 };
 
 static std::vector<btav_a2dp_codec_config_t> prepareCodecPreferences(
@@ -352,11 +393,12 @@ static jobjectArray getSupportedCodecTypesNative(JNIEnv* env) {
   }
 
   for (size_t index = 0; index < supported_codecs.size(); index++) {
-    jobject codec_type = env->NewObject(
-            android_bluetooth_BluetoothCodecType.clazz,
-            android_bluetooth_BluetoothCodecType.constructor,
-            (jint)supported_codecs[index].codec_type, (jlong)supported_codecs[index].codec_id,
-            env->NewStringUTF(supported_codecs[index].codec_name.c_str()));
+    uint64_t codec_id = static_cast<uint64_t>(supported_codecs[index].codec_id);
+    jobject codec_type = env->NewObject(android_bluetooth_BluetoothCodecType.clazz,
+                                        android_bluetooth_BluetoothCodecType.constructor,
+                                        (jint)supported_codecs[index].codec_capabilities.codec_type,
+                                        (jlong)codec_id,
+                                        env->NewStringUTF(supported_codecs[index].name.c_str()));
     env->SetObjectArrayElement(result, index, codec_type);
   }
 
@@ -371,8 +413,7 @@ static jboolean connectA2dpNative(JNIEnv* env, jobject /* object */, jbyteArray 
     return JNI_FALSE;
   }
 
-  RawAddress bd_addr;
-  bd_addr.FromOctets(reinterpret_cast<const uint8_t*>(addr));
+  RawAddress bd_addr = RawAddress::FromOctets(reinterpret_cast<const uint8_t*>(addr));
 
   log::info("{}", bd_addr);
   bt_status_t status = btif_av_source_connect(bd_addr);
@@ -391,8 +432,7 @@ static jboolean disconnectA2dpNative(JNIEnv* env, jobject /* object */, jbyteArr
     return JNI_FALSE;
   }
 
-  RawAddress bd_addr;
-  bd_addr.FromOctets(reinterpret_cast<const uint8_t*>(addr));
+  RawAddress bd_addr = RawAddress::FromOctets(reinterpret_cast<const uint8_t*>(addr));
 
   log::info("{}", bd_addr);
   bt_status_t status = btif_av_source_disconnect(bd_addr);
@@ -408,10 +448,10 @@ static jboolean setSilenceDeviceNative(JNIEnv* env, jobject /* object */, jbyteA
   std::shared_lock<std::shared_timed_mutex> lock(interface_mutex);
 
   jbyte* addr = env->GetByteArrayElements(address, nullptr);
-  RawAddress bd_addr = RawAddress::kEmpty;
-  if (addr) {
-    bd_addr.FromOctets(reinterpret_cast<const uint8_t*>(addr));
-  }
+
+  RawAddress bd_addr = addr ? RawAddress::FromOctets(reinterpret_cast<const uint8_t*>(addr))
+                            : RawAddress::kEmpty;
+
   if (bd_addr == RawAddress::kEmpty) {
     return JNI_FALSE;
   }
@@ -429,10 +469,9 @@ static jboolean setActiveDeviceNative(JNIEnv* env, jobject /* object */, jbyteAr
   std::shared_lock<std::shared_timed_mutex> lock(interface_mutex);
 
   jbyte* addr = env->GetByteArrayElements(address, nullptr);
-  RawAddress bd_addr = RawAddress::kEmpty;
-  if (addr) {
-    bd_addr.FromOctets(reinterpret_cast<const uint8_t*>(addr));
-  }
+
+  RawAddress bd_addr = addr ? RawAddress::FromOctets(reinterpret_cast<const uint8_t*>(addr))
+                            : RawAddress::kEmpty;
 
   log::info("{}", bd_addr);
   bt_status_t status = btif_av_source_set_active_device(bd_addr);
@@ -452,8 +491,7 @@ static jboolean setCodecConfigPreferenceNative(JNIEnv* env, jobject object, jbyt
     return JNI_FALSE;
   }
 
-  RawAddress bd_addr;
-  bd_addr.FromOctets(reinterpret_cast<const uint8_t*>(addr));
+  RawAddress bd_addr = RawAddress::FromOctets(reinterpret_cast<const uint8_t*>(addr));
   std::vector<btav_a2dp_codec_config_t> codec_preferences =
           prepareCodecPreferences(env, object, codecConfigArray);
 
@@ -489,7 +527,7 @@ int register_com_android_bluetooth_a2dp(JNIEnv* env) {
   }
 
   const JNIJavaMethod javaMethods[] = {
-          {"onConnectionStateChanged", "([BI)V",
+          {"onConnectionStateChanged", "([BII)V",
            &android_bluetooth_A2dpNativeCallback.onConnectionStateChanged},
           {"onAudioStateChanged", "([BI)V",
            &android_bluetooth_A2dpNativeCallback.onAudioStateChanged},
@@ -498,6 +536,8 @@ int register_com_android_bluetooth_a2dp(JNIEnv* env) {
            "[Landroid/bluetooth/BluetoothCodecConfig;"
            "[Landroid/bluetooth/BluetoothCodecConfig;)V",
            &android_bluetooth_A2dpNativeCallback.onCodecConfigChanged},
+          {"onAudioDelayReported", "([BI)V",
+           &android_bluetooth_A2dpNativeCallback.onAudioDelayReported},
           {"isMandatoryCodecPreferred", "([B)Z",
            &android_bluetooth_A2dpNativeCallback.isMandatoryCodecPreferred},
   };
@@ -511,7 +551,8 @@ int register_com_android_bluetooth_a2dp(JNIEnv* env) {
   env->DeleteLocalRef(jniA2dpNativeInterfaceClass);
 
   const JNIJavaMethod codecConfigCallbacksMethods[] = {
-          {"<init>", "(IIIIIJJJJ)V", &android_bluetooth_BluetoothCodecConfig.constructor},
+          {"<init>", "(Landroid/bluetooth/BluetoothCodecType;IIIIJJJJ)V",
+           &android_bluetooth_BluetoothCodecConfig.constructor},
           {"getCodecType", "()I", &android_bluetooth_BluetoothCodecConfig.getCodecType},
           {"getExtendedCodecType", "()Landroid/bluetooth/BluetoothCodecType;",
            &android_bluetooth_BluetoothCodecConfig.getExtendedCodecType},

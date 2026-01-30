@@ -27,6 +27,11 @@
 
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
+#include <bluetooth/metrics/bluetooth_event.h>
+#include <bluetooth/metrics/os_metrics.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/bt_transport.h>
+#include <bluetooth/types/uuid.h>
 #include <com_android_bluetooth_flags.h>
 
 #include <string>
@@ -34,7 +39,6 @@
 #include "internal_include/bt_target.h"
 #include "internal_include/stack_config.h"
 #include "main/shim/helpers.h"
-#include "main/shim/metrics_api.h"
 #include "os/system_properties.h"
 #include "osi/include/allocator.h"
 #include "stack/arbiter/acl_arbiter.h"
@@ -49,9 +53,6 @@
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/sdp_api.h"
-#include "types/bluetooth/uuid.h"
-#include "types/bt_transport.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;
@@ -143,14 +144,24 @@ static bool is_gatt_attr_type(const Uuid& uuid) {
 static void gatt_update_last_srv_info() {
   gatt_cb.last_service_handle = 0;
 
-  for (tGATT_SRV_LIST_ELEM& el : *gatt_cb.srv_list_info) {
+  auto srv_list_info = gatt_cb.srv_list_info;
+  if (srv_list_info == nullptr) {
+    return;
+  }
+
+  for (tGATT_SRV_LIST_ELEM& el : *srv_list_info) {
     gatt_cb.last_service_handle = el.s_hdl;
   }
 }
 
 /** Update database hash and client status */
 static void gatt_update_for_database_change() {
-  gatt_cb.database_hash = gatts_calculate_database_hash(gatt_cb.srv_list_info);
+  auto srv_list_info = gatt_cb.srv_list_info;
+  if (srv_list_info == nullptr) {
+    return;
+  }
+
+  gatt_cb.database_hash = gatts_calculate_database_hash(srv_list_info);
 
   uint8_t i = 0;
   for (i = 0; i < GATT_MAX_PHY_CHANNEL; i++) {
@@ -327,10 +338,8 @@ tGATT_STATUS GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service, in
     Uuid* p_uuid = gatts_get_service_uuid(elem.p_db);
     if (*p_uuid != Uuid::From16Bit(UUID_SERVCLASS_GMCS_SERVER) &&
         *p_uuid != Uuid::From16Bit(UUID_SERVCLASS_GTBS_SERVER)) {
-      if ((com::android::bluetooth::flags::channel_sounding_in_stack() &&
-           *p_uuid == Uuid::From16Bit(UUID_SERVCLASS_RAS)) ||
-          (com::android::bluetooth::flags::android_os_identifier() &&
-           *p_uuid == ANDROID_INFORMATION_SERVICE_UUID)) {
+      if (*p_uuid == Uuid::From16Bit(UUID_SERVCLASS_RAS) ||
+          *p_uuid == ANDROID_INFORMATION_SERVICE_UUID) {
         elem.sdp_handle = 0;
       } else {
         elem.sdp_handle = gatt_add_sdp_record(*p_uuid, elem.s_hdl, elem.e_hdl);
@@ -846,8 +855,8 @@ void GATTC_UpdateUserAttMtuIfNeeded(const RawAddress& remote_bda, tBT_TRANSPORT 
   }
 
   p_tcb->max_user_mtu = user_mtu;
-  if (get_btm_client_interface().ble.BTM_SetBleDataLength(remote_bda, user_mtu) !=
-      tBTM_STATUS::BTM_SUCCESS) {
+  if (get_btm_client_interface().ble.BTM_SetBleDataLength(
+              remote_bda, user_mtu, /*is_privileged_client*/ false) != tBTM_STATUS::BTM_SUCCESS) {
     log::warn("Unable to set ble data length peer:{} mtu:{}", remote_bda, user_mtu);
   }
 }
@@ -1405,7 +1414,7 @@ void GATT_StartIf(tGATT_IF gatt_if) {
  ******************************************************************************/
 bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
                   tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic,
-                  uint8_t initiating_phys, uint16_t preferred_mtu) {
+                  uint8_t initiating_phys, uint16_t preferred_mtu, bool prefer_relax_mode) {
   /* Make sure app is registered */
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
   if (!p_reg) {
@@ -1430,13 +1439,10 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
     return true;
   }
 
-  bluetooth::shim::LogMetricLeConnectionLifecycle(ToGdAddress(bd_addr), true /* is_connect */,
-                                                  is_direct);
-
   bool ret = false;
   if (is_direct) {
-    log::debug("Starting direct connect gatt_if={} address={} transport={}", gatt_if, bd_addr,
-               transport);
+    log::debug("Starting direct connect gatt_if={} address={} transport={} prefer_relax_mode={}",
+               gatt_if, bd_addr, transport, prefer_relax_mode);
     bool tcb_exist = !!gatt_find_tcb_by_addr(bd_addr, transport);
 
     if (tcb_exist || transport == BT_TRANSPORT_BR_EDR) {
@@ -1444,11 +1450,16 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
       ret = gatt_act_connect(p_reg, bd_addr, addr_type, transport, initiating_phys);
     } else {
       log::verbose("Connecting without tcb to: {}", bd_addr);
-      ret = connection_manager::direct_connect_add(gatt_if, bd_addr, addr_type);
+      bool has_direct_conn = connection_manager::is_direct_connection(bd_addr);
+      ret = connection_manager::direct_connect_add(gatt_if, bd_addr, addr_type, prefer_relax_mode);
+      if (!has_direct_conn && ret) {
+        bluetooth::metrics::LogMetricLeConnectionLifecycle(bd_addr, true /* is_connect */,
+                                                           true /* is_direct */);
+      }
     }
-
   } else {
     log::debug("Starting background connect gatt_if={} address={}", gatt_if, bd_addr);
+    bluetooth::metrics::LogMetricLeConnectionLifecycle(bd_addr, true /* is_connect */, is_direct);
     if (!BTM_Sec_AddressKnown(bd_addr)) {
       //  RPA can rotate, causing address to "expire" in the background
       //  connection list. RPA is allowed for direct connect, as such request
@@ -1493,7 +1504,7 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
 bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBTM_BLE_CONN_TYPE connection_type,
                   tBT_TRANSPORT transport, bool opportunistic) {
   return GATT_Connect(gatt_if, bd_addr, BLE_ADDR_PUBLIC, connection_type, transport, opportunistic,
-                      LE_PHY_1M, 0);
+                      LE_PHY_1M, 0, false);
 }
 
 /*******************************************************************************
@@ -1573,11 +1584,14 @@ tGATT_STATUS GATT_Disconnect(tCONN_ID conn_id) {
     return GATT_ILLEGAL_PARAMETER;
   }
 
-  bluetooth::shim::LogMetricLeConnectionLifecycle(ToGdAddress(p_tcb->peer_bda),
-                                                  true /* is_connect */, false /* is_direct */);
-
   tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
   gatt_update_app_use_link_flag(gatt_if, p_tcb, false, true);
+
+  if (p_tcb->transport == BT_TRANSPORT_LE && p_tcb->app_hold_link.empty()) {
+    bluetooth::metrics::LogMetricLeConnectionLifecycle(p_tcb->peer_bda, false /* is_connect */,
+                                                       false /* is_direct */);
+  }
+
   return GATT_SUCCESS;
 }
 

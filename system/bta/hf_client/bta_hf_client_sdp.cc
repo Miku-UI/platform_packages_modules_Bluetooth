@@ -25,6 +25,8 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/uuid.h>
 #include <com_android_bluetooth_flags.h>
 
 #include <cstddef>
@@ -47,8 +49,6 @@
 #include "stack/include/sdp_api.h"
 #include "stack/include/sdpdefs.h"
 #include "stack/sdp/sdp_discovery_db.h"
-#include "types/bluetooth/uuid.h"
-#include "types/raw_address.h"
 
 using bluetooth::Uuid;
 using namespace bluetooth::legacy::stack::sdp;
@@ -361,8 +361,7 @@ void bta_hf_client_do_disc(tBTA_HF_CLIENT_CB* client_cb) {
   /* If we already have a non-null discovery database at this point, we can get
    * into a race condition leading to UAF once this connection is closed.
    * This should only happen with malicious modifications to a client. */
-  if (com::android::bluetooth::flags::btsec_check_valid_discovery_database() &&
-      client_cb->p_disc_db != NULL) {
+  if (client_cb->p_disc_db != NULL) {
     log::error("Tried to set up a HF client with a preexisting discovery database.");
     client_cb->p_disc_db = NULL;
     // We manually set the state here because it's possible to call this from an

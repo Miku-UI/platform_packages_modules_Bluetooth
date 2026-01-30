@@ -26,6 +26,9 @@
 
 #include <base/functional/bind.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/bt_transport.h>
+#include <bluetooth/types/uuid.h>
 
 #include <ios>
 #include <list>
@@ -37,9 +40,6 @@
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/main_thread.h"
-#include "types/bluetooth/uuid.h"
-#include "types/bt_transport.h"
-#include "types/raw_address.h"
 
 using bluetooth::Uuid;
 using namespace bluetooth;
@@ -134,7 +134,7 @@ void BTA_GATTC_AppDeregister(tGATT_IF client_if) {
  ******************************************************************************/
 void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda, tBLE_ADDR_TYPE addr_type,
                     tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic,
-                    uint8_t initiating_phys, uint16_t preferred_mtu) {
+                    uint8_t initiating_phys, uint16_t preferred_mtu, bool prefer_relax_mode) {
   tBTA_GATTC_DATA data = {
           .api_conn =
                   {
@@ -150,6 +150,7 @@ void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda, tBLE_ADDR_
                           .opportunistic = opportunistic,
                           .remote_addr_type = addr_type,
                           .preferred_mtu = preferred_mtu,
+                          .prefer_relax_mode = prefer_relax_mode,
                   },
   };
 
@@ -159,7 +160,7 @@ void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda, tBLE_ADDR_
 void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda,
                     tBTM_BLE_CONN_TYPE connection_type, bool opportunistic) {
   BTA_GATTC_Open(client_if, remote_bda, BLE_ADDR_PUBLIC, connection_type, BT_TRANSPORT_LE,
-                 opportunistic, LE_PHY_1M, 0);
+                 opportunistic, LE_PHY_1M, 0, false);
 }
 
 /*******************************************************************************
@@ -195,7 +196,7 @@ void BTA_GATTC_CancelOpen(tGATT_IF client_if, const RawAddress& remote_bda, bool
  *
  * Description      Close a connection to a GATT server.
  *
- * Parameters       conn_id: connectino ID to be closed.
+ * Parameters       conn_id: connection ID to be closed.
  *
  * Returns          void
  *
@@ -357,7 +358,7 @@ void BTA_GATTC_GetGattDb(tCONN_ID conn_id, uint16_t start_handle, uint16_t end_h
  * Description      This function is called to read a characteristics value
  *
  * Parameters       conn_id - connection ID.
- *                  handle - characteritic handle to read.
+ *                  handle - characteristic handle to read.
  *
  * Returns          None
  *
@@ -504,7 +505,7 @@ void BTA_GATTC_WriteCharValue(tCONN_ID conn_id, uint16_t handle, tGATT_WRITE_TYP
  * Description      This function is called to write descriptor value.
  *
  * Parameters       conn_id - connection ID
- *                  handle - descriptor hadle to write.
+ *                  handle - descriptor handle to write.
  *                  value - the value to be written.
  *
  * Returns          None
@@ -540,7 +541,7 @@ void BTA_GATTC_WriteCharDescr(tCONN_ID conn_id, uint16_t handle, std::vector<uin
  *                  value.
  *
  * Parameters       conn_id - connection ID.
- *                  p_char_id - GATT characteritic ID of the service.
+ *                  p_char_id - GATT characteristic ID of the service.
  *                  offset - offset of the write value.
  *                  value - the value to be written.
  *

@@ -24,10 +24,12 @@
 #include "hci/acl_connection_interface.h"
 #include "hci/address.h"
 #include "hci/class_of_device.h"
+#include "hci/classic_acl_data_consumer.h"
 #include "hci/distance_measurement_interface.h"
 #include "hci/hci_packets.h"
 #include "hci/inquiry_interface.h"
 #include "hci/le_acl_connection_interface.h"
+#include "hci/le_acl_data_consumer.h"
 #include "hci/le_advertising_interface.h"
 #include "hci/le_iso_interface.h"
 #include "hci/le_scanning_interface.h"
@@ -109,8 +111,12 @@ public:
   virtual LeAdvertisingInterface* GetLeAdvertisingInterface(
           common::ContextualCallback<void(LeMetaEventView)> event_handler) = 0;
 
+  virtual void ReleaseLeAdvertisingInterface() = 0;
+
   virtual LeScanningInterface* GetLeScanningInterface(
           common::ContextualCallback<void(LeMetaEventView)> event_handler) = 0;
+
+  virtual void ReleaseLeScanningInterface() = 0;
 
   virtual void RegisterForScoConnectionRequests(
           common::ContextualCallback<void(Address, ClassOfDevice, ConnectionRequestLinkType)>
@@ -122,41 +128,14 @@ public:
   virtual DistanceMeasurementInterface* GetDistanceMeasurementInterface(
           common::ContextualCallback<void(LeMetaEventView)> event_handler) = 0;
 
+  virtual void ReleaseDistanceMeasurementInterface() = 0;
+
   virtual std::unique_ptr<InquiryInterface> GetInquiryInterface(
           common::ContextualCallback<void(EventView)> event_handler) = 0;
 
-protected:
-  template <typename T>
-  class CommandInterfaceImpl : public CommandInterface<T> {
-  public:
-    explicit CommandInterfaceImpl(HciInterface* hci, common::OnceCallback<void()> cleanup)
-        : hci_(hci), cleanup_(std::move(cleanup)) {}
-    explicit CommandInterfaceImpl(HciInterface* hci) : hci_(hci) {
-      cleanup_ = common::BindOnce([]() {});
-    }
-    ~CommandInterfaceImpl() { std::move(cleanup_).Run(); }
+  virtual void SetLeAclDataConsumer(LeAclDataConsumer* le_acl_data_consumer) = 0;
 
-    void EnqueueCommand(
-            std::unique_ptr<T> command,
-            common::ContextualOnceCallback<void(CommandCompleteView)> on_complete) override {
-      hci_->EnqueueCommand(std::move(command), std::move(on_complete));
-    }
-
-    void EnqueueCommand(
-            std::unique_ptr<T> command,
-            common::ContextualOnceCallback<void(CommandStatusView)> on_status) override {
-      hci_->EnqueueCommand(std::move(command), std::move(on_status));
-    }
-
-    void EnqueueCommand(std::unique_ptr<T> command,
-                        common::ContextualOnceCallback<void(CommandStatusOrCompleteView)>
-                                on_status_or_complete) override {
-      hci_->EnqueueCommand(std::move(command), std::move(on_status_or_complete));
-    }
-
-    HciInterface* hci_;
-    common::OnceCallback<void()> cleanup_;
-  };
+  virtual void SetClassicAclDataConsumer(ClassicAclDataConsumer* classic_acl_data_consumer) = 0;
 };
 
 }  // namespace hci

@@ -78,6 +78,8 @@ public:
   void Stop() override;
   void ConfirmStreamingRequest() override;
   void CancelStreamingRequest() override;
+  void SetCodecPriority(const ::bluetooth::le_audio::types::LeAudioCodecId& codecId,
+                        int32_t priority) override;
   void UpdateRemoteDelay(uint16_t remote_delay_ms) override;
   void UpdateAudioConfigToHal(const ::bluetooth::le_audio::stream_config& config) override;
   std::optional<broadcaster::BroadcastConfiguration> GetBroadcastConfig(
@@ -90,6 +92,7 @@ public:
           const ::bluetooth::le_audio::broadcast_offload_config& config) override;
   void SuspendedForReconfiguration() override;
   void ReconfigurationComplete() override;
+  void StreamSuspended() override;
 
   // Internal functionality
   SourceImpl(bool is_broadcaster)
@@ -240,7 +243,8 @@ void SourceImpl::SendAudioData() {
 bool SourceImpl::InitAudioSinkThread() {
   const std::string thread_name = is_broadcaster_ ? "bt_le_audio_broadcast_sink_worker_thread"
                                                   : "bt_le_audio_unicast_sink_worker_thread";
-  worker_thread_ = new bluetooth::common::MessageLoopThread(thread_name);
+  worker_thread_ = new bluetooth::common::MessageLoopThread(
+          thread_name, bluetooth::os::Thread::Priority::REAL_TIME);
 
   worker_thread_->StartUp();
   if (!worker_thread_->IsRunning()) {
@@ -259,31 +263,31 @@ bool SourceImpl::InitAudioSinkThread() {
 }
 
 void SourceImpl::StartAudioTicks() {
-  wakelock_acquire();
+  if (!com_android_bluetooth_flags_ref_counted_native_wakelock() || !audio_timer_.IsScheduled()) {
+    wakelock_acquire();
+  }
   asrc_ = std::make_unique<bluetooth::audio::asrc::SourceAudioHalAsrc>(
           worker_thread_, source_codec_config_.num_channels, source_codec_config_.sample_rate,
           source_codec_config_.bits_per_sample, source_codec_config_.data_interval_us);
   audio_timer_.SchedulePeriodic(
-          worker_thread_->GetWeakPtr(),
+          worker_thread_,
           base::BindRepeating(&SourceImpl::SendAudioData, weak_factory_.GetWeakPtr()),
           std::chrono::microseconds(source_codec_config_.data_interval_us));
 }
 
 void SourceImpl::StopAudioTicks() {
-  audio_timer_.CancelAndWait();
-  asrc_.reset(nullptr);
-  wakelock_release();
+  if (!com_android_bluetooth_flags_ref_counted_native_wakelock() || audio_timer_.IsScheduled()) {
+    audio_timer_.CancelAndWait();
+    asrc_.reset(nullptr);
+    wakelock_release();
+  }
 }
 
 bool SourceImpl::OnSuspendReq() {
   std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
   if (CodecManager::GetInstance()->GetCodecLocation() == types::CodecLocation::HOST) {
-    if (com::android::bluetooth::flags::run_ble_audio_ticks_in_worker_thread()) {
-      worker_thread_->DoInThread(
-              base::BindOnce(&SourceImpl::StopAudioTicks, weak_factory_.GetWeakPtr()));
-    } else {
-      StopAudioTicks();
-    }
+    worker_thread_->DoInThread(
+            base::BindOnce(&SourceImpl::StopAudioTicks, weak_factory_.GetWeakPtr()));
   }
 
   if (audioSourceCallbacks_ == nullptr) {
@@ -380,12 +384,8 @@ void SourceImpl::Stop() {
   le_audio_sink_hal_state_ = HAL_STOPPED;
 
   if (CodecManager::GetInstance()->GetCodecLocation() == types::CodecLocation::HOST) {
-    if (com::android::bluetooth::flags::run_ble_audio_ticks_in_worker_thread()) {
-      worker_thread_->DoInThread(
-              base::BindOnce(&SourceImpl::StopAudioTicks, weak_factory_.GetWeakPtr()));
-    } else {
-      StopAudioTicks();
-    }
+    worker_thread_->DoInThread(
+            base::BindOnce(&SourceImpl::StopAudioTicks, weak_factory_.GetWeakPtr()));
   }
 
   std::lock_guard<std::mutex> guard(audioSourceCallbacksMutex_);
@@ -405,12 +405,8 @@ void SourceImpl::ConfirmStreamingRequest() {
     return;
   }
 
-  if (com::android::bluetooth::flags::run_ble_audio_ticks_in_worker_thread()) {
-    worker_thread_->DoInThread(
-            base::BindOnce(&SourceImpl::StartAudioTicks, weak_factory_.GetWeakPtr()));
-  } else {
-    StartAudioTicks();
-  }
+  worker_thread_->DoInThread(
+          base::BindOnce(&SourceImpl::StartAudioTicks, weak_factory_.GetWeakPtr()));
 }
 
 void SourceImpl::SuspendedForReconfiguration() {
@@ -433,6 +429,16 @@ void SourceImpl::ReconfigurationComplete() {
   halSinkInterface_->ReconfigurationComplete();
 }
 
+void SourceImpl::StreamSuspended() {
+  if ((halSinkInterface_ == nullptr) || (le_audio_sink_hal_state_ != HAL_STARTED)) {
+    log::error("Audio HAL Audio sink was not started!");
+    return;
+  }
+
+  log::info("");
+  halSinkInterface_->StreamSuspended();
+}
+
 void SourceImpl::CancelStreamingRequest() {
   if ((halSinkInterface_ == nullptr) || (le_audio_sink_hal_state_ != HAL_STARTED)) {
     log::error("Audio HAL Audio sink was not started!");
@@ -441,6 +447,17 @@ void SourceImpl::CancelStreamingRequest() {
 
   log::info("");
   halSinkInterface_->CancelStreamingRequest();
+}
+
+void SourceImpl::SetCodecPriority(const ::bluetooth::le_audio::types::LeAudioCodecId& codecId,
+                                  int32_t priority) {
+  if ((halSinkInterface_ == nullptr) || (le_audio_sink_hal_state_ != HAL_STARTED)) {
+    log::error("Audio HAL Audio sink was not started!");
+    return;
+  }
+
+  log::info("");
+  halSinkInterface_->SetCodecPriority(codecId, priority);
 }
 
 void SourceImpl::UpdateRemoteDelay(uint16_t remote_delay_ms) {

@@ -19,6 +19,7 @@ if (defined(use.android) && use.android) {
     sources = [
       "adapter/adapter_unittest.cc",
       "adapter/bluetooth_test.cc",
+      "bt_status/bt_status_unittest.cc",
     ]
 
     include_dirs = [
@@ -29,10 +30,10 @@ if (defined(use.android) && use.android) {
     deps = [
       "//bt/system/btcore",
       "//bt/system/main:bluetooth",
+      "//bt/system/osi",
       "//bt/system/service:service",
       "//bt/system/service:service_unittests",
       "//bt/system/types:types_unittests",
-      "//bt/system/osi",
     ]
 
     configs += [

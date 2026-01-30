@@ -10,39 +10,14 @@ package {
 
 btifCommonIncludes = [
     "packages/modules/Bluetooth/system",
+    "packages/modules/Bluetooth/system/bta",
     "packages/modules/Bluetooth/system/bta/include",
     "packages/modules/Bluetooth/system/btif/include",
     "packages/modules/Bluetooth/system/gd",
     "packages/modules/Bluetooth/system/include",
     "packages/modules/Bluetooth/system/stack/include",
+    "packages/modules/Bluetooth/system/types/include",
 ]
-
-cc_library {
-    name: "libstatslog_bt",
-    defaults: ["bluetooth_cflags"],
-    host_supported: true,
-    generated_sources: ["statslog_bt.cpp"],
-    generated_headers: ["statslog_bt.h"],
-    export_generated_headers: ["statslog_bt.h"],
-    apex_available: ["com.android.bt"],
-    min_sdk_version: "30",
-    shared_libs: [
-        "libstatssocket",
-    ],
-    export_shared_lib_headers: [
-        "libstatssocket",
-    ],
-    target: {
-        host: {
-            static_libs: [
-                "libbase",
-            ],
-        },
-        darwin: {
-            enabled: false,
-        },
-    },
-}
 
 cc_library_static {
     name: "libbt-jni-thread",
@@ -56,30 +31,16 @@ cc_library_static {
     ],
     srcs: ["src/btif_jni_task.cc"],
     static_libs: [
+        "bluetooth_flags_c_lib",
         "libbluetooth_log",
+        "libbluetooth_types",
         "libosi",
     ],
     shared_libs: [
         "libchrome",
     ],
     apex_available: ["com.android.bt"],
-    min_sdk_version: "Tiramisu",
-}
-
-genrule {
-    name: "statslog_bt.h",
-    tools: ["stats-log-api-gen"],
-    cmd: "$(location stats-log-api-gen) --header $(genDir)/statslog_bt.h --module bluetooth" +
-        " --namespace bluetooth",
-    out: ["statslog_bt.h"],
-}
-
-genrule {
-    name: "statslog_bt.cpp",
-    tools: ["stats-log-api-gen"],
-    cmd: "$(location stats-log-api-gen) --cpp $(genDir)/statslog_bt.cpp --module bluetooth" +
-        " --namespace bluetooth --importHeader statslog_bt.h",
-    out: ["statslog_bt.cpp"],
+    min_sdk_version: "36",
 }
 
 cc_library_static {
@@ -141,6 +102,7 @@ cc_library_static {
         "src/btif_storage.cc",
         "src/btif_uid.cc",
         "src/btif_util.cc",
+        "src/btif_vaps_server.cc",
         "src/btif_vc.cc",
         "src/stack_manager.cc",
     ],
@@ -165,34 +127,30 @@ cc_library_static {
     static_libs: [
         "aics",
         "avrcp-target-service",
+        "bluetooth_constants-cpp",
         "bluetooth_flags_c_lib",
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
-        "libbluetooth-types",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
+        "libbluetooth_metrics",
+        "libbluetooth_types",
         "libbt-audio-hal-interface",
         "libbt-jni-thread",
-        "libbt-platform-protos-lite",
         "libbt-stack",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libflatbuffers-cpp",
-        "libstatslog_bt",
     ],
-    aidl: {
-        libs: ["bluetooth_constants"],
-    },
     shared_libs: [
-        "libbinder",
         "libcrypto",
         "libcutils",
     ],
     header_libs: ["libbluetooth_headers"],
     apex_available: ["com.android.bt"],
     host_supported: true,
-    min_sdk_version: "Tiramisu",
+    min_sdk_version: "36",
 }
 
 cc_test {
@@ -215,13 +173,9 @@ cc_test {
         "test/btif_storage_test.cc",
     ],
     header_libs: ["libbluetooth_headers"],
-    aidl: {
-        libs: ["bluetooth_constants"],
-    },
     shared_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
-        "libbinder",
         "libcrypto",
         "libcutils",
         "libhidlbase",
@@ -234,14 +188,16 @@ cc_test {
         "android.hardware.audio.common@5.0",
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
+        "bluetooth_constants-cpp",
         "bluetooth_flags_c_lib_for_test",
         "libFraunhoferAAC",
         "libbase",
-        "libbluetooth-types",
         "libbluetooth_core_rs",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_log",
+        "libbluetooth_metrics_mock",
+        "libbluetooth_types",
         "libbt-audio-asrc",
         "libbt-audio-hal-interface",
         "libbt-bta",
@@ -268,7 +224,6 @@ cc_test {
         "liblc3",
         "libopus",
         "libprotobuf-cpp-lite",
-        "libstatslog_bt",
         "libudrv-uipc",
     ],
     target: {
@@ -286,10 +241,7 @@ cc_test {
                 "android.hardware.common.fmq-V1-ndk",
                 "android.system.suspend-V1-ndk",
                 "android.system.suspend.control-V1-ndk",
-                "libexpresslog",
                 "libperfetto_client_experimental",
-                "libstatslog_express",
-                "libtextclassifier_hash_static",
             ],
         },
         host: {
@@ -318,9 +270,9 @@ cc_test {
     ],
     header_libs: ["libbluetooth_headers"],
     static_libs: [
-        "libbluetooth-types",
         "libbluetooth_gd",
         "libbluetooth_log",
+        "libbluetooth_types",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libosi",
@@ -351,8 +303,8 @@ cc_test {
     ],
     header_libs: ["libbluetooth_headers"],
     static_libs: [
-        "libbluetooth-types",
         "libbluetooth_log",
+        "libbluetooth_types",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libosi",
@@ -392,12 +344,14 @@ cc_test {
         "liblog",
     ],
     static_libs: [
-        "libbluetooth-types",
+        "bluetooth_flags_c_lib_for_test",
+        "libaconfig_storage_read_api_cc",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
+        "libbluetooth_gd_os",
         "libbluetooth_log",
+        "libbluetooth_types",
         "libbt-common",
-        "libbt-platform-protos-lite",
         "libchrome",
         "libevent",
     ],
@@ -425,6 +379,7 @@ cc_test {
     srcs: [
         ":TestCommonMockFunctions",
         ":TestFakeOsi",
+        ":TestMockBtaAg",
         ":TestMockStack",
         "test/btif_hf_client_service_test.cc",
     ],
@@ -435,11 +390,10 @@ cc_test {
         "liblog",
     ],
     static_libs: [
-        "libbluetooth-types",
         "libbluetooth_core_rs_bridge",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
-        "libbt-platform-protos-lite",
+        "libbluetooth_types",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
         "libgmock",
@@ -464,8 +418,8 @@ cc_test {
         ":LibBluetoothSources",
         ":OsiCompatSources",
         ":TestCommonCoreInterface",
-        ":TestCommonMainHandler",
         ":TestCommonMockFunctions",
+        ":TestCommonSyncMainHandler",
         ":TestMockBtaAg",
         ":TestMockBtaAr",
         ":TestMockBtaAv",
@@ -486,10 +440,10 @@ cc_test {
         ":TestMockBtaScn",
         ":TestMockBtaSdp",
         ":TestMockBtaSys",
+        ":TestMockBtaVaps",
         ":TestMockBtaVc",
         ":TestMockBtcore",
         ":TestMockBtu",
-        ":TestMockHci",
         ":TestMockMainShim",
         ":TestMockMainShimDumpsys",
         ":TestMockMainShimEntry",
@@ -498,13 +452,9 @@ cc_test {
         "test/btif_hh_test.cc",
     ],
     header_libs: ["libbluetooth_headers"],
-    aidl: {
-        libs: ["bluetooth_constants"],
-    },
     shared_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
-        "libbinder",
         "libcrypto",
         "libcutils",
         "libfmq",
@@ -518,20 +468,22 @@ cc_test {
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
         "avrcp-target-service",
-        "bluetooth_flags_c_lib",
+        "bluetooth_constants-cpp",
+        "bluetooth_flags_c_lib_for_test",
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
-        "libbluetooth-types",
         "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
+        "libbluetooth_metrics_mock",
+        "libbluetooth_types",
         "libbt-audio-hal-interface",
+        "libbt-btu-main-thread",
         "libbt-common",
         "libbt-jni-thread",
-        "libbt-platform-protos-lite",
         "libbt-sbc-decoder",
         "libbt-sbc-encoder",
         "libbtdevice",
@@ -542,7 +494,6 @@ cc_test {
         "libgmock",
         "libosi",
         "libprotobuf-cpp-lite",
-        "libstatslog_bt",
     ],
     target: {
         android: {
@@ -605,11 +556,11 @@ cc_test {
         ":TestMockBtaScn",
         ":TestMockBtaSdp",
         ":TestMockBtaSys",
+        ":TestMockBtaVaps",
         ":TestMockBtaVc",
         ":TestMockBtcore",
         ":TestMockBtu",
         ":TestMockFrameworks",
-        ":TestMockHci",
         ":TestMockMainShim",
         ":TestMockMainShimDumpsys",
         ":TestMockMainShimEntry",
@@ -620,13 +571,9 @@ cc_test {
         "test/btif_core_test.cc",
     ],
     header_libs: ["libbluetooth_headers"],
-    aidl: {
-        libs: ["bluetooth_constants"],
-    },
     shared_libs: [
         "libaconfig_storage_read_api_cc",
         "libbase",
-        "libbinder",
         "libcrypto",
         "libcutils",
         "libfmq",
@@ -640,21 +587,22 @@ cc_test {
         "android.hardware.bluetooth.audio@2.0",
         "android.hardware.bluetooth.audio@2.1",
         "avrcp-target-service",
-        "bluetooth_flags_c_lib",
+        "bluetooth_constants-cpp",
+        "bluetooth_flags_c_lib_for_test",
         "lib-bt-packets",
         "lib-bt-packets-avrcp",
         "lib-bt-packets-base",
-        "libbluetooth-types",
         "libbluetooth_core_rs_bridge",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_hci_pdl",
         "libbluetooth_log",
+        "libbluetooth_metrics_mock",
+        "libbluetooth_types",
         "libbt-audio-hal-interface",
         "libbt-btu-main-thread",
         "libbt-common",
         "libbt-jni-thread",
-        "libbt-platform-protos-lite",
         "libbt-sbc-decoder",
         "libbt-sbc-encoder",
         "libbtdevice",
@@ -665,7 +613,6 @@ cc_test {
         "libflatbuffers-cpp",
         "libgmock",
         "libprotobuf-cpp-lite",
-        "libstatslog_bt",
     ],
     target: {
         android: {

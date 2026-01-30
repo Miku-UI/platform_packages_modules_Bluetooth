@@ -23,6 +23,7 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
 #include <string.h>
 
 #include "gatt_api.h"
@@ -36,7 +37,6 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_sec_api.h"
 #include "stack/include/btm_status.h"
-#include "types/raw_address.h"
 
 using namespace bluetooth;
 
@@ -277,13 +277,12 @@ static tGATT_SEC_ACTION gatt_determine_sec_act(tGATT_CLCB* p_clcb) {
   bool is_link_key_known = false;
   bool is_key_mitm = false;
   uint8_t key_type;
-  tBTM_BLE_SEC_REQ_ACT sec_act = BTM_BLE_SEC_REQ_ACT_NONE;
 
   if (auth_req == GATT_AUTH_REQ_NONE) {
     return act;
   }
 
-  btm_ble_link_sec_check(p_tcb->peer_bda, auth_req, &sec_act);
+  tBTM_BLE_SEC_REQ_ACT sec_act = btm_ble_link_sec_check(p_tcb->peer_bda, auth_req);
 
   /* if a encryption is pending, need to wait */
   if (sec_act == BTM_BLE_SEC_REQ_ACT_DISCARD && auth_req != GATT_AUTH_REQ_NONE) {

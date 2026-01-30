@@ -25,6 +25,7 @@
 #define LOG_TAG "bluetooth"
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/uuid.h>
 #include <string.h>
 
 #include "gatt_int.h"
@@ -36,7 +37,6 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/l2cdefs.h"
-#include "types/bluetooth/uuid.h"
 
 #define GATT_WRITE_LONG_HDR_SIZE 5 /* 1 opcode + 2 handle + 2 offset */
 #define GATT_READ_CHAR_VALUE_HDL (GATT_READ_CHAR_VALUE | 0x80)
@@ -59,9 +59,9 @@ using bluetooth::eatt::EattExtension;
 /*******************************************************************************
  *                      G L O B A L      G A T T       D A T A                 *
  ******************************************************************************/
-void gatt_send_prepare_write(tGATT_TCB& tcb, tGATT_CLCB* p_clcb);
+static void gatt_send_prepare_write(tGATT_TCB& tcb, tGATT_CLCB* p_clcb);
 
-uint8_t disc_type_to_att_opcode[GATT_DISC_MAX] = {
+static uint8_t disc_type_to_att_opcode[GATT_DISC_MAX] = {
         0,
         GATT_REQ_READ_BY_GRP_TYPE, /*  GATT_DISC_SRVC_ALL = 1, */
         GATT_REQ_FIND_TYPE_VALUE,  /*  GATT_DISC_SRVC_BY_UUID,  */
@@ -70,7 +70,7 @@ uint8_t disc_type_to_att_opcode[GATT_DISC_MAX] = {
         GATT_REQ_FIND_INFO         /*  GATT_DISC_CHAR_DSCPT,    */
 };
 
-uint16_t disc_type_to_uuid[GATT_DISC_MAX] = {
+static uint16_t disc_type_to_uuid[GATT_DISC_MAX] = {
         0,                         /* reserved */
         GATT_UUID_PRI_SERVICE,     /* <service> DISC_SRVC_ALL */
         GATT_UUID_PRI_SERVICE,     /* <service> for DISC_SERVC_BY_UUID */
@@ -292,7 +292,7 @@ void gatt_send_queue_write_cancel(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, tGATT_EXEC
   gatt_cl_msg.exec_write = flag;
   rt = attp_send_cl_msg(tcb, p_clcb, GATT_REQ_EXEC_WRITE, &gatt_cl_msg);
 
-  if (rt != GATT_SUCCESS) {
+  if (rt != GATT_SUCCESS && rt != GATT_CMD_STARTED) {
     gatt_end_operation(p_clcb, rt, NULL);
   }
 }
@@ -337,7 +337,7 @@ static bool gatt_check_write_long_terminate(tGATT_TCB& tcb, tGATT_CLCB* p_clcb,
 }
 
 /** Send prepare write */
-void gatt_send_prepare_write(tGATT_TCB& tcb, tGATT_CLCB* p_clcb) {
+static void gatt_send_prepare_write(tGATT_TCB& tcb, tGATT_CLCB* p_clcb) {
   tGATT_VALUE* p_attr = (tGATT_VALUE*)p_clcb->p_attr_buf;
   uint8_t type = p_clcb->op_subtype;
 
@@ -634,11 +634,9 @@ static void gatt_process_prep_write_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint
 static void gatt_process_notification(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t len,
                                       uint8_t* p_data) {
   tGATT_VALUE value = {};
-  tGATT_REG* p_reg;
   tCONN_ID conn_id;
   tGATT_STATUS encrypt_status = {};
   uint8_t* p = p_data;
-  uint8_t i;
   tGATTC_OPTYPE event =
           (op_code == GATT_HANDLE_VALUE_IND) ? GATTC_OPTYPE_INDICATION : GATTC_OPTYPE_NOTIFICATION;
 
@@ -1132,7 +1130,8 @@ static void gatt_process_mtu_rsp(tGATT_TCB& tcb, tGATT_CLCB* p_clcb, uint16_t le
     log::info("MTU Exchange resulted in: {}", tcb.payload_size);
 
     if (get_btm_client_interface().ble.BTM_SetBleDataLength(
-                tcb.peer_bda, tcb.max_user_mtu + L2CAP_PKT_OVERHEAD) != tBTM_STATUS::BTM_SUCCESS) {
+                tcb.peer_bda, tcb.max_user_mtu + L2CAP_PKT_OVERHEAD,
+                /*is_privileged_client*/ false) != tBTM_STATUS::BTM_SUCCESS) {
       log::warn("Unable to set BLE data length peer:{} mtu:{}", tcb.peer_bda,
                 tcb.max_user_mtu + L2CAP_PKT_OVERHEAD);
     }

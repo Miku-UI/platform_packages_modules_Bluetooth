@@ -49,15 +49,20 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
 
     @Override
     public ParcelFileDescriptor connectSocket(
-            BluetoothDevice device, int type, ParcelUuid uuid, int port, int flag) {
+            BluetoothDevice device,
+            int type,
+            ParcelUuid uuid,
+            int port,
+            int flag,
+            AttributionSource source) {
 
         enforceActiveUser();
 
-        if (!Utils.checkConnectPermissionForPreflight(mService)) {
+        if (!Utils.checkConnectPermissionForPreflight(mService, source)) {
             return null;
         }
 
-        String brEdrAddress = Utils.getBrEdrAddress(device);
+        String brEdrAddress = Utils.getBrEdrAddress(device, mService);
 
         Log.i(
                 TAG,
@@ -76,7 +81,7 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
                 mService.getNative()
                         .connectSocket(
                                 Utils.getBytesFromAddress(
-                                        type == BluetoothSocket.TYPE_L2CAP_LE
+                                        type == BluetoothSocket.TYPE_LE
                                                 ? device.getAddress()
                                                 : brEdrAddress),
                                 type,
@@ -102,11 +107,12 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
             String socketName,
             long hubId,
             long endpointId,
-            int maximumPacketSize) {
+            int maximumPacketSize,
+            AttributionSource source) {
 
         enforceActiveUser();
 
-        if (!Utils.checkConnectPermissionForPreflight(mService)) {
+        if (!Utils.checkConnectPermissionForPreflight(mService, source)) {
             return null;
         }
 
@@ -114,36 +120,27 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
             mService.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
             enforceSocketOffloadSupport(type);
         }
-        String brEdrAddress = Utils.getBrEdrAddress(device);
+        String brEdrAddress = Utils.getBrEdrAddress(device, mService);
 
         Log.i(
                 TAG,
-                "connectSocketWithOffload: device="
-                        + device
-                        + ", type="
-                        + type
-                        + ", uuid="
-                        + uuid
-                        + ", port="
-                        + port
-                        + ", from "
-                        + Utils.getUidPidString()
-                        + ", dataPath="
-                        + dataPath
-                        + ", socketName="
-                        + socketName
-                        + ", hubId="
-                        + hubId
-                        + ", endpointId="
-                        + endpointId
-                        + ", maximumPacketSize="
-                        + maximumPacketSize);
+                "connectSocketWithOffload:"
+                        + (" device=" + device)
+                        + (" type=" + type)
+                        + (" uuid=" + uuid)
+                        + (" port=" + port)
+                        + (" from " + Utils.getUidPidString())
+                        + (" dataPath=" + dataPath)
+                        + (" socketName=" + socketName)
+                        + (" hubId=" + hubId)
+                        + (" endpointId=" + endpointId)
+                        + (" maximumPacketSize=" + maximumPacketSize));
 
         return marshalFd(
                 mService.getNative()
                         .connectSocket(
                                 Utils.getBytesFromAddress(
-                                        type == BluetoothSocket.TYPE_L2CAP_LE
+                                        type == BluetoothSocket.TYPE_LE
                                                 ? device.getAddress()
                                                 : brEdrAddress),
                                 type,
@@ -160,11 +157,16 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
 
     @Override
     public ParcelFileDescriptor createSocketChannel(
-            int type, String serviceName, ParcelUuid uuid, int port, int flag) {
+            int type,
+            String serviceName,
+            ParcelUuid uuid,
+            int port,
+            int flag,
+            AttributionSource source) {
 
         enforceActiveUser();
 
-        if (!Utils.checkConnectPermissionForPreflight(mService)) {
+        if (!Utils.checkConnectPermissionForPreflight(mService, source)) {
             return null;
         }
 
@@ -208,11 +210,12 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
             String socketName,
             long hubId,
             long endpointId,
-            int maximumPacketSize) {
+            int maximumPacketSize,
+            AttributionSource source) {
 
         enforceActiveUser();
 
-        if (!Utils.checkConnectPermissionForPreflight(mService)) {
+        if (!Utils.checkConnectPermissionForPreflight(mService, source)) {
             return null;
         }
 
@@ -261,10 +264,10 @@ class BluetoothSocketManagerBinder extends IBluetoothSocketManager.Stub {
     }
 
     @Override
-    public void requestMaximumTxDataLength(BluetoothDevice device) {
+    public void requestMaximumTxDataLength(BluetoothDevice device, AttributionSource source) {
         enforceActiveUser();
 
-        if (!Utils.checkConnectPermissionForPreflight(mService)) {
+        if (!Utils.checkConnectPermissionForPreflight(mService, source)) {
             return;
         }
 

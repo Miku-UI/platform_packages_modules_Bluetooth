@@ -24,23 +24,23 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/uuid.h>
 
 #include <deque>
 #include <map>
 
 #include "base/functional/callback.h"
 #include "btif/include/btif_storage.h"
+#include "device/include/interop.h"
 #include "eatt/eatt.h"
 #include "gatt_api.h"
 #include "gatt_int.h"
-#include "device/include/interop.h"
 #include "internal_include/bt_target.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
-#include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_ble_addr.h"
-#include "types/bluetooth/uuid.h"
-#include "types/raw_address.h"
+#include "stack/include/btm_sec_api.h"
 
 using bluetooth::Uuid;
 using namespace bluetooth;
@@ -373,7 +373,7 @@ static void gatt_connect_cback(tGATT_IF /* gatt_if */, const RawAddress& bda, tC
   log::verbose("from {} connected: {}, conn_id: 0x{:x}", bda, connected, conn_id);
 
   // if the device is not trusted, remove data when the link is disconnected
-  if (!connected && !btm_sec_is_a_bonded_dev(bda)) {
+  if (!connected && !BTM_IsBonded(bda)) {
     log::info("remove untrusted client status, bda={}", bda);
     btif_storage_remove_gatt_cl_supp_feat(bda);
     btif_storage_remove_gatt_cl_db_hash(bda);
@@ -871,8 +871,7 @@ static bool read_sr_sirk_req(tCONN_ID conn_id,
                  static_cast<int>(conn_id));
       return false;
     }
-  }
-  else{
+  } else {
     if (GATTC_Read(conn_id, GATT_READ_BY_TYPE, &param) != GATT_SUCCESS) {
       log::error("Read GATT Support features GATT_Read Failed, conn_id: {}",
                  static_cast<int>(conn_id));

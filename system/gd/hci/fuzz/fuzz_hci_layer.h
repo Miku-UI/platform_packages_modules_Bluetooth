@@ -18,6 +18,7 @@
 
 #include <fuzzer/FuzzedDataProvider.h>
 
+#include <map>
 #include <vector>
 
 #include "fuzz/helpers.h"
@@ -51,6 +52,9 @@ public:
 
 class FuzzHciLayer : public HciLayer {
 public:
+  FuzzHciLayer(os::Handler* handler);
+  ~FuzzHciLayer();
+
   void TurnOnAutoReply(FuzzedDataProvider* fdp) { auto_reply_fdp = fdp; }
 
   void TurnOffAutoReply() { auto_reply_fdp = nullptr; }
@@ -136,8 +140,12 @@ public:
   hci::LeAdvertisingInterface* GetLeAdvertisingInterface(
           common::ContextualCallback<void(hci::LeMetaEventView)> event_handler) override;
 
+  void ReleaseLeAdvertisingInterface() override {}
+
   hci::LeScanningInterface* GetLeScanningInterface(
           common::ContextualCallback<void(hci::LeMetaEventView)> event_handler) override;
+
+  void ReleaseLeScanningInterface() override {}
 
   hci::LeIsoInterface* GetLeIsoInterface(
           common::ContextualCallback<void(LeMetaEventView)> event_handler) override;
@@ -145,17 +153,14 @@ public:
   hci::DistanceMeasurementInterface* GetDistanceMeasurementInterface(
           common::ContextualCallback<void(hci::LeMetaEventView)> event_handler) override;
 
+  void ReleaseDistanceMeasurementInterface() override {}
+
   void injectArbitrary(FuzzedDataProvider& fdp);
 
-  std::string ToString() const override { return "FuzzHciLayer"; }
-
-  static const ModuleFactory Factory;
+  void SetLeAclDataConsumer(LeAclDataConsumer*) override {}
+  void SetClassicAclDataConsumer(ClassicAclDataConsumer*) override {}
 
 protected:
-  void ListDependencies(ModuleList* /* list */) const override {}
-  void Start() override;
-  void Stop() override;
-
 private:
   void injectAclData(std::vector<uint8_t> data);
 

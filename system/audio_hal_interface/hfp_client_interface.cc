@@ -19,6 +19,7 @@
 #define LOG_TAG "BTAudioClientHfpStub"
 
 #include <bluetooth/log.h>
+#include <bluetooth/metrics/bluetooth_event.h>
 
 #include "aidl/client_interface_aidl.h"
 #include "aidl/hfp_client_interface_aidl.h"
@@ -38,6 +39,8 @@ namespace bluetooth {
 namespace audio {
 namespace hfp {
 
+using namespace metrics;
+
 static aidl::BluetoothAudioSourceClientInterface* get_decode_client_interface() {
   return HfpDecodingTransport::active_hal_interface;
 }
@@ -50,8 +53,8 @@ static HfpDecodingTransport* get_decode_transport_instance() {
   return HfpDecodingTransport::instance_;
 }
 
-static HfpDecodingTransport* get_encode_transport_instance() {
-  return HfpDecodingTransport::instance_;
+static HfpEncodingTransport* get_encode_transport_instance() {
+  return HfpEncodingTransport::instance_;
 }
 
 static PcmConfiguration get_default_pcm_configuration() {
@@ -282,7 +285,7 @@ bool HfpClientInterface::ReleaseDecode(HfpClientInterface::Decode* decode) {
     return false;
   }
 
-  log::info("decode");
+  log::info("");
   if (get_decode_client_interface()) {
     decode->Cleanup();
   }
@@ -451,6 +454,7 @@ bool HfpClientInterface::ReleaseEncode(HfpClientInterface::Encode* encode) {
     return false;
   }
 
+  log::info("");
   if (get_encode_client_interface()) {
     encode->Cleanup();
   }
@@ -501,6 +505,7 @@ void HfpClientInterface::Offload::StopSession() {
   log::info("offload");
   get_encode_client_interface()->EndSession();
   if (get_encode_transport_instance()) {
+    get_encode_transport_instance()->SuspendRequest();
     get_encode_transport_instance()->ResetPendingCmd();
     get_encode_transport_instance()->ResetPresentationPosition();
   }
@@ -532,6 +537,7 @@ void HfpClientInterface::Offload::ConfirmStreamingRequest() {
       aidl::hfp::HfpEncodingTransport::offloading_hal_interface->StreamStarted(
               aidl::BluetoothAudioCtrlAck::SUCCESS_FINISHED);
       instance->ResetPendingCmd();
+      LogMetricHfpStreamStarted(bta_ag_get_active_device());
       return;
     case aidl::hfp::HFP_CTRL_CMD_NONE:
       log::warn("no pending start stream request");
@@ -616,6 +622,7 @@ bool HfpClientInterface::ReleaseOffload(HfpClientInterface::Offload* offload) {
     return false;
   }
 
+  log::info("");
   if (get_encode_client_interface()) {
     offload->Cleanup();
   }

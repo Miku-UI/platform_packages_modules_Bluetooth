@@ -19,8 +19,6 @@ package com.android.bluetooth.sap;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
-import static com.android.bluetooth.TestUtils.MockitoRule;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -29,8 +27,10 @@ import static org.mockito.Mockito.when;
 import android.bluetooth.BluetoothDevice;
 import android.content.AttributionSource;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
+
+import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -45,16 +45,15 @@ public class SapServiceBinderTest {
 
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
+    @Mock private AttributionSource mAttributionSource;
     @Mock private SapService mService;
 
-    private AttributionSource mAttributionSource;
     private SapServiceBinder mBinder;
 
     @Before
     public void setUp() throws Exception {
         when(mService.isAvailable()).thenReturn(true);
         mBinder = new SapServiceBinder(mService);
-        mAttributionSource = new AttributionSource.Builder(1).build();
     }
 
     @Test

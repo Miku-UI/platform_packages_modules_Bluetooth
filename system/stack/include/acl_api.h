@@ -15,6 +15,11 @@
 
 #pragma once
 
+#include <bluetooth/types/address.h>
+#include <bluetooth/types/ble_address_with_type.h>
+#include <bluetooth/types/bt_transport.h>
+#include <bluetooth/types/hci_role.h>
+
 #include <cstdint>
 
 #include "stack/acl/acl.h"
@@ -22,10 +27,6 @@
 #include "stack/include/btm_api_types.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
-#include "types/ble_address_with_type.h"
-#include "types/bt_transport.h"
-#include "types/hci_role.h"
-#include "types/raw_address.h"
 
 // Note: From stack/include/btm_api.h
 
@@ -92,7 +93,8 @@ bool BTM_IsAclConnectionUpAndHandleValid(const RawAddress& remote_bda, tBT_TRANS
  *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if no active link with bd addr specified
  *
  ******************************************************************************/
-tBTM_STATUS BTM_GetRole(const RawAddress& remote_bd_addr, tHCI_ROLE* p_role);
+tBTM_STATUS BTM_GetRole(const RawAddress& remote_bd_addr, tBT_TRANSPORT transport,
+                        tHCI_ROLE* p_role);
 
 /*******************************************************************************
  *
@@ -128,43 +130,6 @@ tBTM_STATUS BTM_SwitchRoleToCentral(const RawAddress& remote_bd_addr);
  *
  ******************************************************************************/
 tBTM_STATUS BTM_ReadRSSI(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb);
-
-/*******************************************************************************
- *
- * Function         BTM_ReadFailedContactCounter
- *
- * Description      This function is called to read the failed contact counter.
- *                  The result is returned in the callback.
- *                  (tBTM_FAILED_CONTACT_COUNTER_RESULT)
- *
- * Returns          tBTM_STATUS::BTM_CMD_STARTED if command issued to controller.
- *                  tBTM_STATUS::BTM_NO_RESOURCES if memory couldn't be allocated to issue
- *                                   the command
- *                  BTM_UNKNOWN_ADDR if no active link with bd addr specified
- *                  tBTM_STATUS::BTM_BUSY if command is already in progress
- *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if no active link with bd addr specified
- *
- ******************************************************************************/
-tBTM_STATUS BTM_ReadFailedContactCounter(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb);
-
-/*******************************************************************************
- *
- * Function         BTM_ReadTxPower
- *
- * Description      This function is called to read the current connection
- *                  TX power of the connection. The TX power level results
- *                  are returned in the callback.
- *                  (tBTM_RSSI_RESULT)
- *
- * Returns          tBTM_STATUS::BTM_CMD_STARTED if command issued to controller.
- *                  tBTM_STATUS::BTM_NO_RESOURCES if memory couldn't be allocated to issue
- *                                   the command
- *                  tBTM_STATUS::BTM_UNKNOWN_ADDR if no active link with bd addr specified
- *                  tBTM_STATUS::BTM_BUSY if command is already in progress
- *
- ******************************************************************************/
-tBTM_STATUS BTM_ReadTxPower(const RawAddress& remote_bda, tBT_TRANSPORT transport,
-                            tBTM_CMPL_CB* p_cb);
 
 /*******************************************************************************
  *
@@ -270,10 +235,9 @@ void btm_acl_notif_conn_collision(const RawAddress& bda);
  ******************************************************************************/
 bool BTM_ReadPowerMode(const RawAddress& remote_bda, tBTM_PM_MODE* p_mode);
 
-void btm_acl_created(const RawAddress& bda, uint16_t hci_handle, tHCI_ROLE link_role,
-                     tBT_TRANSPORT transport);
+void btm_acl_created(const tAclLinkSpec& link_spec, uint16_t hci_handle, tHCI_ROLE link_role);
 
-void btm_acl_create_failed(const RawAddress& bda, tBT_TRANSPORT transport, tHCI_STATUS reason);
+void btm_acl_create_failed(const tAclLinkSpec& link_spec, tHCI_STATUS reason);
 
 void btm_acl_removed(uint16_t handle);
 
