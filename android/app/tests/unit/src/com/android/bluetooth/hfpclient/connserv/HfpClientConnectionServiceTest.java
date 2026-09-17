@@ -27,16 +27,12 @@ import static com.android.bluetooth.TestUtils.mockGetSystemService;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothDevice;
 import android.content.ComponentName;
-import android.content.res.Resources;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.ParcelUuid;
@@ -49,10 +45,7 @@ import android.telecom.TelecomManager;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
 
-import com.android.bluetooth.R;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.RemoteDevices;
-import com.android.bluetooth.pbapclient.PbapClientService;
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.tests.bluetooth.StaticMockitoRule;
 
@@ -73,11 +66,8 @@ public class HfpClientConnectionServiceTest {
     @Rule public final StaticMockitoRule mMockitoRule = new StaticMockitoRule(AdapterService.class);
 
     @Mock private AdapterService mAdapterService;
-    @Mock private PbapClientService mPbapClientService;
-    @Mock private RemoteDevices mRemoteDevices;
     @Mock private HeadsetClientService mHeadsetClientService;
     @Mock private TelecomManager mTelecomManager;
-    @Mock private Resources mResources;
 
     private static final String TEST_NUMBER = "000-111-2222";
 
@@ -87,20 +77,12 @@ public class HfpClientConnectionServiceTest {
 
     @Before
     public void setUp() {
-        doAnswer(
-                        invocation -> {
-                            String address = invocation.getArgument(0);
-                            return getRealDevice(address);
-                        })
-                .when(mAdapterService)
-                .getRemoteDevice(anyString());
-        doReturn(mRemoteDevices).when(mAdapterService).getRemoteDevices();
+        // Add HFP HF service so Service Interface can find our mock
         ExtendedMockito.doReturn(mAdapterService)
                 .when(() -> AdapterService.deprecatedGetAdapterService());
         doReturn(Optional.of(mHeadsetClientService))
                 .when(mAdapterService)
                 .getHeadsetClientService();
-        doReturn(Optional.of(mPbapClientService)).when(mAdapterService).getPbapClientService();
 
         // Spy the connection service under test so we can mock some of the system services and keep
         // them from impacting the actual system. Note: Another way to do this would be to extend
@@ -114,10 +96,6 @@ public class HfpClientConnectionServiceTest {
         doReturn(mHfpClientConnectionService)
                 .when(mHfpClientConnectionService)
                 .getApplicationContext();
-        doReturn(mResources).when(mHfpClientConnectionService).getResources();
-        doReturn(true)
-                .when(mResources)
-                .getBoolean(R.bool.hfp_client_connection_service_support_emergency_call);
 
         mockGetSystemService(mHfpClientConnectionService, TelecomManager.class, mTelecomManager);
         doReturn(getPhoneAccount(mDevice)).when(mTelecomManager).getPhoneAccount(any());
@@ -147,7 +125,7 @@ public class HfpClientConnectionServiceTest {
 
     private void setupDeviceConnection(BluetoothDevice device) throws Exception {
         mHfpClientConnectionService.onConnectionStateChanged(
-                mAdapterService, device, STATE_CONNECTED, STATE_CONNECTING);
+                device, STATE_CONNECTED, STATE_CONNECTING);
         HfpClientDeviceBlock block = mHfpClientConnectionService.findBlockForDevice(mDevice);
         assertThat(block).isNotNull();
         assertThat(block.getDevice()).isEqualTo(mDevice);
@@ -155,7 +133,7 @@ public class HfpClientConnectionServiceTest {
 
     @Test
     public void startServiceWithAlreadyConnectedDevice_blockIsCreated() throws Exception {
-        when(mHeadsetClientService.getConnectedDevices()).thenReturn(List.of(mDevice));
+        doReturn(List.of(mDevice)).when(mHeadsetClientService).getConnectedDevices();
         createService();
         HfpClientDeviceBlock block = mHfpClientConnectionService.findBlockForDevice(mDevice);
         assertThat(block).isNotNull();
@@ -173,7 +151,7 @@ public class HfpClientConnectionServiceTest {
         createService();
         setupDeviceConnection(mDevice);
         HfpClientConnectionService.onConnectionStateChanged(
-                mAdapterService, mDevice, STATE_DISCONNECTED, STATE_CONNECTED);
+                mDevice, STATE_DISCONNECTED, STATE_CONNECTED);
         assertThat(mHfpClientConnectionService.findBlockForDevice(mDevice)).isNull();
     }
 
@@ -410,5 +388,23 @@ public class HfpClientConnectionServiceTest {
                         getPhoneAccountHandle(mDevice), connectionRequest);
 
         assertThat(connection).isNull();
+    }
+
+    @Test
+    public void onConference_noDeviceBlock_doesNotCrash() {
+        // Verifies that onConference does not crash when there is no device block.
+        createService();
+        // Note: No device is connected, so findBlockForDevice will return null.
+
+        // Create two mock connections for the same device that is not connected.
+        HfpClientConnection connection1 = mock(HfpClientConnection.class);
+        HfpClientConnection connection2 = mock(HfpClientConnection.class);
+        doReturn(mDevice).when(connection1).getDevice();
+        doReturn(mDevice).when(connection2).getDevice();
+
+        // Trigger the conference call. This should not crash, even without a device block.
+        mHfpClientConnectionService.onConference(connection1, connection2);
+
+        // No assertions needed, the test passes if no exception is thrown.
     }
 }

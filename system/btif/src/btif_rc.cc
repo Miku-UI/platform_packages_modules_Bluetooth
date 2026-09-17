@@ -45,206 +45,25 @@
 #include "btif/avrcp/avrcp_service.h"
 #include "btif_av.h"
 #include "btif_common.h"
+#include "btif_status.h"
 #include "btif_util.h"
-#include "device/include/interop.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/list.h"
-#include "osi/include/osi.h"
 #include "osi/include/properties.h"
 #include "stack/include/avrc_api.h"
 #include "stack/include/avrc_defs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 
-#define RC_INVALID_TRACK_ID (0xFFFFFFFFFFFFFFFFULL)
-
-/*****************************************************************************
- *  Constants & Macros
- *****************************************************************************/
-
-/* cod value for Headsets */
-#define COD_AV_HEADSETS 0x0404
-/* for AVRC 1.4 need to change this */
-#define MAX_RC_NOTIFICATIONS AVRC_EVT_VOLUME_CHANGE
-
-#define IDX_GET_PLAY_STATUS_RSP 0
-#define IDX_LIST_APP_ATTR_RSP 1
-#define IDX_LIST_APP_VALUE_RSP 2
-#define IDX_GET_CURR_APP_VAL_RSP 3
-#define IDX_SET_APP_VAL_RSP 4
-#define IDX_GET_APP_ATTR_TXT_RSP 5
-#define IDX_GET_APP_VAL_TXT_RSP 6
-#define IDX_GET_ELEMENT_ATTR_RSP 7
-#define IDX_SET_ADDR_PLAYER_RSP 8
-#define IDX_SET_BROWSED_PLAYER_RSP 9
-#define IDX_GET_FOLDER_ITEMS_RSP 10
-#define IDX_CHG_PATH_RSP 11
-#define IDX_GET_ITEM_ATTR_RSP 12
-#define IDX_PLAY_ITEM_RSP 13
-#define IDX_GET_TOTAL_NUM_OF_ITEMS_RSP 14
-#define IDX_SEARCH_RSP 15
-#define IDX_ADD_TO_NOW_PLAYING_RSP 16
-
-/* Update MAX value whenever IDX will be changed */
-#define MAX_CMD_QUEUE_LEN 17
-
-#define MAX_VOLUME 128
-#define MAX_LABEL 16
-#define MAX_TRANSACTIONS_PER_SESSION 16
-#define PLAY_STATUS_PLAYING 1
-#define BTIF_RC_NUM_CONN BT_RC_NUM_APP
-
-#define CHECK_RC_CONNECTED(p_dev)                    \
-  do {                                               \
-    if ((p_dev) == NULL || !(p_dev)->rc_connected) { \
-      log::warn("called when RC is not connected");  \
-      return BT_STATUS_NOT_READY;                    \
-    }                                                \
-  } while (0)
-
-#define CHECK_BR_CONNECTED(p_dev)                    \
-  do {                                               \
-    if ((p_dev) == NULL || !(p_dev)->br_connected) { \
-      log::warn("called when BR is not connected");  \
-      return BT_STATUS_NOT_READY;                    \
-    }                                                \
-  } while (0)
-
 using namespace bluetooth;
-
-/*****************************************************************************
- *  Local type definitions
- *****************************************************************************/
-typedef struct {
-  uint8_t bNotify;
-  uint8_t label;
-} btif_rc_reg_notifications_t;
-
-typedef struct {
-  uint8_t label;
-  uint8_t ctype;
-  bool is_rsp_pending;
-} btif_rc_cmd_ctxt_t;
-
-/* 2 second timeout to get command response, then we free label */
-#define BTIF_RC_TIMEOUT_MS (2 * 1000)
-
-typedef enum { eNOT_REGISTERED, eREGISTERED, eINTERIM } btif_rc_nfn_reg_status_t;
-
-typedef struct {
-  uint8_t event_id;
-  uint8_t label;
-  btif_rc_nfn_reg_status_t status;
-} btif_rc_supported_event_t;
-
-#define BTIF_RC_STS_TIMEOUT 0xFE
-
-typedef struct {
-  bool query_started;
-  uint8_t num_attrs;
-  uint8_t num_ext_attrs;
-
-  uint8_t attr_index;
-  uint8_t ext_attr_index;
-  uint8_t ext_val_index;
-  btrc_player_app_attr_t attrs[AVRC_MAX_APP_ATTR_SIZE];
-  btrc_player_app_ext_attr_t ext_attrs[AVRC_MAX_APP_ATTR_SIZE];
-} btif_rc_player_app_settings_t;
-
-// The context associated with a passthru command
-typedef struct {
-  uint8_t rc_id;
-  uint8_t key_state;
-  uint8_t custom_id;
-} rc_passthru_context_t;
-
-// The context associated with a vendor command
-typedef struct {
-  uint8_t pdu_id;
-  uint8_t event_id;
-} rc_vendor_context_t;
-
-// The context associated with a browsing command
-typedef struct {
-  uint8_t pdu_id;
-} rc_browse_context_t;
-
-typedef union {
-  rc_vendor_context_t vendor;
-  rc_browse_context_t browse;
-  rc_passthru_context_t passthru;
-} rc_command_context_t;
-
-// The context associated with any command transaction requiring a label.
-// The opcode determines how to determine the data in the union. Context is
-// used to track which requests have which labels
-typedef struct {
-  RawAddress rc_addr;
-  uint8_t label;
-  uint8_t opcode;
-  rc_command_context_t command;
-} rc_transaction_context_t;
-typedef struct {
-  bool in_use;
-  uint8_t label;
-  rc_transaction_context_t context;
-  alarm_t* timer;
-} rc_transaction_t;
-
-typedef struct {
-  std::recursive_mutex label_lock;
-  rc_transaction_t transaction[MAX_TRANSACTIONS_PER_SESSION];
-} rc_transaction_set_t;
-
-/* TODO : Merge btif_rc_reg_notifications_t and btif_rc_cmd_ctxt_t to a single
- * struct */
-typedef struct {
-  bool rc_connected;
-  bool br_connected;  // Browsing channel.
-  uint8_t rc_handle;
-  tBTA_AV_FEAT rc_features;
-  uint16_t rc_cover_art_psm;  // AVRCP-BIP psm
-  btrc_connection_state_t rc_state;
-  RawAddress rc_addr;
-  btif_rc_cmd_ctxt_t rc_pdu_info[MAX_CMD_QUEUE_LEN];
-  btif_rc_reg_notifications_t rc_notif[MAX_RC_NOTIFICATIONS];
-  unsigned int rc_volume;
-  uint8_t rc_vol_label;
-  list_t* rc_supported_event_list;
-  btif_rc_player_app_settings_t rc_app_settings;
-  alarm_t* rc_play_status_timer;
-  bool rc_features_processed;
-  uint64_t rc_playing_uid;
-  bool rc_procedure_complete;
-  rc_transaction_set_t transaction_set;
-  tBTA_AV_FEAT peer_ct_features;
-  tBTA_AV_FEAT peer_tg_features;
-  uint8_t launch_cmd_pending; /* true: getcap/regvolume */
-} btif_rc_device_cb_t;
-
-#define RC_PENDING_ACT_GET_CAP (1 << 0)
-#define RC_PENDING_ACT_REG_VOL (1 << 1)
-#define RC_PENDING_ACT_REPORT_CONN (1 << 2)
-
-typedef struct {
-  std::mutex lock;
-  btif_rc_device_cb_t rc_multi_cb[BTIF_RC_NUM_CONN];
-} rc_cb_t;
-
-typedef struct {
-  uint8_t handle;
-} btif_rc_handle_t;
-
-/* Response status code - Unknown Error - this is changed to "reserved" */
-#define BTIF_STS_GEN_ERROR 0x06
 
 static void initialize_device(btif_rc_device_cb_t* p_dev);
 static void send_reject_response(uint8_t rc_handle, uint8_t label, uint8_t pdu, uint8_t status,
                                  uint8_t opcode);
 static void init_all_transactions(btif_rc_device_cb_t* p_dev);
-static bt_status_t get_transaction(btif_rc_device_cb_t* p_dev, rc_transaction_context_t& context,
-                                   rc_transaction_t** ptransaction);
+static BtStatus get_transaction(btif_rc_device_cb_t* p_dev, rc_transaction_context_t& context,
+                                rc_transaction_t** ptransaction);
 static void start_transaction_timer(btif_rc_device_cb_t* p_dev, uint8_t label, uint64_t timeout_ms);
 static void btif_rc_transaction_timer_timeout(void* data);
 static void release_transaction(btif_rc_device_cb_t* p_dev, uint8_t label);
@@ -275,35 +94,50 @@ static void cleanup_btrc_folder_items(btrc_folder_items_t* btrc_items, uint8_t i
 static void handle_get_metadata_attr_response(tBTA_AV_META_MSG* pmeta_msg,
                                               tAVRC_GET_ATTRS_RSP* p_rsp);
 static void handle_set_app_attr_val_response(tBTA_AV_META_MSG* pmeta_msg, tAVRC_RSP* p_rsp);
-static bt_status_t get_play_status_cmd(btif_rc_device_cb_t* p_dev);
-static bt_status_t get_player_app_setting_attr_text_cmd(uint8_t* attrs, uint8_t num_attrs,
-                                                        btif_rc_device_cb_t* p_dev);
-static bt_status_t get_player_app_setting_value_text_cmd(uint8_t* vals, uint8_t num_vals,
-                                                         btif_rc_device_cb_t* p_dev);
-static bt_status_t register_notification_cmd(uint8_t event_id, uint32_t event_value,
-                                             btif_rc_device_cb_t* p_dev);
-static bt_status_t get_metadata_attribute_cmd(uint8_t num_attribute, const uint32_t* p_attr_ids,
-                                              btif_rc_device_cb_t* p_dev);
-static bt_status_t get_element_attribute_cmd(uint8_t num_attribute, const uint32_t* p_attr_ids,
-                                             btif_rc_device_cb_t* p_dev);
-static bt_status_t get_item_attribute_cmd(uint64_t uid, int scope, uint8_t num_attribute,
-                                          const uint32_t* p_attr_ids, btif_rc_device_cb_t* p_dev);
-static bt_status_t getcapabilities_cmd(uint8_t cap_id, btif_rc_device_cb_t* p_dev);
-static bt_status_t list_player_app_setting_attrib_cmd(btif_rc_device_cb_t* p_dev);
-static bt_status_t list_player_app_setting_value_cmd(uint8_t attrib_id, btif_rc_device_cb_t* p_dev);
-static bt_status_t get_player_app_setting_cmd(uint8_t num_attrib, uint8_t* attrib_ids,
-                                              btif_rc_device_cb_t* p_dev);
+static BtStatus get_play_status_cmd(btif_rc_device_cb_t* p_dev);
+static BtStatus get_player_app_setting_attr_text_cmd(uint8_t* attrs, uint8_t num_attrs,
+                                                     btif_rc_device_cb_t* p_dev);
+static BtStatus get_player_app_setting_value_text_cmd(uint8_t* vals, uint8_t num_vals,
+                                                      btif_rc_device_cb_t* p_dev);
+static BtStatus register_notification_cmd(uint8_t event_id, uint32_t event_value,
+                                          btif_rc_device_cb_t* p_dev);
+static BtStatus get_metadata_attribute_cmd(uint8_t num_attribute, const uint32_t* p_attr_ids,
+                                           btif_rc_device_cb_t* p_dev);
+static BtStatus get_element_attribute_cmd(uint8_t num_attribute, const uint32_t* p_attr_ids,
+                                          btif_rc_device_cb_t* p_dev);
+static BtStatus get_item_attribute_cmd(uint64_t uid, int scope, uint8_t num_attribute,
+                                       const uint32_t* p_attr_ids, btif_rc_device_cb_t* p_dev);
+static BtStatus getcapabilities_cmd(uint8_t cap_id, btif_rc_device_cb_t* p_dev);
+static BtStatus list_player_app_setting_attrib_cmd(btif_rc_device_cb_t* p_dev);
+static BtStatus list_player_app_setting_value_cmd(uint8_t attrib_id, btif_rc_device_cb_t* p_dev);
+static BtStatus get_player_app_setting_cmd(uint8_t num_attrib, uint8_t* attrib_ids,
+                                           btif_rc_device_cb_t* p_dev);
 static void get_folder_item_type_media(const tAVRC_ITEM* avrc_item, btrc_folder_items_t* btrc_item);
 static void get_folder_item_type_folder(const tAVRC_ITEM* avrc_item,
                                         btrc_folder_items_t* btrc_item);
 static void get_folder_item_type_player(const tAVRC_ITEM* avrc_item,
                                         btrc_folder_items_t* btrc_item);
-static bt_status_t get_folder_items_cmd(const RawAddress& bd_addr, uint8_t scope,
-                                        uint32_t start_item, uint32_t end_item);
+static BtStatus get_folder_items_cmd(const RawAddress& bd_addr, uint8_t scope, uint32_t start_item,
+                                     uint32_t end_item);
+static std::string dump_peer_features(const uint16_t feats);
+
+#define CTRL_HAL_CBACK(P_CBACK, ...)                                          \
+  do {                                                                        \
+    if (bt_rc_ctrl_callbacks) {                                               \
+      do_in_jni_thread(base::BindOnce(P_CBACK, __VA_ARGS__));                 \
+    } else {                                                                  \
+      bluetooth::log::error("bt_rc_ctrl_callbacks is null for {}", #P_CBACK); \
+    }                                                                         \
+  } while (0)
 
 /*****************************************************************************
  *  Static variables
  *****************************************************************************/
+constexpr btrc_connection_state_t kRcIsConnected = BTRC_CONNECTION_STATE_CONNECTED;
+constexpr btrc_connection_state_t kRcIsDisconnected = BTRC_CONNECTION_STATE_DISCONNECTED;
+constexpr btrc_connection_state_t kBrowseIsConnected = BTRC_CONNECTION_STATE_CONNECTED;
+constexpr btrc_connection_state_t kBrowseIsDisconnected = BTRC_CONNECTION_STATE_DISCONNECTED;
+
 static rc_cb_t btif_rc_cb;
 static btrc_ctrl_callbacks_t* bt_rc_ctrl_callbacks = NULL;
 
@@ -360,37 +194,36 @@ static btif_rc_device_cb_t* alloc_device() {
   return NULL;
 }
 
+static void dealloc_device(btif_rc_device_cb_t* p_dev) {
+  CHECK(p_dev != nullptr);
+  p_dev->rc_handle = 0;
+  p_dev->rc_features = 0;
+  p_dev->rc_state = BTRC_CONNECTION_STATE_DISCONNECTED;
+  p_dev->br_state = BTRC_CONNECTION_STATE_DISCONNECTED;
+  p_dev->rc_addr = RawAddress::kEmpty;
+  p_dev->rc_volume = MAX_VOLUME;
+  p_dev->rc_vol_label = MAX_LABEL;
+  p_dev->peer_ct_features = 0;
+  p_dev->peer_tg_features = 0;
+  p_dev->launch_cmd_pending = 0;
+}
+
 static void initialize_device(btif_rc_device_cb_t* p_dev) {
   if (p_dev == nullptr) {
     return;
   }
 
-  p_dev->rc_connected = false;
-  p_dev->br_connected = false;
-  p_dev->rc_handle = 0;
-  p_dev->rc_features = 0;
+  dealloc_device(p_dev);
   p_dev->rc_cover_art_psm = 0;
-  p_dev->rc_state = BTRC_CONNECTION_STATE_DISCONNECTED;
-  p_dev->rc_addr = RawAddress::kEmpty;
-  for (int i = 0; i < MAX_CMD_QUEUE_LEN; ++i) {
-    p_dev->rc_pdu_info[i].ctype = 0;
-    p_dev->rc_pdu_info[i].label = 0;
-    p_dev->rc_pdu_info[i].is_rsp_pending = false;
-  }
   if (p_dev->rc_supported_event_list != nullptr) {
     list_clear(p_dev->rc_supported_event_list);
   }
   p_dev->rc_supported_event_list = nullptr;
-  p_dev->rc_volume = MAX_VOLUME;
-  p_dev->rc_vol_label = MAX_LABEL;
   memset(&p_dev->rc_app_settings, 0, sizeof(btif_rc_player_app_settings_t));
   p_dev->rc_play_status_timer = nullptr;
   p_dev->rc_features_processed = false;
   p_dev->rc_playing_uid = 0;
   p_dev->rc_procedure_complete = false;
-  p_dev->peer_ct_features = 0;
-  p_dev->peer_tg_features = 0;
-  p_dev->launch_cmd_pending = 0;
 
   // Reset the transaction set for this device. If this initialize_device() call
   // is made due to a disconnect event, this cancels any pending timers too.
@@ -404,7 +237,6 @@ static btif_rc_device_cb_t* get_connected_device(int index) {
     return NULL;
   }
   if (btif_rc_cb.rc_multi_cb[index].rc_state != BTRC_CONNECTION_STATE_CONNECTED) {
-    log::error("returning NULL");
     return NULL;
   }
   return &btif_rc_cb.rc_multi_cb[index];
@@ -502,11 +334,8 @@ static void handle_rc_ctrl_features_all(btif_rc_device_cb_t* p_dev) {
     rc_features |= BTRC_FEAT_COVER_ARTWORK;
   }
 
-  if (bt_rc_ctrl_callbacks != NULL) {
-    log::verbose("Update rc features to CTRL: {}", rc_features);
-    do_in_jni_thread(
-            base::BindOnce(bt_rc_ctrl_callbacks->getrcfeatures_cb, p_dev->rc_addr, rc_features));
-  }
+  log::verbose("Update rc features to CTRL: {}", rc_features);
+  CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->getrcfeatures_cb, p_dev->rc_addr, rc_features);
 }
 
 static void handle_rc_ctrl_features(btif_rc_device_cb_t* p_dev) {
@@ -552,52 +381,48 @@ static void handle_rc_ctrl_features(btif_rc_device_cb_t* p_dev) {
   }
 
   log::verbose("Update rc features to CTRL: {}", rc_features);
-  do_in_jni_thread(
-          base::BindOnce(bt_rc_ctrl_callbacks->getrcfeatures_cb, p_dev->rc_addr, rc_features));
+  CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->getrcfeatures_cb, p_dev->rc_addr, rc_features);
 }
 void btif_rc_check_pending_cmd(const RawAddress& peer_address) {
-  btif_rc_device_cb_t* p_dev = NULL;
-  p_dev = btif_rc_get_device_by_bda(peer_address);
-  if (p_dev == NULL) {
-    log::error("p_dev NULL");
+  btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(peer_address);
+  if (p_dev == nullptr) {
+    log::error("p_dev NULL for addr: {}", peer_address);
     return;
   }
 
   log::verbose(
-          "launch_cmd_pending={}, rc_connected={}, peer_ct_features=0x{:x}, "
-          "peer_tg_features=0x{:x}",
-          p_dev->launch_cmd_pending, p_dev->rc_connected, p_dev->peer_ct_features,
+          "launch_cmd_pending={}, rc_state={}, peer_ct_features=0x{:x}, peer_tg_features=0x{:x}",
+          p_dev->launch_cmd_pending, p_dev->rc_state, p_dev->peer_ct_features,
           p_dev->peer_tg_features);
-  if (p_dev->launch_cmd_pending && p_dev->rc_connected) {
-    if ((p_dev->launch_cmd_pending & RC_PENDING_ACT_REG_VOL) &&
-        btif_av_peer_is_sink(p_dev->rc_addr)) {
-      if (bluetooth::avrcp::AvrcpService::Get() != nullptr) {
-        bluetooth::avrcp::AvrcpService::Get()->RegisterVolChanged(peer_address);
-      }
-    }
-    if ((p_dev->launch_cmd_pending & RC_PENDING_ACT_GET_CAP) &&
-        btif_av_peer_is_source(p_dev->rc_addr)) {
-      p_dev->rc_features = p_dev->peer_tg_features;
-      getcapabilities_cmd(AVRC_CAP_COMPANY_ID, p_dev);
-    }
-    if ((p_dev->launch_cmd_pending & RC_PENDING_ACT_REPORT_CONN) &&
-        btif_av_peer_is_source(p_dev->rc_addr)) {
-      if (bt_rc_ctrl_callbacks != NULL) {
-        do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->connection_state_cb, true, false,
-                                        p_dev->rc_addr));
-      }
+
+  uint8_t pending_cmds = p_dev->launch_cmd_pending;
+  p_dev->launch_cmd_pending = 0;
+
+  if (p_dev->rc_state != BTRC_CONNECTION_STATE_CONNECTED || pending_cmds == 0) {
+    return;
+  }
+
+  if ((pending_cmds & RC_PENDING_ACT_REG_VOL) && btif_av_peer_is_sink(peer_address)) {
+    if (bluetooth::avrcp::AvrcpService::Get() != nullptr) {
+      bluetooth::avrcp::AvrcpService::Get()->RegisterVolChanged(peer_address);
     }
   }
-  p_dev->launch_cmd_pending = 0;
+
+  if ((pending_cmds & RC_PENDING_ACT_GET_CAP) && btif_av_peer_is_source(peer_address)) {
+    p_dev->rc_features = p_dev->peer_tg_features;
+    getcapabilities_cmd(AVRC_CAP_COMPANY_ID, p_dev);
+  }
+
+  if ((pending_cmds & RC_PENDING_ACT_REPORT_CONN) && btif_av_peer_is_source(peer_address)) {
+    CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->connection_state_cb, peer_address, kRcIsConnected,
+                   kBrowseIsDisconnected);
+  }
 }
 
 static void handle_rc_ctrl_psm(btif_rc_device_cb_t* p_dev) {
   uint16_t cover_art_psm = p_dev->rc_cover_art_psm;
   log::verbose("Update rc cover art psm to CTRL: {}", cover_art_psm);
-  if (bt_rc_ctrl_callbacks != NULL) {
-    do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->get_cover_art_psm_cb, p_dev->rc_addr,
-                                    cover_art_psm));
-  }
+  CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->get_cover_art_psm_cb, p_dev->rc_addr, cover_art_psm);
 }
 
 /***************************************************************************
@@ -621,24 +446,18 @@ static void handle_rc_browse_connect(tBTA_AV_RC_BROWSE_OPEN* p_rc_br_open) {
    * to a browse when not connected to the control channel over AVRCP is
    * probably not preferred anyways. */
   if (p_rc_br_open->status == BTA_AV_SUCCESS) {
-    p_dev->br_connected = true;
+    p_dev->br_state = BTRC_CONNECTION_STATE_CONNECTED;
     if (btif_av_src_sink_coexist_enabled()) {
       if (btif_av_peer_is_connected_source(p_dev->rc_addr)) {
-        if (bt_rc_ctrl_callbacks != NULL) {
-          do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->connection_state_cb, true, true,
-                                          p_dev->rc_addr));
-        }
+        CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->connection_state_cb, p_dev->rc_addr, kRcIsConnected,
+                       kBrowseIsConnected);
       } else {
         p_dev->launch_cmd_pending |= RC_PENDING_ACT_REPORT_CONN;
         log::verbose("pending rc browse connection event");
       }
     } else {
-      if (bt_rc_ctrl_callbacks != NULL) {
-        do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->connection_state_cb, true, true,
-                                        p_dev->rc_addr));
-      } else {
-        log::warn("bt_rc_ctrl_callbacks is null.");
-      }
+      CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->connection_state_cb, p_dev->rc_addr, kRcIsConnected,
+                     kBrowseIsConnected);
     }
   }
 }
@@ -652,7 +471,7 @@ static void handle_rc_browse_connect(tBTA_AV_RC_BROWSE_OPEN* p_rc_br_open) {
  *
  ***************************************************************************/
 static void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
-  log::verbose("rc_handle: {}", p_rc_open->rc_handle);
+  log::info("handle_rc_connect(handle={}, addr={})", p_rc_open->rc_handle, p_rc_open->peer_addr);
 
   btif_rc_device_cb_t* p_dev = alloc_device();
   if (p_dev == NULL) {
@@ -662,22 +481,13 @@ static void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
 
   if (!(p_rc_open->status == BTA_AV_SUCCESS)) {
     log::error("Connect failed with error code: {}", p_rc_open->status);
-    p_dev->rc_connected = false;
+    dealloc_device(p_dev);
     BTA_AvCloseRc(p_rc_open->rc_handle);
-    p_dev->rc_handle = 0;
-    p_dev->rc_state = BTRC_CONNECTION_STATE_DISCONNECTED;
-    p_dev->rc_features = 0;
-    p_dev->peer_ct_features = 0;
-    p_dev->peer_tg_features = 0;
-    p_dev->launch_cmd_pending = 0;
-    p_dev->rc_vol_label = MAX_LABEL;
-    p_dev->rc_volume = MAX_VOLUME;
-    p_dev->rc_addr = RawAddress::kEmpty;
     return;
   }
 
   // check if already some RC is connected
-  if (p_dev->rc_connected) {
+  if (p_dev->rc_state == BTRC_CONNECTION_STATE_CONNECTED) {
     log::error("Got RC OPEN in connected state, Connected RC: {} and Current RC: {}",
                p_dev->rc_handle, p_rc_open->rc_handle);
     if (p_dev->rc_handle != p_rc_open->rc_handle && p_dev->rc_addr != p_rc_open->peer_addr) {
@@ -700,7 +510,6 @@ static void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
           p_rc_open->peer_features, p_dev->rc_features, p_dev->peer_ct_features,
           p_dev->peer_tg_features, p_dev->rc_cover_art_psm);
 
-  p_dev->rc_connected = true;
   p_dev->rc_handle = p_rc_open->rc_handle;
   p_dev->rc_state = BTRC_CONNECTION_STATE_CONNECTED;
 
@@ -711,15 +520,14 @@ static void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
     log::verbose("pending rc connection event");
     return;
   }
-  if (bt_rc_ctrl_callbacks != NULL) {
-    do_in_jni_thread(
-            base::BindOnce(bt_rc_ctrl_callbacks->connection_state_cb, true, false, p_dev->rc_addr));
-    /* report connection state if remote device is AVRCP target */
-    handle_rc_ctrl_features(p_dev);
+  CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->connection_state_cb, p_dev->rc_addr, kRcIsConnected,
+                 kBrowseIsDisconnected);
 
-    /* report psm if remote device is AVRCP target */
-    handle_rc_ctrl_psm(p_dev);
-  }
+  /* report connection state if remote device is AVRCP target */
+  handle_rc_ctrl_features(p_dev);
+
+  /* report psm if remote device is AVRCP target */
+  handle_rc_ctrl_psm(p_dev);
 }
 
 /***************************************************************************
@@ -732,7 +540,8 @@ static void handle_rc_connect(tBTA_AV_RC_OPEN* p_rc_open) {
  ***************************************************************************/
 static void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
   btif_rc_device_cb_t* p_dev = NULL;
-  log::verbose("rc_handle: {}", p_rc_close->rc_handle);
+  log::info("handle_rc_disconnect(handle={}, addr={})", p_rc_close->rc_handle,
+               p_rc_close->peer_addr);
 
   p_dev = btif_rc_get_device_by_handle(p_rc_close->rc_handle);
   if (p_dev == NULL) {
@@ -746,10 +555,8 @@ static void handle_rc_disconnect(tBTA_AV_RC_CLOSE* p_rc_close) {
   }
 
   /* Report connection state if device is AVRCP target */
-  if (bt_rc_ctrl_callbacks != NULL) {
-    do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->connection_state_cb, false, false,
-                                    p_dev->rc_addr));
-  }
+  CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->connection_state_cb, p_dev->rc_addr, kRcIsDisconnected,
+                 kBrowseIsDisconnected);
 
   // We'll re-initialize the device state back to what it looked like before
   // the connection. This will free ongoing transaction labels and clear any
@@ -783,10 +590,8 @@ static void handle_rc_passthrough_rsp(tBTA_AV_REMOTE_RSP* p_remote_rsp) {
   log::verbose("rc_id: {} state: {}", p_remote_rsp->rc_id, status);
 
   release_transaction(p_dev, p_remote_rsp->label);
-  if (bt_rc_ctrl_callbacks != NULL) {
-    do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->passthrough_rsp_cb, p_dev->rc_addr,
-                                    p_remote_rsp->rc_id, p_remote_rsp->key_state));
-  }
+  CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->passthrough_rsp_cb, p_dev->rc_addr, p_remote_rsp->rc_id,
+                 p_remote_rsp->key_state);
 }
 
 /***************************************************************************
@@ -827,8 +632,7 @@ static void handle_rc_vendorunique_rsp(tBTA_AV_REMOTE_RSP* p_remote_rsp) {
     log::verbose("vendor_id: {} status: {}", vendor_id, status);
 
     release_transaction(p_dev, p_remote_rsp->label);
-    do_in_jni_thread(
-            base::BindOnce(bt_rc_ctrl_callbacks->groupnavigation_rsp_cb, vendor_id, key_state));
+    CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->groupnavigation_rsp_cb, vendor_id, key_state);
   } else {
     log::error("Remote does not support AVRCP TG role");
   }
@@ -900,7 +704,7 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV* p_data) {
       p_dev->peer_tg_features = p_data->rc_feat.peer_tg_features;
       p_dev->rc_features = p_data->rc_feat.peer_features;
 
-      if ((p_dev->rc_connected) && (bt_rc_ctrl_callbacks != NULL)) {
+      if ((p_dev->rc_state == BTRC_CONNECTION_STATE_CONNECTED) && (bt_rc_ctrl_callbacks != NULL)) {
         handle_rc_ctrl_features(p_dev);
       }
     } break;
@@ -914,7 +718,7 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV* p_data) {
       }
 
       p_dev->rc_cover_art_psm = p_data->rc_cover_art_psm.cover_art_psm;
-      if ((p_dev->rc_connected) && (bt_rc_ctrl_callbacks != NULL)) {
+      if ((p_dev->rc_state == BTRC_CONNECTION_STATE_CONNECTED) && (bt_rc_ctrl_callbacks != NULL)) {
         handle_rc_ctrl_psm(p_dev);
       }
     } break;
@@ -960,7 +764,8 @@ void btif_rc_handler(tBTA_AV_EVT event, tBTA_AV* p_data) {
 bool btif_rc_is_connected_peer(const RawAddress& peer_addr) {
   for (int idx = 0; idx < BTIF_RC_NUM_CONN; idx++) {
     btif_rc_device_cb_t* p_dev = get_connected_device(idx);
-    if (p_dev != NULL && p_dev->rc_connected && peer_addr == p_dev->rc_addr) {
+    if (p_dev != NULL && p_dev->rc_state == BTRC_CONNECTION_STATE_CONNECTED &&
+        peer_addr == p_dev->rc_addr) {
       return true;
     }
   }
@@ -1023,13 +828,12 @@ static void btif_rc_ctrl_upstreams_rsp_cmd(uint8_t event, tAVRC_COMMAND* pavrc_c
   log::verbose("pdu: {}: handle: 0x{:x}", dump_rc_pdu(pavrc_cmd->pdu), p_dev->rc_handle);
   switch (event) {
     case AVRC_PDU_SET_ABSOLUTE_VOLUME:
-      do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->setabsvol_cmd_cb, p_dev->rc_addr,
-                                      pavrc_cmd->volume.volume, label));
+      CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->setabsvol_cmd_cb, p_dev->rc_addr,
+                     pavrc_cmd->volume.volume, label);
       break;
     case AVRC_PDU_REGISTER_NOTIFICATION:
       if (pavrc_cmd->reg_notif.event_id == AVRC_EVT_VOLUME_CHANGE) {
-        do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->registernotification_absvol_cb,
-                                        p_dev->rc_addr, label));
+        CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->registernotification_absvol_cb, p_dev->rc_addr, label);
       }
       break;
   }
@@ -1045,15 +849,14 @@ static void btif_rc_ctrl_upstreams_rsp_cmd(uint8_t event, tAVRC_COMMAND* pavrc_c
  *
  * Description      Initializes the AVRC interface
  *
- * Returns          bt_status_t
+ * Returns          BtStatus
  *
  ******************************************************************************/
-static bt_status_t init_ctrl(btrc_ctrl_callbacks_t* callbacks) {
+static BtStatus init_ctrl(btrc_ctrl_callbacks_t* callbacks) {
   log::verbose("");
-  bt_status_t result = BT_STATUS_SUCCESS;
 
   if (bt_rc_ctrl_callbacks) {
-    return BT_STATUS_DONE;
+    return BtifStatus(DONE);
   }
 
   bt_rc_ctrl_callbacks = callbacks;
@@ -1062,7 +865,7 @@ static bt_status_t init_ctrl(btrc_ctrl_callbacks_t* callbacks) {
     initialize_device(&btif_rc_cb.rc_multi_cb[idx]);
   }
 
-  return result;
+  return BtifStatus();
 }
 
 static void rc_ctrl_procedure_complete(btif_rc_device_cb_t* p_dev) {
@@ -1164,10 +967,11 @@ static void register_for_event_notification(btif_rc_supported_event_t* p_event,
   // interval is only valid for AVRC_EVT_PLAY_POS_CHANGED
   uint32_t interval_in_seconds = 0;
   if (p_event->event_id == AVRC_EVT_PLAY_POS_CHANGED) {
-    interval_in_seconds = 2;
+    interval_in_seconds = osi_property_get_int32(PLAY_POS_UPDATE_INTERVAL_PROPERTY,
+                                                 DEFAULT_PLAY_POS_UPDATE_INTERVAL_SEC);
   }
-  bt_status_t status = register_notification_cmd(p_event->event_id, interval_in_seconds, p_dev);
-  if (status != BT_STATUS_SUCCESS) {
+  BtStatus status = register_notification_cmd(p_event->event_id, interval_in_seconds, p_dev);
+  if (!status) {
     log::error("failed, status={}", status);
     return;
   }
@@ -1184,12 +988,12 @@ static void register_for_event_notification(btif_rc_supported_event_t* p_event,
  * Parameters       avrc_cmd: The command you're sending
  *                  p_dev: Device control block
  *
- * Returns          BT_STATUS_SUCCESS if command is issued successfully
- *                  otherwise BT_STATUS_FAIL
+ * Returns          BtifStatus() if command is issued successfully
+ *                  otherwise BtifStatus(FAIL)
  *
  **************************************************************************/
-static bt_status_t build_and_send_vendor_cmd(tAVRC_COMMAND* avrc_cmd, tBTA_AV_CODE cmd_code,
-                                             btif_rc_device_cb_t* p_dev) {
+static BtStatus build_and_send_vendor_cmd(tAVRC_COMMAND* avrc_cmd, tBTA_AV_CODE cmd_code,
+                                          btif_rc_device_cb_t* p_dev) {
   rc_transaction_t* p_transaction = NULL;
   rc_transaction_context_t context = {.rc_addr = p_dev->rc_addr,
                                       .label = MAX_LABEL,
@@ -1201,28 +1005,29 @@ static bt_status_t build_and_send_vendor_cmd(tAVRC_COMMAND* avrc_cmd, tBTA_AV_CO
     context.command.vendor.event_id = avrc_cmd->reg_notif.event_id;
   }
 
-  bt_status_t tran_status = get_transaction(p_dev, context, &p_transaction);
-  if (BT_STATUS_SUCCESS != tran_status || p_transaction == NULL) {
-    log::error("failed to get label, pdu_id={}, status=0x{:02x}", dump_rc_pdu(avrc_cmd->pdu),
+  BtStatus tran_status = get_transaction(p_dev, context, &p_transaction);
+  if (!tran_status || p_transaction == NULL) {
+    log::error("failed to get label, pdu_id={}, status={}", dump_rc_pdu(avrc_cmd->pdu),
                tran_status);
-    return BT_STATUS_FAIL;
+    return BtifStatus(FAIL);
   }
 
   BT_HDR* p_msg = NULL;
   tAVRC_STS status = AVRC_BldCommand(avrc_cmd, &p_msg);
+  BtStatus ret = BtifStatus(static_cast<BtifStatusCode>(status));
   if (status == AVRC_STS_NO_ERROR && p_msg != NULL) {
     uint8_t* data_start = (uint8_t*)(p_msg + 1) + p_msg->offset;
     log::verbose("{} msgreq being sent out with label: {}", dump_rc_pdu(avrc_cmd->pdu),
                  p_transaction->label);
     BTA_AvVendorCmd(p_dev->rc_handle, p_transaction->label, cmd_code, data_start, p_msg->len);
-    status = BT_STATUS_SUCCESS;
+    ret = BtifStatus();
     start_transaction_timer(p_dev, p_transaction->label, BTIF_RC_TIMEOUT_MS);
   } else {
     log::error("failed to build command. status: 0x{:02x}", status);
     release_transaction(p_dev, p_transaction->label);
   }
   osi_free(p_msg);
-  return (bt_status_t)status;
+  return ret;
 }
 
 /***************************************************************************
@@ -1234,23 +1039,22 @@ static bt_status_t build_and_send_vendor_cmd(tAVRC_COMMAND* avrc_cmd, tBTA_AV_CO
  * Parameters       avrc_cmd: The command you're sending
  *                  p_dev: Device control block
  *
- * Returns          BT_STATUS_SUCCESS if command is issued successfully
- *                  otherwise BT_STATUS_FAIL
+ * Returns          BtifStatus() if command is issued successfully
+ *                  otherwise BtifStatus(FAIL)
  *
  **************************************************************************/
-static bt_status_t build_and_send_browsing_cmd(tAVRC_COMMAND* avrc_cmd,
-                                               btif_rc_device_cb_t* p_dev) {
+static BtStatus build_and_send_browsing_cmd(tAVRC_COMMAND* avrc_cmd, btif_rc_device_cb_t* p_dev) {
   rc_transaction_t* p_transaction = NULL;
   rc_transaction_context_t context = {.rc_addr = p_dev->rc_addr,
                                       .label = MAX_LABEL,
                                       .opcode = AVRC_OP_BROWSE,
                                       .command = {.browse = {avrc_cmd->pdu}}};
 
-  bt_status_t tran_status = get_transaction(p_dev, context, &p_transaction);
-  if (tran_status != BT_STATUS_SUCCESS || p_transaction == NULL) {
-    log::error("failed to get label, pdu_id={}, status=0x{:02x}", dump_rc_pdu(avrc_cmd->pdu),
+  BtStatus tran_status = get_transaction(p_dev, context, &p_transaction);
+  if (!tran_status || p_transaction == NULL) {
+    log::error("failed to get label, pdu_id={}, status={}", dump_rc_pdu(avrc_cmd->pdu),
                tran_status);
-    return BT_STATUS_FAIL;
+    return BtifStatus(FAIL);
   }
 
   BT_HDR* p_msg = NULL;
@@ -1258,13 +1062,13 @@ static bt_status_t build_and_send_browsing_cmd(tAVRC_COMMAND* avrc_cmd,
   if (status != AVRC_STS_NO_ERROR) {
     log::error("failed to build command status {}", status);
     release_transaction(p_dev, p_transaction->label);
-    return BT_STATUS_FAIL;
+    return BtifStatus(FAIL);
   }
 
   log::verbose("Send pdu_id={}, label={}", dump_rc_pdu(avrc_cmd->pdu), p_transaction->label);
   BTA_AvMetaCmd(p_dev->rc_handle, p_transaction->label, AVRC_CMD_CTRL, p_msg);
   start_transaction_timer(p_dev, p_transaction->label, BTIF_RC_TIMEOUT_MS);
-  return BT_STATUS_SUCCESS;
+  return BtifStatus();
 }
 
 /***************************************************************************
@@ -1383,9 +1187,8 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg, tAVRC_REG_
     switch (p_rsp->event_id) {
       case AVRC_EVT_PLAY_STATUS_CHANGE:
         get_play_status_cmd(p_dev);
-        do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->play_status_changed_cb,
-                                        p_dev->rc_addr,
-                                        (btrc_play_status_t)p_rsp->param.play_status));
+        CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->play_status_changed_cb, p_dev->rc_addr,
+                       (btrc_play_status_t)p_rsp->param.play_status);
         break;
 
       case AVRC_EVT_TRACK_CHANGE:
@@ -1403,24 +1206,22 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg, tAVRC_REG_
         break;
 
       case AVRC_EVT_NOW_PLAYING_CHANGE:
-        do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->now_playing_contents_changed_cb,
-                                        p_dev->rc_addr));
+        CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->now_playing_contents_changed_cb, p_dev->rc_addr);
         break;
 
       case AVRC_EVT_AVAL_PLAYERS_CHANGE:
         log::verbose("AVRC_EVT_AVAL_PLAYERS_CHANGE");
-        do_in_jni_thread(
-                base::BindOnce(bt_rc_ctrl_callbacks->available_player_changed_cb, p_dev->rc_addr));
+        CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->available_player_changed_cb, p_dev->rc_addr);
         break;
 
       case AVRC_EVT_ADDR_PLAYER_CHANGE:
-        do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->addressed_player_changed_cb,
-                                        p_dev->rc_addr, p_rsp->param.addr_player.player_id));
+        CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->addressed_player_changed_cb, p_dev->rc_addr,
+                       p_rsp->param.addr_player.player_id);
         break;
 
       case AVRC_EVT_PLAY_POS_CHANGED:
-        do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->play_position_changed_cb,
-                                        p_dev->rc_addr, 0, p_rsp->param.play_pos));
+        CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->play_position_changed_cb, p_dev->rc_addr, 0,
+                       p_rsp->param.play_pos);
 
         break;
       case AVRC_EVT_UIDS_CHANGE:
@@ -1485,9 +1286,8 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg, tAVRC_REG_
         /* Start timer to get play status periodically
          * if the play state is playing.
          */
-        do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->play_status_changed_cb,
-                                        p_dev->rc_addr,
-                                        (btrc_play_status_t)p_rsp->param.play_status));
+        CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->play_status_changed_cb, p_dev->rc_addr,
+                       (btrc_play_status_t)p_rsp->param.play_status);
 
         break;
 
@@ -1510,8 +1310,8 @@ static void handle_notification_response(tBTA_AV_META_MSG* pmeta_msg, tAVRC_REG_
           app_settings.attr_ids[xx] = p_rsp->param.player_setting.attr_id[xx];
           app_settings.attr_values[xx] = p_rsp->param.player_setting.attr_value[xx];
         }
-        do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->playerapplicationsetting_changed_cb,
-                                        p_dev->rc_addr, app_settings));
+        CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->playerapplicationsetting_changed_cb, p_dev->rc_addr,
+                       app_settings);
       } break;
 
       case AVRC_EVT_NOW_PLAYING_CHANGE:
@@ -1631,9 +1431,8 @@ static void handle_app_val_response(tBTA_AV_META_MSG* pmeta_msg, tAVRC_LIST_APP_
         attrs[xx] = p_app_settings->attrs[xx].attr_id;
       }
       get_player_app_setting_cmd(p_app_settings->num_attrs, attrs, p_dev);
-      do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->playerapplicationsetting_cb,
-                                      p_dev->rc_addr, p_app_settings->num_attrs,
-                                      p_app_settings->attrs, 0, nullptr));
+      CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->playerapplicationsetting_cb, p_dev->rc_addr,
+                     p_app_settings->num_attrs, p_app_settings->attrs, 0, nullptr);
     }
   } else if (p_app_settings->ext_attr_index < p_app_settings->num_ext_attrs) {
     attr_index = p_app_settings->ext_attr_index;
@@ -1695,8 +1494,8 @@ static void handle_app_cur_val_response(tBTA_AV_META_MSG* pmeta_msg,
     app_settings.attr_values[xx] = p_rsp->p_vals[xx].attr_val;
   }
 
-  do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->playerapplicationsetting_changed_cb,
-                                  p_dev->rc_addr, app_settings));
+  CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->playerapplicationsetting_changed_cb, p_dev->rc_addr,
+                 app_settings);
   /* Application settings are fetched only once for initial values
    * initiate anything that follows after RC procedure.
    * Defer it if browsing is supported till players query
@@ -1749,9 +1548,8 @@ static void handle_app_attr_txt_response(tBTA_AV_META_MSG* pmeta_msg,
       attrs[xx] = p_app_settings->attrs[xx].attr_id;
     }
 
-    do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->playerapplicationsetting_cb,
-                                    p_dev->rc_addr, p_app_settings->num_attrs,
-                                    p_app_settings->attrs, 0, nullptr));
+    CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->playerapplicationsetting_cb, p_dev->rc_addr,
+                   p_app_settings->num_attrs, p_app_settings->attrs, 0, nullptr);
     get_player_app_setting_cmd(xx, attrs, p_dev);
 
     return;
@@ -1826,9 +1624,8 @@ static void handle_app_attr_val_txt_response(tBTA_AV_META_MSG* pmeta_msg,
     for (xx = 0; xx < p_app_settings->num_attrs; xx++) {
       attrs[xx] = p_app_settings->attrs[xx].attr_id;
     }
-    do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->playerapplicationsetting_cb,
-                                    p_dev->rc_addr, p_app_settings->num_attrs,
-                                    p_app_settings->attrs, 0, nullptr));
+    CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->playerapplicationsetting_cb, p_dev->rc_addr,
+                   p_app_settings->num_attrs, p_app_settings->attrs, 0, nullptr);
 
     get_player_app_setting_cmd(xx, attrs, p_dev);
     return;
@@ -1869,10 +1666,9 @@ static void handle_app_attr_val_txt_response(tBTA_AV_META_MSG* pmeta_msg,
     for (x = 0; x < p_app_settings->num_ext_attrs; x++) {
       attrs[xx + x] = p_app_settings->ext_attrs[x].attr_id;
     }
-    do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->playerapplicationsetting_cb,
-                                    p_dev->rc_addr, p_app_settings->num_attrs,
-                                    p_app_settings->attrs, p_app_settings->num_ext_attrs,
-                                    p_app_settings->ext_attrs));
+    CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->playerapplicationsetting_cb, p_dev->rc_addr,
+                   p_app_settings->num_attrs, p_app_settings->attrs, p_app_settings->num_ext_attrs,
+                   p_app_settings->ext_attrs);
     get_player_app_setting_cmd(xx + x, attrs, p_dev);
 
     /* Free the application settings information after sending to
@@ -1927,8 +1723,7 @@ static void handle_set_app_attr_val_response(tBTA_AV_META_MSG* pmeta_msg, tAVRC_
   if (pmeta_msg && (pmeta_msg->code == AVRC_RSP_ACCEPT)) {
     accepted = 1;
   }
-  do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->setplayerappsetting_rsp_cb, p_dev->rc_addr,
-                                  accepted));
+  CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->setplayerappsetting_rsp_cb, p_dev->rc_addr, accepted);
 }
 
 /***************************************************************************
@@ -1961,11 +1756,10 @@ static void handle_get_metadata_attr_response(tBTA_AV_META_MSG* pmeta_msg,
         osi_free_and_reset((void**)&p_rsp->p_attrs[i].name.p_str);
       }
     }
-
     osi_free_and_reset((void**)&p_rsp->p_attrs);
 
-    do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->track_changed_cb, p_dev->rc_addr,
-                                    p_rsp->num_attrs, p_attr));
+    CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->track_changed_cb, p_dev->rc_addr, p_rsp->num_attrs,
+                   p_attr);
     do_in_jni_thread(base::BindOnce(osi_free, p_attr));
   } else if (p_rsp->status == BTIF_RC_STS_TIMEOUT) {
     /* Retry for timeout case, this covers error handling
@@ -1998,10 +1792,10 @@ static void handle_get_playstatus_response(tBTA_AV_META_MSG* pmeta_msg,
   }
 
   if (p_rsp->status == AVRC_STS_NO_ERROR) {
-    do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->play_status_changed_cb, p_dev->rc_addr,
-                                    (btrc_play_status_t)p_rsp->play_status));
-    do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->play_position_changed_cb, p_dev->rc_addr,
-                                    p_rsp->song_len, p_rsp->song_pos));
+    CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->play_status_changed_cb, p_dev->rc_addr,
+                   (btrc_play_status_t)p_rsp->play_status);
+    CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->play_position_changed_cb, p_dev->rc_addr, p_rsp->song_len,
+                   p_rsp->song_pos);
   } else {
     log::error("Error in get play status procedure: {}", p_rsp->status);
   }
@@ -2025,8 +1819,7 @@ static void handle_set_addressed_player_response(tBTA_AV_META_MSG* pmeta_msg, tA
   }
 
   if (p_rsp->status == AVRC_STS_NO_ERROR) {
-    do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->set_addressed_player_cb, p_dev->rc_addr,
-                                    p_rsp->status));
+    CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->set_addressed_player_cb, p_dev->rc_addr, p_rsp->status);
   } else {
     log::error("Error in get play status procedure {}", p_rsp->status);
   }
@@ -2081,10 +1874,9 @@ static void handle_get_folder_items_response(tBTA_AV_META_MSG* pmeta_msg,
       }
     }
 
-    do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->get_folder_items_cb, p_dev->rc_addr,
-                                    BTRC_STS_NO_ERROR,
-                                    /* We want to make the ownership explicit in native */
-                                    btrc_items, item_count));
+    CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->get_folder_items_cb, p_dev->rc_addr, BTRC_STS_NO_ERROR,
+                   /* We want to make the ownership explicit in native */
+                   btrc_items, item_count);
 
     if (item_count > 0) {
       if (btrc_items[0].item_type == AVRC_ITEM_PLAYER &&
@@ -2100,8 +1892,8 @@ static void handle_get_folder_items_response(tBTA_AV_META_MSG* pmeta_msg,
     log::verbose("get_folder_items_cb sent to JNI thread");
   } else {
     log::error("Error {}", p_rsp->status);
-    do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->get_folder_items_cb, p_dev->rc_addr,
-                                    (btrc_status_t)p_rsp->status, nullptr, 0));
+    CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->get_folder_items_cb, p_dev->rc_addr,
+                   (btrc_status_t)p_rsp->status, nullptr, 0);
   }
 }
 /***************************************************************************
@@ -2312,8 +2104,7 @@ static void handle_change_path_response(tBTA_AV_META_MSG* pmeta_msg, tAVRC_CHG_P
   }
 
   if (p_rsp->status == AVRC_STS_NO_ERROR) {
-    do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->change_folder_path_cb, p_dev->rc_addr,
-                                    p_rsp->num_items));
+    CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->change_folder_path_cb, p_dev->rc_addr, p_rsp->num_items);
   } else {
     log::error("error in handle_change_path_response {}", p_rsp->status);
   }
@@ -2338,8 +2129,8 @@ static void handle_set_browsed_player_response(tBTA_AV_META_MSG* pmeta_msg,
   }
 
   if (p_rsp->status == AVRC_STS_NO_ERROR) {
-    do_in_jni_thread(base::BindOnce(bt_rc_ctrl_callbacks->set_browsed_player_cb, p_dev->rc_addr,
-                                    p_rsp->num_items, p_rsp->folder_depth));
+    CTRL_HAL_CBACK(bt_rc_ctrl_callbacks->set_browsed_player_cb, p_dev->rc_addr, p_rsp->num_items,
+                   p_rsp->folder_depth);
   } else {
     log::error("error {}", p_rsp->status);
   }
@@ -2537,25 +2328,52 @@ static void handle_avk_rc_metamsg_cmd(tBTA_AV_META_MSG* pmeta_msg) {
  * Returns          void
  *
  **************************************************************************/
+static void reset_device(btif_rc_device_cb_t& dev) {
+  dev.rc_handle = {};
+  dev.rc_features = {};
+  dev.rc_cover_art_psm = {};
+  dev.rc_state = BTRC_CONNECTION_STATE_DISCONNECTED;
+  dev.br_state = BTRC_CONNECTION_STATE_DISCONNECTED;
+  dev.rc_addr = RawAddress::kEmpty;
+  if (dev.rc_supported_event_list != nullptr) {
+    list_free(dev.rc_supported_event_list);
+    dev.rc_supported_event_list = nullptr;
+  }
+  dev.rc_volume = MAX_VOLUME;
+  dev.rc_vol_label = MAX_LABEL;
+  dev.rc_app_settings = {};
+
+  alarm_free(dev.rc_play_status_timer);
+  dev.rc_play_status_timer = nullptr;
+
+  dev.rc_features_processed = {};
+  dev.rc_playing_uid = {};
+  dev.rc_procedure_complete = {};
+
+  for (int i = 0; i < MAX_TRANSACTIONS_PER_SESSION; ++i) {
+    dev.transaction_set.transaction[i].in_use = {};
+    dev.transaction_set.transaction[i].label = {};
+    dev.transaction_set.transaction[i].context = {};
+    alarm_free(dev.transaction_set.transaction[i].timer);
+    dev.transaction_set.transaction[i].timer = nullptr;
+  }
+
+  dev.peer_ct_features = {};
+  dev.peer_tg_features = {};
+  dev.launch_cmd_pending = {};
+}
+
 static void cleanup_ctrl() {
   log::verbose("");
 
   if (bt_rc_ctrl_callbacks) {
-    bt_rc_ctrl_callbacks = NULL;
+    bt_rc_ctrl_callbacks = nullptr;
   }
 
-  /*
-   * TODO: the void* casts are a workaround to silence a glibc+clang warning that memset
-   *       should not be used on complex data structures / classes.
-   */
   for (int idx = 0; idx < BTIF_RC_NUM_CONN; idx++) {
-    alarm_free(btif_rc_cb.rc_multi_cb[idx].rc_play_status_timer);
-
-    void* ptr = static_cast<void*>(&btif_rc_cb.rc_multi_cb[idx]);
-    memset(ptr, 0, sizeof(btif_rc_cb.rc_multi_cb[idx]));
+    reset_device(btif_rc_cb.rc_multi_cb[idx]);
   }
 
-  memset(static_cast<void*>(&btif_rc_cb.rc_multi_cb), 0, sizeof(btif_rc_cb.rc_multi_cb));
   log::verbose("completed");
 }
 
@@ -2568,7 +2386,7 @@ static void cleanup_ctrl() {
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t getcapabilities_cmd(uint8_t cap_id, btif_rc_device_cb_t* p_dev) {
+static BtStatus getcapabilities_cmd(uint8_t cap_id, btif_rc_device_cb_t* p_dev) {
   log::verbose("cap_id: {}", cap_id);
   CHECK_RC_CONNECTED(p_dev);
 
@@ -2590,7 +2408,7 @@ static bt_status_t getcapabilities_cmd(uint8_t cap_id, btif_rc_device_cb_t* p_de
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t list_player_app_setting_attrib_cmd(btif_rc_device_cb_t* p_dev) {
+static BtStatus list_player_app_setting_attrib_cmd(btif_rc_device_cb_t* p_dev) {
   log::verbose("");
   CHECK_RC_CONNECTED(p_dev);
 
@@ -2611,8 +2429,7 @@ static bt_status_t list_player_app_setting_attrib_cmd(btif_rc_device_cb_t* p_dev
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t list_player_app_setting_value_cmd(uint8_t attrib_id,
-                                                     btif_rc_device_cb_t* p_dev) {
+static BtStatus list_player_app_setting_value_cmd(uint8_t attrib_id, btif_rc_device_cb_t* p_dev) {
   log::verbose("attrib_id: {}", attrib_id);
   CHECK_RC_CONNECTED(p_dev);
 
@@ -2634,8 +2451,8 @@ static bt_status_t list_player_app_setting_value_cmd(uint8_t attrib_id,
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t get_player_app_setting_cmd(uint8_t num_attrib, uint8_t* attrib_ids,
-                                              btif_rc_device_cb_t* p_dev) {
+static BtStatus get_player_app_setting_cmd(uint8_t num_attrib, uint8_t* attrib_ids,
+                                           btif_rc_device_cb_t* p_dev) {
   log::verbose("num_attrib: {}", num_attrib);
   CHECK_RC_CONNECTED(p_dev);
 
@@ -2658,16 +2475,16 @@ static bt_status_t get_player_app_setting_cmd(uint8_t num_attrib, uint8_t* attri
  *
  * Description      Fetch the current track metadata for the device
  *
- * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
- *                  BT_STATUS_FAIL.
+ * Returns          BtifStatus() if command issued successfully otherwise
+ *                  BtifStatus(FAIL).
  *
  **************************************************************************/
-static bt_status_t get_current_metadata_cmd(const RawAddress& bd_addr) {
+static BtStatus get_current_metadata_cmd(const RawAddress& bd_addr) {
   log::verbose("");
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
   if (p_dev == NULL) {
     log::error("p_dev NULL");
-    return BT_STATUS_DEVICE_NOT_FOUND;
+    return BtifStatus(DEVICE_NOT_FOUND);
   }
   const uint32_t* attr_list = get_requested_attributes_list(p_dev);
   const uint8_t attr_list_size = get_requested_attributes_list_size(p_dev);
@@ -2680,11 +2497,11 @@ static bt_status_t get_current_metadata_cmd(const RawAddress& bd_addr) {
  *
  * Description      Fetch the current playback state for the device
  *
- * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
- *                  BT_STATUS_FAIL.
+ * Returns          BtifStatus() if command issued successfully otherwise
+ *                  BtifStatus(FAIL).
  *
  **************************************************************************/
-static bt_status_t get_playback_state_cmd(const RawAddress& bd_addr) {
+static BtStatus get_playback_state_cmd(const RawAddress& bd_addr) {
   log::verbose("");
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
   return get_play_status_cmd(p_dev);
@@ -2699,12 +2516,12 @@ static bt_status_t get_playback_state_cmd(const RawAddress& bd_addr) {
  * Parameters       start_item: First item to fetch (0 to fetch from beganning)
  *                  end_item: Last item to fetch (0xffffffff to fetch until end)
  *
- * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
- *                  BT_STATUS_FAIL.
+ * Returns          BtifStatus() if command issued successfully otherwise
+ *                  BtifStatus(FAIL).
  *
  **************************************************************************/
-static bt_status_t get_now_playing_list_cmd(const RawAddress& bd_addr, uint32_t start_item,
-                                            uint32_t end_item) {
+static BtStatus get_now_playing_list_cmd(const RawAddress& bd_addr, uint32_t start_item,
+                                         uint32_t end_item) {
   log::verbose("start, end: ({}, {})", start_item, end_item);
   return get_folder_items_cmd(bd_addr, AVRC_SCOPE_NOW_PLAYING, start_item, end_item);
 }
@@ -2720,13 +2537,12 @@ static bt_status_t get_now_playing_list_cmd(const RawAddress& bd_addr, uint32_t 
  *                         (i.e AVRC_SCOPE_FILE_SYSTEM)
  *                  p_dev: Device control block
  *
- * Returns          BT_STATUS_SUCCESS if command is issued successfully
- *                  otherwise BT_STATUS_FAIL
+ * Returns          BtifStatus() if command is issued successfully
+ *                  otherwise BtifStatus(FAIL)
  *
  **************************************************************************/
-static bt_status_t get_item_attribute_cmd(uint64_t uid, int scope, uint8_t /*num_attribute*/,
-                                          const uint32_t* /*p_attr_ids*/,
-                                          btif_rc_device_cb_t* p_dev) {
+static BtStatus get_item_attribute_cmd(uint64_t uid, int scope, uint8_t /*num_attribute*/,
+                                       const uint32_t* /*p_attr_ids*/, btif_rc_device_cb_t* p_dev) {
   tAVRC_COMMAND avrc_cmd = {0};
   avrc_cmd.pdu = AVRC_PDU_GET_ITEM_ATTRIBUTES;
   avrc_cmd.get_attrs.scope = scope;
@@ -2746,12 +2562,12 @@ static bt_status_t get_item_attribute_cmd(uint64_t uid, int scope, uint8_t /*num
  * Parameters       start_item: First item to fetch (0 to fetch from beganning)
  *                  end_item: Last item to fetch (0xffffffff to fetch until end)
  *
- * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
- *                  BT_STATUS_FAIL.
+ * Returns          BtifStatus() if command issued successfully otherwise
+ *                  BtifStatus(FAIL).
  *
  **************************************************************************/
-static bt_status_t get_folder_list_cmd(const RawAddress& bd_addr, uint32_t start_item,
-                                       uint32_t end_item) {
+static BtStatus get_folder_list_cmd(const RawAddress& bd_addr, uint32_t start_item,
+                                    uint32_t end_item) {
   log::verbose("start, end: ({}, {})", start_item, end_item);
   return get_folder_items_cmd(bd_addr, AVRC_SCOPE_FILE_SYSTEM, start_item, end_item);
 }
@@ -2765,12 +2581,12 @@ static bt_status_t get_folder_list_cmd(const RawAddress& bd_addr, uint32_t start
  * Parameters       start_item: First item to fetch (0 to fetch from beganning)
  *                  end_item: Last item to fetch (0xffffffff to fetch until end)
  *
- * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
- *                  BT_STATUS_FAIL.
+ * Returns          BtifStatus() if command issued successfully otherwise
+ *                  BtifStatus(FAIL).
  *
  **************************************************************************/
-static bt_status_t get_player_list_cmd(const RawAddress& bd_addr, uint32_t start_item,
-                                       uint32_t end_item) {
+static BtStatus get_player_list_cmd(const RawAddress& bd_addr, uint32_t start_item,
+                                    uint32_t end_item) {
   log::verbose("start, end: ({}, {})", start_item, end_item);
   return get_folder_items_cmd(bd_addr, AVRC_SCOPE_PLAYER_LIST, start_item, end_item);
 }
@@ -2786,12 +2602,11 @@ static bt_status_t get_player_list_cmd(const RawAddress& bd_addr, uint32_t start
  *                  start_item: First item to fetch (0 to fetch from beganning)
  *                  end_item: Last item to fetch (0xffffffff to fetch until end)
  *
- * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
- *                  BT_STATUS_FAIL.
+ * Returns          BtifStatus() if command issued successfully otherwise
+ *                  BtifStatus(FAIL).
  *
  **************************************************************************/
-static bt_status_t change_folder_path_cmd(const RawAddress& bd_addr, uint8_t direction,
-                                          uint8_t* uid) {
+static BtStatus change_folder_path_cmd(const RawAddress& bd_addr, uint8_t direction, uint8_t* uid) {
   log::verbose("direction {}", direction);
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
   CHECK_RC_CONNECTED(p_dev);
@@ -2819,11 +2634,11 @@ static bt_status_t change_folder_path_cmd(const RawAddress& bd_addr, uint8_t dir
  *
  * Parameters       id: The UID of player to move to
  *
- * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
- *                  BT_STATUS_FAIL.
+ * Returns          BtifStatus() if command issued successfully otherwise
+ *                  BtifStatus(FAIL).
  *
  **************************************************************************/
-static bt_status_t set_browsed_player_cmd(const RawAddress& bd_addr, uint16_t id) {
+static BtStatus set_browsed_player_cmd(const RawAddress& bd_addr, uint16_t id) {
   log::verbose("id {}", id);
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
   CHECK_RC_CONNECTED(p_dev);
@@ -2846,11 +2661,11 @@ static bt_status_t set_browsed_player_cmd(const RawAddress& bd_addr, uint16_t id
  **
  ** Parameters       id: The UID of player to move to
  **
- ** Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
- **                  BT_STATUS_FAIL.
+ ** Returns          BtifStatus() if command issued successfully otherwise
+ **                  BtifStatus(FAIL).
  **
  ***************************************************************************/
-static bt_status_t set_addressed_player_cmd(const RawAddress& bd_addr, uint16_t id) {
+static BtStatus set_addressed_player_cmd(const RawAddress& bd_addr, uint16_t id) {
   log::verbose("id {}", id);
 
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
@@ -2878,12 +2693,12 @@ static bt_status_t set_addressed_player_cmd(const RawAddress& bd_addr, uint16_t 
  *                  start_item: First item to fetch (0 to fetch from beganning)
  *                  end_item: Last item to fetch (0xffff to fetch until end)
  *
- * Returns          BT_STATUS_SUCCESS if command issued successfully otherwise
- *                  BT_STATUS_FAIL.
+ * Returns          BtifStatus() if command issued successfully otherwise
+ *                  BtifStatus(FAIL).
  *
  **************************************************************************/
-static bt_status_t get_folder_items_cmd(const RawAddress& bd_addr, uint8_t scope,
-                                        uint32_t start_item, uint32_t end_item) {
+static BtStatus get_folder_items_cmd(const RawAddress& bd_addr, uint8_t scope, uint32_t start_item,
+                                     uint32_t end_item) {
   /* Check that both avrcp and browse channel are connected. */
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
   log::verbose("");
@@ -2914,8 +2729,8 @@ static bt_status_t get_folder_items_cmd(const RawAddress& bd_addr, uint8_t scope
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t change_player_app_setting(const RawAddress& bd_addr, uint8_t num_attrib,
-                                             uint8_t* attrib_ids, uint8_t* attrib_vals) {
+static BtStatus change_player_app_setting(const RawAddress& bd_addr, uint8_t num_attrib,
+                                          uint8_t* attrib_ids, uint8_t* attrib_vals) {
   log::verbose("num_attrib: {}", num_attrib);
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
   CHECK_RC_CONNECTED(p_dev);
@@ -2932,7 +2747,7 @@ static bt_status_t change_player_app_setting(const RawAddress& bd_addr, uint8_t 
     avrc_cmd.set_app_val.p_vals[count].attr_val = attrib_vals[count];
   }
 
-  bt_status_t st = build_and_send_vendor_cmd(&avrc_cmd, AVRC_CMD_CTRL, p_dev);
+  BtStatus st = build_and_send_vendor_cmd(&avrc_cmd, AVRC_CMD_CTRL, p_dev);
   osi_free_and_reset((void**)&avrc_cmd.set_app_val.p_vals);
   return st;
 }
@@ -2946,8 +2761,8 @@ static bt_status_t change_player_app_setting(const RawAddress& bd_addr, uint8_t 
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t play_item_cmd(const RawAddress& bd_addr, uint8_t scope, uint8_t* uid,
-                                 uint16_t uid_counter) {
+static BtStatus play_item_cmd(const RawAddress& bd_addr, uint8_t scope, uint8_t* uid,
+                              uint16_t uid_counter) {
   log::verbose("scope {} uid_counter {}", scope, uid_counter);
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
   CHECK_RC_CONNECTED(p_dev);
@@ -2973,8 +2788,8 @@ static bt_status_t play_item_cmd(const RawAddress& bd_addr, uint8_t scope, uint8
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t get_player_app_setting_attr_text_cmd(uint8_t* attrs, uint8_t num_attrs,
-                                                        btif_rc_device_cb_t* p_dev) {
+static BtStatus get_player_app_setting_attr_text_cmd(uint8_t* attrs, uint8_t num_attrs,
+                                                     btif_rc_device_cb_t* p_dev) {
   log::verbose("num attrs: {}", num_attrs);
   CHECK_RC_CONNECTED(p_dev);
 
@@ -2999,8 +2814,8 @@ static bt_status_t get_player_app_setting_attr_text_cmd(uint8_t* attrs, uint8_t 
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t get_player_app_setting_value_text_cmd(uint8_t* vals, uint8_t num_vals,
-                                                         btif_rc_device_cb_t* p_dev) {
+static BtStatus get_player_app_setting_value_text_cmd(uint8_t* vals, uint8_t num_vals,
+                                                      btif_rc_device_cb_t* p_dev) {
   log::verbose("num_vals: {}", num_vals);
   CHECK_RC_CONNECTED(p_dev);
 
@@ -3025,8 +2840,8 @@ static bt_status_t get_player_app_setting_value_text_cmd(uint8_t* vals, uint8_t 
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t register_notification_cmd(uint8_t event_id, uint32_t event_value,
-                                             btif_rc_device_cb_t* p_dev) {
+static BtStatus register_notification_cmd(uint8_t event_id, uint32_t event_value,
+                                          btif_rc_device_cb_t* p_dev) {
   log::verbose("event_id: {} event_value {}", event_id, event_value);
   CHECK_RC_CONNECTED(p_dev);
 
@@ -3048,16 +2863,16 @@ static bt_status_t register_notification_cmd(uint8_t event_id, uint32_t event_va
  *                  will make the right determination of whether to use the
  *                  control or browsing channel for the request
  *
- * Returns          BT_STATUS_SUCCESS if the command is successfully issued
- *                  otherwise BT_STATUS_FAIL
+ * Returns          BtifStatus() if the command is successfully issued
+ *                  otherwise BtifStatus(FAIL)
  *
  **************************************************************************/
-static bt_status_t get_metadata_attribute_cmd(uint8_t num_attribute, const uint32_t* p_attr_ids,
-                                              btif_rc_device_cb_t* p_dev) {
+static BtStatus get_metadata_attribute_cmd(uint8_t num_attribute, const uint32_t* p_attr_ids,
+                                           btif_rc_device_cb_t* p_dev) {
   log::verbose("num_attribute: {} attribute_id: {}", num_attribute, p_attr_ids[0]);
 
   // If browsing is connected then send the command out that channel
-  if (p_dev->br_connected) {
+  if (p_dev->br_state == BTRC_CONNECTION_STATE_CONNECTED) {
     return get_item_attribute_cmd(p_dev->rc_playing_uid, AVRC_SCOPE_NOW_PLAYING, num_attribute,
                                   p_attr_ids, p_dev);
   }
@@ -3075,8 +2890,8 @@ static bt_status_t get_metadata_attribute_cmd(uint8_t num_attribute, const uint3
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t get_element_attribute_cmd(uint8_t num_attribute, const uint32_t* p_attr_ids,
-                                             btif_rc_device_cb_t* p_dev) {
+static BtStatus get_element_attribute_cmd(uint8_t num_attribute, const uint32_t* p_attr_ids,
+                                          btif_rc_device_cb_t* p_dev) {
   log::verbose("num_attribute: {} attribute_id: {}", num_attribute, p_attr_ids[0]);
   CHECK_RC_CONNECTED(p_dev);
   tAVRC_COMMAND avrc_cmd = {0};
@@ -3097,10 +2912,10 @@ static bt_status_t get_element_attribute_cmd(uint8_t num_attribute, const uint32
  *
  * Description      Get Playing Status of a Device
  *
- * Returns          bt_status_t
+ * Returns          BtStatus
  *
  **************************************************************************/
-static bt_status_t get_play_status_cmd(btif_rc_device_cb_t* p_dev) {
+static BtStatus get_play_status_cmd(btif_rc_device_cb_t* p_dev) {
   log::verbose("");
   CHECK_RC_CONNECTED(p_dev);
 
@@ -3121,8 +2936,7 @@ static bt_status_t get_play_status_cmd(btif_rc_device_cb_t* p_dev) {
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t set_volume_rsp(const RawAddress& bd_addr, uint8_t abs_vol, uint8_t label) {
-  tAVRC_STS status = BT_STATUS_UNSUPPORTED;
+static BtStatus set_volume_rsp(const RawAddress& bd_addr, uint8_t abs_vol, uint8_t label) {
   tAVRC_RESPONSE avrc_rsp;
   BT_HDR* p_msg = NULL;
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
@@ -3135,19 +2949,21 @@ static bt_status_t set_volume_rsp(const RawAddress& bd_addr, uint8_t abs_vol, ui
   avrc_rsp.volume.pdu = AVRC_PDU_SET_ABSOLUTE_VOLUME;
   avrc_rsp.volume.status = AVRC_STS_NO_ERROR;
   avrc_rsp.volume.volume = abs_vol;
-  status = AVRC_BldResponse(p_dev->rc_handle, &avrc_rsp, &p_msg);
+
+  tAVRC_STS status = AVRC_BldResponse(p_dev->rc_handle, &avrc_rsp, &p_msg);
+  BtStatus ret = BtifStatus(static_cast<BtifStatusCode>(status));
   if (status == AVRC_STS_NO_ERROR) {
     uint8_t* data_start = (uint8_t*)(p_msg + 1) + p_msg->offset;
     log::verbose("msgreq being sent out with label: {}", p_dev->rc_vol_label);
     if (p_msg != NULL) {
       BTA_AvVendorRsp(p_dev->rc_handle, label, AVRC_RSP_ACCEPT, data_start, p_msg->len, 0);
-      status = BT_STATUS_SUCCESS;
+      ret = BtifStatus();
     }
   } else {
     log::error("failed to build command. status: 0x{:02x}", status);
   }
   osi_free(p_msg);
-  return (bt_status_t)status;
+  return ret;
 }
 
 /***************************************************************************
@@ -3159,10 +2975,9 @@ static bt_status_t set_volume_rsp(const RawAddress& bd_addr, uint8_t abs_vol, ui
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t volume_change_notification_rsp(const RawAddress& bd_addr,
-                                                  btrc_notification_type_t rsp_type,
-                                                  uint8_t abs_vol, uint8_t label) {
-  tAVRC_STS status = BT_STATUS_UNSUPPORTED;
+static BtStatus volume_change_notification_rsp(const RawAddress& bd_addr,
+                                               btrc_notification_type_t rsp_type, uint8_t abs_vol,
+                                               uint8_t label) {
   tAVRC_RESPONSE avrc_rsp;
   BT_HDR* p_msg = NULL;
   log::verbose("rsp_type: {} abs_vol: {}", rsp_type, abs_vol);
@@ -3177,7 +2992,8 @@ static bt_status_t volume_change_notification_rsp(const RawAddress& bd_addr,
   avrc_rsp.reg_notif.param.volume = abs_vol;
   avrc_rsp.reg_notif.event_id = AVRC_EVT_VOLUME_CHANGE;
 
-  status = AVRC_BldResponse(p_dev->rc_handle, &avrc_rsp, &p_msg);
+  tAVRC_STS status = AVRC_BldResponse(p_dev->rc_handle, &avrc_rsp, &p_msg);
+  BtStatus ret = BtifStatus(static_cast<BtifStatusCode>(status));
   if (status == AVRC_STS_NO_ERROR) {
     log::verbose("msgreq being sent out with label: {}", label);
     uint8_t* data_start = (uint8_t*)(p_msg + 1) + p_msg->offset;
@@ -3185,13 +3001,13 @@ static bt_status_t volume_change_notification_rsp(const RawAddress& bd_addr,
             p_dev->rc_handle, label,
             (rsp_type == BTRC_NOTIFICATION_TYPE_INTERIM) ? AVRC_RSP_INTERIM : AVRC_RSP_CHANGED,
             data_start, p_msg->len, 0);
-    status = BT_STATUS_SUCCESS;
+    ret = BtifStatus();
   } else {
     log::error("failed to build command. status: 0x{:02x}", status);
   }
   osi_free(p_msg);
 
-  return (bt_status_t)status;
+  return ret;
 }
 
 /***************************************************************************
@@ -3203,9 +3019,9 @@ static bt_status_t volume_change_notification_rsp(const RawAddress& bd_addr,
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t send_groupnavigation_cmd(const RawAddress& bd_addr, uint8_t key_code,
-                                            uint8_t key_state) {
-  tAVRC_STS status = BT_STATUS_UNSUPPORTED;
+static BtStatus send_groupnavigation_cmd(const RawAddress& bd_addr, uint8_t key_code,
+                                         uint8_t key_state) {
+  BtStatus status = BtifStatus(UNSUPPORTED);
   rc_transaction_t* p_transaction = NULL;
   log::verbose("key-code: {}, key-state: {}", key_code, key_state);
   btif_rc_device_cb_t* p_dev = btif_rc_get_device_by_bda(bd_addr);
@@ -3218,8 +3034,8 @@ static bt_status_t send_groupnavigation_cmd(const RawAddress& bd_addr, uint8_t k
             .label = MAX_LABEL,
             .opcode = AVRC_OP_PASS_THRU,
             .command = {.passthru = {AVRC_ID_VENDOR, key_state, key_code}}};
-    bt_status_t tran_status = get_transaction(p_dev, context, &p_transaction);
-    if ((BT_STATUS_SUCCESS == tran_status) && (NULL != p_transaction)) {
+    BtStatus tran_status = get_transaction(p_dev, context, &p_transaction);
+    if (tran_status && (NULL != p_transaction)) {
       uint8_t buffer[AVRC_PASS_THRU_GROUP_LEN] = {0};
       uint8_t* start = buffer;
       UINT24_TO_BE_STREAM(start, AVRC_CO_METADATA);
@@ -3227,20 +3043,20 @@ static bt_status_t send_groupnavigation_cmd(const RawAddress& bd_addr, uint8_t k
       UINT8_TO_BE_STREAM(start, key_code);
       BTA_AvRemoteVendorUniqueCmd(p_dev->rc_handle, p_transaction->label, (tBTA_AV_STATE)key_state,
                                   buffer, AVRC_PASS_THRU_GROUP_LEN);
-      status = BT_STATUS_SUCCESS;
+      status = BtifStatus();
       start_transaction_timer(p_dev, p_transaction->label, BTIF_RC_TIMEOUT_MS);
       log::verbose("Send command, key-code={}, key-state={}, label={}", key_code, key_state,
                    p_transaction->label);
     } else {
-      status = BT_STATUS_FAIL;
+      status = BtifStatus(FAIL);
       log::error("failed to get label, key-code={}, key-state={}, status={}", key_code, key_state,
                  tran_status);
     }
   } else {
-    status = BT_STATUS_UNSUPPORTED;
+    status = BtifStatus(UNSUPPORTED);
     log::verbose("feature not supported");
   }
-  return (bt_status_t)status;
+  return status;
 }
 
 /***************************************************************************
@@ -3252,9 +3068,9 @@ static bt_status_t send_groupnavigation_cmd(const RawAddress& bd_addr, uint8_t k
  * Returns          void
  *
  **************************************************************************/
-static bt_status_t send_passthrough_cmd(const RawAddress& bd_addr, uint8_t key_code,
-                                        uint8_t key_state) {
-  tAVRC_STS status = BT_STATUS_UNSUPPORTED;
+static BtStatus send_passthrough_cmd(const RawAddress& bd_addr, uint8_t key_code,
+                                     uint8_t key_state) {
+  BtStatus status = BtifStatus(UNSUPPORTED);
   btif_rc_device_cb_t* p_dev = NULL;
   log::error("calling btif_rc_get_device_by_bda");
   p_dev = btif_rc_get_device_by_bda(bd_addr);
@@ -3269,24 +3085,24 @@ static bt_status_t send_passthrough_cmd(const RawAddress& bd_addr, uint8_t key_c
             .label = MAX_LABEL,
             .opcode = AVRC_OP_PASS_THRU,
             .command = {.passthru = {AVRC_ID_VENDOR, key_state, key_code}}};
-    bt_status_t tran_status = get_transaction(p_dev, context, &p_transaction);
-    if (BT_STATUS_SUCCESS == tran_status && NULL != p_transaction) {
+    BtStatus tran_status = get_transaction(p_dev, context, &p_transaction);
+    if (tran_status && NULL != p_transaction) {
       BTA_AvRemoteCmd(p_dev->rc_handle, p_transaction->label, (tBTA_AV_RC)key_code,
                       (tBTA_AV_STATE)key_state);
-      status = BT_STATUS_SUCCESS;
+      status = BtifStatus();
       start_transaction_timer(p_dev, p_transaction->label, BTIF_RC_TIMEOUT_MS);
       log::verbose("Send command, key-code={}, key-state={}, label={}", key_code, key_state,
                    p_transaction->label);
     } else {
-      status = BT_STATUS_FAIL;
+      status = BtifStatus(FAIL);
       log::error("failed to get label, key-code={}, key-state={}, status={}", key_code, key_state,
                  tran_status);
     }
   } else {
-    status = BT_STATUS_UNSUPPORTED;
+    status = BtifStatus(UNSUPPORTED);
     log::verbose("feature not supported");
   }
-  return (bt_status_t)status;
+  return status;
 }
 
 static const btrc_ctrl_interface_t bt_rc_ctrl_interface = {
@@ -3378,7 +3194,7 @@ void init_all_transactions(btif_rc_device_cb_t* p_dev) {
  * Description    Will return a transaction based on the label. If not inuse
  *                     will return an error.
  *
- * Returns          bt_status_t
+ * Returns          Transaction
  ******************************************************************************/
 rc_transaction_t* get_transaction_by_lbl(btif_rc_device_cb_t* p_dev, uint8_t lbl) {
   if (p_dev == nullptr) {
@@ -3406,12 +3222,12 @@ rc_transaction_t* get_transaction_by_lbl(btif_rc_device_cb_t* p_dev, uint8_t lbl
  *
  * Description    Obtains the transaction details.
  *
- * Returns          bt_status_t
+ * Returns          BtStatus
  ******************************************************************************/
-static bt_status_t get_transaction(btif_rc_device_cb_t* p_dev, rc_transaction_context_t& context,
-                                   rc_transaction_t** ptransaction) {
+static BtStatus get_transaction(btif_rc_device_cb_t* p_dev, rc_transaction_context_t& context,
+                                rc_transaction_t** ptransaction) {
   if (p_dev == NULL) {
-    return BT_STATUS_PARM_INVALID;
+    return BtifStatus(PARM_INVALID);
   }
   rc_transaction_set_t* transaction_set = &(p_dev->transaction_set);
   std::unique_lock<std::recursive_mutex> lock(transaction_set->label_lock);
@@ -3425,11 +3241,11 @@ static bt_status_t get_transaction(btif_rc_device_cb_t* p_dev, rc_transaction_co
       *ptransaction = &(transaction_set->transaction[i]);
       log::verbose("Assigned transaction, dev={}, transaction={}", p_dev->rc_addr,
                    dump_transaction(*ptransaction));
-      return BT_STATUS_SUCCESS;
+      return BtifStatus();
     }
   }
   log::error("p_dev={}, failed to find free transaction", p_dev->rc_addr);
-  return BT_STATUS_NOMEM;
+  return BtifStatus(NOMEM);
 }
 
 /*******************************************************************************
@@ -3454,10 +3270,9 @@ static void start_transaction_timer(btif_rc_device_cb_t* p_dev, uint8_t label,
     log::warn("Restarting timer that's already scheduled");
   }
 
-  std::stringstream ss;
-  ss << "btif_rc." << p_dev->rc_addr.ToRedactedStringForLogging() << "." << transaction->label;
+  std::string alarm_label = std::format("btif_rc.{}.{}", p_dev->rc_addr, transaction->label);
   alarm_free(transaction->timer);
-  transaction->timer = alarm_new(ss.str().c_str());
+  transaction->timer = alarm_new(alarm_label.c_str());
   alarm_set_on_mloop(transaction->timer, timeout_ms, btif_rc_transaction_timer_timeout,
                      &transaction->context);
 }
@@ -3468,7 +3283,7 @@ static void start_transaction_timer(btif_rc_device_cb_t* p_dev, uint8_t label,
  *
  * Description    Will release a transaction for reuse
  *
- * Returns          bt_status_t
+ * Returns          void
  ******************************************************************************/
 void release_transaction(btif_rc_device_cb_t* p_dev, uint8_t lbl) {
   if (p_dev == nullptr) {
@@ -3519,8 +3334,8 @@ static std::string dump_transaction(const rc_transaction_t* const transaction) {
       ss << " pdu_id=" << dump_rc_pdu(context.command.browse.pdu_id);
       break;
     case AVRC_OP_PASS_THRU:
-      ss << " rc_id=" << context.command.passthru.rc_id;
-      ss << " key_state=" << context.command.passthru.key_state;
+      ss << " rc_id=" << static_cast<int>(context.command.passthru.rc_id);
+      ss << " key_state=" << static_cast<int>(context.command.passthru.key_state);
       break;
   }
   ss << ")";
@@ -3749,6 +3564,63 @@ static void btif_rc_transaction_timer_timeout(void* data) {
                         sizeof(rc_transaction_context_t), NULL);
 }
 
+/***************************************************************************
+ *
+ * Function       dump_peer_features
+ *
+ * Description    Dump peer features bit field for debugging
+ *
+ * Returns        String of peer features info
+ ******************************************************************************/
+static std::string dump_peer_features(const uint16_t feats) {
+  std::stringstream ss;
+
+  if (feats == 0) {
+    ss << "        EMPTY" << "\n";
+  }
+  if (feats & BTA_AV_FEAT_RCTG) {
+    ss << "        BTA_AV_FEAT_RCTG" << "\n";
+  }
+  if (feats & BTA_AV_FEAT_RCCT) {
+    ss << "        BTA_AV_FEAT_RCCT" << "\n";
+  }
+  if (feats & BTA_AV_FEAT_PROTECT) {
+    ss << "        BTA_AV_FEAT_PROTECT" << "\n";
+  }
+  if (feats & BTA_AV_FEAT_VENDOR) {
+    ss << "        BTA_AV_FEAT_VENDOR" << "\n";
+  }
+  if (feats & BTA_AV_FEAT_REPORT) {
+    ss << "        BTA_AV_FEAT_REPORT" << "\n";
+  }
+  if (feats & BTA_AV_FEAT_METADATA) {
+    ss << "        BTA_AV_FEAT_METADATA" << "\n";
+  }
+  if (feats & BTA_AV_FEAT_MULTI_AV) {
+    ss << "        BTA_AV_FEAT_MULTI_AV" << "\n";
+  }
+  if (feats & BTA_AV_FEAT_BROWSE) {
+    ss << "        BTA_AV_FEAT_BROWSE" << "\n";
+  }
+  if (feats & BTA_AV_FEAT_ADV_CTRL) {
+    ss << "        BTA_AV_FEAT_ADV_CTRL" << "\n";
+  }
+  if (feats & BTA_AV_FEAT_DELAY_RPT) {
+    ss << "        BTA_AV_FEAT_DELAY_RPT" << "\n";
+  }
+  if (feats & BTA_AV_FEAT_ACP_START) {
+    ss << "        BTA_AV_FEAT_ACP_START" << "\n";
+  }
+  if (feats & BTA_AV_FEAT_COVER_ARTWORK) {
+    ss << "        BTA_AV_FEAT_COVER_ARTWORK" << "\n";
+  }
+  if (feats & BTA_AV_FEAT_APP_SETTING) {
+    ss << "        BTA_AV_FEAT_APP_SETTING" << "\n";
+  }
+
+  return ss.str();
+}
+
 /*******************************************************************************
  *      Function       btif_debug_rc_dump
  *
@@ -3757,7 +3629,7 @@ static void btif_rc_transaction_timer_timeout(void* data) {
  *      Returns        void
  ******************************************************************************/
 void btif_debug_rc_dump(int fd) {
-  dprintf(fd, "\nAVRCP Native State:\n");
+  dprintf(fd, "\nAVRCP Controller Native State:\n");
 
   int connected_count = 0;
   for (int i = 0; i < BTIF_RC_NUM_CONN; ++i) {
@@ -3773,6 +3645,17 @@ void btif_debug_rc_dump(int fd) {
     if (p_dev->rc_state != BTRC_CONNECTION_STATE_DISCONNECTED) {
       dprintf(fd, "    %s:\n", p_dev->rc_addr.ToRedactedStringForLogging().c_str());
 
+      dprintf(fd, "      Control: %s\n",
+              (p_dev->rc_state == BTRC_CONNECTION_STATE_CONNECTED) ? "connected" : "disconnected");
+      dprintf(fd, "      Browse: %s\n",
+              (p_dev->br_state == BTRC_CONNECTION_STATE_CONNECTED) ? "connected" : "disconnected");
+      dprintf(fd, "      Cover Art PSM: %i\n", p_dev->rc_cover_art_psm);
+
+      dprintf(fd, "      Peer Target Features:\n%s",
+              dump_peer_features(p_dev->peer_tg_features).c_str());
+      dprintf(fd, "      Peer Controller Features:\n%s",
+              dump_peer_features(p_dev->peer_ct_features).c_str());
+
       rc_transaction_set_t* transaction_set = &(p_dev->transaction_set);
       std::unique_lock<std::recursive_mutex> lock(transaction_set->label_lock);
       dprintf(fd, "      Transaction Labels:\n");
@@ -3782,3 +3665,111 @@ void btif_debug_rc_dump(int fd) {
     }
   }
 }
+
+static btif_rc_device_cb_t* get_device_cb(unsigned index) {
+  return (index < BTIF_RC_NUM_CONN) ? &btif_rc_cb.rc_multi_cb[index] : nullptr;
+}
+
+namespace bluetooth::testing::avrc {
+
+static btif_rc_interface interface = {
+        /*************************************************************************
+         * Group 1: Command Transmission & Infrastructure
+         *************************************************************************/
+        .build_and_send_browsing_cmd = ::build_and_send_browsing_cmd,
+        .build_and_send_vendor_cmd = ::build_and_send_vendor_cmd,
+        .btif_rc_ctrl_upstreams_rsp_cmd = ::btif_rc_ctrl_upstreams_rsp_cmd,
+        .send_reject_response = ::send_reject_response,
+
+        /*************************************************************************
+         * Group 2: Player Metadata & Status Tracking
+         *************************************************************************/
+        .get_element_attribute_cmd = ::get_element_attribute_cmd,
+        .get_metadata_attribute_cmd = ::get_metadata_attribute_cmd,
+        .get_play_status_cmd = ::get_play_status_cmd,
+        .get_player_app_setting_attr_text_cmd = ::get_player_app_setting_attr_text_cmd,
+        .get_player_app_setting_cmd = ::get_player_app_setting_cmd,
+        .get_player_app_setting_value_text_cmd = ::get_player_app_setting_value_text_cmd,
+        .list_player_app_setting_attrib_cmd = ::list_player_app_setting_attrib_cmd,
+        .list_player_app_setting_value_cmd = ::list_player_app_setting_value_cmd,
+        .handle_app_attr_response = ::handle_app_attr_response,
+        .handle_app_attr_txt_response = ::handle_app_attr_txt_response,
+        .handle_app_attr_val_txt_response = ::handle_app_attr_val_txt_response,
+        .handle_app_cur_val_response = ::handle_app_cur_val_response,
+        .handle_app_val_response = ::handle_app_val_response,
+        .handle_get_metadata_attr_response = ::handle_get_metadata_attr_response,
+        .handle_get_playstatus_response = ::handle_get_playstatus_response,
+        .handle_set_app_attr_val_response = ::handle_set_app_attr_val_response,
+        .cleanup_app_attr_val_txt_response = ::cleanup_app_attr_val_txt_response,
+        .rc_is_track_id_valid = ::rc_is_track_id_valid,
+
+        /*************************************************************************
+         * Group 3: Player & Feature Discovery
+         *************************************************************************/
+        .getcapabilities_cmd = ::getcapabilities_cmd,
+        .handle_get_capability_response = ::handle_get_capability_response,
+        .handle_rc_browse_connect = ::handle_rc_browse_connect,
+        .handle_rc_connect = ::handle_rc_connect,
+        .handle_rc_ctrl_features = ::handle_rc_ctrl_features,
+        .handle_rc_ctrl_features_all = ::handle_rc_ctrl_features_all,
+        .handle_rc_ctrl_psm = ::handle_rc_ctrl_psm,
+        .handle_rc_disconnect = ::handle_rc_disconnect,
+        .handle_set_addressed_player_response = ::handle_set_addressed_player_response,
+        .handle_set_browsed_player_response = ::handle_set_browsed_player_response,
+        .dump_peer_features = ::dump_peer_features,
+        .get_requested_attributes_list_size = ::get_requested_attributes_list_size,
+
+        /*************************************************************************
+         * Group 4: Device & Transaction Management
+         *************************************************************************/
+        .get_device_cb = ::get_device_cb,
+        .alloc_device = ::alloc_device,
+        .btif_rc_get_device_by_bda = ::btif_rc_get_device_by_bda,
+        .btif_rc_get_device_by_handle = ::btif_rc_get_device_by_handle,
+        .get_connected_device = ::get_connected_device,
+        .get_transaction = ::get_transaction,
+        .get_transaction_by_lbl = ::get_transaction_by_lbl,
+        .initialize_device = ::initialize_device,
+        .init_all_transactions = ::init_all_transactions,
+        .initialize_transaction = ::initialize_transaction,
+        .release_transaction = ::release_transaction,
+        .dump_transaction = ::dump_transaction,
+
+        /*************************************************************************
+         * Group 5: Browsing & Content Navigation
+         *************************************************************************/
+        .get_folder_items_cmd = ::get_folder_items_cmd,
+        .get_item_attribute_cmd = ::get_item_attribute_cmd,
+        .handle_change_path_response = ::handle_change_path_response,
+        .handle_get_folder_items_response = ::handle_get_folder_items_response,
+        .get_folder_item_type_folder = ::get_folder_item_type_folder,
+        .get_folder_item_type_media = ::get_folder_item_type_media,
+        .get_folder_item_type_player = ::get_folder_item_type_player,
+        .cleanup_btrc_folder_items = ::cleanup_btrc_folder_items,
+
+        /*************************************************************************
+         * Group 6: Event Notification & Timeout Handling
+         *************************************************************************/
+        .register_notification_cmd = ::register_notification_cmd,
+        .register_for_event_notification = ::register_for_event_notification,
+        .handle_notification_response = ::handle_notification_response,
+        .iterate_supported_event_list_for_interim_rsp =
+                ::iterate_supported_event_list_for_interim_rsp,
+        .rc_notification_interim_timeout = ::rc_notification_interim_timeout,
+        .rc_ctrl_procedure_complete = ::rc_ctrl_procedure_complete,
+        .start_transaction_timer = ::start_transaction_timer,
+        .clear_cmd_timeout = ::clear_cmd_timeout,
+        .passthru_cmd_timeout_handler = ::passthru_cmd_timeout_handler,
+        .vendor_cmd_timeout_handler = ::vendor_cmd_timeout_handler,
+        .browse_cmd_timeout_handler = ::browse_cmd_timeout_handler,
+        .btif_rc_transaction_timer_timeout = ::btif_rc_transaction_timer_timeout,
+        .btif_rc_transaction_timeout_handler = ::btif_rc_transaction_timeout_handler,
+        .handle_rc_passthrough_rsp = ::handle_rc_passthrough_rsp,
+        .handle_rc_vendorunique_rsp = ::handle_rc_vendorunique_rsp,
+        .handle_avk_rc_metamsg_cmd = ::handle_avk_rc_metamsg_cmd,
+        .handle_avk_rc_metamsg_rsp = ::handle_avk_rc_metamsg_rsp,
+};
+
+btif_rc_interface* btif_rc_ctrl_get_interface() { return &interface; }
+
+}  // namespace bluetooth::testing::avrc

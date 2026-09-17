@@ -21,6 +21,8 @@
     <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"ਐਪ ਨੂੰ BluetoothShare ਪ੍ਰਬੰਧਕ ਤੱਕ ਪਹੁੰਚ ਅਤੇ ਫ਼ਾਈਲਾਂ ਟ੍ਰਾਂਸਫਰ ਕਰਨ ਲਈ ਇਸਦੀ ਵਰਤੋਂ ਕਰਨ ਦਿੰਦਾ ਹੈ।"</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"ਅਕਸੈਪਟਲਿਸਟ ਬਲੂਟੁੱਥ ਡੀਵਾਈਸ ਪਹੁੰਚ।"</string>
     <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"ਐਪ ਨੂੰ ਕਿਸੇ ਬਲੂਟੁੱਥ ਡੀਵਾਈਸ ਨੂੰ ਆਰਜ਼ੀ ਤੌਰ \'ਤੇ ਅਕਸੈਪਟਲਿਸਟ ਕਰਨ ਦਿੰਦਾ ਹੈ, ਅਤੇ ਉਸ ਡੀਵਾਈਸ ਨੂੰ ਇਸ ਡੀਵਾਈਸ ਤੱਕ ਵਰਤੋਂਕਾਰ ਦੀ ਪੁਸ਼ਟੀ ਦੇ ਬਿਨਾਂ ਫ਼ਾਈਲਾਂ ਭੇਜਣ ਦਿੰਦਾ ਹੈ।"</string>
+    <string name="permlab_bluetoothBackup" msgid="49451988877877942">"ਬਲੂਟੁੱਥ ਬੈਕਅੱਪ ਪ੍ਰਸਾਰਨਾਂ ਦੀ ਆਗਿਆ ਦਿਓ।"</string>
+    <string name="permdesc_bluetoothBackup" msgid="2871500153259509669">"ਇਸ ਨਾਲ ਬਲੂਟੁੱਥ ਐਪ ਨੂੰ ਸੈਟਿੰਗਾਂ ਡਾਟੇ ਦਾ ਬੈਕਅੱਪ ਟ੍ਰਿਗਰ ਕਰਨ ਲਈ, ਪ੍ਰਸਾਰਨ ਸਵੀਕਾਰ ਕਰਨ ਦੀ ਆਗਿਆ ਮਿਲਦੀ ਹੈ"</string>
     <string name="bt_share_picker_label" msgid="7464438494743777696">"ਬਲੂਟੁੱਥ"</string>
     <string name="unknown_device" msgid="2317679521750821654">"ਅਗਿਆਤ ਡੀਵਾਈਸ"</string>
     <string name="unknownNumber" msgid="1245183329830158661">"ਅਗਿਆਤ"</string>
@@ -112,10 +114,10 @@
     <string name="transfer_menu_open" msgid="5193344638774400131">"ਖੋਲ੍ਹੋ"</string>
     <string name="transfer_menu_clear" msgid="7213491281898188730">"ਸੂਚੀ ਵਿੱਚੋਂ ਹਟਾਓ"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"ਕਲੀਅਰ ਕਰੋ"</string>
-    <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Now Playing"</string>
+    <string name="bluetooth_media_audio_app_name" msgid="2389937877819723460">"ਬਲੂਟੁੱਥ ਆਡੀਓ"</string>
+    <string name="bluetooth_media_audio_queue_name" msgid="2327164681598379428">"Now Playing"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"ਐਪਲੀਕੇਸ਼ਨ ਪ੍ਰਤੀਕ"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"ਬਲੂਟੁੱਥ  ਆਡੀਓ  ਡਿਸਕਨੈਕਟ ਕੀਤੀ ਗਈ"</string>
-    <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"ਬਲੂਟੁੱਥ  ਆਡੀਓ"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"4GB ਤੋਂ ਜ਼ਿਆਦਾ ਵੱਡੀਆਂ ਫ਼ਾਈਲਾਂ ਨੂੰ ਟ੍ਰਾਂਸਫ਼ਰ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ"</string>
     <string name="bluetooth_connect_action" msgid="2319449093046720209">"ਬਲੂਟੁੱਥ ਨਾਲ ਕਨੈਕਟ ਕਰੋ"</string>
     <string name="bluetooth_enabled_apm_title" msgid="6914461147844949044">"ਹਵਾਈ-ਜਹਾਜ਼ ਮੋਡ ਵਿੱਚ ਬਲੂਟੁੱਥ ਚਾਲੂ ਹੈ"</string>
@@ -130,4 +132,13 @@
     <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"ਬਲੂਟੁੱਥ ਨੂੰ ਵਾਪਸ ਚਾਲੂ ਕੀਤਾ ਗਿਆ"</string>
     <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"ਤੁਸੀਂ ਕਿਸੇ ਵੇਲੇ ਵੀ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਇਸਨੂੰ ਬਦਲ ਸਕਦੇ ਹੋ"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"ਬਲੂਟੁੱਥ ਨੂੰ ਸਵੈਚਲਿਤ ਤੌਰ \'ਤੇ ਚਾਲੂ ਕਰਨ ਦੀ ਸੁਵਿਧਾ ਨੂੰ ਬਦਲ ਦਿੱਤਾ ਗਿਆ ਹੈ"</string>
+    <string name="auracast_notification_channel" msgid="5159181425358316696">"Auracast"</string>
+    <string name="auracast_notification_title" msgid="3101708313009368939">"<xliff:g id="STREAM_NAME">%1$s</xliff:g> ਆਡੀਓ ਸਟ੍ਰੀਮ ਉਪਲਬਧ ਹੈ"</string>
+    <string name="auracast_notification_subtext" msgid="4696155233480316395">"LE ਆਡੀਓ"</string>
+    <string name="auracast_connect_device_message" msgid="4461776363082532493">"ਸੁਣਨਾ ਸ਼ੁਰੂ ਕਰਨ ਲਈ LE ਆਡੀਓ ਡੀਵਾਈਸ ਕਨੈਕਟ ਕਰੋ"</string>
+    <string name="auracast_listen_on_device_message" msgid="3719491065367993094">"ਆਪਣੇ <xliff:g id="DEVICE_NAME">%2$s</xliff:g> \'ਤੇ <xliff:g id="STREAM_NAME">%1$s</xliff:g> ਆਡੀਓ ਸਟ੍ਰੀਮ ਸੁਣੋ"</string>
+    <string name="auracast_connect_action" msgid="7157544449029291355">"ਕਨੈਕਟ ਕਰੋ"</string>
+    <string name="auracast_connection_failed_message" msgid="6490085541428198952">"ਤੁਹਾਡੇ <xliff:g id="DEVICE_NAME">%2$s</xliff:g> \'ਤੇ <xliff:g id="STREAM_NAME">%1$s</xliff:g> ਆਡੀਓ ਸਟ੍ਰੀਮ ਨਾਲ ਕਨੈਕਟ ਕਰਨਾ ਅਸਫਲ ਰਿਹਾ।"</string>
+    <string name="auracast_default_stream_name" msgid="2824625871526576239">"ਨਜ਼ਦੀਕੀ"</string>
+    <string name="auracast_default_device_name" msgid="15748131701036354">"ਡੀਵਾਈਸ"</string>
 </resources>

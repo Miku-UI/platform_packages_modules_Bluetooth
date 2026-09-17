@@ -18,6 +18,7 @@ mod client;
 mod codec;
 mod ffi;
 mod streamer;
+mod utils;
 
 #[cfg(feature = "lc3")]
 mod lc3;

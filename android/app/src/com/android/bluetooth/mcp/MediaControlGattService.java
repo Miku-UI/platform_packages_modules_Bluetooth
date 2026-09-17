@@ -30,7 +30,6 @@ import static java.util.Objects.requireNonNull;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -41,6 +40,7 @@ import android.bluetooth.BluetoothGattServerCallback;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
+import android.bluetooth.State;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelUuid;
@@ -51,6 +51,7 @@ import com.android.bluetooth.BluetoothEventLogger;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.le_audio.LeAudioService;
+import com.android.bluetooth.util.Text;
 import com.android.internal.annotations.VisibleForTesting;
 
 import com.google.protobuf.ByteString;
@@ -852,7 +853,7 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
                 Log.d(
                         TAG,
                         "onBluetoothStateChange: state=" + BluetoothAdapter.nameForState(newState));
-                if (newState == BluetoothAdapter.STATE_ON) {
+                if (newState == State.ON) {
                     restoreCccValuesForStoredDevices();
                 }
             };
@@ -1132,7 +1133,6 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
      * to test the correct functioning of the McpService class, the final class must be put into a
      * container that can be mocked correctly.
      */
-    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     public static class BluetoothGattServerProxy {
         private final BluetoothGattServer mBluetoothGattServer;
         private final BluetoothManager mBluetoothManager;
@@ -1258,10 +1258,9 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
                             + Request.Opcodes.toString(opcode)
                             + " not supported");
             mHandler.post(
-                    () -> {
-                        setMediaControlRequestResult(
-                                new Request(opcode, 0), Request.Results.OPCODE_NOT_SUPPORTED);
-                    });
+                    () ->
+                            setMediaControlRequestResult(
+                                    new Request(opcode, 0), Request.Results.OPCODE_NOT_SUPPORTED));
             return BluetoothGatt.GATT_SUCCESS;
         }
 
@@ -1326,7 +1325,6 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
         mBluetoothGattServer = proxy;
     }
 
-    @SuppressLint("AndroidFrameworkRequiresPermission")
     private boolean initGattService(UUID serviceUuid) {
         mEventLogger.logd(TAG, "initGattService: uuid= " + serviceUuid);
 
@@ -1549,7 +1547,10 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
 
         if (stateFields.containsKey(PlayerStateField.PLAYER_NAME)) {
             String name = (String) stateFields.get(PlayerStateField.PLAYER_NAME);
-            if ((getPlayerNameChar() != null) && (name.compareTo(getPlayerNameChar()) != 0)) {
+            String playerNameChar = getPlayerNameChar();
+            if ((name != null)
+                    && (playerNameChar != null)
+                    && (name.compareTo(playerNameChar) != 0)) {
                 updatePlayerNameChar(name, doNotifyValueChange);
 
                 // Most likely the player has changed - request critical info fields
@@ -1593,11 +1594,11 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
         boolean notifyTrackChange = false;
         if (stateFields.containsKey(PlayerStateField.TRACK_TITLE)) {
             String newTitle = (String) stateFields.get(PlayerStateField.TRACK_TITLE);
-
+            if (newTitle == null) {
+                newTitle = "";
+            }
             if (getTrackTitleChar().compareTo(newTitle) != 0) {
-                updateTrackTitleChar(
-                        (String) stateFields.get(PlayerStateField.TRACK_TITLE),
-                        doNotifyValueChange);
+                updateTrackTitleChar(newTitle, doNotifyValueChange);
                 notifyTrackChange = true;
             }
         }
@@ -1919,8 +1920,9 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
     private String getTrackTitleChar() {
         if (isFeatureSupported(ServiceFeature.TRACK_TITLE)) {
             BluetoothGattCharacteristic characteristic = mCharacteristics.get(CharId.TRACK_TITLE);
-            if (characteristic.getValue() != null) {
-                return characteristic.getStringValue(0);
+            byte[] value = characteristic.getValue();
+            if (value != null && value.length > 0) {
+                return new String(value);
             }
         }
 
@@ -1930,14 +1932,18 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
     @VisibleForTesting
     void updateTrackTitleChar(String title, boolean notify) {
         Log.d(TAG, "updateTrackTitleChar: " + title);
-        if (isFeatureSupported(ServiceFeature.TRACK_TITLE)) {
-            BluetoothGattCharacteristic characteristic = mCharacteristics.get(CharId.TRACK_TITLE);
-            characteristic.setValue(title);
-            if (notify && isFeatureSupported(ServiceFeature.TRACK_TITLE_NOTIFY)) {
-                notifyCharacteristic(characteristic, null);
-            }
-            mEventLogger.logd(TAG, "updateTrackTitleChar: title= '" + title + "'");
+        if (!isFeatureSupported(ServiceFeature.TRACK_TITLE)) return;
+
+        if (title.getBytes().length > bluetooth.constants.Core.GATT_MAX_ATTR_LEN) {
+            title = Text.truncateUtf8String(title, bluetooth.constants.Core.GATT_MAX_ATTR_LEN);
+            Log.w(TAG, "updateTrackTitleChar, value to long, cutting it to " + title);
         }
+        BluetoothGattCharacteristic characteristic = mCharacteristics.get(CharId.TRACK_TITLE);
+        characteristic.setValue(title);
+        if (notify && isFeatureSupported(ServiceFeature.TRACK_TITLE_NOTIFY)) {
+            notifyCharacteristic(characteristic, null);
+        }
+        mEventLogger.logd(TAG, "updateTrackTitleChar: title= '" + title + "'");
     }
 
     @VisibleForTesting
@@ -2030,20 +2036,27 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
 
     private void updatePlayerIconUrlChar(String url) {
         Log.d(TAG, "updatePlayerIconUrlChar: " + url);
-        if (isFeatureSupported(ServiceFeature.PLAYER_ICON_URL)) {
-            mCharacteristics.get(CharId.PLAYER_ICON_URL).setValue(url);
-            mEventLogger.logd(TAG, "updatePlayerIconUrlChar: " + url);
+        if (!isFeatureSupported(ServiceFeature.PLAYER_ICON_URL)) return;
+
+        if (url.getBytes().length > bluetooth.constants.Core.GATT_MAX_ATTR_LEN) {
+            url = Text.truncateUtf8String(url, bluetooth.constants.Core.GATT_MAX_ATTR_LEN);
+            Log.w(TAG, "updatePlayerIconUrlChar, value to long, cutting it to " + url);
         }
+        mCharacteristics.get(CharId.PLAYER_ICON_URL).setValue(url);
+        mEventLogger.logd(TAG, "updatePlayerIconUrlChar: " + url);
     }
 
     private String getPlayerNameChar() {
+        // If not support then return null, otherwise return gatt char value or default empty string
         if (!isFeatureSupported(ServiceFeature.PLAYER_NAME)) return null;
 
         BluetoothGattCharacteristic characteristic = mCharacteristics.get(CharId.PLAYER_NAME);
-        if (characteristic.getValue() != null) {
-            return characteristic.getStringValue(0);
+        byte[] value = characteristic.getValue();
+        if (value != null && value.length > 0) {
+            return new String(value);
         }
-        return null;
+
+        return "";
     }
 
     @VisibleForTesting
@@ -2051,6 +2064,11 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
         Log.d(TAG, "updatePlayerNameChar: " + name);
 
         if (!isFeatureSupported(ServiceFeature.PLAYER_NAME)) return;
+
+        if (name.getBytes().length > bluetooth.constants.Core.GATT_MAX_ATTR_LEN) {
+            name = Text.truncateUtf8String(name, bluetooth.constants.Core.GATT_MAX_ATTR_LEN);
+            Log.w(TAG, "updatePlayerNameChar, value to long, cutting it to " + name);
+        }
 
         BluetoothGattCharacteristic characteristic = mCharacteristics.get(CharId.PLAYER_NAME);
         characteristic.setValue(name);
@@ -2391,24 +2409,24 @@ public class MediaControlGattService implements MediaControlGattServiceInterface
     }
 
     public void dump(StringBuilder sb) {
-        sb.append("\tMediaControlService instance current state:");
-        sb.append("\n\t\tCcid = ").append(mCcid);
-        sb.append("\n\t\tFeatures:").append(ServiceFeature.featuresToString(mFeatures));
+        sb.append("  MediaControlService instance current state:");
+        sb.append("\n    Ccid = ").append(mCcid);
+        sb.append("\n    Features:").append(ServiceFeature.featuresToString(mFeatures));
 
         BluetoothGattCharacteristic characteristic = mCharacteristics.get(CharId.PLAYER_NAME);
         if (characteristic == null) {
-            sb.append("\n\t\tPlayer name: <No Player>");
+            sb.append("\n    Player name: <No Player>");
         } else {
-            sb.append("\n\t\tPlayer name: ").append(characteristic.getStringValue(0));
+            sb.append("\n    Player name: <").append(characteristic.getStringValue(0)).append(">");
         }
 
-        sb.append("\n\t\tCurrentPlaybackState = ").append(mCurrentMediaState);
+        sb.append("\n    CurrentPlaybackState = ").append(mCurrentMediaState);
         for (Map.Entry<String, Map<UUID, Short>> deviceEntry : mCccDescriptorValues.entrySet()) {
-            sb.append("\n\t\tCCC states for device: ")
+            sb.append("\n    CCC states for device: ")
                     .append("xx:xx:xx:xx:")
                     .append(deviceEntry.getKey().substring(12));
             for (Map.Entry<UUID, Short> entry : deviceEntry.getValue().entrySet()) {
-                sb.append("\n\t\t\tCharacteristic: ")
+                sb.append("\n      Characteristic: ")
                         .append(mcsUuidToString(entry.getKey()))
                         .append(", value: ")
                         .append(Utils.cccIntToStr(entry.getValue()));

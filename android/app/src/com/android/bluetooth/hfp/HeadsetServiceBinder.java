@@ -27,12 +27,14 @@ import static java.util.Objects.requireNonNull;
 import android.annotation.RequiresPermission;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadset;
+import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.IBluetoothHeadset;
 import android.content.AttributionSource;
 
-import com.android.bluetooth.Utils;
-import com.android.bluetooth.btservice.ProfileService.IProfileServiceBinder;
+import com.android.bluetooth.Util;
+import com.android.bluetooth.metrics.MetricsLogger;
+import com.android.bluetooth.profile.ProfileService.IProfileServiceBinder;
 
 import java.util.Collections;
 import java.util.List;
@@ -53,15 +55,26 @@ class HeadsetServiceBinder extends IBluetoothHeadset.Stub implements IProfileSer
 
     @RequiresPermission(BLUETOOTH_CONNECT)
     private HeadsetService getService(AttributionSource source) {
+        return getServiceInternal(source, false);
+    }
+
+    @RequiresPermission(BLUETOOTH_CONNECT)
+    private HeadsetService getServiceAllowPcc(AttributionSource source) {
+        return getServiceInternal(source, true);
+    }
+
+    @RequiresPermission(BLUETOOTH_CONNECT)
+    private HeadsetService getServiceInternal(AttributionSource source, boolean allowPccBypass) {
         HeadsetService service = mService;
 
-        if (Utils.isInstrumentationTestMode()) {
+        if (Util.isInstrumentationTestMode()) {
             return service;
         }
 
-        if (!Utils.checkServiceAvailable(service, TAG)
-                || !Utils.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
-                || !Utils.checkConnectPermissionForDataDelivery(service, source, TAG)) {
+        if (!Util.checkProfileAvailable(service, TAG)
+                || !Util.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
+                || !Util.enforceConnectPermissionForDataDelivery(
+                        service, source, TAG, null, allowPccBypass)) {
             return null;
         }
         return service;
@@ -89,7 +102,7 @@ class HeadsetServiceBinder extends IBluetoothHeadset.Stub implements IProfileSer
 
     @Override
     public List<BluetoothDevice> getConnectedDevices(AttributionSource source) {
-        HeadsetService service = getService(source);
+        HeadsetService service = getServiceAllowPcc(source);
         if (service == null) {
             return Collections.emptyList();
         }
@@ -242,15 +255,6 @@ class HeadsetServiceBinder extends IBluetoothHeadset.Stub implements IProfileSer
     }
 
     @Override
-    public void setForceScoAudio(boolean forced, AttributionSource source) {
-        HeadsetService service = getService(source);
-        if (service == null) {
-            return;
-        }
-        service.setForceScoAudio(forced);
-    }
-
-    @Override
     public boolean startScoUsingVirtualVoiceCall(AttributionSource source) {
         HeadsetService service = getService(source);
         if (service == null) {
@@ -288,18 +292,20 @@ class HeadsetServiceBinder extends IBluetoothHeadset.Stub implements IProfileSer
 
     @Override
     public boolean setActiveDevice(BluetoothDevice device, AttributionSource source) {
+        MetricsLogger.getInstance().count(BluetoothProtoEnums.HFP_SET_ACTIVE_DEVICE_CALLED, 1);
         HeadsetService service = getService(source);
         if (service == null) {
             return false;
         }
 
         service.enforceCallingOrSelfPermission(MODIFY_PHONE_STATE, null);
-        return service.setActiveDevice(device);
+        return service.setActiveDevice(device, true);
     }
 
     @Override
     public BluetoothDevice getActiveDevice(AttributionSource source) {
-        HeadsetService service = getService(source);
+        MetricsLogger.getInstance().count(BluetoothProtoEnums.HFP_GET_ACTIVE_DEVICE_CALLED, 1);
+        HeadsetService service = getServiceAllowPcc(source);
         if (service == null) {
             return null;
         }
@@ -315,5 +321,14 @@ class HeadsetServiceBinder extends IBluetoothHeadset.Stub implements IProfileSer
 
         service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
         return service.isInbandRingingEnabled();
+    }
+
+    @Override
+    public int getCodecType(BluetoothDevice device, AttributionSource source) {
+        HeadsetService service = getService(source);
+        if (service == null) {
+            return BluetoothHeadset.CODEC_TYPE_UNSUPPORTED;
+        }
+        return service.getCodecType(device);
     }
 }

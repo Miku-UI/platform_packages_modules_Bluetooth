@@ -24,7 +24,6 @@
 #include <stdbool.h>
 
 #include <cstdint>
-#include <vector>
 
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cap_interface.h"
@@ -49,7 +48,7 @@ public:
   void L2CA_Deregister(uint16_t psm) override;
 
   // Lifecycle methods to register BLE l2cap services
-  [[nodiscard]] uint16_t L2CA_AllocateLePSM(void) override;
+  [[nodiscard]] uint16_t L2CA_AllocateLePSM(int fixed_psm_slots) override;
   void L2CA_FreeLePSM(uint16_t psm) override;
 
   [[nodiscard]] uint16_t L2CA_RegisterLECoc(uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info,
@@ -67,6 +66,7 @@ public:
   [[nodiscard]] uint16_t L2CA_ConnectReq(uint16_t psm, const RawAddress& bd_addr) override;
   [[nodiscard]] uint16_t L2CA_ConnectReqWithSecurity(uint16_t psm, const RawAddress& bd_addr,
                                                      uint16_t sec_level) override;
+  [[nodiscard]] bool L2CA_SetRateControlEnabled(const RawAddress& bd_addr, bool enabled) override;
   [[nodiscard]] bool L2CA_SetAclLatency(const RawAddress& bd_addr, tL2CAP_LATENCY latency) override;
   [[nodiscard]] bool L2CA_UseLatencyMode(const RawAddress& bd_addr, bool use_latency_mode) override;
   [[nodiscard]] bool L2CA_GetPeerFeatures(const RawAddress& bd_addr, uint32_t* p_ext_feat,
@@ -105,7 +105,10 @@ public:
   void L2CA_LockBleConnParamsForProfileConnection(const RawAddress& bd_addr, bool lock) override;
   void L2CA_LockBleConnParamsForLeAudioSubrate(const RawAddress& bd_addr, bool lock) override;
   [[nodiscard]] tHCI_ROLE L2CA_GetBleConnRole(const RawAddress& bd_addr) override;
+  [[nodiscard]] uint16_t L2CA_GetBleSubrateFactor(const RawAddress& bd_addr) override;
   [[nodiscard]] uint16_t L2CA_GetBleConnInterval(const RawAddress& bd_addr) override;
+  [[nodiscard]] uint16_t L2CA_GetBlePeriphLatency(const RawAddress& bd_addr) override;
+  [[nodiscard]] uint16_t L2CA_GetBleSupervisionTimeout(const RawAddress& bd_addr) override;
   [[nodiscard]] bool L2CA_SetLeGattTimeout(const RawAddress& bd_addr, uint16_t idle_tout) override;
   [[nodiscard]] bool L2CA_MarkLeLinkAsActive(const RawAddress& bd_addr) override;
   [[nodiscard]] bool L2CA_GetPeerLECocConfig(uint16_t lcid, tL2CAP_LE_CFG_INFO* peer_cfg) override;

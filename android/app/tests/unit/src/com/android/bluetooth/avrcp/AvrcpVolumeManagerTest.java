@@ -40,6 +40,7 @@ import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.storage.BluetoothStorageManager;
 import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.Before;
@@ -54,9 +55,10 @@ import org.mockito.Mock;
 @RunWith(AndroidJUnit4.class)
 public class AvrcpVolumeManagerTest {
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
-    @Rule public TestName testName = new TestName();
+    @Rule public final TestName testName = new TestName();
 
     @Mock private Resources mResources;
+    @Mock private BluetoothStorageManager mStorage;
     @Mock private AvrcpNativeInterface mNativeInterface;
     @Mock private AdapterService mAdapterService;
     @Mock private AudioManager mAudioManager;
@@ -65,7 +67,7 @@ public class AvrcpVolumeManagerTest {
 
     private final BluetoothDevice mDevice = getTestDevice(40);
 
-    AvrcpVolumeManager mAvrcpVolumeManager;
+    private AvrcpVolumeManager mAvrcpVolumeManager;
 
     @Before
     public void setUp() {
@@ -81,7 +83,7 @@ public class AvrcpVolumeManagerTest {
                 .when(mAdapterService)
                 .getSharedPreferences(anyString(), anyInt());
         mockGetSystemService(mAdapterService, AudioManager.class, mAudioManager);
-        mAvrcpVolumeManager = new AvrcpVolumeManager(mAdapterService, mNativeInterface);
+        mAvrcpVolumeManager = new AvrcpVolumeManager(mAdapterService, mStorage, mNativeInterface);
     }
 
     @Test

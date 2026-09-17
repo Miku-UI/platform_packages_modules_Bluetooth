@@ -21,6 +21,8 @@
     <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"Tillåter att appen använder BluetoothShare-hanteraren vid överföring av filer."</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"Lägg till åtkomst för Bluetooth-enheten på godkännandelistan."</string>
     <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"Tillåter att appen tillfälligt lägger till en Bluetooth-enhet på godkännandelistan så att det går att skicka filer från den enheten till den här utan bekräftelse från användaren."</string>
+    <string name="permlab_bluetoothBackup" msgid="49451988877877942">"Tillåt säkerhetskopieringssändningar via Bluetooth"</string>
+    <string name="permdesc_bluetoothBackup" msgid="2871500153259509669">"Tillåter att Bluetooth-appen tar emot sändningar för att utlösa säkerhetskopiering av inställningar"</string>
     <string name="bt_share_picker_label" msgid="7464438494743777696">"Bluetooth"</string>
     <string name="unknown_device" msgid="2317679521750821654">"Okänd enhet"</string>
     <string name="unknownNumber" msgid="1245183329830158661">"Okänd"</string>
@@ -112,10 +114,10 @@
     <string name="transfer_menu_open" msgid="5193344638774400131">"Öppna"</string>
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Ta bort från listan"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Rensa"</string>
-    <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Nu spelas"</string>
+    <string name="bluetooth_media_audio_app_name" msgid="2389937877819723460">"Bluetooth-ljud"</string>
+    <string name="bluetooth_media_audio_queue_name" msgid="2327164681598379428">"Nu spelas"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Appikon"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Bluetooth-ljud är frånkopplat"</string>
-    <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Bluetooth-ljud"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"Det går inte att överföra filer som är större än 4 GB"</string>
     <string name="bluetooth_connect_action" msgid="2319449093046720209">"Anslut till Bluetooth"</string>
     <string name="bluetooth_enabled_apm_title" msgid="6914461147844949044">"Håll Bluetooth aktiverat i flygplansläge"</string>
@@ -130,4 +132,13 @@
     <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"Bluetooth aktiverades igen"</string>
     <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"Ändra det här när som helst i inställningarna"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"Ändring av automatiskt Bluetooth-läge"</string>
+    <string name="auracast_notification_channel" msgid="5159181425358316696">"Auracast"</string>
+    <string name="auracast_notification_title" msgid="3101708313009368939">"Ljudstreamen <xliff:g id="STREAM_NAME">%1$s</xliff:g> är tillgänglig"</string>
+    <string name="auracast_notification_subtext" msgid="4696155233480316395">"LE Audio"</string>
+    <string name="auracast_connect_device_message" msgid="4461776363082532493">"Anslut en LE Audio-enhet för att börja lyssna"</string>
+    <string name="auracast_listen_on_device_message" msgid="3719491065367993094">"Lyssna på ljudstreamen <xliff:g id="STREAM_NAME">%1$s</xliff:g> på din <xliff:g id="DEVICE_NAME">%2$s</xliff:g>"</string>
+    <string name="auracast_connect_action" msgid="7157544449029291355">"Anslut"</string>
+    <string name="auracast_connection_failed_message" msgid="6490085541428198952">"Det gick inte att ansluta till ljudstreamen <xliff:g id="STREAM_NAME">%1$s</xliff:g> på din <xliff:g id="DEVICE_NAME">%2$s</xliff:g>."</string>
+    <string name="auracast_default_stream_name" msgid="2824625871526576239">"I närheten"</string>
+    <string name="auracast_default_device_name" msgid="15748131701036354">"enheter"</string>
 </resources>

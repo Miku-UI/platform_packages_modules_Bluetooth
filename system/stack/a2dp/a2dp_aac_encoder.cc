@@ -16,7 +16,7 @@
 
 #define LOG_TAG "bluetooth-a2dp"
 
-#include "a2dp_aac_encoder.h"
+#include "stack/include/a2dp_aac_encoder.h"
 
 #include <FDK_audio.h>
 #include <aacenc_lib.h>
@@ -28,13 +28,13 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "a2dp_aac.h"
-#include "a2dp_aac_constants.h"
-#include "a2dp_codec_api.h"
-#include "avdt_api.h"
 #include "common/time_util.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
+#include "stack/include/a2dp_aac.h"
+#include "stack/include/a2dp_aac_constants.h"
+#include "stack/include/a2dp_codec_api.h"
+#include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
 
 //
@@ -331,7 +331,7 @@ static void a2dp_aac_encoder_update(A2dpCodecConfig* a2dp_codec_config, bool* p_
             "mode");
     return;  // TODO: Return an error?
   } else if (aac_param_value == A2DP_AAC_VARIABLE_BIT_RATE_ENABLED) {
-    // VBR has 5 modes defined in external/aac/libAACenc/src/aacenc.h
+    // VBR has 5 modes defined in external/aac/cpp/libAACenc/src/aacenc.h
     // A2DP_AAC_VARIABLE_BIT_RATE_DISABLED is equal to AACENC_BR_MODE_CBR
     auto bitrate_mode = a2dp_codec_config->getCodecConfig().codec_specific_1;
     switch (static_cast<AacEncoderBitrateMode>(bitrate_mode)) {
@@ -436,7 +436,7 @@ void a2dp_aac_send_frames(uint64_t timestamp_us) {
   uint8_t nb_iterations = 0;
 
   a2dp_aac_get_num_frame_iteration(&nb_iterations, &nb_frame, timestamp_us);
-  log::verbose("Sending {} frames per iteration, {} iterations", nb_frame, nb_iterations);
+  log::debug("Sending {} frames per iteration, {} iterations", nb_frame, nb_iterations);
   if (nb_frame == 0) {
     return;
   }
@@ -459,7 +459,7 @@ static void a2dp_aac_get_num_frame_iteration(uint8_t* num_of_iterations, uint8_t
   uint32_t pcm_bytes_per_frame = a2dp_aac_encoder_cb.aac_encoder_params.frame_length *
                                  a2dp_aac_encoder_cb.feeding_params.channel_count *
                                  a2dp_aac_encoder_cb.feeding_params.bits_per_sample / 8;
-  log::verbose("pcm_bytes_per_frame {}", pcm_bytes_per_frame);
+  log::debug("pcm_bytes_per_frame {}", pcm_bytes_per_frame);
 
   uint32_t us_this_tick = a2dp_aac_encoder_interval_ms * 1000;
   uint64_t now_us = timestamp_us;
@@ -476,7 +476,7 @@ static void a2dp_aac_get_num_frame_iteration(uint8_t* num_of_iterations, uint8_t
   a2dp_aac_encoder_cb.aac_feeding_state.counter -= result * pcm_bytes_per_frame;
   nof = result;
 
-  log::verbose("effective num of frames {}, iterations {}", nof, noi);
+  log::debug("effective num of frames {}, iterations {}", nof, noi);
 
   *num_of_frames = nof;
   *num_of_iterations = noi;
@@ -518,9 +518,11 @@ static void a2dp_aac_encode_frames(uint8_t nb_frame) {
   out_buf_desc.bufSizes = out_buf_sizes;
   out_buf_desc.bufElSizes = out_buf_element_sizes;
   log::assert_that(p_encoder_params->max_encoded_buffer_bytes <=
-                           static_cast<int>(BT_DEFAULT_BUFFER_SIZE - sizeof(BT_HDR)),
+                           static_cast<int>(BT_DEFAULT_BUFFER_SIZE - sizeof(BT_HDR) -
+                                            A2DP_AAC_OFFSET),
                    "assert failed: p_encoder_params->max_encoded_buffer_bytes <= "
-                   "static_cast<int>(BT_DEFAULT_BUFFER_SIZE - sizeof(BT_HDR))");
+                   "static_cast<int>(BT_DEFAULT_BUFFER_SIZE - sizeof(BT_HDR) - "
+                   "A2DP_AAC_OFFSET)");
 
   AACENC_InArgs aac_in_args;
   aac_in_args.numInSamples = p_encoder_params->frame_length * p_feeding_params->channel_count;
@@ -643,12 +645,12 @@ static uint16_t adjust_effective_mtu(const tA2DP_ENCODER_INIT_PEER_PARAMS& peer_
   if (mtu_size > peer_params.peer_mtu) {
     mtu_size = peer_params.peer_mtu;
   }
-  log::verbose("original AVDTP MTU size: {}", mtu_size);
+  log::debug("original AVDTP MTU size: {}", mtu_size);
   if (peer_params.is_peer_edr && !peer_params.peer_supports_3mbps) {
     // This condition would be satisfied only if the remote device is
     // EDR and supports only 2 Mbps, but the effective AVDTP MTU size
     // exceeds the 2DH5 packet size.
-    log::verbose("The remote device is EDR but does not support 3 Mbps");
+    log::debug("The remote device is EDR but does not support 3 Mbps");
     if (mtu_size > MAX_2MBPS_AVDTP_MTU) {
       log::warn("Restricting AVDTP MTU size from {} to {}", mtu_size, MAX_2MBPS_AVDTP_MTU);
       mtu_size = MAX_2MBPS_AVDTP_MTU;

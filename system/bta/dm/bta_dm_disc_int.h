@@ -27,8 +27,8 @@
 #include "bta/include/bta_api.h"
 #include "bta/sys/bta_sys.h"
 #include "macros.h"
+#include "stack/include/sdp_discovery_db.h"
 #include "stack/include/sdp_status.h"
-#include "stack/sdp/sdp_discovery_db.h"
 
 #define BTA_SERVICE_ID_TO_SERVICE_MASK(id) (1 << (id))
 
@@ -115,9 +115,6 @@ typedef struct {
   alarm_t* gatt_close_timer;    /* GATT channel close delay timer */
   RawAddress pending_close_bda; /* pending GATT channel remote device address */
 } tBTA_DM_SERVICE_DISCOVERY_CB;
-
-extern const uint32_t bta_service_id_to_btm_srv_id_lkup_tbl[];
-extern const uint16_t bta_service_id_to_uuid_lkup_tbl[];
 
 void bta_dm_disc_override_sdp_performer_for_testing(
         base::RepeatingCallback<void(tBTA_DM_SDP_STATE*)> sdp_performer);

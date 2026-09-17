@@ -150,6 +150,7 @@ public:
   void MessageReceived(uint8_t label, std::shared_ptr<Packet> pkt);
   void BrowseMessageReceived(uint8_t label, std::shared_ptr<BrowsePacket> pkt);
   void VendorPacketHandler(uint8_t label, std::shared_ptr<VendorPacket> pkt);
+  void SetRcFeatures(RcFeature feature);
 
   /********************
    * MESSAGE RESPONSES
@@ -225,16 +226,13 @@ public:
   virtual void GetTotalNumberOfItemsMediaPlayersResponse(uint8_t label, uint16_t curr_player,
                                                          std::vector<MediaPlayerInfo> list);
   virtual void GetTotalNumberOfItemsVFSResponse(uint8_t label, std::vector<ListItem> items);
-  virtual void GetTotalNumberOfItemsNowPlayingResponse(uint8_t label, std::string curr_song_id,
-                                                       std::vector<SongInfo> song_list);
 
   // GET ITEM ATTRIBUTES
   virtual void HandleGetItemAttributes(uint8_t label,
                                        std::shared_ptr<GetItemAttributesRequest> request);
   virtual void GetItemAttributesNowPlayingResponse(uint8_t label,
                                                    std::shared_ptr<GetItemAttributesRequest> pkt,
-                                                   std::string curr_media_id,
-                                                   std::vector<SongInfo> song_list);
+                                                   SongInfo info);
   virtual void GetItemAttributesVFSResponse(uint8_t label,
                                             std::shared_ptr<GetItemAttributesRequest> pkt,
                                             std::vector<ListItem> item_list);
@@ -325,8 +323,6 @@ private:
     return a2dp_interface_->find_audio_sink_service(address_, p_cback) == A2DP_SUCCESS;
   }
 
-  base::WeakPtrFactory<Device> weak_ptr_factory_;
-
   // TODO (apanicke): Initialize all the variables in the constructor.
   RawAddress address_;
 
@@ -358,6 +354,7 @@ private:
 
   MediaIdMap vfs_ids_;
   MediaIdMap now_playing_ids_;
+  std::set<uint64_t> non_playable_vfs_uids_;
 
   uint32_t play_pos_interval_ = 0;
 
@@ -376,8 +373,21 @@ private:
   std::set<uint8_t> active_labels_;
   bool set_vol_cmd_in_progress_ = false;
 
+  // pending interim labels for VolumeChanged notification
+  std::set<uint8_t> pending_interim_labels_;
+
+  RcFeature peer_feature_ = RcFeature::RC_FEAT_UNDEFINED;
+
   int8_t volume_ = -1;
+
   std::optional<int8_t> pending_volume_ = {};
+
+  bool pending_track_changed_ = false;
+
+  // Member variables should appear before the WeakPtrFactory, to ensure
+  // that any WeakPtrs are invalidated before its members
+  // variable's destructors are executed, rendering them invalid.
+  base::WeakPtrFactory<Device> weak_ptr_factory_{this};
 };
 
 }  // namespace avrcp

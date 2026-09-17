@@ -16,6 +16,7 @@
 
 #include "hci/acl_manager/classic_acl_connection.h"
 
+#include <base/functional/callback.h>
 #include <bluetooth/log.h>
 #include <bluetooth/metrics/os_metrics.h>
 #include <com_android_bluetooth_flags.h>
@@ -310,7 +311,7 @@ public:
   AclConnectionInterface* acl_connection_interface_;
   os::Handler* client_handler_ = nullptr;
   ConnectionManagementCallbacks* client_callbacks_ = nullptr;
-  std::list<common::OnceClosure> queued_callbacks_;
+  std::list<base::OnceClosure> queued_callbacks_;
   Address address_;
   uint16_t connection_handle_;
 };
@@ -369,11 +370,9 @@ void ClassicAclConnection::RegisterCallbacks(ConnectionManagementCallbacks* call
 }
 
 bool ClassicAclConnection::Disconnect(DisconnectReason reason) {
-  if (com_android_bluetooth_flags_dont_send_hci_disconnect_repeatedly()) {
-    if (is_disconnecting_) {
-      log::info("Already disconnecting {}", address_);
-      return true;
-    }
+  if (is_disconnecting_) {
+    log::info("Already disconnecting {}", address_);
+    return true;
   }
 
   is_disconnecting_ = true;

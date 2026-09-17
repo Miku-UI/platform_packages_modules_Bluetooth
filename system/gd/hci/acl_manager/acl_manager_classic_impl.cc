@@ -45,12 +45,6 @@ AclManagerClassicImpl::AclManagerClassicImpl(os::Handler* handler, HciInterface&
 }
 
 AclManagerClassicImpl::~AclManagerClassicImpl() {
-  if (!com_android_bluetooth_flags_same_handler_for_all_modules()) {
-    handler_->Clear();
-    handler_->WaitUntilStopped(std::chrono::milliseconds(2000));
-    delete handler_;
-  }
-
   log::verbose("AclManagerClassic module stopped !!");
 }
 
@@ -70,8 +64,8 @@ void AclManagerClassicImpl::UnregisterCallbacks(ConnectionCallbacks* callbacks,
                    common::Unretained(callbacks), std::move(promise));
 }
 
-void AclManagerClassicImpl::CreateConnection(Address address) {
-  handler_->CallOn(&classic_impl_, &classic_impl::create_connection, address);
+void AclManagerClassicImpl::CreateConnection(Address address, uint16_t clock_offset) {
+  handler_->CallOn(&classic_impl_, &classic_impl::create_connection, address, clock_offset);
 }
 
 void AclManagerClassicImpl::CancelConnect(Address address) {

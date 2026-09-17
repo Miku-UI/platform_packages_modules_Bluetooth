@@ -356,6 +356,9 @@ typedef enum {
   // Som A2DP sink devices don't respond SDP request during A2DP reconnection
   INTEROP_A2DP_SKIP_SDP_DURING_RECONNECTION,
 
+  // After receiving the service changed ind, ignore the subsequent operation.
+  INTEROP_IGNORE_SERVICE_CHANGED_IND,
+
   // Some devices response slowly after setting non zero latency.
   // To avoid slowing down profile connection set latency to 0.
   // Peer can request proper latency based on its power state later.
@@ -386,6 +389,17 @@ typedef enum {
 
   INTEROP_HFP_SEND_OK_FOR_CLCC_AFTER_VOIP_CALL_END,
 
+  // Some older A2DP Sink devices do not behave well if they receive a
+  // Discover command right after a SetConfiguration is accepted, causing
+  // subsequent Start commands to be rejected.
+  INTEROP_AVDTP_SKIP_DISCOVER_AFTER_CONFIG,
+
+  // Stack performs auto-connect fallback when only one switch is enabled:
+  // media or phone call. Some devices perform their own auto-connect and
+  // this interferes with the stack. This interop disables auto-connect
+  // fallback in the stack for those devices.
+  INTEROP_DISABLE_PROFILE_FALLBACK,
+
   END_OF_INTEROP_LIST
 } interop_feature_t;
 
@@ -393,7 +407,7 @@ typedef enum {
 // identified by the |interop_feature_t| enum. This API is used for simple
 // address based lookups where more information is not available. No
 // look-ups or random address resolution are performed on |addr|.
-bool interop_match_addr(const interop_feature_t feature, const RawAddress* addr);
+bool interop_match_addr(const interop_feature_t feature, RawAddress addr);
 
 // Check if a given remote device |name| matches a known workaround.
 // Name comparisons are case sensitive and do not allow for partial matches.
@@ -406,8 +420,8 @@ bool interop_match_name(const interop_feature_t feature, const char* name);
 // This api will lookup remote name with |addr| by btif_storage api internally.
 // Then if either interop_match_addr or interop_match_name is matched, this
 // function will return true.
-bool interop_match_addr_or_name(const interop_feature_t feature, const RawAddress* addr,
-                                bt_status_t (*get_remote_device_property)(const RawAddress*,
+bool interop_match_addr_or_name(const interop_feature_t feature, RawAddress addr,
+                                bt_status_t (*get_remote_device_property)(const RawAddress&,
                                                                           bt_property_t*));
 
 // Check if a given |manufacturer| matches a known interoperability workaround
@@ -428,7 +442,7 @@ bool interop_match_vendor_product_ids(const interop_feature_t feature, uint16_t 
 // |length| must be greater than 0 and less than RawAddress::kLength.
 // As |interop_feature_t| is not exposed in the public API, feature must be a
 // valid integer representing an option in the enum.
-void interop_database_add(const uint16_t feature, const RawAddress* addr, size_t length);
+void interop_database_add(const uint16_t feature, RawAddress addr, size_t length);
 
 // Clear the dynamic portion of the interoperability workaround database.
 void interop_database_clear(void);
@@ -440,7 +454,7 @@ bool interop_database_match_version(const interop_feature_t feature, uint16_t ve
 // address based lookups where more information is not available. No look-ups or
 // random address resolution are performed on |addr|. If address is matched, max
 // latency for SSR stored for particular remote device is returned.
-bool interop_match_addr_get_max_lat(const interop_feature_t feature, const RawAddress* addr,
+bool interop_match_addr_get_max_lat(const interop_feature_t feature, RawAddress addr,
                                     uint16_t* max_lat);
 
 // Return feature's enum value according to feature'name.

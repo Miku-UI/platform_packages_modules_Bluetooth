@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,7 +56,6 @@ public class BleConnectionFragment extends Fragment {
             @NonNull LayoutInflater inflater,
             @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
-
         View root = inflater.inflate(R.layout.fragment_ble_connection, container, false);
         mBtnAdvertising = root.findViewById(R.id.btn_advertising);
         mButtonUpdate = (Button) root.findViewById(R.id.btn_update_devices);

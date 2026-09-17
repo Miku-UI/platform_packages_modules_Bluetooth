@@ -22,7 +22,6 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
-import android.bluetooth.BluetoothProfile;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.net.Uri;
@@ -34,8 +33,6 @@ import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
 import android.util.Log;
-
-import com.android.bluetooth.btservice.AdapterService;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -89,13 +86,13 @@ public class HfpClientConnectionService extends ConnectionService {
 
     /** Send a device connection state changed event to this service */
     public static void onConnectionStateChanged(
-            AdapterService adapterService, BluetoothDevice device, int newState, int oldState) {
+            BluetoothDevice device, int newState, int oldState) {
         HfpClientConnectionService service = getInstance();
         if (service == null) {
             Log.e(TAG, "onConnectionStateChanged: HFP Client Connection Service not started");
             return;
         }
-        service.onConnectionStateChangedInternal(adapterService, device, newState, oldState);
+        service.onConnectionStateChangedInternal(device, newState, oldState);
     }
 
     /** Send a device call state changed event to this service */
@@ -123,17 +120,21 @@ public class HfpClientConnectionService extends ConnectionService {
     // --------------------------------------------------------------------------------------------//
 
     private void onConnectionStateChangedInternal(
-            AdapterService adapterService, BluetoothDevice device, int newState, int oldState) {
-        if (newState == STATE_CONNECTED) {
-            Log.d(TAG, "Established connection with " + device);
+            BluetoothDevice device, int newState, int oldState) {
+        Log.d(
+                TAG,
+                "onConnectionStateChanged("
+                        + ("device=" + device)
+                        + (", oldState=" + oldState)
+                        + (", newState=" + device)
+                        + ")");
 
+        if (newState == STATE_CONNECTED) {
             HfpClientDeviceBlock block = createBlockForDevice(device);
             if (block == null) {
                 Log.w(TAG, "Block already exists for device= " + device + ", ignoring.");
             }
         } else if (newState == STATE_DISCONNECTED) {
-            Log.d(TAG, "Disconnecting from " + device);
-
             // Disconnect any inflight calls from the connection service.
             synchronized (HfpClientConnectionService.this) {
                 HfpClientDeviceBlock block = mDeviceBlocks.remove(device);
@@ -144,19 +145,6 @@ public class HfpClientConnectionService extends ConnectionService {
                 block.cleanup();
             }
         }
-        adapterService
-                .getRemoteDevices()
-                .handleHeadsetClientConnectionStateChanged(device, oldState, newState);
-        adapterService.notifyProfileConnectionStateChangeToScan(
-                BluetoothProfile.HEADSET_CLIENT, oldState, newState);
-        adapterService
-                .getPbapClientService()
-                .ifPresent(
-                        pC ->
-                                pC.handleHeadsetClientConnectionStateChanged(
-                                        device, oldState, newState));
-        adapterService.updateProfileConnectionAdapterProperties(
-                device, BluetoothProfile.HEADSET_CLIENT, newState, oldState);
     }
 
     private void onCallChangedInternal(BluetoothDevice device, HfpClientCall call) {
@@ -318,6 +306,10 @@ public class HfpClientConnectionService extends ConnectionService {
         }
 
         HfpClientDeviceBlock block = findBlockForDevice(bd1);
+        if (block == null) {
+            Log.w(TAG, "Conference changed but no block for device=" + bd1);
+            return;
+        }
         block.onConference(connection1, connection2);
     }
 
@@ -366,15 +358,9 @@ public class HfpClientConnectionService extends ConnectionService {
                         new ComponentName(this, HfpClientConnectionService.class),
                         device.getAddress());
 
-        int capabilities = PhoneAccount.CAPABILITY_CALL_PROVIDER;
-        if (getApplicationContext()
-                .getResources()
-                .getBoolean(
-                        com.android.bluetooth.R.bool
-                                .hfp_client_connection_service_support_emergency_call)) {
-            // Need to have an emergency call capability to place emergency call
-            capabilities |= PhoneAccount.CAPABILITY_PLACE_EMERGENCY_CALLS;
-        }
+        int capabilities =
+                PhoneAccount.CAPABILITY_CALL_PROVIDER
+                        | PhoneAccount.CAPABILITY_PLACE_EMERGENCY_CALLS;
 
         PhoneAccount account =
                 new PhoneAccount.Builder(handle, "HFP " + device.toString())

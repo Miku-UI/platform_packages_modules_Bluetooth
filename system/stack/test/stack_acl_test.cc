@@ -20,11 +20,14 @@
 
 #include <cstdint>
 
+#include "bta/gatt/bta_gattc_int.h"
+#include "bta/include/bta_dm_acl.h"
+#include "bta/sys/bta_sys.h"
 #include "hci/controller_mock.h"
 #include "stack/acl/acl.h"
+#include "stack/btm/btm_device_record.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/internal/btm_api.h"
-#include "stack/btm/security_device_record.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/acl_hci_link_interface.h"
 #include "stack/include/hcidefs.h"
@@ -33,8 +36,17 @@
 
 tBTM_CB btm_cb;
 
+// TODO: remove dependency on BTA symbols
+void BTA_dm_acl_up(const AclLinkSpec&, uint16_t, bool) {}
+void BTA_dm_acl_up_failed(const AclLinkSpec&, tHCI_STATUS, bool) {}
+void BTA_dm_acl_down(const AclLinkSpec&) {}
+void BTA_dm_report_role_change(RawAddress, tHCI_ROLE, tHCI_STATUS) {}
+void BTA_dm_notify_remote_features_complete(RawAddress) {}
+void bta_gattc_continue_discovery_if_needed(const RawAddress&, uint16_t) {}
+void bta_sys_notify_collision(const RawAddress&) {}
+
 namespace {
-const RawAddress kRawAddress = RawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+const RawAddress kRawAddress = RawAddress("11:22:33:44:55:66");
 }  // namespace
 
 namespace bluetooth {
@@ -54,7 +66,7 @@ protected:
   }
   void TearDown() override { bluetooth::hci::testing::mock_controller_.reset(); }
 
-  tBTM_SEC_DEV_REC device_record_;
+  BtmDevice btm_device_;
 };
 
 TEST_F(StackAclTest, nop) {}
@@ -63,8 +75,8 @@ TEST_F(StackAclTest, acl_process_extended_features) {
   const uint16_t hci_handle = 0x123;
   const tBT_TRANSPORT transport = BT_TRANSPORT_LE;
   const tHCI_ROLE link_role = HCI_ROLE_CENTRAL;
-  const tAclLinkSpec link_spec = {.addrt = {.type = BLE_ADDR_PUBLIC, .bda = kRawAddress},
-                                  .transport = transport};
+  const AclLinkSpec link_spec = {.addrt = {.type = BLE_ADDR_PUBLIC, .bda = kRawAddress},
+                                 .transport = transport};
 
   btm_acl_created(link_spec, hci_handle, link_role);
   tACL_CONN* p_acl = btm_acl_for_bda(kRawAddress, transport);

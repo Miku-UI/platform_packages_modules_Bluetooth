@@ -37,9 +37,9 @@
 #include "bta_ag_swb_aptx.h"
 #include "bta_sys.h"
 #include "btif/include/btif_storage.h"
-#include "btm_api_types.h"
 #include "hardware/bt_hf.h"
 #include "osi/include/alarm.h"
+#include "stack/include/btm_api_types.h"
 
 #ifdef __ANDROID__
 #include "bta_le_audio_api.h"
@@ -1003,7 +1003,7 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, cha
           bta_ag_svc_conn_open(p_scb, tBTA_AG_DATA::kEmpty);
         } else {
           if (p_scb->peer_version >= HFP_VERSION_1_7 &&
-              interop_match_addr(INTEROP_SLC_SKIP_BIND_COMMAND, &p_scb->peer_addr)) {
+              interop_match_addr(INTEROP_SLC_SKIP_BIND_COMMAND, p_scb->peer_addr)) {
             alarm_set_on_mloop(p_scb->bind_timer, BTA_AG_BIND_TIMEOUT_MS, bta_ag_bind_timer_cback,
                                p_scb);
           }
@@ -1143,8 +1143,7 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, cha
       p_scb->peer_features = (uint16_t)int_arg;
 
       if (p_scb->peer_version < HFP_VERSION_1_7) {
-        if (!(com_android_bluetooth_flags_check_peer_hf_indicator() &&
-              p_scb->peer_version == HFP_HSP_VERSION_UNKNOWN &&
+        if (!(p_scb->peer_version == HFP_HSP_VERSION_UNKNOWN &&
               (p_scb->peer_features & BTA_AG_PEER_FEAT_HF_IND))) {
           p_scb->masked_features &= HFP_1_6_FEAT_MASK;
         }
@@ -1152,13 +1151,13 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, cha
 
       bluetooth::metrics::LogMetricHfpAgVersion(p_scb->peer_addr, p_scb->peer_version);
 
-      if (interop_match_addr(INTEROP_INBAND_RINGTONE_SET_TO_FALSE, &p_scb->peer_addr)) {
+      if (interop_match_addr(INTEROP_INBAND_RINGTONE_SET_TO_FALSE, p_scb->peer_addr)) {
         log::verbose("do not send inband ringtone supported for denylisted device");
         p_scb->masked_features = p_scb->masked_features & ~(BTA_AG_FEAT_INBAND);
       }
 
-      if (interop_match_addr_or_name(INTEROP_DISABLE_CODEC_NEGOTIATION, &p_scb->peer_addr,
-                                     &btif_storage_get_remote_device_property)) {
+      if (interop_match_addr_or_name(INTEROP_DISABLE_CODEC_NEGOTIATION, p_scb->peer_addr,
+                                     btif_storage_get_remote_device_property)) {
         log::verbose("disable codec negotiation, remote for denylist device");
         p_scb->masked_features = p_scb->masked_features & ~(BTA_AG_FEAT_CODEC);
         p_scb->peer_features = p_scb->peer_features & ~(BTA_AG_PEER_FEAT_CODEC);
@@ -1360,8 +1359,7 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, cha
         bta_ag_send_error(p_scb, BTA_AG_ERR_OP_NOT_ALLOWED);
         break;
       }
-      if (com_android_bluetooth_flags_qc_send_error_at_bcc_ibr_disabled() &&
-          !p_scb->inband_enabled && p_scb->callsetup_ind == BTA_AG_CALLSETUP_INCOMING &&
+      if (!p_scb->inband_enabled && p_scb->callsetup_ind == BTA_AG_CALLSETUP_INCOMING &&
           !(p_scb->call_ind || p_scb->callheld_ind)) {
         log::warn(
                 "Sending error for AT+BCC received when call is in ringing state"
@@ -1387,8 +1385,7 @@ void bta_ag_at_hfp_cback(tBTA_AG_SCB* p_scb, uint16_t cmd, uint8_t arg_type, cha
         bta_ag_send_error(p_scb, BTA_AG_ERR_OP_NOT_SUPPORTED);
         break;
       }
-      if (com_android_bluetooth_flags_qc_prioritize_lc3_codec() && bta_ag_get_swb_supported() &&
-          (p_scb->peer_codecs & BTM_SCO_CODEC_LC3) &&
+      if (bta_ag_get_swb_supported() && (p_scb->peer_codecs & BTM_SCO_CODEC_LC3) &&
           !(p_scb->disabled_codecs & BTM_SCO_CODEC_LC3)) {
         log::warn("Phone and BT device support LC3, return error for QAC");
         bta_ag_send_error(p_scb, BTA_AG_ERR_OP_NOT_SUPPORTED);
@@ -1529,7 +1526,9 @@ static void bta_ag_hsp_result(tBTA_AG_SCB* p_scb, const tBTA_AG_API_RESULT& resu
       alarm_cancel(p_scb->ring_timer);
 
       /* close sco */
-      if ((bta_ag_sco_is_open(p_scb) || bta_ag_sco_is_opening(p_scb)) &&
+      if ((bta_ag_sco_is_open(p_scb) || bta_ag_sco_is_opening(p_scb) ||
+           (com_android_bluetooth_flags_call_end_codec_negotiation() &&
+            bta_ag_sco_is_codec_negotiating(p_scb))) &&
           !(p_scb->features & BTA_AG_FEAT_NOSCO)) {
         bta_ag_sco_close(p_scb, tBTA_AG_DATA::kEmpty);
       } else {
@@ -1539,7 +1538,7 @@ static void bta_ag_hsp_result(tBTA_AG_SCB* p_scb, const tBTA_AG_API_RESULT& resu
       break;
 
     case BTA_AG_INBAND_RING_RES:
-      if (interop_match_addr(INTEROP_INBAND_RINGTONE_SET_TO_FALSE, &p_scb->peer_addr)) {
+      if (interop_match_addr(INTEROP_INBAND_RINGTONE_SET_TO_FALSE, p_scb->peer_addr)) {
         p_scb->inband_enabled = false;
       } else {
         p_scb->inband_enabled = result.data.state;
@@ -1736,10 +1735,14 @@ static void bta_ag_hfp_result(tBTA_AG_SCB* p_scb, const tBTA_AG_API_RESULT& resu
       alarm_cancel(p_scb->ring_timer);
 
       /* if sco open, close sco then send indicator values */
-      if ((bta_ag_sco_is_open(p_scb) || bta_ag_sco_is_opening(p_scb)) &&
+      if ((bta_ag_sco_is_open(p_scb) || bta_ag_sco_is_opening(p_scb) ||
+           (com_android_bluetooth_flags_call_end_codec_negotiation() &&
+            bta_ag_sco_is_codec_negotiating(p_scb))) &&
           !(p_scb->features & BTA_AG_FEAT_NOSCO)) {
         p_scb->post_sco = BTA_AG_POST_SCO_CALL_END;
-        bta_ag_sco_close(p_scb, tBTA_AG_DATA::kEmpty);
+        if (!bta_ag_is_sco_managed_by_audio()) {
+          bta_ag_sco_close(p_scb, tBTA_AG_DATA::kEmpty);
+        }
       } else if (p_scb->post_sco == BTA_AG_POST_SCO_CALL_END_INCALL) {
         /* sco closing for outgoing call because of incoming call */
         /* Send only callsetup end indicator after sco close */
@@ -1753,7 +1756,7 @@ static void bta_ag_hfp_result(tBTA_AG_SCB* p_scb, const tBTA_AG_API_RESULT& resu
       break;
 
     case BTA_AG_INBAND_RING_RES:
-      if (interop_match_addr(INTEROP_INBAND_RINGTONE_SET_TO_FALSE, &p_scb->peer_addr)) {
+      if (interop_match_addr(INTEROP_INBAND_RINGTONE_SET_TO_FALSE, p_scb->peer_addr)) {
         p_scb->inband_enabled = false;
       } else {
         p_scb->inband_enabled = result.data.state;

@@ -23,13 +23,10 @@ import android.bluetooth.test_utils.BlockingBluetoothAdapter
 import android.bluetooth.test_utils.EnableBluetoothRule
 import android.content.Context
 import android.os.SystemProperties
-import android.platform.test.annotations.RequiresFlagsEnabled
-import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.android.bluetooth.flags.Flags
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.hamcrest.Matchers.greaterThan
@@ -40,12 +37,11 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.any
-import org.mockito.ArgumentMatchers.anyInt
-import org.mockito.ArgumentMatchers.eq
-import org.mockito.Mockito.mock
 import org.mockito.Mockito.timeout
 import org.mockito.Mockito.verify
+import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
 import pandora.HostProto.AdvertiseRequest
 import pandora.HostProto.AdvertiseResponse
 import pandora.HostProto.OwnAddressType
@@ -53,50 +49,45 @@ import pandora.HostProto.OwnAddressType
 @RunWith(AndroidJUnit4::class)
 @ExperimentalCoroutinesApi
 class ConnParamTest {
+    @get:Rule(order = 0) val checkFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
 
-    @get:Rule(order = 0)
-    val mCheckFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
+    @get:Rule(order = 1) val bumble = PandoraDevice()
 
-    @get:Rule(order = 1) val mBumble = PandoraDevice()
+    @get:Rule(order = 2) val enableBluetoothRule = EnableBluetoothRule(false, true)
 
-    @get:Rule(order = 2) val mEnableBluetoothRule = EnableBluetoothRule(false, true)
+    private val context = ApplicationProvider.getApplicationContext<Context>()
 
-    private val mContext: Context = ApplicationProvider.getApplicationContext()
-    private val mManager: BluetoothManager = mContext.getSystemService(BluetoothManager::class.java)
-    private val mAdapter: BluetoothAdapter = mManager.adapter
-
-    private lateinit var mHost: Host
-    private lateinit var mRemoteLeDevice: BluetoothDevice
+    private lateinit var host: Host
+    private lateinit var remoteLeDevice: BluetoothDevice
 
     @Before
     fun setUp() {
         InstrumentationRegistry.getInstrumentation().uiAutomation.adoptShellPermissionIdentity()
 
-        mHost = Host(mContext)
-        mRemoteLeDevice =
-            mAdapter.getRemoteLeDevice(
+        host = Host(context)
+        remoteLeDevice =
+            adapter.getRemoteLeDevice(
                 Utils.BUMBLE_RANDOM_ADDRESS,
                 BluetoothDevice.ADDRESS_TYPE_RANDOM,
             )
-        mRemoteLeDevice.removeBond()
+        remoteLeDevice.removeBond()
     }
 
     @After
     fun tearDown() {
-        InstrumentationRegistry.getInstrumentation().uiAutomation.dropShellPermissionIdentity()
-        val bondedDevices = mAdapter.bondedDevices
-        if (bondedDevices.contains(mRemoteLeDevice)) {
-            mHost.removeBondAndVerify(mRemoteLeDevice)
+        val bondedDevices = adapter.bondedDevices
+        if (bondedDevices.contains(remoteLeDevice)) {
+            host.removeBondAndVerify(remoteLeDevice)
         }
-        mHost.close()
+        InstrumentationRegistry.getInstrumentation().uiAutomation.dropShellPermissionIdentity()
+        host.close()
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_INITIAL_CONN_PARAMS_P1)
     @Test
     fun connParamsAreRelaxedAfterServiceDiscovery() {
         checkAggressiveConnectionWillBeUsed()
 
-        val gattCallback = mock(BluetoothGattCallback::class.java)
+        val gattCallback = mock<BluetoothGattCallback>()
         val connectionIntervalCaptor = ArgumentCaptor.forClass(Int::class.java)
 
         val gatt = connectGattAndWaitConnection(gattCallback, false)
@@ -106,9 +97,9 @@ class ConnParamTest {
             .onConnectionUpdated(
                 any(),
                 connectionIntervalCaptor.capture(),
-                anyInt(),
-                anyInt(),
-                anyInt(),
+                any<Int>(),
+                any<Int>(),
+                any<Int>(),
             )
 
         val capturedConnectionIntervals = connectionIntervalCaptor.allValues
@@ -123,18 +114,17 @@ class ConnParamTest {
         disconnectAndWaitDisconnection(gatt, gattCallback)
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_INITIAL_CONN_PARAMS_P1)
     @Test
     fun connParamsAreRelaxedForBondedDevice_withBluetoothRestart() {
         checkAggressiveConnectionWillBeUsed()
-        createLeBondAndWaitBonding(mRemoteLeDevice)
+        createLeBondAndWaitBonding(remoteLeDevice)
 
         // Turn BT off, and then turn it on
         assertThat(BlockingBluetoothAdapter.disable(false)).isTrue()
         assertThat(BlockingBluetoothAdapter.enable()).isTrue()
 
         // Connect GATT
-        val gattCallback = mock(BluetoothGattCallback::class.java)
+        val gattCallback = mock<BluetoothGattCallback>()
         val connectionIntervalCaptor = ArgumentCaptor.forClass(Int::class.java)
         val gatt = connectGattAndWaitConnection(gattCallback, false)
 
@@ -143,9 +133,9 @@ class ConnParamTest {
             .onConnectionUpdated(
                 any(),
                 connectionIntervalCaptor.capture(),
-                anyInt(),
-                anyInt(),
-                anyInt(),
+                any<Int>(),
+                any<Int>(),
+                any<Int>(),
             )
 
         val capturedConnectionIntervals = connectionIntervalCaptor.allValues
@@ -169,7 +159,7 @@ class ConnParamTest {
 
         val observer = advertiseWithBumble()
 
-        val gatt = mRemoteLeDevice.connectGatt(mContext, autoConnect, callback)
+        val gatt = remoteLeDevice.connectGatt(context, autoConnect, callback)
         verify(callback, timeout(1000)).onConnectionStateChange(eq(gatt), eq(status), eq(state))
         observer.cancel("Canceling advertisement")
 
@@ -187,14 +177,14 @@ class ConnParamTest {
 
         val responseObserver = StreamObserverSpliterator<AdvertiseRequest, AdvertiseResponse>()
 
-        mBumble.host().advertise(request, responseObserver)
+        bumble.host().advertise(request, responseObserver)
 
         return responseObserver
     }
 
     private fun createLeBondAndWaitBonding(device: BluetoothDevice) {
         val observer = advertiseWithBumble()
-        mHost.createBondAndVerify(device)
+        host.createBondAndVerify(device)
         observer.cancel("Canceling advertisement")
     }
 
@@ -210,7 +200,7 @@ class ConnParamTest {
         ) {
             val state = STATE_DISCONNECTED
             gatt.disconnect()
-            verify(callback, timeout(1000)).onConnectionStateChange(eq(gatt), anyInt(), eq(state))
+            verify(callback, timeout(1000)).onConnectionStateChange(eq(gatt), any<Int>(), eq(state))
 
             gatt.close()
         }

@@ -17,39 +17,34 @@
 
 package com.android.bluetooth.vc;
 
-import static com.android.bluetooth.flags.Flags.vcpHandleGroupIdInternally;
-
 import static java.util.Objects.requireNonNull;
 
 import android.bluetooth.BluetoothDevice;
 
-import com.android.bluetooth.Utils;
+import com.android.bluetooth.Util;
+import com.android.bluetooth.profile.NativeInterface;
 
-import java.lang.annotation.Native;
-
-public class VolumeControlNativeInterface {
+public class VolumeControlNativeInterface extends NativeInterface<VolumeControlNativeCallback> {
     private static final String TAG = VolumeControlNativeInterface.class.getSimpleName();
 
-    // Value access from native, see com_android_bluetooth_vc.cpp
-    @Native private final VolumeControlNativeCallback mNativeCallback;
-
     VolumeControlNativeInterface(VolumeControlNativeCallback nativeCallback) {
-        mNativeCallback = requireNonNull(nativeCallback);
+        super(requireNonNull(nativeCallback));
     }
 
     void init() {
         initNative();
     }
 
-    void cleanup() {
+    @Override
+    public void cleanup() {
         cleanupNative();
     }
 
     private static byte[] getByteAddress(BluetoothDevice device) {
         if (device == null) {
-            return Utils.getBytesFromAddress("00:00:00:00:00:00");
+            return Util.getBytesFromAddress("00:00:00:00:00:00");
         }
-        return Utils.getBytesFromAddress(device.getAddress());
+        return Util.getBytesFromAddress(device.getAddress());
     }
 
     boolean connectVolumeControl(BluetoothDevice device) {
@@ -89,10 +84,6 @@ public class VolumeControlNativeInterface {
     }
 
     boolean setExtAudioOutVolumeOffset(BluetoothDevice device, int externalOutputId, int offset) {
-        if (!vcpHandleGroupIdInternally() && Utils.isPtsTestMode()) {
-            setVolumeNative(getByteAddress(device), offset);
-            return true;
-        }
         return setExtAudioOutVolumeOffsetNative(getByteAddress(device), externalOutputId, offset);
     }
 

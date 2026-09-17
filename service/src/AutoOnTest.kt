@@ -18,13 +18,13 @@ package com.android.server.bluetooth.test
 
 import android.app.ActivityManager
 import android.app.AlarmManager
-import android.app.Application
 import android.bluetooth.IBluetoothManager.ACTION_AUTO_ON_STATE_CHANGED
 import android.bluetooth.IBluetoothManager.AUTO_ON_STATE_DISABLED
 import android.bluetooth.IBluetoothManager.AUTO_ON_STATE_ENABLED
 import android.bluetooth.IBluetoothManager.EXTRA_AUTO_ON_STATE
 import android.bluetooth.State
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.os.Looper
 import android.os.UserHandle
@@ -32,12 +32,13 @@ import android.provider.Settings
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.truth.content.IntentSubject.assertThat
 import com.android.server.bluetooth.AutoOn
+import com.android.server.bluetooth.AutoOn.Companion.AUTO_ON_KEY
 import com.android.server.bluetooth.AutoOn.Companion.STORAGE_KEY
-import com.android.server.bluetooth.AutoOn.Companion.USER_SETTINGS_KEY
 import com.android.server.bluetooth.BluetoothAdapterState
 import com.android.server.bluetooth.Log
-import com.android.server.bluetooth.airplane.isOnOverrode as isAirplaneModeOn
-import com.android.server.bluetooth.airplane.test.ModeListenerTest as AirplaneListener
+import com.android.server.bluetooth.airplane.APM_USER_TOGGLED_BLUETOOTH
+import com.android.server.bluetooth.airplane.AirplaneModeController
+import com.android.server.bluetooth.airplane.test.ModeListenerTest as AirplaneModeListener
 import com.android.server.bluetooth.satellite.isOn as isSatelliteModeOn
 import com.android.server.bluetooth.satellite.test.ModeListenerTest as SatelliteListener
 import com.google.common.truth.Expect
@@ -45,6 +46,7 @@ import com.google.common.truth.Truth.assertThat
 import java.time.LocalDateTime
 import java.time.LocalTime
 import kotlin.test.assertFailsWith
+import kotlin.time.TimeSource
 import org.junit.After
 import org.junit.AfterClass
 import org.junit.Before
@@ -58,6 +60,7 @@ import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 @kotlinx.coroutines.ExperimentalCoroutinesApi
+@kotlin.time.ExperimentalTime
 class AutoOnTest {
 
     @get:Rule val testName = TestName()
@@ -67,20 +70,29 @@ class AutoOnTest {
     private val state = BluetoothAdapterState()
     private val user = UserHandle.of(ActivityManager.getCurrentUser())
     private val context = ApplicationProvider.getApplicationContext<Context>()
-    private val resolver = context.contentResolver
+    private val userContext =
+        context.createContextAsUser(UserHandle.of(ActivityManager.getCurrentUser()), 0)
+    private val userResolver = userContext.contentResolver
     private val now = LocalDateTime.now()
     private val timerTarget = LocalDateTime.of(now.toLocalDate(), LocalTime.of(5, 0)).plusDays(1)
+    private lateinit var airplaneController: AirplaneModeController
     private lateinit var autoOn: AutoOn
 
     private var callback_count = 0
 
     @Before
     fun setUp() {
-        Log.i("AutoOnTest", "\t--> setUp(${testName.getMethodName()})")
+
+        Log.i("AutoOnTest", "\t--> setUp(${testName.methodName})")
+        BluetoothRestrictionTest.setup()
 
         callback_count = 0
-        autoOn = AutoOn(looper, context, user, state, this::callback_on)
+        AirplaneModeListener.setupAirplaneModeToOff(context.contentResolver, looper)
+        airplaneController =
+            AirplaneModeController(userContext, state, {}, {}, TimeSource.Monotonic)
+        autoOn = AutoOn(looper, userContext, user, state, this::callback_on, airplaneController)
         enableSetting()
+        BluetoothComponentTest.setup()
     }
 
     @After
@@ -98,35 +110,35 @@ class AutoOnTest {
     }
 
     private fun enableSetting() {
-        Settings.Secure.putInt(resolver, USER_SETTINGS_KEY, 1)
+        Settings.Secure.putInt(userResolver, AUTO_ON_KEY, 1)
         shadowOf(looper).idle()
     }
 
     private fun disableSettings() {
-        Settings.Secure.putInt(resolver, USER_SETTINGS_KEY, 0)
+        Settings.Secure.putInt(userResolver, AUTO_ON_KEY, 0)
         shadowOf(looper).idle()
     }
 
     private fun restoreSettings() {
-        Settings.Secure.putString(resolver, USER_SETTINGS_KEY, null)
+        Settings.Secure.putString(userResolver, AUTO_ON_KEY, null)
         shadowOf(looper).idle()
     }
 
     private fun resetSavedTimer() {
-        Settings.Secure.putString(resolver, STORAGE_KEY, null)
+        Settings.Secure.putString(userResolver, STORAGE_KEY, null)
         shadowOf(looper).idle()
     }
 
     private fun expectStorageTime() {
         shadowOf(looper).idle()
         expect
-            .that(Settings.Secure.getString(resolver, STORAGE_KEY))
+            .that(Settings.Secure.getString(userResolver, STORAGE_KEY))
             .isEqualTo(timerTarget.toString())
     }
 
     private fun expectNoStorageTime() {
         shadowOf(looper).idle()
-        expect.that(Settings.Secure.getString(resolver, STORAGE_KEY)).isNull()
+        expect.that(Settings.Secure.getString(userResolver, STORAGE_KEY)).isNull()
     }
 
     private fun callback_on() {
@@ -141,6 +153,14 @@ class AutoOnTest {
 
         expect.that(autoOn.timer).isNull()
         expect.that(callback_count).isEqualTo(0)
+    }
+
+    @Test
+    fun setupTimer_whenUserDisallowed_isNotScheduled() {
+        BluetoothRestrictionTest.disallowBluetooth()
+        setupTimer()
+
+        expect.that(autoOn.timer).isNull()
     }
 
     @Test
@@ -165,7 +185,7 @@ class AutoOnTest {
     fun setupTimer_whenBtOffAndUserEnabled_triggerCallback() {
         setupTimer()
 
-        val shadowAlarmManager = shadowOf(context.getSystemService(AlarmManager::class.java))
+        val shadowAlarmManager = shadowOf(userContext.getSystemService(AlarmManager::class.java))
         shadowAlarmManager.fireAlarm(shadowAlarmManager.peekNextScheduledAlarm())
 
         shadowOf(looper).runOneTask()
@@ -180,7 +200,7 @@ class AutoOnTest {
         setupTimer()
         setupTimer()
 
-        val shadowAlarmManager = shadowOf(context.getSystemService(AlarmManager::class.java))
+        val shadowAlarmManager = shadowOf(userContext.getSystemService(AlarmManager::class.java))
         shadowAlarmManager.fireAlarm(shadowAlarmManager.peekNextScheduledAlarm())
 
         shadowOf(looper).runOneTask()
@@ -217,7 +237,7 @@ class AutoOnTest {
 
     @Test
     fun notifyBluetoothOn_whenStorage_resetStorage() {
-        Settings.Secure.putString(resolver, STORAGE_KEY, timerTarget.toString())
+        Settings.Secure.putString(userResolver, STORAGE_KEY, timerTarget.toString())
         shadowOf(looper).idle()
 
         autoOn.notifyBluetoothOn()
@@ -282,7 +302,7 @@ class AutoOnTest {
     @Test
     fun apiSetEnableToggle_whenScheduled_isRescheduled() {
         val pastTime = timerTarget.minusDays(3)
-        Settings.Secure.putString(resolver, STORAGE_KEY, pastTime.toString())
+        Settings.Secure.putString(userResolver, STORAGE_KEY, pastTime.toString())
         shadowOf(looper).idle()
 
         setEnabled(false)
@@ -298,7 +318,7 @@ class AutoOnTest {
     fun apiSetEnableToFalse_whenEnabled_broadcastIntent() {
         setEnabled(false)
 
-        assertThat(shadowOf(context as Application).getBroadcastIntents().get(0)).run {
+        assertThat(shadowOf(context as ContextWrapper).getBroadcastIntents().get(0)).run {
             hasAction(ACTION_AUTO_ON_STATE_CHANGED)
             hasFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY)
             extras().integer(EXTRA_AUTO_ON_STATE).isEqualTo(AUTO_ON_STATE_DISABLED)
@@ -310,7 +330,7 @@ class AutoOnTest {
         disableSettings()
         setEnabled(true)
 
-        assertThat(shadowOf(context as Application).getBroadcastIntents().get(0)).run {
+        assertThat(shadowOf(context as ContextWrapper).getBroadcastIntents().get(0)).run {
             hasAction(ACTION_AUTO_ON_STATE_CHANGED)
             hasFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY)
             extras().integer(EXTRA_AUTO_ON_STATE).isEqualTo(AUTO_ON_STATE_ENABLED)
@@ -321,7 +341,7 @@ class AutoOnTest {
     fun apiSetEnableToTrue_whenAlreadyEnabled_doNothing() {
         setEnabled(true)
 
-        assertThat(shadowOf(context as Application).getBroadcastIntents().size).isEqualTo(0)
+        assertThat(shadowOf(context as ContextWrapper).getBroadcastIntents().size).isEqualTo(0)
     }
 
     @Test
@@ -357,7 +377,7 @@ class AutoOnTest {
     fun setupTimer_whenPaused_isResumed() {
         val now = LocalDateTime.now()
         val alarmTime = LocalDateTime.of(now.toLocalDate(), LocalTime.of(5, 0)).plusDays(1)
-        Settings.Secure.putString(resolver, STORAGE_KEY, alarmTime.toString())
+        Settings.Secure.putString(userResolver, STORAGE_KEY, alarmTime.toString())
         shadowOf(looper).idle()
 
         setupTimer()
@@ -370,7 +390,7 @@ class AutoOnTest {
     @Test
     fun setupTimer_whenSaveTimerIsExpired_triggerCallback() {
         val pastTime = timerTarget.minusDays(3)
-        Settings.Secure.putString(resolver, STORAGE_KEY, pastTime.toString())
+        Settings.Secure.putString(userResolver, STORAGE_KEY, pastTime.toString())
         shadowOf(looper).idle()
 
         setupTimer()
@@ -382,14 +402,12 @@ class AutoOnTest {
 
     @Test
     fun setupTimer_whenSatelliteIsOn_isNotScheduled() {
-        val satelliteCallback: (m: Boolean) -> Unit = { _: Boolean -> }
-
-        SatelliteListener.setupSatelliteModeToOn(resolver, looper, satelliteCallback)
+        SatelliteListener.setupSatelliteModeToOn(context.contentResolver, looper)
         assertThat(isSatelliteModeOn).isTrue()
 
         setupTimer()
 
-        SatelliteListener.setupSatelliteModeToOff(resolver, looper)
+        SatelliteListener.setupSatelliteModeToOff(context.contentResolver, looper)
         expect.that(autoOn.timer).isNull()
         expect.that(callback_count).isEqualTo(0)
         expectNoStorageTime()
@@ -401,7 +419,7 @@ class AutoOnTest {
 
         // Fake storage time so when receiving the intent, the test think we jump in the future
         val pastTime = timerTarget.minusDays(3)
-        Settings.Secure.putString(resolver, STORAGE_KEY, pastTime.toString())
+        Settings.Secure.putString(userResolver, STORAGE_KEY, pastTime.toString())
 
         context.sendBroadcast(Intent(Intent.ACTION_TIMEZONE_CHANGED))
         shadowOf(looper).idle()
@@ -417,7 +435,7 @@ class AutoOnTest {
 
         // Fake stored time so when receiving the intent, the test think we jumped in the future
         val pastTime = timerTarget.minusDays(3)
-        Settings.Secure.putString(resolver, STORAGE_KEY, pastTime.toString())
+        Settings.Secure.putString(userResolver, STORAGE_KEY, pastTime.toString())
 
         context.sendBroadcast(Intent(Intent.ACTION_TIME_CHANGED))
         shadowOf(looper).idle()
@@ -433,7 +451,7 @@ class AutoOnTest {
 
         // Fake stored time so when receiving the intent, the test think we jumped in the future
         val pastTime = timerTarget.minusDays(3)
-        Settings.Secure.putString(resolver, STORAGE_KEY, pastTime.toString())
+        Settings.Secure.putString(userResolver, STORAGE_KEY, pastTime.toString())
 
         context.sendBroadcast(Intent(Intent.ACTION_DATE_CHANGED))
         shadowOf(looper).idle()
@@ -446,13 +464,12 @@ class AutoOnTest {
     @Test
     @kotlin.time.ExperimentalTime
     fun setupTimer_whenLegacyAirplaneIsOn_isNotSchedule() {
-        val userCallback: () -> Context = { -> context }
-        AirplaneListener.setupAirplaneModeToOn(resolver, looper, userCallback, false)
-        assertThat(isAirplaneModeOn).isTrue()
+        AirplaneModeListener.disableEnhancementMode(context.contentResolver, looper)
+        airplaneController.onAirplaneModeChanged(true)
+        Settings.Secure.putInt(userResolver, APM_USER_TOGGLED_BLUETOOTH, 0)
 
         setupTimer()
 
-        AirplaneListener.setupAirplaneModeToOff(resolver, looper)
         expect.that(autoOn.timer).isNull()
         expect.that(callback_count).isEqualTo(0)
         expectNoStorageTime()
@@ -461,13 +478,12 @@ class AutoOnTest {
     @Test
     @kotlin.time.ExperimentalTime
     fun setupTimer_whenApmAirplaneIsOn_isSchedule() {
-        val userCallback: () -> Context = { -> context }
-        AirplaneListener.setupAirplaneModeToOn(resolver, looper, userCallback, true)
-        assertThat(isAirplaneModeOn).isTrue()
+        airplaneController.onAirplaneModeChanged(true)
+        Settings.Secure.putInt(userResolver, APM_USER_TOGGLED_BLUETOOTH, 1)
 
         setupTimer()
 
-        AirplaneListener.setupAirplaneModeToOff(resolver, looper)
+        Settings.Secure.putInt(userResolver, APM_USER_TOGGLED_BLUETOOTH, 0)
         expect.that(autoOn.timer).isNotNull()
         expect.that(callback_count).isEqualTo(0)
         expectStorageTime()
@@ -509,14 +525,12 @@ class AutoOnTest {
         @JvmStatic
         fun beforeClass() {
             BluetoothAdapterState.disableCacheForTesting = true
-            // IpcDataCache.setTestMode(true)
         }
 
         @AfterClass
         @JvmStatic
         fun afterClass() {
             BluetoothAdapterState.disableCacheForTesting = false
-            // IpcDataCache.setTestMode(false)
         }
     }
 }

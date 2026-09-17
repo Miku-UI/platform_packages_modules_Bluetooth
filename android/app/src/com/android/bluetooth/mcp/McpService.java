@@ -27,9 +27,10 @@ import android.os.ParcelUuid;
 import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
+import com.android.bluetooth.Util;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.ProfileService;
+import com.android.bluetooth.profile.ProfileService;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.HashMap;
@@ -38,7 +39,7 @@ import java.util.Map;
 
 /** Provides Media Control Profile, as a service in the Bluetooth application. */
 public class McpService extends ProfileService {
-    private static final String TAG = Utils.BT_PREFIX + McpService.class.getSimpleName();
+    private static final String TAG = Util.BT_PREFIX + McpService.class.getSimpleName();
 
     private final MediaControlProfile mGmcs;
     private final Map<BluetoothDevice, Integer> mDeviceAuthorizations = new HashMap<>();
@@ -49,7 +50,7 @@ public class McpService extends ProfileService {
 
     @VisibleForTesting
     McpService(AdapterService adapterService, MediaControlProfile mediaControlProfile) {
-        super(BluetoothProfile.MCP_SERVER, requireNonNull(adapterService));
+        super(BluetoothProfile.MCP_SERVER, adapterService);
         mGmcs = requireNonNull(mediaControlProfile);
 
         mGmcs.init(this);
@@ -85,7 +86,7 @@ public class McpService extends ProfileService {
             } else {
                 accessString = "ACCESS_UNKNOWN";
             }
-            sb.append("\n\t\tDevice: ")
+            sb.append("\n    Device: ")
                     .append(entry.getKey())
                     .append(", access: ")
                     .append(accessString);
@@ -113,9 +114,7 @@ public class McpService extends ProfileService {
     }
 
     public void setDeviceAuthorized(BluetoothDevice device, boolean isAuthorized) {
-        Log.i(
-                TAG,
-                "\tsetDeviceAuthorized(): device: " + device + ", isAuthorized: " + isAuthorized);
+        Log.i(TAG, "setDeviceAuthorized(): device: " + device + ", isAuthorized: " + isAuthorized);
         int authorization =
                 isAuthorized ? BluetoothDevice.ACCESS_ALLOWED : BluetoothDevice.ACCESS_REJECTED;
         mDeviceAuthorizations.put(device, authorization);
@@ -139,7 +138,7 @@ public class McpService extends ProfileService {
             return authorization;
         }
 
-        final var leAudio = mAdapterService.getLeAudioService();
+        final var leAudio = getAdapterService().getLeAudioService();
         if (leAudio.isEmpty()) {
             Log.e(TAG, "MCS access not permitted. LeAudioService not available");
             return BluetoothDevice.ACCESS_UNKNOWN;
@@ -162,5 +161,9 @@ public class McpService extends ProfileService {
     void setNotificationSubscription(
             int ccid, BluetoothDevice device, ParcelUuid charUuid, boolean doNotify) {
         mGmcs.setNotificationSubscription(ccid, device, charUuid, doNotify);
+    }
+
+    public void playRequest() {
+        mGmcs.onMediaControlRequest(new Request(Request.Opcodes.PLAY, 0));
     }
 }

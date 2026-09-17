@@ -40,8 +40,8 @@ import android.util.Log;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import com.android.bluetooth.FakeObexServer;
-import com.android.bluetooth.ObexAppParameters;
 import com.android.bluetooth.TestLooper;
+import com.android.bluetooth.obex.ObexAppParameters;
 import com.android.obex.ApplicationParameter;
 import com.android.obex.HeaderSet;
 import com.android.obex.ObexTransport;
@@ -69,10 +69,10 @@ import java.util.Map;
 /** Test cases for {@link PbapClientObexClient}. */
 @RunWith(AndroidJUnit4.class)
 public class PbapClientObexClientTest {
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
+
     private static final int TEST_L2CAP_PSM = 4098;
     private static final int TEST_RFCOMM_CHANNEL_ID = 3;
-
-    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     private final BluetoothAdapter mAdapter = getBluetoothManager().getAdapter();
     private final BluetoothDevice mDevice = getTestDevice(1);

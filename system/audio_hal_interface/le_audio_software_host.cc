@@ -234,7 +234,8 @@ void LeAudioClientInterface::Sink::StopSession() {
   log::info("");
 
   if (host::le_audio::LeAudioSinkTransport::instance) {
-    host::le_audio::LeAudioSinkTransport::instance->ClearStartRequestState();
+    host::le_audio::LeAudioSinkTransport::instance->ClearBluetoothRequestState(
+            BluetoothRequest::RESUME);
   }
 
   host::le_audio::LeAudioSinkTransport::stream_started = btle_stream_started_status::IDLE;
@@ -249,25 +250,26 @@ void LeAudioClientInterface::Sink::ConfirmStreamingRequest() {
   log::info("");
 
   auto instance = host::le_audio::LeAudioSinkTransport::instance;
-  auto start_request_state = instance->GetStartRequestState();
+  auto start_request_state = instance->GetBluetoothRequestState(BluetoothRequest::RESUME);
 
   switch (start_request_state) {
-    case StartRequestState::IDLE:
+    case BluetoothRequestState::IDLE:
       log::warn(", no pending start stream request");
       return;
-    case StartRequestState::PENDING_BEFORE_RESUME:
+    case BluetoothRequestState::PENDING_BEFORE_REQUEST:
       log::info("Response before sending PENDING to audio HAL");
-      instance->SetStartRequestState(StartRequestState::CONFIRMED);
+      instance->SetBluetoothRequestState(BluetoothRequest::RESUME,
+                                         BluetoothRequestState::CONFIRMED);
       lea_data_path_open();
       return;
-    case StartRequestState::PENDING_AFTER_RESUME:
+    case BluetoothRequestState::PENDING_AFTER_REQUEST:
       log::info("Response after sending PENDING to audio HAL");
-      instance->ClearStartRequestState();
+      instance->ClearBluetoothRequestState(BluetoothRequest::RESUME);
       lea_data_path_open();
       host::le_audio::LeAudioSinkTransport::stream_started = btle_stream_started_status::STARTED;
       return;
-    case StartRequestState::CONFIRMED:
-    case StartRequestState::CANCELED:
+    case BluetoothRequestState::CONFIRMED:
+    case BluetoothRequestState::CANCELED:
       log::error("Invalid state, start stream already confirmed");
       return;
   }
@@ -282,23 +284,23 @@ void LeAudioClientInterface::Sink::CancelStreamingRequest() {
   log::info("");
 
   auto instance = host::le_audio::LeAudioSinkTransport::instance;
-  auto start_request_state = instance->GetStartRequestState();
+  auto start_request_state = instance->GetBluetoothRequestState(BluetoothRequest::RESUME);
 
   switch (start_request_state) {
-    case StartRequestState::IDLE:
+    case BluetoothRequestState::IDLE:
       log::warn(", no pending start stream request");
       return;
-    case StartRequestState::PENDING_BEFORE_RESUME:
+    case BluetoothRequestState::PENDING_BEFORE_REQUEST:
       log::info("Response before sending PENDING to audio HAL");
-      instance->SetStartRequestState(StartRequestState::CANCELED);
+      instance->SetBluetoothRequestState(BluetoothRequest::RESUME, BluetoothRequestState::CANCELED);
       return;
-    case StartRequestState::PENDING_AFTER_RESUME:
+    case BluetoothRequestState::PENDING_AFTER_REQUEST:
       log::info("Response after sending PENDING to audio HAL");
-      instance->ClearStartRequestState();
+      instance->ClearBluetoothRequestState(BluetoothRequest::RESUME);
       host::le_audio::LeAudioSinkTransport::stream_started = btle_stream_started_status::CANCELED;
       return;
-    case StartRequestState::CONFIRMED:
-    case StartRequestState::CANCELED:
+    case BluetoothRequestState::CONFIRMED:
+    case BluetoothRequestState::CANCELED:
       log::error("Invalid state, start stream already confirmed");
       break;
   }
@@ -393,7 +395,8 @@ void LeAudioClientInterface::Source::StopSession() {
   log::info("");
 
   if (host::le_audio::LeAudioSourceTransport::instance) {
-    host::le_audio::LeAudioSourceTransport::instance->ClearStartRequestState();
+    host::le_audio::LeAudioSourceTransport::instance->ClearBluetoothRequestState(
+            BluetoothRequest::RESUME);
   }
 
   host::le_audio::LeAudioSourceTransport::stream_started = btle_stream_started_status::IDLE;
@@ -408,25 +411,26 @@ void LeAudioClientInterface::Source::ConfirmStreamingRequest() {
   log::info("");
 
   auto instance = host::le_audio::LeAudioSourceTransport::instance;
-  auto start_request_state = instance->GetStartRequestState();
+  auto start_request_state = instance->GetBluetoothRequestState(BluetoothRequest::RESUME);
 
   switch (start_request_state) {
-    case StartRequestState::IDLE:
+    case BluetoothRequestState::IDLE:
       log::warn(", no pending start stream request");
       return;
-    case StartRequestState::PENDING_BEFORE_RESUME:
+    case BluetoothRequestState::PENDING_BEFORE_REQUEST:
       log::info("Response before sending PENDING to audio HAL");
-      instance->SetStartRequestState(StartRequestState::CONFIRMED);
+      instance->SetBluetoothRequestState(BluetoothRequest::RESUME,
+                                         BluetoothRequestState::CONFIRMED);
       lea_data_path_open();
       return;
-    case StartRequestState::PENDING_AFTER_RESUME:
+    case BluetoothRequestState::PENDING_AFTER_REQUEST:
       log::info("Response after sending PENDING to audio HAL");
-      instance->ClearStartRequestState();
+      instance->ClearBluetoothRequestState(BluetoothRequest::RESUME);
       lea_data_path_open();
       host::le_audio::LeAudioSourceTransport::stream_started = btle_stream_started_status::STARTED;
       return;
-    case StartRequestState::CONFIRMED:
-    case StartRequestState::CANCELED:
+    case BluetoothRequestState::CONFIRMED:
+    case BluetoothRequestState::CANCELED:
       log::error("Invalid state, start stream already confirmed");
       return;
   }
@@ -441,23 +445,23 @@ void LeAudioClientInterface::Source::CancelStreamingRequest() {
   log::info("");
 
   auto instance = host::le_audio::LeAudioSourceTransport::instance;
-  auto start_request_state = instance->GetStartRequestState();
+  auto start_request_state = instance->GetBluetoothRequestState(BluetoothRequest::RESUME);
 
   switch (start_request_state) {
-    case StartRequestState::IDLE:
+    case BluetoothRequestState::IDLE:
       log::warn(", no pending start stream request");
       return;
-    case StartRequestState::PENDING_BEFORE_RESUME:
+    case BluetoothRequestState::PENDING_BEFORE_REQUEST:
       log::info("Response before sending PENDING to audio HAL");
-      instance->SetStartRequestState(StartRequestState::CANCELED);
+      instance->SetBluetoothRequestState(BluetoothRequest::RESUME, BluetoothRequestState::CANCELED);
       return;
-    case StartRequestState::PENDING_AFTER_RESUME:
+    case BluetoothRequestState::PENDING_AFTER_REQUEST:
       log::info("Response after sending PENDING to audio HAL");
-      instance->ClearStartRequestState();
+      instance->ClearBluetoothRequestState(BluetoothRequest::RESUME);
       host::le_audio::LeAudioSourceTransport::stream_started = btle_stream_started_status::CANCELED;
       return;
-    case StartRequestState::CANCELED:
-    case StartRequestState::CONFIRMED:
+    case BluetoothRequestState::CANCELED:
+    case BluetoothRequestState::CONFIRMED:
       log::error("Invalid state, start stream already confirmed");
       break;
   }
@@ -471,6 +475,9 @@ void LeAudioClientInterface::Source::SetCodecPriority(
   log::info("");
 }
 
+void LeAudioClientInterface::Source::UpdateBroadcastAudioConfigToHal(
+        ::le_audio::broadcast_offload_config const& /*config*/) {}
+
 void LeAudioClientInterface::Source::SuspendedForReconfiguration() {
   log::info("");
   // TODO
@@ -478,6 +485,15 @@ void LeAudioClientInterface::Source::SuspendedForReconfiguration() {
 
 void LeAudioClientInterface::Source::ReconfigurationComplete() { log::info(""); }
 void LeAudioClientInterface::Source::StreamSuspended() { log::info(""); }
+
+std::optional<::bluetooth::le_audio::broadcaster::BroadcastConfiguration>
+LeAudioClientInterface::Source::GetBroadcastConfig(
+        const std::vector<std::pair<::bluetooth::le_audio::types::LeAudioContextType,
+                                    uint8_t>>& /*subgroup_quality*/,
+        const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>& /*pacs*/)
+        const {
+  return std::nullopt;
+}
 
 size_t LeAudioClientInterface::Source::Write(const uint8_t* p_buf, uint32_t len) {
   bool ok = UIPC_Send(*lea_uipc, UIPC_CH_ID_AV_AUDIO, 0, p_buf, len);
@@ -531,38 +547,47 @@ bool LeAudioClientInterface::ReleaseSink(LeAudioClientInterface::Sink* sink) {
 }
 
 LeAudioClientInterface::Source* LeAudioClientInterface::GetSource(
-        StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* /*message_loop*/) {
-  if (source_ == nullptr) {
-    source_ = new Source();
+        StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* /*message_loop*/,
+        bool is_broadcasting_session_type) {
+  if (is_broadcasting_session_type && !LeAudioHalVerifier::SupportsLeAudioBroadcast()) {
+    log::warn("No support for broadcasting Le Audio");
+    return nullptr;
+  }
+
+  Source* source = is_broadcasting_session_type ? broadcast_source_ : unicast_source_;
+  if (source == nullptr) {
+    source = new Source(is_broadcasting_session_type);
+    (is_broadcasting_session_type ? broadcast_source_ : unicast_source_) = source;
   } else {
     log::warn("Source is already acquired");
     return nullptr;
   }
 
-  log::info("");
-
   host::le_audio::LeAudioSourceTransport::instance =
           new host::le_audio::LeAudioSourceTransport(std::move(stream_cb));
 
-  return source_;
+  return source;
 }
 
-bool LeAudioClientInterface::IsSourceAcquired() { return source_ != nullptr; }
+bool LeAudioClientInterface::IsUnicastSourceAcquired() { return unicast_source_ != nullptr; }
+
+bool LeAudioClientInterface::IsBroadcastSourceAcquired() { return broadcast_source_ != nullptr; }
 
 bool LeAudioClientInterface::ReleaseSource(LeAudioClientInterface::Source* source) {
-  if (source != source_) {
+  if (source != unicast_source_ && source != broadcast_source_) {
     log::warn("Can't release not acquired source");
     return false;
   }
 
-  log::info("");
+  source->Cleanup();
 
-  if (host::le_audio::LeAudioSourceTransport::instance) {
-    source->Cleanup();
+  if (source == unicast_source_) {
+    delete (unicast_source_);
+    unicast_source_ = nullptr;
+  } else if (source == broadcast_source_) {
+    delete (broadcast_source_);
+    broadcast_source_ = nullptr;
   }
-
-  delete (source_);
-  source_ = nullptr;
 
   return true;
 }

@@ -41,6 +41,7 @@ static std::shared_timed_mutex interface_mutex;
 
 static jobject mCallbacksObj = nullptr;
 static std::shared_timed_mutex callbacks_mutex;
+static jfieldID sCallbacksField;
 
 class BluetoothQualityReportCallbacksImpl : public bluetooth::bqr::BluetoothQualityReportCallbacks {
 public:
@@ -62,16 +63,7 @@ public:
       return;
     }
 
-    ScopedLocalRef<jbyteArray> addr(sCallbackEnv.get(),
-                                    sCallbackEnv->NewByteArray(sizeof(RawAddress)));
-    if (!addr.get()) {
-      log::error("Error while allocation byte array for addr");
-      return;
-    }
-
-    sCallbackEnv->SetByteArrayRegion(addr.get(), 0, sizeof(RawAddress),
-                                     (jbyte*)bd_addr.address.data());
-
+    ScopedLocalRef<jbyteArray> addr = addressToJByteArray(sCallbackEnv, bd_addr);
     ScopedLocalRef<jbyteArray> raw_data(sCallbackEnv.get(),
                                         sCallbackEnv->NewByteArray(bqr_raw_data.size()));
     if (!raw_data.get()) {
@@ -109,9 +101,9 @@ static void initNative(JNIEnv* env, jobject object) {
     mCallbacksObj = nullptr;
   }
 
-  if ((mCallbacksObj = env->NewGlobalRef(object)) == nullptr) {
-    log::error("Failed to allocate Global Ref for BluetoothQualityReport Callbacks");
-    return;
+  if ((mCallbacksObj = env->NewGlobalRef(env->GetObjectField(object, sCallbacksField))) ==
+      nullptr) {
+    log::fatal("Failed to allocate Global Ref for BluetoothQualityReport Callbacks");
   }
 
   sBluetoothQualityReportInterface =
@@ -149,16 +141,19 @@ int register_com_android_bluetooth_btservice_BluetoothQualityReport(JNIEnv* env)
           {"initNative", "()V", (void*)initNative},
           {"cleanupNative", "()V", (void*)cleanupNative},
   };
-  const int result = REGISTER_NATIVE_METHODS(
-          env, "com/android/bluetooth/btservice/BluetoothQualityReportNativeInterface", methods);
+  const char* jniNativeInterfaceClass =
+          "com/android/bluetooth/btservice/BluetoothQualityReportNativeInterface";
+  const int result = REGISTER_NATIVE_METHODS(env, jniNativeInterfaceClass, methods);
   if (result != 0) {
     return result;
   }
 
+  sCallbacksField = getNativeCallbackField(env, jniNativeInterfaceClass);
+
   const JNIJavaMethod javaMethods[] = {
           {"bqrDeliver", "([BIII[B)V", &method_bqrDeliver},
   };
-  GET_JAVA_METHODS(env, "com/android/bluetooth/btservice/BluetoothQualityReportNativeInterface",
+  GET_JAVA_METHODS(env, "com/android/bluetooth/btservice/BluetoothQualityReportNativeCallback",
                    javaMethods);
 
   return 0;

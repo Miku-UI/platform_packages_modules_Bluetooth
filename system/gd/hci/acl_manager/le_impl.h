@@ -20,6 +20,7 @@
 #include <bluetooth/log.h>
 #include <bluetooth/metrics/bluetooth_event.h>
 #include <bluetooth/metrics/os_metrics.h>
+#include <bluetooth/types/uuid.h>
 #include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
@@ -107,8 +108,8 @@ static const std::string kPropertyEnableBlePrivacy = "bluetooth.core.gap.le.priv
 static const std::string kPropertyEnableBleOnlyInit1mPhy =
         "bluetooth.core.gap.le.conn.only_init_1m_phy.enabled";
 
-const std::optional<hci::Uuid> UUID_ASCS = hci::Uuid::FromString("184E");
-const std::optional<hci::Uuid> UUID_BASS = hci::Uuid::FromString("184F");
+constexpr Uuid UUID_ASCS("184E");
+constexpr Uuid UUID_BASS("184F");
 
 enum class ConnectabilityState {
   DISARMED = 0,
@@ -178,6 +179,42 @@ struct le_impl : public bluetooth::hci::LeAddressManagerCallback {
     switch (code) {
       case SubeventCode::CONNECTION_COMPLETE:
       case SubeventCode::ENHANCED_CONNECTION_COMPLETE:
+        if (com_android_bluetooth_flags_resolve_collision_conn_discon()) {
+          uint16_t handle = kIllegalConnectionHandle;
+          if (code == SubeventCode::CONNECTION_COMPLETE) {
+            auto connection_complete = LeConnectionCompleteView::Create(event_packet);
+            log::assert_that(connection_complete.IsValid(),
+                             "assert failed: connection_complete.IsValid()");
+            handle = connection_complete.GetConnectionHandle();
+          } else {  // code == SubeventCode::ENHANCED_CONNECTION_COMPLETE
+            auto enhanced_conn_complete = LeEnhancedConnectionCompleteView::Create(event_packet);
+            log::assert_that(enhanced_conn_complete.IsValid(),
+                             "assert failed: enhanced_conn_complete.IsValid()");
+            handle = enhanced_conn_complete.GetConnectionHandle();
+          }
+
+          if (round_robin_scheduler_.IsRegistered(handle)) {
+            /**
+             * There is already an ACL connection with the same handle, so this either could be a
+             * dupe, or a disconnection is in progress. So, it is wise to wait for the disconnection
+             * to complete before proceeding.
+             */
+            log::warn(
+                    "Connection already exists with the same handle ({}), waiting for "
+                    "disconnection "
+                    "to complete before proceeding, event: {}",
+                    handle, SubeventCodeText(code));
+
+            // Push to be handled later
+            if (pending_connection_complete_events_.find(handle) !=
+                pending_connection_complete_events_.end()) {
+              log::warn("Event already pending for handle: {}.", handle);
+            }
+            pending_connection_complete_events_.emplace(handle, std::move(event_packet));
+            return;  // our work here is done, the event will be processed later
+          }
+        }
+
         on_le_connection_complete(event_packet);
         break;
       case SubeventCode::CONNECTION_UPDATE_COMPLETE:
@@ -202,6 +239,9 @@ struct le_impl : public bluetooth::hci::LeAddressManagerCallback {
 
 private:
   static constexpr uint16_t kIllegalConnectionHandle = 0xffff;
+  // Stores the connection_complete events which are not processed immediately because another
+  // connection with same handle is already available, suspecting a disconnection is in progress.
+  std::map<uint16_t, LeMetaEventView> pending_connection_complete_events_;
   struct {
   private:
     std::map<uint16_t, le_acl_connection> le_acl_connections_;
@@ -556,6 +596,11 @@ public:
                                                 common::Unretained(le_client_callbacks_),
                                                 remote_address, std::move(connection)));
     }
+    if (com_android_bluetooth_flags_rotate_address_when_connected() &&
+        le_address_manager_->RotatingAddress() && !controller_.IsRpaGenerationSupported() &&
+        role == hci::Role::CENTRAL) {
+      le_address_manager_->PrepareToRotateAddress();
+    }
   }
 
   RoleSpecificData initialize_role_specific_data(Role role) {
@@ -601,8 +646,7 @@ public:
                                                     false /* is_connect */, reason);
 
     tBLE_BD_ADDR legacy_addr = ToLegacyAddressWithType(remote_address);
-    if (com::android::bluetooth::flags::prevent_adding_both_pseudo_and_identity_addr() &&
-        remote_address.IsRpa() &&
+    if (remote_address.IsRpa() &&
         btm_random_pseudo_to_identity_addr(&legacy_addr.bda, &legacy_addr.type)) {
       log::info("connection with pseudo address is disconnected");
 
@@ -615,6 +659,17 @@ public:
         add_device_to_accept_list(identity_addr);
       }
     }
+
+    // Check & process if there is any pending connection_complete event for this handle.
+    if (com_android_bluetooth_flags_resolve_collision_conn_discon()) {
+      auto it = pending_connection_complete_events_.find(handle);
+      if (it != pending_connection_complete_events_.end()) {
+        LeMetaEventView event_view = std::move(it->second);
+        pending_connection_complete_events_.erase(it);
+        handler_->Post(common::BindOnce(&le_impl::on_le_connection_complete,
+                                        common::Unretained(this), std::move(event_view)));
+      }
+    }
   }
 
   void on_le_connection_update_complete(LeMetaEventView view) {
@@ -624,6 +679,10 @@ public:
       return;
     }
     auto handle = complete_view.GetConnectionHandle();
+    if (!round_robin_scheduler_.IsRegistered(handle)) {
+      log::error("This LE link has not existed");
+      return;
+    }
     connections.execute(handle, [=](LeConnectionManagementCallbacks* callbacks) {
       callbacks->OnConnectionUpdate(complete_view.GetStatus(), complete_view.GetConnInterval(),
                                     complete_view.GetConnLatency(),
@@ -638,6 +697,10 @@ public:
       return;
     }
     auto handle = complete_view.GetConnectionHandle();
+    if (!round_robin_scheduler_.IsRegistered(handle)) {
+      log::error("This LE link has not existed");
+      return;
+    }
     connections.execute(handle, [=](LeConnectionManagementCallbacks* callbacks) {
       callbacks->OnPhyUpdate(complete_view.GetStatus(), complete_view.GetTxPhy(),
                              complete_view.GetRxPhy());
@@ -647,6 +710,10 @@ public:
   void on_le_read_remote_version_information(hci::ErrorCode hci_status, uint16_t handle,
                                              uint8_t version, uint16_t manufacturer_name,
                                              uint16_t sub_version) {
+    if (!round_robin_scheduler_.IsRegistered(handle)) {
+      log::error("This LE link has not existed");
+      return;
+    }
     connections.execute(handle, [=](LeConnectionManagementCallbacks* callbacks) {
       callbacks->OnReadRemoteVersionInformationComplete(hci_status, version, manufacturer_name,
                                                         sub_version);
@@ -660,6 +727,10 @@ public:
       return;
     }
     auto handle = data_length_view.GetConnectionHandle();
+    if (!round_robin_scheduler_.IsRegistered(handle)) {
+      log::error("This LE link has not existed");
+      return;
+    }
     connections.execute(handle, [=](LeConnectionManagementCallbacks* callbacks) {
       callbacks->OnDataLengthChange(
               data_length_view.GetMaxTxOctets(), data_length_view.GetMaxTxTime(),
@@ -673,8 +744,12 @@ public:
       log::error("Invalid packet");
       return;
     }
-
-    connections.execute(request_view.GetConnectionHandle(),
+    auto handle = request_view.GetConnectionHandle();
+    if (!round_robin_scheduler_.IsRegistered(handle)) {
+      log::error("This LE link has not existed");
+      return;
+    }
+    connections.execute(handle,
                         [request_view](LeConnectionManagementCallbacks* callbacks) {
                           callbacks->OnParameterUpdateRequest(
                                   request_view.GetIntervalMin(), request_view.GetIntervalMax(),
@@ -689,6 +764,10 @@ public:
       return;
     }
     auto handle = subrate_change_view.GetConnectionHandle();
+    if (!round_robin_scheduler_.IsRegistered(handle)) {
+      log::error("This LE link has not existed");
+      return;
+    }
     connections.execute(handle, [=](LeConnectionManagementCallbacks* callbacks) {
       callbacks->OnLeSubrateChange(subrate_change_view.GetStatus(),
                                    subrate_change_view.GetSubrateFactor(),
@@ -710,14 +789,6 @@ public:
             conn_handle, DataAsPeripheral{adv_set_address, adv_set_id, is_discoverable});
 
     if (connection != nullptr) {
-      if (!com::android::bluetooth::flags::remove_hop_from_le_adv_set_term()) {
-        le_client_handler_->Post(common::BindOnce(&LeConnectionCallbacks::OnLeConnectSuccess,
-                                                  common::Unretained(le_client_callbacks_),
-                                                  connection->GetRemoteAddress(),
-                                                  std::move(connection)));
-        return;
-      }
-
       // Remove one hop from the handling of LE Advertising Set Terminated event.
       // Serialize the OnLeConnectSuccess call as these are on the same thread and handler.
       // This is added to handle the LTK and LE Advertising Set Terminated events in the same
@@ -729,38 +800,50 @@ public:
 
   void direct_connect_add(AddressWithType address_with_type, bool prefer_relax_mode) {
     log::debug("{}, {}", address_with_type, prefer_relax_mode);
-    direct_connections_.insert(address_with_type);
     if (prefer_relax_mode) {
       relaxed_direct_connections_.insert(address_with_type);
     }
-    if (create_connection_timeout_alarms_.find(address_with_type) !=
-        create_connection_timeout_alarms_.end()) {
-      log::verbose("Timer already added for {}", address_with_type);
+    if (direct_connections_.find(address_with_type) != direct_connections_.end()) {
+      log::verbose("Direct connect already in progress for {}", address_with_type);
       return;
     }
+    direct_connections_.insert(address_with_type);
 
-    auto emplace_result = create_connection_timeout_alarms_.emplace(
-            std::piecewise_construct,
-            std::forward_as_tuple(address_with_type.GetAddress(),
-                                  address_with_type.GetAddressType()),
-            std::forward_as_tuple(&handler_->thread()));
-    uint32_t connection_timeout =
-            os::GetSystemPropertyUint32(kPropertyDirectConnTimeout, kCreateConnectionTimeoutMs);
-    emplace_result.first->second.Schedule(
-            common::BindOnce(&le_impl::on_create_connection_timeout, common::Unretained(this),
-                             address_with_type),
-            std::chrono::milliseconds(connection_timeout));
+    if (!com_android_bluetooth_flags_gd_conn_mgr_one_timeout()) {
+      auto emplace_result = create_connection_timeout_alarms_.emplace(
+              std::piecewise_construct,
+              std::forward_as_tuple(address_with_type.GetAddress(),
+                                    address_with_type.GetAddressType()),
+              std::forward_as_tuple(&handler_->thread()));
+      uint32_t connection_timeout =
+              os::GetSystemPropertyUint32(kPropertyDirectConnTimeout, kCreateConnectionTimeoutMs);
+      emplace_result.first->second.Schedule(
+              common::BindOnce(&le_impl::on_create_connection_timeout, common::Unretained(this),
+                               address_with_type),
+              std::chrono::milliseconds(connection_timeout));
+    }
   }
 
   void direct_connect_remove(AddressWithType address_with_type) {
     log::debug("{}", address_with_type);
-    auto it = create_connection_timeout_alarms_.find(address_with_type);
-    if (it != create_connection_timeout_alarms_.end()) {
-      it->second.Cancel();
-      create_connection_timeout_alarms_.erase(it);
+    if (!com_android_bluetooth_flags_gd_conn_mgr_one_timeout()) {
+      auto it = create_connection_timeout_alarms_.find(address_with_type);
+      if (it != create_connection_timeout_alarms_.end()) {
+        it->second.Cancel();
+        create_connection_timeout_alarms_.erase(it);
+      }
     }
     direct_connections_.erase(address_with_type);
     relaxed_direct_connections_.erase(address_with_type);
+
+    if (com_android_bluetooth_flags_gd_conn_mgr_one_timeout()) {
+      if (background_connections_.contains(address_with_type)) {
+        disarm_connectability();
+      } else {
+        // no more connection attempt
+        remove_device_from_accept_list(address_with_type);
+      }
+    }
   }
 
   void add_device_to_accept_list(AddressWithType address_with_type) {
@@ -928,25 +1011,20 @@ public:
       }
     }
 
-    if (com::android::bluetooth::flags::initial_conn_params_p1()) {
-      if (prefer_relaxed_connection_interval) {
-        conn_interval_min = LeConnectionParameters::GetMinConnIntervalRelaxed();
-        conn_interval_max = LeConnectionParameters::GetMaxConnIntervalRelaxed();
-        log::debug("conn_interval_min={}, conn_interval_max={}", conn_interval_min,
-                   conn_interval_max);
-      } else {
-        size_t num_classic_acl_connections = classic_acl_count_provider_.GetAclCount();
-        size_t num_acl_connections = connections.size();
-
-        log::debug("ACL connection count: Classic={}, LE={}", num_classic_acl_connections,
-                   num_acl_connections);
-
-        choose_connection_mode(num_classic_acl_connections + num_acl_connections,
-                               &conn_interval_min, &conn_interval_max);
-      }
+    if (prefer_relaxed_connection_interval) {
+      conn_interval_min = LeConnectionParameters::GetMinConnIntervalRelaxed();
+      conn_interval_max = LeConnectionParameters::GetMaxConnIntervalRelaxed();
+      log::debug("conn_interval_min={}, conn_interval_max={}", conn_interval_min,
+                 conn_interval_max);
     } else {
-      conn_interval_min = os::GetSystemPropertyUint32(kPropertyMinConnInterval, kConnIntervalMin);
-      conn_interval_max = os::GetSystemPropertyUint32(kPropertyMaxConnInterval, kConnIntervalMax);
+      size_t num_classic_acl_connections = classic_acl_count_provider_.GetAclCount();
+      size_t num_acl_connections = connections.size();
+
+      log::debug("ACL connection count: Classic={}, LE={}", num_classic_acl_connections,
+                 num_acl_connections);
+
+      choose_connection_mode(num_classic_acl_connections + num_acl_connections, &conn_interval_min,
+                             &conn_interval_max);
     }
 
     uint16_t conn_latency = os::GetSystemPropertyUint32(kPropertyConnLatency, kConnLatency);
@@ -1038,12 +1116,11 @@ public:
 
     // If found ASCS/BASS UUID in database cache, it is a lea device and reconnection scenario
     for (auto it = accept_list.begin(); it != accept_list.end(); ++it) {
-      std::optional<std::vector<hci::Uuid>> uuids =
+      std::optional<std::vector<Uuid>> uuids =
               storage_module_.GetDeviceByLegacyKey(it->GetAddress()).GetServiceUuidsLe();
-      if (!uuids.has_value() ||
-          std::find_if(uuids->begin(), uuids->end(), [](const hci::Uuid& uuid) {
-            return (uuid == UUID_ASCS) || (uuid == UUID_BASS);
-          }) == uuids->end()) {
+      if (!uuids.has_value() || std::find_if(uuids->begin(), uuids->end(), [](const Uuid& uuid) {
+                                  return (uuid == UUID_ASCS) || (uuid == UUID_BASS);
+                                }) == uuids->end()) {
         log::verbose("{} does not support LE audio", it->GetAddress());
         return false;
       } else {
@@ -1073,8 +1150,7 @@ public:
       connection_mode = ConnectionMode::AGGRESSIVE;
     }
 
-    if (com::android::bluetooth::flags::leaudio_use_aggressive_params() &&
-        num_acl_connections < iso_aggressive_connection_threshold &&
+    if (num_acl_connections < iso_aggressive_connection_threshold &&
         accept_list_contains_only_le_audio_devices()) {
       connection_mode = ConnectionMode::AGGRESSIVE_ISO;
     }
@@ -1134,16 +1210,15 @@ public:
       return;
     }
 
-    if (com::android::bluetooth::flags::prevent_adding_both_pseudo_and_identity_addr()) {
-      tBLE_BD_ADDR legacy_addr = ToLegacyAddressWithType(address_with_type);
-      if (address_with_type.GetAddress() != Address::kEmpty &&
-          btm_identity_addr_to_random_pseudo(&legacy_addr.bda, &legacy_addr.type, false)) {
-        AddressWithType pseudo_addr = ToAddressWithTypeFromLegacy(legacy_addr);
-        if (connections.alreadyConnected(pseudo_addr)) {
-          log::info("Device already connected as pseudo address. Skip adding public addr to "
-                    "accept list");
-          return;
-        }
+    tBLE_BD_ADDR legacy_addr = ToLegacyAddressWithType(address_with_type);
+    if (address_with_type.GetAddress() != Address::kEmpty &&
+        btm_identity_addr_to_random_pseudo(&legacy_addr.bda, &legacy_addr.type, false)) {
+      AddressWithType pseudo_addr = ToAddressWithTypeFromLegacy(legacy_addr);
+      if (connections.alreadyConnected(pseudo_addr)) {
+        log::info(
+                "Device already connected as pseudo address. Skip adding public addr to "
+                "accept list");
+        return;
       }
     }
 
@@ -1157,8 +1232,7 @@ public:
       bool in_accept_list_due_to_direct_connect =
               direct_connections_.find(address_with_type) != direct_connections_.end();
       if (already_in_accept_list && (in_accept_list_due_to_direct_connect || !is_direct) &&
-          (!com::android::bluetooth::flags::allow_rearm_if_suspend_scan_params_used() ||
-           is_using_system_suspend_scan_params_ == system_suspend_)) {
+          is_using_system_suspend_scan_params_ == system_suspend_) {
         log::info("Device {} already in accept list. Stop here.", address_with_type);
         return;
       }
@@ -1214,6 +1288,7 @@ public:
     }
   }
 
+  // TODO: delete with gd_conn_mgr_one_timeout
   void on_create_connection_timeout(AddressWithType address_with_type) {
     log::info("on_create_connection_timeout, address: {}", address_with_type);
     direct_connect_remove(address_with_type);
@@ -1372,8 +1447,38 @@ public:
     }
   }
 
+  void refresh_connection_parameters() {
+    if (accept_list.empty()) {
+      return;
+    }
+
+    // refreshing the connection parameters is done by disarming and re-arming connectability.
+    switch (connectability_state_) {
+      case ConnectabilityState::ARMED:
+      case ConnectabilityState::ARMING:
+        arm_on_disarm_ = true;
+        disarm_connectability();
+        break;
+      case ConnectabilityState::DISARMING:
+        arm_on_disarm_ = true;
+        break;
+      case ConnectabilityState::DISARMED:
+        arm_connectability();
+        break;
+    }
+  }
+
   void set_system_suspend_state(bool suspended, std::promise<void> promise) {
-    system_suspend_ = suspended;
+    if (!com_android_bluetooth_flags_resolve_collision_conn_discon()) {
+      system_suspend_ = suspended;
+      promise.set_value();
+      return;
+    }
+
+    if (system_suspend_ != suspended) {
+      system_suspend_ = suspended;
+      refresh_connection_parameters();
+    }
     promise.set_value();
   }
 
@@ -1404,6 +1509,7 @@ public:
   bool system_suspend_ = false;
   bool is_using_system_suspend_scan_params_ = false;
   ConnectabilityState connectability_state_{ConnectabilityState::DISARMED};
+  // TODO: delete with gd_conn_mgr_one_timeout
   std::map<AddressWithType, os::Alarm> create_connection_timeout_alarms_{};
 };
 

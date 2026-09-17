@@ -199,7 +199,7 @@ typedef enum : uint16_t {
   SCO_ST_CONNECTING = 3,
   SCO_ST_CONNECTED = 4,
   SCO_ST_DISCONNECTING = 5,
-  SCO_ST_PEND_UNPARK = 6,
+  SCO_ST_PEND_UNSNIFF = 6,
   SCO_ST_PEND_ROLECHANGE = 7,
   SCO_ST_PEND_MODECHANGE = 8,
 } tSCO_STATE;
@@ -212,7 +212,7 @@ inline std::string sco_state_text(const tSCO_STATE& state) {
     CASE_RETURN_TEXT(SCO_ST_CONNECTING);
     CASE_RETURN_TEXT(SCO_ST_CONNECTED);
     CASE_RETURN_TEXT(SCO_ST_DISCONNECTING);
-    CASE_RETURN_TEXT(SCO_ST_PEND_UNPARK);
+    CASE_RETURN_TEXT(SCO_ST_PEND_UNSNIFF);
     CASE_RETURN_TEXT(SCO_ST_PEND_ROLECHANGE);
     CASE_RETURN_TEXT(SCO_ST_PEND_MODECHANGE);
     default:
@@ -232,7 +232,7 @@ typedef struct {
 typedef struct {
   tBTM_ESCO_INFO esco;    /* Current settings             */
   tBTM_SCO_CB* p_conn_cb; /* Callback for when connected  */
-  tBTM_SCO_CB* p_disc_cb; /* Callback for when disconnect */
+  tBTM_SCO_WITH_REASON_CB* p_disc_cb; /* Callback for when SCO is disconnected */
   tSCO_STATE state;       /* The state of the SCO link    */
 
   uint16_t hci_handle; /* HCI Handle                   */

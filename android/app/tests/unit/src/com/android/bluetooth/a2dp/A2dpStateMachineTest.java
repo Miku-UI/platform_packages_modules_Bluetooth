@@ -17,6 +17,8 @@
 package com.android.bluetooth.a2dp;
 
 import static android.bluetooth.BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED;
+import static android.bluetooth.BluetoothA2dp.STATE_NOT_PLAYING;
+import static android.bluetooth.BluetoothA2dp.STATE_PLAYING;
 import static android.bluetooth.BluetoothProfile.EXTRA_PREVIOUS_STATE;
 import static android.bluetooth.BluetoothProfile.EXTRA_STATE;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
@@ -27,9 +29,10 @@ import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 
 import static com.android.bluetooth.TestUtils.getTestDevice;
+import static com.android.bluetooth.a2dp.A2dpStateMachine.MESSAGE_AUDIO_STATE_CHANGED;
 import static com.android.bluetooth.a2dp.A2dpStateMachine.MESSAGE_CONNECT;
+import static com.android.bluetooth.a2dp.A2dpStateMachine.MESSAGE_CONNECTION_STATE_CHANGED;
 import static com.android.bluetooth.a2dp.A2dpStateMachine.MESSAGE_DISCONNECT;
-import static com.android.bluetooth.a2dp.A2dpStateMachine.MESSAGE_STACK_EVENT;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -76,9 +79,8 @@ import java.util.List;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class A2dpStateMachineTest {
-    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
-
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private A2dpService mService;
     @Mock private A2dpNativeInterface mNativeInterface;
@@ -121,9 +123,9 @@ public class A2dpStateMachineTest {
                     .setCodecSpecific4(0)
                     .build();
 
-    private A2dpStateMachine mStateMachine;
     private InOrder mInOrder;
     private TestLooper mLooper;
+    private A2dpStateMachine mStateMachine;
 
     @Before
     public void setUp() throws Exception {
@@ -150,11 +152,7 @@ public class A2dpStateMachineTest {
         doReturn(false).when(mService).okToConnect(any(), anyBoolean());
 
         // Inject an event for when incoming connection is requested
-        A2dpStackEvent connStCh =
-                new A2dpStackEvent(A2dpStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
-        connStCh.device = mDevice;
-        connStCh.valueInt = STATE_CONNECTED;
-        sendAndDispatchMessage(MESSAGE_STACK_EVENT, connStCh);
+        sendAndDispatchMessage(MESSAGE_CONNECTION_STATE_CHANGED, STATE_CONNECTED);
 
         verify(mService, never()).sendBroadcast(any(Intent.class), anyString(), any(Bundle.class));
         assertThat(mStateMachine.getCurrentState())
@@ -220,47 +218,6 @@ public class A2dpStateMachineTest {
                         mService, mDevice, mNativeInterface, true, mLooper.getLooper());
 
         testProcessCodecConfigEventCase(true);
-    }
-
-    /** Verify the state machine reconfigures the optional codec when necessary */
-    @Test
-    @EnableFlags(Flags.FLAG_SYNCHRONIZE_CODEC_PREFERENCES_AND_PRIORITY)
-    public void testProcessCodecConfigEventToMandatoryCodecAndOptionalCodecDisabled() {
-        doReturn(BluetoothA2dp.OPTIONAL_CODECS_PREF_DISABLED)
-                .when(mService)
-                .getOptionalCodecsEnabled(any(BluetoothDevice.class));
-
-        var codecsSelectableSbc = List.of(mCodecConfigSbc);
-        var codecsSelectableSbcAac = List.of(mCodecConfigSbc, mCodecConfigAac);
-
-        BluetoothCodecStatus codecStatusSbcAndSbc =
-                new BluetoothCodecStatus(
-                        mCodecConfigSbc, codecsSelectableSbcAac, codecsSelectableSbc);
-        BluetoothCodecStatus codecStatusSbcAndSbcAac =
-                new BluetoothCodecStatus(
-                        mCodecConfigSbc, codecsSelectableSbcAac, codecsSelectableSbcAac);
-
-        doReturn(BluetoothA2dp.OPTIONAL_CODECS_NOT_SUPPORTED)
-                .when(mService)
-                .getSupportsOptionalCodecs(any(BluetoothDevice.class));
-
-        // Change codec status
-        // Selected codec = SBC, selectable codec = SBC
-        mStateMachine.processCodecConfigEvent(codecStatusSbcAndSbc);
-
-        // Verify that no need to update optional codec configuration
-        verify(mService, never()).disableOptionalCodecs(mDevice);
-
-        doReturn(BluetoothA2dp.OPTIONAL_CODECS_SUPPORTED)
-                .when(mService)
-                .getSupportsOptionalCodecs(any(BluetoothDevice.class));
-
-        // Change codec status
-        // Selected codec = SBC, selectable codec = SBC + AAC
-        mStateMachine.processCodecConfigEvent(codecStatusSbcAndSbcAac);
-
-        // Verify that state machine reconfig optional codec
-        verify(mService).disableOptionalCodecs(mDevice);
     }
 
     /** Helper method to test processCodecConfigEvent() */
@@ -391,7 +348,47 @@ public class A2dpStateMachineTest {
         assertThat(mLooper.dispatchAll()).isEqualTo(0);
     }
 
+    @Test
+    public void audioStateChange_sendsBroadcast() {
+        // Start in connected state
+        generateConnectionMessageFromNative(STATE_CONNECTING, STATE_DISCONNECTED);
+        generateConnectionMessageFromNative(STATE_CONNECTED, STATE_CONNECTING);
+        assertThat(mStateMachine.getCurrentState()).isInstanceOf(A2dpStateMachine.Connected.class);
+        // Verify initial audio state broadcast. This is also verified in another test,
+        // but serves as a good baseline here.
+        verifyIntentSent(
+                hasAction(BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED),
+                hasExtra(EXTRA_STATE, STATE_NOT_PLAYING),
+                hasExtra(EXTRA_PREVIOUS_STATE, STATE_PLAYING));
+        assertThat(mStateMachine.isPlaying()).isFalse();
+
+        // --- Test audio started ---
+        sendAndDispatchMessage(MESSAGE_AUDIO_STATE_CHANGED, A2dpNativeCallback.AUDIO_STATE_STARTED);
+
+        // Verify broadcast and state for playing
+        verifyIntentSent(
+                hasAction(BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED),
+                hasExtra(EXTRA_STATE, STATE_PLAYING),
+                hasExtra(EXTRA_PREVIOUS_STATE, STATE_NOT_PLAYING));
+        assertThat(mStateMachine.isPlaying()).isTrue();
+
+        // --- Test audio stopped ---
+        sendAndDispatchMessage(MESSAGE_AUDIO_STATE_CHANGED, A2dpNativeCallback.AUDIO_STATE_STOPPED);
+
+        // Verify broadcast and state for not playing
+        verifyIntentSent(
+                hasAction(BluetoothA2dp.ACTION_PLAYING_STATE_CHANGED),
+                hasExtra(EXTRA_STATE, STATE_NOT_PLAYING),
+                hasExtra(EXTRA_PREVIOUS_STATE, STATE_PLAYING));
+        assertThat(mStateMachine.isPlaying()).isFalse();
+    }
+
     private void sendAndDispatchMessage(int what, Object obj) {
+        mStateMachine.sendMessage(what, obj);
+        mLooper.dispatchAll();
+    }
+
+    private void sendAndDispatchMessage(int what, int obj) {
         mStateMachine.sendMessage(what, obj);
         mLooper.dispatchAll();
     }
@@ -412,12 +409,7 @@ public class A2dpStateMachineTest {
     }
 
     private void generateConnectionMessageFromNative(int newState, int oldState) {
-        A2dpStackEvent event =
-                new A2dpStackEvent(A2dpStackEvent.EVENT_TYPE_CONNECTION_STATE_CHANGED);
-        event.device = mDevice;
-        event.valueInt = newState;
-
-        sendAndDispatchMessage(MESSAGE_STACK_EVENT, event);
+        sendAndDispatchMessage(MESSAGE_CONNECTION_STATE_CHANGED, newState);
         verifyConnectionStateIntent(newState, oldState);
     }
 }

@@ -31,7 +31,6 @@ android_test_helper_app {
         "androidx.test.rules",
         "androidx.test.uiautomator_uiautomator",
         "bluetooth-test-util-lib",
-        "bluetooth_flags_java_lib",
         "compatibility-device-util-axt",
         "flag-junit",
         "grpc-java-lite",
@@ -43,9 +42,8 @@ android_test_helper_app {
         "truth",
     ],
 
-    // Include all test java and kotlin files.
+    // Include all test kotlin files.
     srcs: [
-        "src/**/*.java",
         "src/**/*.kt",
     ],
 }
@@ -112,9 +110,10 @@ python_binary_host {
     srcs: [
         "src/bumble_server.py",
     ],
-    embedded_launcher: false,
+    embedded_launcher: true,
     libs: [
         "bumble-pandora-services",
         "pandora_interfaces-python",
+        "py-grpcio",
     ],
 }

@@ -28,6 +28,9 @@
 #include "bt_gatt_client.h"
 #include "bt_gatt_types.h"
 
+constexpr uint8_t kScannerClientIdJni = 0xff;
+constexpr uint8_t kScannerClientIdLeAudio = 0x1;
+
 class AdvertisingTrackInfo {
 public:
   // For MSFT-based advertisement monitor.
@@ -79,29 +82,30 @@ class BleScannerInterface {
 public:
   virtual ~BleScannerInterface() = default;
 
-  using RegisterCallback = base::Callback<void(uint8_t /* scanner_id */, uint8_t /* btm_status */)>;
+  using RegisterCallback =
+          base::OnceCallback<void(uint8_t /* scanner_id */, uint8_t /* btm_status */)>;
 
-  using Callback = base::Callback<void(uint8_t /* btm_status */)>;
+  using Callback = base::OnceCallback<void(uint8_t /* btm_status */)>;
 
-  using EnableCallback = base::Callback<void(uint8_t /* action */, uint8_t /* btm_status */)>;
+  using EnableCallback = base::OnceCallback<void(uint8_t /* action */, uint8_t /* btm_status */)>;
 
-  using FilterParamSetupCallback = base::Callback<void(
+  using FilterParamSetupCallback = base::OnceCallback<void(
           uint8_t /* avbl_space */, uint8_t /* action_type */, uint8_t /* btm_status */)>;
 
   using FilterConfigCallback =
-          base::Callback<void(uint8_t /* filt_type */, uint8_t /* avbl_space */,
-                              uint8_t /* action */, uint8_t /* btm_status */)>;
+          base::OnceCallback<void(uint8_t /* filt_type */, uint8_t /* avbl_space */,
+                                  uint8_t /* action */, uint8_t /* btm_status */)>;
 
   using MsftAdvMonitorAddCallback =
-          base::Callback<void(uint8_t /* monitor_handle */, uint8_t /* status */)>;
+          base::OnceCallback<void(uint8_t /* monitor_handle */, uint8_t /* status */)>;
 
-  using MsftAdvMonitorRemoveCallback = base::Callback<void(uint8_t /* status */)>;
+  using MsftAdvMonitorRemoveCallback = base::OnceCallback<void(uint8_t /* status */)>;
 
   using MsftAdvMonitorEnableCallback =
-          base::Callback<void(bool /* enable */, uint8_t /* status */)>;
+          base::OnceCallback<void(bool /* enable */, uint8_t /* status */)>;
 
   /** Registers a scanner with the stack */
-  virtual void RegisterScanner(const bluetooth::Uuid& app_uuid, RegisterCallback) = 0;
+  virtual void RegisterScanner(const bluetooth::Uuid& app_uuid) = 0;
 
   /** Unregister a scanner from the stack */
   virtual void Unregister(int scanner_id) = 0;
@@ -156,11 +160,12 @@ public:
   /* Read out batchscan reports */
   virtual void BatchScanReadReports(int client_if, int scan_mode) = 0;
 
-  virtual void StartSync(uint8_t sid, RawAddress address, uint16_t skip, uint16_t timeout,
-                         int reg_id) = 0;
+  virtual void StartSync(uint8_t sid, RawAddress address, uint8_t address_type, uint16_t skip,
+                         uint16_t timeout, int reg_id, uint8_t client_id = kScannerClientIdJni) = 0;
   virtual void StopSync(uint16_t handle) = 0;
 
   virtual void RegisterCallbacks(ScanningCallbacks* callbacks) = 0;
+  virtual void RegisterCallbacksNative(ScanningCallbacks* callbacks, uint8_t client_id) = 0;
 
   virtual void CancelCreateSync(uint8_t sid, RawAddress address) = 0;
 

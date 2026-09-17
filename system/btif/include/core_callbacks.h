@@ -16,12 +16,13 @@
 
 #pragma once
 
+#include <bluetooth/types/acl_link_spec.h>
 #include <bluetooth/types/ble_address_with_type.h>
 
+#include "bt_status.h"
 #include "bta/include/bta_api.h"
-#include "bta/include/bta_hh_api.h"
 #include "include/hardware/bluetooth.h"
-#include "stack/include/btm_ble_api_types.h"
+#include "include/hardware/bt_hh.h"
 
 namespace bluetooth {
 namespace core {
@@ -38,17 +39,19 @@ struct EventCallbacks {
   void (*invoke_device_found_cb)(int num_properties, bt_property_t* properties);
   void (*invoke_discovery_state_changed_cb)(bt_discovery_state_t state);
   void (*invoke_pin_request_cb)(RawAddress bd_addr, bt_bdname_t bd_name, uint32_t cod,
-                                bool min_16_digit);
-  void (*invoke_ssp_request_cb)(RawAddress bd_addr, bt_ssp_variant_t pairing_variant,
-                                uint32_t pass_key);
+                                bool min_16_digit, int pairing_algorithm);
+  void (*invoke_ssp_request_cb)(RawAddress bd_addr, int transport, PairingVariant pairing_variant,
+                                uint32_t pass_key, int pairing_algorithm);
   void (*invoke_oob_data_request_cb)(tBT_TRANSPORT t, bool valid, Octet16 c, Octet16 r,
                                      RawAddress raw_address, uint8_t address_type);
   void (*invoke_bond_state_changed_cb)(bt_status_t status, RawAddress bd_addr,
-                                       bt_bond_state_t state, int fail_reason);
+                                       tBT_TRANSPORT transport, bt_bond_state_t state,
+                                       PairingType pairing_type, int fail_reason,
+                                       PairingInitiator pairing_initiator);
   void (*invoke_address_consolidate_cb)(RawAddress main_bd_addr, RawAddress secondary_bd_addr);
   void (*invoke_le_address_associate_cb)(RawAddress main_bd_addr, RawAddress secondary_bd_addr,
                                          uint8_t identity_address_type);
-  void (*invoke_acl_state_changed_cb)(bt_status_t status, tAclLinkSpec& link_spec,
+  void (*invoke_acl_state_changed_cb)(bt_status_t status, AclLinkSpec& link_spec,
                                       bt_acl_state_t state, bt_hci_error_code_t hci_reason,
                                       bt_conn_direction_t direction, uint16_t acl_handle);
   void (*invoke_thread_evt_cb)(bt_cb_thread_evt event);
@@ -98,9 +101,9 @@ struct CodecInterface {
 // that profiles can register themselves to.
 struct HACK_ProfileInterface {
   // HID hacks
-  bt_status_t (*btif_hh_virtual_unplug)(const tAclLinkSpec& link_spec);
-  tBTA_HH_STATUS (*bta_hh_read_ssr_param)(const tAclLinkSpec& link_spec, uint16_t* p_max_ssr_lat,
-                                          uint16_t* p_min_ssr_tout);
+  BtStatus (*btif_hh_virtual_unplug)(const AclLinkSpec& link_spec);
+  bthh_status_t (*bta_hh_read_ssr_param)(const AclLinkSpec& link_spec, uint16_t* p_max_ssr_lat,
+                                         uint16_t* p_min_ssr_tout);
 
   // AVDTP hacks
   void (*btif_av_set_dynamic_audio_buffer_size)(uint8_t dynamic_audio_buffer_size);

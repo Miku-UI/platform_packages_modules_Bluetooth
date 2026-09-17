@@ -21,6 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
@@ -35,6 +36,7 @@ import com.android.bluetooth.tests.R;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -45,17 +47,17 @@ import java.util.Arrays;
 /** Test cases for {@link CoverArt}. */
 @RunWith(AndroidJUnit4.class)
 public class CoverArtTest {
-
-    private final Resources mTestResources = TestUtils.getTestApplicationResources();
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private static final BipPixel PIXEL_THUMBNAIL = BipPixel.createFixed(200, 200);
     private static final String IMAGE_HANDLE_1 = "0000001";
 
-    private Bitmap m200by200Image = null;
-    private Bitmap m200by200ImageBlue = null;
+    private final Resources mTestResources = TestUtils.getTestApplicationResources();
 
-    private Image mImage = null;
-    private Image mImage2 = null;
+    private Bitmap m200by200Image;
+    private Bitmap m200by200ImageBlue;
+    private Image mImage;
+    private Image mImage2;
 
     @Before
     public void setUp() throws Exception {
@@ -262,5 +264,16 @@ public class CoverArtTest {
     public void testToString() {
         CoverArt artwork = new CoverArt(mImage);
         assertThat(artwork.toString()).isNotNull();
+    }
+
+    /**
+     * Make sure getImage(<smaller descriptor>) yields an image when the feature flag is enabled.
+     * This verifies that descriptors for sizes smaller than the thumbnail are accepted.
+     */
+    @Test
+    public void testGetImageWithSmallerDescriptor_whenFlagEnabled() {
+        CoverArt artwork = new CoverArt(mImage);
+        BipImageDescriptor descriptor = getDescriptor(BipEncoding.JPEG, 100, 100);
+        assertThat(artwork.getImage(descriptor)).isNotNull();
     }
 }

@@ -2,14 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "support_passive_scanning"
-    namespace: "bluetooth"
-    is_exported: true
-    description: "Support passive scannign by delivering adv packet w/o scan response"
-    bug: "414501027"
-}
-
-flag {
     name: "upgrade_le_scan_only_screen_on"
     namespace: "bluetooth"
     description: "Allow to upgrade LE scan only when screen is on"
@@ -20,10 +12,34 @@ flag {
 }
 
 flag {
-    name: "stop_le_scan_system_suspend"
+    name: "treat_empty_filters_as_unfiltered"
     namespace: "bluetooth"
-    description: "Stop all LE scanners if the system is suspended"
-    bug: "438826539"
+    description: "Treat scans with all-fields-empty filters as unfiltered"
+    bug: "461650493"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "support_native_pa_callback"
+    namespace: "bluetooth"
+    description: "Support native pa callback"
+    bug: "462892602"
+}
+
+flag {
+    name: "scan_allowance_throttling_enabled"
+    namespace: "bluetooth"
+    description: "The flag enables scan throttling using allowance."
+    bug: "478996075"
+}
+
+flag {
+    name: "early_reject_unauthorized_scans"
+    namespace: "bluetooth"
+    description: "Implements early validation for BLE scans to prevent unnecessary radio usage; ensures scans are immediately rejected if location requirements are not met"
+    bug: "491962438"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

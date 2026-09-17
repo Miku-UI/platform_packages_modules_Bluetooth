@@ -2,10 +2,27 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "ignore_unrelated_cancel_bond"
+    name: "immediate_sdp_results_le"
     namespace: "bluetooth"
-    description: "Accept the cancelBond request only for the currently pairing device"
-    bug: "366150975"
+    description: "Return SDP results immediately to unblock bonding even if the remote doesn't support LEA"
+    bug: "446624664"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+  name: "pairing_decoupled"
+  namespace: "bluetooth"
+  description: "Decouple the service discovery and pairing process"
+  bug: "474029825"
+}
+
+flag {
+    name: "fix_multiple_discovery_stopped_broadcast"
+    namespace: "bluetooth"
+    description: "Ensures BT_DISCOVERY_STOPPED is signaled to the Java layer exactly once when discovery ends or is canceled, by unifying the native signal source and adding deduplication"
+    bug: "477194225"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

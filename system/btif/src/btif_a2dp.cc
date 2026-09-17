@@ -29,20 +29,20 @@
 #include <cstdint>
 
 #include "audio_hal_interface/a2dp_encoding.h"
-#include "avdt_api.h"
 #include "bta_av_api.h"
 #include "btif_a2dp_sink.h"
 #include "btif_a2dp_source.h"
 #include "btif_av.h"
 #include "btif_av_co.h"
 #include "btif_hf.h"
+#include "stack/include/avdt_api.h"
 
 using namespace bluetooth;
 using bluetooth::audio::a2dp::Status;
 
 void btif_a2dp_on_idle(const RawAddress& /*peer_addr*/, const A2dpType local_a2dp_type) {
-  log::verbose("Peer stream endpoint type:{}",
-               peer_stream_endpoint_text(btif_av_get_peer_sep(local_a2dp_type)));
+  log::debug("Peer stream endpoint type:{}",
+             peer_stream_endpoint_text(btif_av_get_peer_sep(local_a2dp_type)));
   if (btif_av_get_peer_sep(local_a2dp_type) == AVDT_TSEP_SNK) {
     btif_a2dp_source_on_idle();
   } else if (btif_av_get_peer_sep(local_a2dp_type) == AVDT_TSEP_SRC) {

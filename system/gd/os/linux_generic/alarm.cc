@@ -16,13 +16,14 @@
 
 #include "os/alarm.h"
 
+#include <base/functional/bind.h>
+#include <base/functional/callback.h>
 #include <bluetooth/log.h>
 #include <sys/timerfd.h>
 #include <unistd.h>
 
 #include <cstring>
 
-#include "common/bind.h"
 #include "os/linux_generic/linux.h"
 #include "os/utils.h"
 
@@ -34,13 +35,14 @@
 
 namespace bluetooth {
 namespace os {
-using common::Closure;
-using common::OnceClosure;
 
-Alarm::Alarm(Thread* thread) : Alarm(thread, true) {}
+Alarm::Alarm(Thread* thread, std::chrono::milliseconds reactable_timeout)
+    : Alarm(thread, true, reactable_timeout) {}
 
-Alarm::Alarm(Thread* thread, bool isWakeAlarm)
-    : armed_time_(std::chrono::time_point<std::chrono::system_clock>::min()), thread_(thread) {
+Alarm::Alarm(Thread* thread, bool isWakeAlarm, std::chrono::milliseconds reactable_timeout)
+    : armed_time_(std::chrono::time_point<std::chrono::system_clock>::min()),
+      thread_(thread),
+      reactable_timeout_(reactable_timeout) {
   int timerfd_flag = TFD_NONBLOCK;
 
   fd_ = TIMERFD_CREATE(isWakeAlarm ? ALARM_CLOCK : CLOCK_BOOTTIME, timerfd_flag);
@@ -48,22 +50,33 @@ Alarm::Alarm(Thread* thread, bool isWakeAlarm)
   log::assert_that(fd_ != -1, "cannot create timerfd: {}", strerror(errno));
 
   token_ = thread_->GetReactor()->Register(
-          fd_, common::Bind(&Alarm::on_fire, common::Unretained(this)), Closure());
+          fd_, base::BindRepeating(&Alarm::on_fire, base::Unretained(this)),
+          base::RepeatingClosure());
 }
 
 Alarm::~Alarm() {
-  auto reactor = thread_->GetReactor();
-  reactor->Unregister(token_);
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto reactor = thread_->GetReactor();
+    reactor->Unregister(token_);
+    token_ = nullptr;
 
-  int close_status;
-  RUN_NO_INTR(close_status = TIMERFD_CLOSE(fd_));
-  log::assert_that(close_status != -1, "assert failed: close_status != -1");
+    int close_status;
+    RUN_NO_INTR(close_status = TIMERFD_CLOSE(fd_));
+    log::assert_that(close_status != -1, "assert failed: close_status != -1");
+  }
+
+  // If the timeout is set, wait for the reactable to be unregistered.
+  if (reactable_timeout_ != kDefaultReactableTimeout) {
+    log::assert_that(thread_->GetReactor()->WaitForUnregisteredReactable(reactable_timeout_),
+                     "assert failed: thread_->GetReactor()->WaitForUnregisteredReactable(timeout)");
+  }
 }
 
-void Alarm::Schedule(OnceClosure task, std::chrono::milliseconds delay) {
+void Alarm::Schedule(base::OnceClosure task, std::chrono::milliseconds delay) {
   std::lock_guard<std::mutex> lock(mutex_);
   long delay_ms = delay.count();
-  armed_time_ = std::chrono::system_clock::now(); // reset the armed time on every schedule
+  armed_time_ = std::chrono::system_clock::now();  // reset the armed time on every schedule
   itimerspec timer_itimerspec{{/* interval for periodic timer */},
                               {delay_ms / 1000, delay_ms % 1000 * 1000000}};
   int result = TIMERFD_SETTIME(fd_, 0, &timer_itimerspec, nullptr);

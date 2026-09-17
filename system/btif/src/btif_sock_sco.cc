@@ -22,6 +22,7 @@
 
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
+#include <com_android_bluetooth_flags.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -29,6 +30,7 @@
 #include <cstdint>
 #include <mutex>
 
+#include "btif_status.h"
 #include "include/hardware/bt_sock.h"
 #include "osi/include/allocator.h"
 #include "osi/include/list.h"
@@ -71,7 +73,7 @@ static void sco_socket_free_locked(sco_socket_t* socket);
 static sco_socket_t* sco_socket_find_locked(uint16_t sco_handle);
 static void connection_request_cb(tBTM_ESCO_EVT event, tBTM_ESCO_EVT_DATA* data);
 static void connect_completed_cb(uint16_t sco_handle);
-static void disconnect_completed_cb(uint16_t sco_handle);
+static void disconnect_completed_cb(uint16_t sco_handle, SCO_CONNECTION_FAILURES reason);
 static void socket_read_ready_cb(socket_t* socket, void* context);
 
 // |sco_lock| protects all of the static variables below and
@@ -81,12 +83,12 @@ static list_t* sco_sockets;              // Owns a collection of sco_socket_t ob
 static sco_socket_t* listen_sco_socket;  // Not owned, do not free.
 static thread_t* thread;                 // Not owned, do not free.
 
-bt_status_t btsock_sco_init(thread_t* thread_) {
+BtStatus btsock_sco_init(thread_t* thread_) {
   log::assert_that(thread_ != NULL, "assert failed: thread_ != NULL");
 
   sco_sockets = list_new((list_free_cb)sco_socket_free_locked);
   if (!sco_sockets) {
-    return BT_STATUS_SOCKET_ERROR;
+    return BtifStatus(SOCKET_ERROR);
   }
 
   thread = thread_;
@@ -95,23 +97,23 @@ bt_status_t btsock_sco_init(thread_t* thread_) {
     log::warn("Unable to set ESCO parameters");
   }
 
-  return BT_STATUS_SUCCESS;
+  return BtifStatus();
 }
 
-bt_status_t btsock_sco_cleanup(void) {
+BtStatus btsock_sco_cleanup(void) {
   list_free(sco_sockets);
   sco_sockets = NULL;
-  return BT_STATUS_SUCCESS;
+  return BtifStatus();
 }
 
-bt_status_t btsock_sco_listen(int* sock_fd, int /* flags */) {
+BtStatus btsock_sco_listen(int* sock_fd, int /* flags */) {
   log::assert_that(sock_fd != NULL, "assert failed: sock_fd != NULL");
 
   std::unique_lock<std::mutex> lock(sco_lock);
 
   sco_socket_t* sco_socket = sco_socket_establish_locked(true, NULL, sock_fd);
   if (!sco_socket) {
-    return BT_STATUS_SOCKET_ERROR;
+    return BtifStatus(SOCKET_ERROR);
   }
 
   if (get_btm_client_interface().sco.BTM_RegForEScoEvts(
@@ -120,17 +122,16 @@ bt_status_t btsock_sco_listen(int* sock_fd, int /* flags */) {
   }
   listen_sco_socket = sco_socket;
 
-  return BT_STATUS_SUCCESS;
+  return BtifStatus();
 }
 
-bt_status_t btsock_sco_connect(const RawAddress* bd_addr, int* sock_fd, int /* flags */) {
-  log::assert_that(bd_addr != NULL, "assert failed: bd_addr != NULL");
+BtStatus btsock_sco_connect(RawAddress bd_addr, int* sock_fd, int /* flags */) {
   log::assert_that(sock_fd != NULL, "assert failed: sock_fd != NULL");
 
   std::unique_lock<std::mutex> lock(sco_lock);
-  sco_socket_t* sco_socket = sco_socket_establish_locked(false, bd_addr, sock_fd);
+  sco_socket_t* sco_socket = sco_socket_establish_locked(false, &bd_addr, sock_fd);
 
-  return (sco_socket != NULL) ? BT_STATUS_SUCCESS : BT_STATUS_SOCKET_ERROR;
+  return (sco_socket != NULL) ? BtifStatus() : BtifStatus(SOCKET_ERROR);
 }
 
 // Must be called with |lock| held.
@@ -263,7 +264,17 @@ static void connection_request_cb(tBTM_ESCO_EVT event, tBTM_ESCO_EVT_DATA* data)
 
   sock_connect_signal_t connect_signal;
   connect_signal.size = sizeof(connect_signal);
-  connect_signal.bd_addr = conn_data->bd_addr;
+  {
+    RawAddress pseudo_addr = get_btm_client_interface()
+                                     .peer.BTM_GetConnectedTransportAddress(conn_data->bd_addr)
+                                     .first;
+    if (pseudo_addr != RawAddress::kEmpty) {
+      connect_signal.bd_addr = pseudo_addr;
+    } else {
+      log::warn("BTM_GetConnectedTransportAddress returned empty pseudo addr, using public addr");
+      connect_signal.bd_addr = conn_data->bd_addr;
+    }
+  }
   connect_signal.channel = 0;
   connect_signal.status = 0;
 
@@ -313,7 +324,8 @@ static void connect_completed_cb(uint16_t sco_handle) {
   sco_socket->connect_completed = true;
 }
 
-static void disconnect_completed_cb(uint16_t sco_handle) {
+static void disconnect_completed_cb(uint16_t sco_handle,
+                                    [[maybe_unused]] SCO_CONNECTION_FAILURES reason) {
   std::unique_lock<std::mutex> lock(sco_lock);
 
   sco_socket_t* sco_socket = sco_socket_find_locked(sco_handle);

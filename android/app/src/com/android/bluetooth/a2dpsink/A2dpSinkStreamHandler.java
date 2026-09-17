@@ -29,6 +29,7 @@ import android.os.Message;
 import android.util.Log;
 
 import com.android.bluetooth.R;
+import com.android.bluetooth.Util;
 import com.android.bluetooth.btservice.AdapterService;
 
 /**
@@ -126,6 +127,26 @@ public class A2dpSinkStreamHandler extends Handler {
                         || mAudioFocus == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK));
     }
 
+    public void onAudioStateChanged(int state) {
+        Log.d(
+                TAG,
+                "onAudioStateChanged("
+                        + ("state=" + A2dpSinkNativeInterface.audioStateToString(state))
+                        + ")");
+        if (state == A2dpSinkNativeInterface.AUDIO_STATE_STARTED) {
+            sendEmptyMessage(SRC_STR_START);
+        } else if (state == A2dpSinkNativeInterface.AUDIO_STATE_STOPPED
+                || state == A2dpSinkNativeInterface.AUDIO_STATE_REMOTE_SUSPEND) {
+            sendEmptyMessage(SRC_STR_STOP);
+        } else {
+            Log.w(
+                    TAG,
+                    "onAudioStateChanged("
+                            + ("state=" + A2dpSinkNativeInterface.audioStateToString(state))
+                            + "): State unhandled");
+        }
+    }
+
     @Override
     public void handleMessage(Message message) {
         Log.d(TAG, "process message: " + message.what + ", audioFocus=" + mAudioFocus);
@@ -145,7 +166,7 @@ public class A2dpSinkStreamHandler extends Handler {
             // Remote play command.
             case SRC_PLAY -> {
                 mStreamAvailable = true;
-                if (isIotDevice() || isTvDevice() || shouldRequestFocus()) {
+                if (Util.isIotDevice(mAdapterService) || isTvDevice() || shouldRequestFocus()) {
                     requestAudioFocusIfNone();
                 }
             }
@@ -316,12 +337,6 @@ public class A2dpSinkStreamHandler extends Handler {
 
     private void setFluorideAudioTrackGain(float gain) {
         mNativeInterface.informAudioTrackGain(gain);
-    }
-
-    private boolean isIotDevice() {
-        return mAdapterService
-                .getPackageManager()
-                .hasSystemFeature(PackageManager.FEATURE_EMBEDDED);
     }
 
     private boolean isTvDevice() {

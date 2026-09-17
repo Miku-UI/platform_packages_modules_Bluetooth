@@ -16,15 +16,14 @@
 
 package android.bluetooth;
 
-import android.annotation.FlaggedApi;
+import android.annotation.Hide;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.RequiresNoPermission;
 import android.bluetooth.BluetoothDevice.EncryptionAlgorithm;
 import android.os.Parcel;
 import android.os.Parcelable;
-
-import com.android.bluetooth.flags.Flags;
 
 /**
  * Represents the encryption status of a Bluetooth device.
@@ -32,7 +31,6 @@ import com.android.bluetooth.flags.Flags;
  * <p>This class is used to hold the encryption status details like key size and algorithm of a
  * Bluetooth device.
  */
-@FlaggedApi(Flags.FLAG_LINK_STATUS_API)
 public final class EncryptionStatus {
     private final InnerParcel mParcel;
 
@@ -45,10 +43,21 @@ public final class EncryptionStatus {
         mParcel = p;
     }
 
-    /** @hide */
+    @Hide
     @RequiresNoPermission
     public InnerParcel getParcel() {
         return mParcel;
+    }
+
+    /**
+     * @return the {@link EncryptionStatus} associated with this parcel
+     */
+    @RequiresNoPermission
+    static @Nullable EncryptionStatus fromParcel(InnerParcel parcel) {
+        if (parcel == null) {
+            return null;
+        }
+        return new EncryptionStatus(parcel);
     }
 
     /**
@@ -70,14 +79,11 @@ public final class EncryptionStatus {
 
     @Override
     public String toString() {
-        return "EncryptionStatus{keySize="
-                + mParcel.mKeySize
-                + ", algorithm="
-                + mParcel.mAlgorithm
-                + "}";
+        return ("EncryptionStatus{keySize=" + mParcel.mKeySize)
+                + (", algorithm=" + mParcel.mAlgorithm + "]");
     }
 
-    /** @hide */
+    @Hide
     public static final class InnerParcel implements Parcelable {
         private final int mKeySize;
         private final int mAlgorithm;
@@ -89,15 +95,6 @@ public final class EncryptionStatus {
         public InnerParcel(int keySize, int algorithm) {
             mKeySize = keySize;
             mAlgorithm = algorithm;
-        }
-
-        /**
-         * @return the {@link EncryptionStatus} associated with this parcel
-         */
-        @FlaggedApi(Flags.FLAG_LINK_STATUS_API)
-        @RequiresNoPermission
-        public @NonNull EncryptionStatus toEncryptionStatus() {
-            return new EncryptionStatus(this);
         }
 
         @Override

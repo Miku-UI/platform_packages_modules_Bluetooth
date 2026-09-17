@@ -38,9 +38,9 @@
 #endif
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/string_helpers.h>
 #include <com_android_bluetooth_flags.h>
 
-#include "common/strings.h"
 #include "devices.h"
 #include "le_audio_log_history.h"
 #include "le_audio_types.h"
@@ -58,21 +58,31 @@ public:
 
     types::CigState GetState(void) const { return state_; }
     void SetState(bluetooth::le_audio::types::CigState state);
-    void GetCisCount(types::LeAudioContextType context_type, uint8_t& out_cis_count_bidir,
-                     uint8_t& out_cis_count_unidir_sink,
-                     uint8_t& out_cis_count_unidir_source) const;
     void GenerateCisIds(types::LeAudioContextType context_type);
+    void ClearCisIds(void) { cises.clear(); }
     bool AssignCisIds(LeAudioDevice* leAudioDevice);
     void AssignCisConnHandles(const std::vector<uint16_t>& conn_handles);
     void UnassignCis(LeAudioDevice* leAudioDevice, uint16_t conn_handle);
+    void UnassignAllCises(void);
+    void PrintCigState(void);
+    const std::vector<struct types::cis>& GetCises(void) const { return cises; }
+
     types::BidirectionalPair<bool> GetConnectedCisDirections(void);
-    std::vector<struct types::cis> cises;
 
   private:
+    void GetCisCount(types::LeAudioContextType context_type, uint8_t& out_cis_count_bidir,
+                     uint8_t& out_cis_count_unidir_sink,
+                     uint8_t& out_cis_count_unidir_source) const;
     uint8_t GetFirstFreeCisId(types::CisType cis_type) const;
 
     LeAudioDeviceGroup* group_;
     types::CigState state_;
+
+    /* Life time of cises is from GenerateCisIds() up to when CIG is removed.
+     * Note in case of stream being reconfigured before CIG is created, cises might be
+     * regenerated (i.e. cleared and generated)
+     */
+    std::vector<struct types::cis> cises;
   } cig;
 
   bool IsGroupConfiguredTo(const types::AudioSetConfiguration& cfg) {
@@ -111,8 +121,8 @@ public:
         dsa_({DsaMode::DISABLED, false}),
         asymmetric_phy_for_unidirectional_cis_supported(true),
         is_enabled_(true),
-        transport_latency_mtos_us_(0),
-        transport_latency_stom_us_(0),
+        transport_latency_c_to_p_us_(0),
+        transport_latency_p_to_c_us_(0),
         configuration_context_type_(types::LeAudioContextType::UNINITIALIZED),
         metadata_context_type_(
                 {.sink = types::AudioContexts(types::LeAudioContextType::UNINITIALIZED),
@@ -201,13 +211,12 @@ public:
   uint8_t GetSCA(void) const;
   uint8_t GetPacking(void) const;
   uint8_t GetFraming(void) const;
-  uint16_t GetMaxTransportLatencyStom(void) const;
-  uint16_t GetMaxTransportLatencyMtos(void) const;
+  uint16_t GetMaxTransportLatencyPToC(void) const;
+  uint16_t GetMaxTransportLatencyCToP(void) const;
   void SetTransportLatency(uint8_t direction, uint32_t transport_latency_us);
   uint8_t GetRtn(uint8_t direction, uint8_t cis_id) const;
   uint16_t GetMaxSduSize(uint8_t direction, uint8_t cis_id) const;
   uint8_t GetPhyBitmask(uint8_t direction) const;
-  uint8_t GetTargetPhy(uint8_t direction) const;
   bool GetPresentationDelay(uint32_t* delay, uint8_t direction) const;
   uint16_t GetRemoteDelay(uint8_t direction) const;
   bool UpdateAudioSetConfigurationCache(types::LeAudioContextType ctx_type,
@@ -245,10 +254,12 @@ public:
   void SetPendingConfiguration(void);
   void ClearPendingConfiguration(void);
   void AddToAllowListNotConnectedGroupMembers(int gatt_if);
-  void ApplyReconnectionMode(int gatt_if, tBTM_BLE_CONN_TYPE reconnection_mode);
+  void ApplyReconnectionMode(int gatt_if);
   void Disable(int gatt_if);
-  void Enable(int gatt_if, tBTM_BLE_CONN_TYPE reconnection_mode);
+  void Enable(int gatt_if);
   bool IsEnabled(void) const;
+  void UpdateMetadataForActiveAndNotStreamingAses(
+          const types::BidirectionalPair<std::vector<uint8_t>>& ccid_lists);
   LeAudioCodecConfiguration GetAudioSessionCodecConfigForDirection(
           types::LeAudioContextType group_context_type, uint8_t direction) const;
   bool HasCodecConfigurationForDirection(types::LeAudioContextType group_context_type,
@@ -473,8 +484,8 @@ public:
 private:
   bool is_enabled_;
 
-  uint32_t transport_latency_mtos_us_;
-  uint32_t transport_latency_stom_us_;
+  uint32_t transport_latency_c_to_p_us_;
+  uint32_t transport_latency_p_to_c_us_;
 
   bool ConfigureAses(const types::AudioSetConfiguration* audio_set_conf,
                      types::LeAudioContextType context_type,

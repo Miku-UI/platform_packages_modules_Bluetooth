@@ -20,6 +20,7 @@
 
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
+#include <bluetooth/types/bt_octets.h>
 #include <bluetooth/types/bt_transport.h>
 
 #include <cstdint>
@@ -28,7 +29,6 @@
 #include "macros.h"
 #include "stack/include/bt_dev_class.h"
 #include "stack/include/bt_name.h"
-#include "stack/include/bt_octets.h"
 #include "stack/include/hcidefs.h"
 #include "stack/include/smp_api_types.h"
 #include "stack/include/smp_status.h"
@@ -198,34 +198,6 @@ inline std::string sp_evt_to_text(const tBTM_SP_EVT evt) {
   return std::format("UNKNOWN[{}]", static_cast<uint8_t>(evt));
 }
 
-enum : uint8_t {
-  BTM_IO_CAP_OUT = 0,    /* DisplayOnly */
-  BTM_IO_CAP_IO = 1,     /* DisplayYesNo */
-  BTM_IO_CAP_IN = 2,     /* KeyboardOnly */
-  BTM_IO_CAP_NONE = 3,   /* NoInputNoOutput */
-  BTM_IO_CAP_KBDISP = 4, /* Keyboard display */
-  BTM_IO_CAP_MAX = 5,
-  BTM_IO_CAP_UNKNOWN = 0xFF /* Unknown value */
-};
-typedef uint8_t tBTM_IO_CAP;
-
-inline std::string io_capabilities_text(const tBTM_IO_CAP& io_caps) {
-  switch (io_caps) {
-    case BTM_IO_CAP_OUT:
-      return std::string("Display only");
-    case BTM_IO_CAP_IO:
-      return std::string("Display yes-no");
-    case BTM_IO_CAP_IN:
-      return std::string("Keyboard Only");
-    case BTM_IO_CAP_NONE:
-      return std::string("No input or output");
-    case BTM_IO_CAP_KBDISP:
-      return std::string("Keyboard-Display");
-    default:
-      return std::format("UNKNOWN[{}]", io_caps);
-  }
-}
-
 #define BTM_MAX_PASSKEY_VAL (999999)
 
 typedef enum : uint8_t {
@@ -291,7 +263,6 @@ inline std::string btm_oob_data_text(const tBTM_OOB_DATA& data) {
 /* data type for BTM_SP_IO_REQ_EVT */
 typedef struct {
   RawAddress bd_addr;     /* peer address */
-  tBTM_IO_CAP io_cap;     /* local IO capabilities */
   tBTM_OOB_DATA oob_data; /* OOB data present (locally) for the peer device */
   tBTM_AUTH_REQ auth_req; /* Authentication required (for local device) */
   bool is_orig;           /* true, if local device initiated the SP process */
@@ -300,7 +271,7 @@ typedef struct {
 /* data type for BTM_SP_IO_RSP_EVT */
 typedef struct {
   RawAddress bd_addr;     /* peer address */
-  tBTM_IO_CAP io_cap;     /* peer IO capabilities */
+  BtIoCap io_cap;         /* peer IO capabilities */
   tBTM_OOB_DATA oob_data; /* OOB data present at peer device for the local device */
   tBTM_AUTH_REQ auth_req; /* Authentication required for peer device */
 } tBTM_SP_IO_RSP;
@@ -315,8 +286,9 @@ typedef struct {
   bool just_works;            /* true, if "Just Works" association model */
   tBTM_AUTH_REQ loc_auth_req; /* Authentication required for local device */
   tBTM_AUTH_REQ rmt_auth_req; /* Authentication required for peer device */
-  tBTM_IO_CAP loc_io_caps;    /* IO Capabilities of the local device */
-  tBTM_IO_CAP rmt_io_caps;    /* IO Capabilities of the remot device */
+  BtIoCap loc_io_caps;        /* IO Capabilities of the local device */
+  BtIoCap rmt_io_caps;        /* IO Capabilities of the remot device */
+  PairingAlgorithm pairing_algorithm;
 } tBTM_SP_CFM_REQ;
 
 /* data type for BTM_SP_KEY_REQ_EVT */
@@ -332,6 +304,7 @@ typedef struct {
   DEV_CLASS dev_class; /* peer CoD */
   BD_NAME bd_name;     /* peer device name */
   uint32_t passkey;    /* passkey */
+  PairingAlgorithm pairing_algorithm;
 } tBTM_SP_KEY_NOTIF;
 
 /* data type for BTM_SP_LOC_OOB_EVT */
@@ -360,13 +333,6 @@ typedef union {
   tBTM_SP_RMT_OOB rmt_oob;     /* BTM_SP_RMT_OOB_EVT     */
 } tBTM_SP_EVT_DATA;
 
-/* Simple Pairing Events.  Called by the stack when Simple Pairing related
- * events occur.
- */
-typedef tBTM_STATUS(tBTM_SP_CALLBACK)(tBTM_SP_EVT event, tBTM_SP_EVT_DATA* p_data);
-
-typedef void(tBTM_MKEY_CALLBACK)(const RawAddress& bd_addr, uint8_t status, uint8_t key_flag);
-
 /* Encryption enabled/disabled complete: Optionally passed with
  * BTM_SetEncryption.
  * Parameters are
@@ -377,12 +343,6 @@ typedef void(tBTM_MKEY_CALLBACK)(const RawAddress& bd_addr, uint8_t status, uint
 typedef void(tBTM_SEC_CALLBACK)(RawAddress bd_addr, tBT_TRANSPORT transport, void* p_ref_data,
                                 tBTM_STATUS result);
 typedef tBTM_SEC_CALLBACK tBTM_SEC_CALLBACK;
-
-/* Bond Cancel complete. Parameters are
- *              Result of the cancel operation
- *
- */
-typedef void(tBTM_BOND_CANCEL_CMPL_CALLBACK)(tBTM_STATUS result);
 
 typedef enum : uint8_t {
   /* LE related event and data structure */
@@ -478,7 +438,7 @@ typedef uint8_t tBTM_LE_AUTH_REQ;
 
 typedef struct {
   /* local IO capabilities */
-  tBTM_IO_CAP io_cap;
+  BtIoCap io_cap;
   /* OOB data present (locally) for the peer device */
   uint8_t oob_data;
   /* Authentication request (for local device) containing bonding and MITM
@@ -496,17 +456,6 @@ typedef struct {
   bool is_pair_cancel;
   bool smp_over_br;
 } tBTM_LE_COMPLT;
-
-/************************
- *  Stored Linkkey Types
- ************************/
-#define BTM_CB_EVT_DELETE_STORED_LINK_KEYS 4
-
-typedef struct {
-  uint8_t event;
-  uint8_t status;
-  uint16_t num_keys;
-} tBTM_DELETE_STORED_LINK_KEY_COMPLETE;
 
 enum tBTM_BOND_TYPE : uint8_t {
   BOND_TYPE_UNKNOWN = 0,

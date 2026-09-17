@@ -22,10 +22,14 @@
 #include <iostream>
 #include <string>
 
-#include "bt_status_origin.h"
-#include "macros.h"
+#ifndef TARGET_FLOSS
+// Exclude from the Floss build to avoid introducing unnecessary JNI code.
+#include <jni.h>
+#endif
 
-#define BT_SUCCESS 0
+#include "bt_status_origin.h"
+
+#define BT_UNIVERSAL_SUCCESS 0
 typedef uint16_t BtStatusCode;
 
 // The base class for all Bluetooth status codes.
@@ -48,16 +52,24 @@ public:
   BtStatusCode code() { return code_; }
   BtStatusOrigin origin() { return origin_; }
 
-  bool isSuccess() const { return code_ == BT_SUCCESS; }
+  bool isSuccess() const { return code_ == BT_UNIVERSAL_SUCCESS; }
 
   // To easily pass around between stacks and compare
   uint32_t toUint32() const {
-    if (code_ == BT_SUCCESS) {
-      return BT_SUCCESS;
+    if (code_ == BT_UNIVERSAL_SUCCESS) {
+      return BT_UNIVERSAL_SUCCESS;
     }
     return static_cast<uint16_t>(origin_) << 16 | static_cast<uint16_t>(code_);
   }
   operator uint32_t() const { return toUint32(); }
+
+// Exclude from the Floss build to avoid introducing unnecessary JNI code.
+#ifndef TARGET_FLOSS
+  // For now, BtStatus objects are for native stack use only. As a result, when
+  // they are being converted to jints to be passed to the upper Java layer, only
+  // pass the internal code to preserve functionality.
+  operator jint() const { return (jint)static_cast<uint32_t>(code_); }
+#endif
 
   // To compare against other statuses
   bool operator==(const BtStatus& other) const {
@@ -65,14 +77,14 @@ public:
   }
 
   // Used to cast to bool, true if is success, false otherwise.
-  operator bool() const { return code_ == BT_SUCCESS; }
+  operator bool() const { return code_ == BT_UNIVERSAL_SUCCESS; }
 
   // To allow use as map keys
   bool operator<(const BtStatus& other) const { return toUint32() < other.toUint32(); }
 
   // Used for logging
   const std::string toString() const {
-    if (code_ == BT_SUCCESS) {
+    if (code_ == BT_UNIVERSAL_SUCCESS) {
       // If successful, return generic success string
       return "BT_SUCCESS";
     }
@@ -106,3 +118,27 @@ template <>
 struct std::hash<BtStatus> {
   size_t operator()(const BtStatus& status) const { return status.toUint32(); }
 };
+
+// All std::formatter specializations must be inside the std namespace
+namespace std {
+
+// Concept to identify any class that inherits from BtStatus
+template <typename T>
+concept IsBtStatusDerived = std::derived_from<T, BtStatus>;
+
+// The primary formatter specialization for the base class, BtStatus.
+// This formatter will handle the core logic.
+template <>
+struct formatter<BtStatus> : formatter<string_view> {
+  template <typename FormatContext>
+  auto format(const BtStatus& status, FormatContext& ctx) const {
+    return formatter<string_view>::format(status.toString(), ctx);
+  }
+};
+
+// A constrained partial specialization for any class T that derives from BtStatus.
+// This formatter simply inherits from the base class formatter, reusing its logic.
+template <IsBtStatusDerived T>
+struct formatter<T> : formatter<BtStatus> {};
+
+}  // namespace std

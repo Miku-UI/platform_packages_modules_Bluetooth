@@ -57,8 +57,8 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
-import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.profile.ProfileService;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
@@ -213,15 +213,7 @@ final class HapClientStateMachine extends StateMachine {
                         Log.e(TAG, mStateLog + "native error during connection");
                         break;
                     }
-                    if (Flags.validateConnectionPolicyBeforeAcceptingConnection()) {
-                        transitionTo(mConnecting);
-                        break;
-                    }
-                    if (mService.okToConnect(mDevice)) {
-                        transitionTo(mConnecting);
-                    } else {
-                        Log.w(TAG, mStateLog + "outgoing connect request rejected");
-                    }
+                    transitionTo(mConnecting);
                 }
                 case MESSAGE_DISCONNECT -> mNativeInterface.disconnectHapClient(mDevice);
                 case MESSAGE_CONNECTION_STATE_CHANGED -> processConnectionEvent(message.arg1);
@@ -351,26 +343,18 @@ final class HapClientStateMachine extends StateMachine {
 
             switch (message.what) {
                 case MESSAGE_CONNECT -> {
-                    if (Flags.ignoreMultipleConnectRequestInBtServices()) {
-                        if (!hasDeferredMessages(MESSAGE_CONNECT)) {
-                            deferMessage(message);
-                        } else {
-                            Log.w(TAG, mStateLog + "CONNECT already scheduled");
-                        }
-                    } else {
+                    if (!hasDeferredMessages(MESSAGE_CONNECT)) {
                         deferMessage(message);
+                    } else {
+                        Log.w(TAG, mStateLog + "CONNECT already scheduled");
                     }
                 }
                 case MESSAGE_DISCONNECT -> {
-                    if (Flags.ignoreMultipleConnectRequestInBtServices()) {
-                        if (hasDeferredMessages(MESSAGE_CONNECT)) {
-                            Log.w(TAG, mStateLog + "removing scheduled CONNECT");
-                            removeDeferredMessages(MESSAGE_CONNECT);
-                        } else {
-                            Log.w(TAG, mStateLog + "ignore DISCONNECT");
-                        }
+                    if (hasDeferredMessages(MESSAGE_CONNECT)) {
+                        Log.w(TAG, mStateLog + "removing scheduled CONNECT");
+                        removeDeferredMessages(MESSAGE_CONNECT);
                     } else {
-                        deferMessage(message);
+                        Log.w(TAG, mStateLog + "ignore DISCONNECT");
                     }
                 }
                 case MESSAGE_CONNECT_TIMEOUT -> {

@@ -2,50 +2,50 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "indicate_rfcomm_connection_complete_after_msc"
+    name: "hfp_collision_fix_rfcomm_port_rx_buf_critical_error"
     namespace: "bluetooth"
-    description: "Indicate RFCOMM connection complete after sending Modem Status Command"
-    bug: "393594567"
+    description: "fix RFCOMM port RX_BUF_CRITICAL error issue caused by HFP collision"
+    bug: "451453504"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "rfcomm_fix_mux_collision_handling"
+    name: "prevent_improper_closure_of_in_use_scn"
     namespace: "bluetooth"
-    description: "Properly handle incoming connections while connecting"
-    bug: "399420482"
+    description: "When scn allocation fails, do not close already in use scn"
+    bug: "460151690"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "donot_collide_with_closed_port"
+    name: "mark_port_not_in_use_on_release"
     namespace: "bluetooth"
-    description: "Modify PORT_isCollisionDetected to report false when found port is CLOSED"
-    bug: "406250389"
+    description: "Mark an in use port as not in use when calling port_release_port"
+    bug: "460549793"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "rfcomm_fix_bta_ag_rfc_acp_open_error"
+    name: "release_port_instead_mux_when_timeout_after_closed"
     namespace: "bluetooth"
-    description: "Properly handle bta_ag_rfc_acp_open when check connection fail"
-    bug: "417997444"
+    description: "Release port instead of release mux when timeout after port closed"
+    bug: "474236480"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "release_port_in_bta_ag_rfc_fail_before_reset_context"
+    name: "rfcomm_handle_eagain_as_non_blocking"
     namespace: "bluetooth"
-    description: "relase rfcomm port before reset context"
-    bug: "419817851"
+    description: "Handle EAGAIN by returning true to allow retries in rfcomm data transport"
+    bug: "494514008"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

@@ -1,0 +1,233 @@
+/*
+ * Copyright 2021 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Generated mock file from original source file
+ *   Functions generated:62
+ *
+ *  mockcify.pl ver 0.3.0
+ */
+
+// Mock include file to share data between tests and mock
+#include "mock_bta_dm_act.h"
+
+#include <bluetooth/types/ble_address_with_type.h>
+
+#include <cstdint>
+
+#include "bta/dm/bta_dm_act.h"
+#include "bta/dm/bta_dm_device_search.h"
+#include "bta/dm/bta_dm_sec_int.h"
+#include "bta/include/bta_dm_acl.h"
+#include "bta/include/bta_dm_api.h"
+#include "test/common/mock_functions.h"
+
+// Mocked internal structures, if any
+
+namespace test {
+namespace mock {
+namespace bta_dm_act {
+
+// Function state capture and return values, if needed
+struct BTA_DmSetVisibility BTA_DmSetVisibility;
+struct BTA_dm_acl_down BTA_dm_acl_down;
+struct BTA_dm_acl_up BTA_dm_acl_up;
+struct BTA_dm_acl_up_failed BTA_dm_acl_up_failed;
+struct BTA_dm_notify_remote_features_complete BTA_dm_notify_remote_features_complete;
+struct BTA_dm_on_hw_off BTA_dm_on_hw_off;
+struct BTA_dm_on_hw_on BTA_dm_on_hw_on;
+struct BTA_dm_report_role_change BTA_dm_report_role_change;
+struct bta_dm_add_ble_device bta_dm_add_ble_device;
+struct bta_dm_add_blekey bta_dm_add_blekey;
+struct bta_dm_ble_config_local_privacy bta_dm_ble_config_local_privacy;
+struct bta_dm_ble_confirm_reply bta_dm_ble_confirm_reply;
+struct bta_dm_ble_csis_observe bta_dm_ble_csis_observe;
+struct bta_dm_ble_get_energy_info bta_dm_ble_get_energy_info;
+struct bta_dm_ble_passkey_reply bta_dm_ble_passkey_reply;
+struct bta_dm_ble_scan bta_dm_ble_scan;
+struct bta_dm_ble_set_data_length bta_dm_ble_set_data_length;
+struct bta_dm_bond bta_dm_bond;
+struct bta_dm_bond_cancel bta_dm_bond_cancel;
+struct bta_dm_check_if_only_hd_connected bta_dm_check_if_only_hd_connected;
+struct bta_dm_ci_rmt_oob_act bta_dm_ci_rmt_oob_act;
+struct bta_dm_confirm bta_dm_confirm;
+struct bta_dm_disable bta_dm_disable;
+struct bta_dm_eir_update_cust_uuid bta_dm_eir_update_cust_uuid;
+struct bta_dm_eir_update_uuid bta_dm_eir_update_uuid;
+struct bta_dm_enable bta_dm_enable;
+struct bta_dm_encrypt_cback bta_dm_encrypt_cback;
+struct bta_dm_is_search_request_queued bta_dm_is_search_request_queued;
+struct bta_dm_pin_reply bta_dm_pin_reply;
+struct bta_dm_process_remove_device bta_dm_process_remove_device;
+struct bta_dm_remove_device bta_dm_remove_device;
+struct bta_dm_remote_key_missing bta_dm_remote_key_missing;
+struct bta_dm_on_encryption_change bta_dm_on_encryption_change;
+struct bta_dm_set_dev_name bta_dm_set_dev_name;
+struct bta_dm_set_encryption bta_dm_set_encryption;
+
+}  // namespace bta_dm_act
+}  // namespace mock
+}  // namespace test
+
+// Mocked functions, if any
+bool BTA_DmSetVisibility(bt_scan_mode_t mode) {
+  inc_func_call_count(__func__);
+  return test::mock::bta_dm_act::BTA_DmSetVisibility(mode);
+}
+void BTA_dm_acl_down(const AclLinkSpec& link_spec) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::BTA_dm_acl_down(link_spec);
+}
+void BTA_dm_acl_up(const AclLinkSpec& link_spec, uint16_t acl_handle, bool locally_initiated) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::BTA_dm_acl_up(link_spec, acl_handle, locally_initiated);
+}
+void BTA_dm_acl_up_failed(const AclLinkSpec& link_spec, tHCI_STATUS hci_status,
+                          bool locally_initiated) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::BTA_dm_acl_up_failed(link_spec, hci_status, locally_initiated);
+}
+void BTA_dm_notify_remote_features_complete(const RawAddress bd_addr) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::BTA_dm_notify_remote_features_complete(bd_addr);
+}
+void BTA_dm_on_hw_off() {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::BTA_dm_on_hw_off();
+}
+void BTA_dm_on_hw_on(const std::string local_name) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::BTA_dm_on_hw_on(local_name);
+}
+void BTA_dm_report_role_change(const RawAddress bd_addr, tHCI_ROLE new_role,
+                               tHCI_STATUS hci_status) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::BTA_dm_report_role_change(bd_addr, new_role, hci_status);
+}
+void bta_dm_add_ble_device(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
+                           tBT_DEVICE_TYPE dev_type) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_add_ble_device(bd_addr, addr_type, dev_type);
+}
+void bta_dm_add_blekey(const RawAddress& bd_addr, const PairingType& pairing_type,
+                       tBTM_LE_KEY_TYPE key_type, const tBTA_LE_KEY_VALUE& key) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_add_blekey(bd_addr, pairing_type, key_type, key);
+}
+void bta_dm_ble_config_local_privacy(bool privacy_enable) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_ble_config_local_privacy(privacy_enable);
+}
+void bta_dm_ble_confirm_reply(const RawAddress& bd_addr, bool accept) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_ble_confirm_reply(bd_addr, accept);
+}
+void bta_dm_ble_csis_observe(bool observe, tBTA_DM_SEARCH_CBACK* p_cback) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_ble_csis_observe(observe, p_cback);
+}
+void bta_dm_ble_get_energy_info(tBTA_BLE_ENERGY_INFO_CBACK* p_energy_info_cback) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_ble_get_energy_info(p_energy_info_cback);
+}
+void bta_dm_ble_passkey_reply(const RawAddress& bd_addr, bool accept, uint32_t passkey) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_ble_passkey_reply(bd_addr, accept, passkey);
+}
+void bta_dm_ble_scan(bool start, uint8_t duration_sec) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_ble_scan(start, duration_sec);
+}
+void bta_dm_ble_set_data_length(const RawAddress& bd_addr) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_ble_set_data_length(bd_addr);
+}
+void bta_dm_bond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type, tBT_TRANSPORT transport) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_bond(bd_addr, addr_type, transport);
+}
+void bta_dm_bond_cancel(const RawAddress& bd_addr) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_bond_cancel(bd_addr);
+}
+bool bta_dm_check_if_only_hd_connected(const RawAddress& peer_addr) {
+  inc_func_call_count(__func__);
+  return test::mock::bta_dm_act::bta_dm_check_if_only_hd_connected(peer_addr);
+}
+void bta_dm_ci_rmt_oob_act(std::unique_ptr<tBTA_DM_CI_RMT_OOB> msg) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_ci_rmt_oob_act(std::move(msg));
+}
+void bta_dm_confirm(const RawAddress& bd_addr, bool accept) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_confirm(bd_addr, accept);
+}
+void bta_dm_disable() {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_disable();
+}
+void bta_dm_eir_update_cust_uuid(const tBTA_CUSTOM_UUID& curr, bool adding) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_eir_update_cust_uuid(curr, adding);
+}
+void bta_dm_eir_update_uuid(uint16_t uuid16, bool adding) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_eir_update_uuid(uuid16, adding);
+}
+void bta_dm_enable(tBTA_DM_SEC_CBACK* p_sec_cback) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_enable(p_sec_cback);
+}
+void bta_dm_encrypt_cback(RawAddress bd_addr, tBT_TRANSPORT transport, void* p_ref_data,
+                          tBTM_STATUS result) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_encrypt_cback(bd_addr, transport, p_ref_data, result);
+}
+bool bta_dm_is_search_request_queued() {
+  inc_func_call_count(__func__);
+  return test::mock::bta_dm_act::bta_dm_is_search_request_queued();
+}
+void bta_dm_pin_reply(std::unique_ptr<tBTA_DM_API_PIN_REPLY> msg) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_pin_reply(std::move(msg));
+}
+void bta_dm_process_remove_device(const RawAddress& bd_addr) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_process_remove_device(bd_addr);
+}
+void bta_dm_remove_device(const RawAddress& bd_addr) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_remove_device(bd_addr);
+}
+void bta_dm_remote_key_missing(const RawAddress bd_addr, tBTM_KEY_MISSING_REASON reason) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_remote_key_missing(bd_addr, reason);
+}
+void bta_dm_on_encryption_change(bt_encryption_change_evt encryption_change) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_on_encryption_change(encryption_change);
+}
+void bta_dm_set_dev_name(const std::vector<uint8_t>& name) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_set_dev_name(name);
+}
+void bta_dm_set_encryption(const RawAddress& bd_addr, tBT_TRANSPORT transport,
+                           tBTA_DM_ENCRYPT_CBACK* p_callback, tBTM_BLE_SEC_ACT sec_act) {
+  inc_func_call_count(__func__);
+  test::mock::bta_dm_act::bta_dm_set_encryption(bd_addr, transport, p_callback, sec_act);
+}
+
+// END mockcify generation

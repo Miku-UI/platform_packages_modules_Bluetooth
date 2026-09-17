@@ -43,6 +43,8 @@
 #define HCI_GRP_TESTING_CMDS (0x06 << 10)            /* 0x1800 */
 #define HCI_GRP_BLE_CMDS (0x08 << 10)                /* 0x2000 (LE Commands) */
 
+#define HCI_DEVELOPMENT_FEATURE (0x3E << 10) /* 0xFB00 */
+
 #define HCI_GRP_VENDOR_SPECIFIC (0x3F << 10) /* 0xFC00 */
 
 /*
@@ -431,6 +433,9 @@
 /* SOC Logging OCF */
 #define HCI_VS_HOST_LOG_OPCODE (0x0017 | HCI_GRP_VENDOR_SPECIFIC)
 
+/* Set Broadcast Source Channel Map Classification OCF */
+#define HCI_LE_SET_BIG_CHANNEL_MAP_CLASSIFICATION_OPCODE (0x0165 | HCI_GRP_VENDOR_SPECIFIC)
+
 /* subcode for multi adv feature */
 #define BTM_BLE_MULTI_ADV_SET_PARAM 0x01
 #define BTM_BLE_MULTI_ADV_WRITE_ADV_DATA 0x02
@@ -459,6 +464,9 @@
 
 /* Bluetooth Quality Report sub event */
 #define HCI_VSE_SUBCODE_BQR_SUB_EVT 0x58
+
+/* subcode for Set Broadcast Source Channel Map Classification */
+#define SET_BIG_MAP_BY_CONNECTION_HANDLE 0x01
 
 /* LE Supported States */
 constexpr uint8_t HCI_LE_STATES_NON_CONN_ADV_BIT = 0;
@@ -562,6 +570,7 @@ constexpr uint8_t HCI_LE_STATES_INIT_CENTRAL_PERIPHERAL_BIT = 41;
 
 /* ULP HCI Event */
 #define HCI_BLE_EVENT 0x3e
+#define HCI_DEVELOPMENT_EVENT 0xfe
 /* ULP Event sub code */
 #define HCI_BLE_CONN_COMPLETE_EVT 0x01
 #define HCI_BLE_ADV_PKT_RPT_EVT 0x02
@@ -873,6 +882,7 @@ typedef struct {
 #define HCI_BRCM_ACL_NORMAL_PRIORITY 0x00
 #define HCI_BRCM_ACL_HIGH_PRIORITY 0xFF
 #define HCI_BRCM_ACL_HIGH_PRIORITY_LOW_LATENCY 0xF3
+#define HCI_BRCM_ACL_HIGH_PRIORITY_DISABLE_RATE_CONTROL 0xF6
 
 #define LMP_COMPID_GOOGLE 0xE0
 #define LMP_COMPID_INTEL 0x02

@@ -32,14 +32,14 @@
 
 #include <cstdint>
 
-#include "avdt_api.h"
 #include "avdt_defs.h"
 #include "avdt_int.h"
-#include "avdtc_api.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
+#include "stack/include/avdt_api.h"
+#include "stack/include/avdtc_api.h"
 #include "stack/include/bt_hdr.h"
 
 using namespace bluetooth;
@@ -213,11 +213,10 @@ void avdt_ccb_hdl_getcap_cmd(AvdtpCcb* p_ccb, tAVDT_CCB_EVT* p_data) {
   /* look up scb for seid sent to us */
   AvdtpScb* p_scb = avdt_scb_by_hdl(p_data->msg.single.seid);
 
-  if (p_scb == nullptr) {
+  if (p_scb == nullptr || p_scb->p_ccb != p_ccb) {
     /* not ok, send reject */
-    p_data->msg.hdr.err_code = AVDT_ERR_BAD_STATE;
-    p_data->msg.hdr.err_param = p_data->msg.single.seid;
-    avdt_msg_send_rej(p_ccb, AVDT_SIG_START, &p_data->msg);
+    p_data->msg.hdr.err_code = AVDT_ERR_SEID;
+    avdt_msg_send_rej(p_ccb, AVDT_SIG_GETCAP, &p_data->msg);
     return;
   }
 

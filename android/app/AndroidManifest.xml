@@ -16,10 +16,18 @@
          android:description="@string/permdesc_bluetoothAcceptlist"
          android:protectionLevel="signature|privileged"/>
 
+    <!-- Allows access to backup broadcast receiver -->
+    <permission android:name="android.permission.ALLOW_BLUETOOTH_BACKUP_DATA"
+        android:label="@string/permlab_bluetoothBackup"
+        android:description="@string/permdesc_bluetoothBackup"
+        android:protectionLevel="signature|privileged"/>
+
     <uses-permission android:name="android.permission.ACCESS_BLUETOOTH_SHARE"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ALLOW_BLUETOOTH_BACKUP_DATA"/>
     <uses-permission android:name="android.permission.BLUETOOTH"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE"/>
@@ -45,6 +53,7 @@
     <uses-permission android:name="android.permission.MEDIA_CONTENT_CONTROL"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_ROUTING"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS_PRIVILEGED"/>
     <uses-permission android:name="android.permission.MODIFY_PHONE_STATE"/>
     <uses-permission android:name="android.permission.NET_ADMIN"/>
     <uses-permission android:name="android.permission.NET_TUNNELING"/>
@@ -92,7 +101,8 @@
          android:usesCleartextTraffic="false"
          android:directBootAware="true"
          android:defaultToDeviceProtectedStorage="true"
-         android:memtagMode="async">
+         android:memtagMode="async"
+         android:backupAgent="com.android.bluetooth.backup.BluetoothBackupAgent">
 
         <service android:process="@string/process"
              android:name="com.android.bluetooth.btservice.AdapterService"
@@ -114,10 +124,10 @@
         </service>
 
         <service android:process="@string/process"
-             android:name="com.android.bluetooth.avrcpcontroller.BluetoothMediaBrowserService"
+             android:name="com.android.bluetooth.media_audio.sink.BluetoothMediaBrowserService"
              android:enabled="true"
              android:exported="true"
-             android:label="@string/a2dp_sink_mbs_label">
+             android:label="@string/bluetooth_media_audio_app_name">
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService"/>
             </intent-filter>
@@ -285,5 +295,28 @@
             <meta-data android:name="android.accounts.AccountAuthenticator"
                  android:resource="@xml/authenticator"/>
         </service>
+
+        <receiver
+            android:name="com.android.bluetooth.backup.BackupBroadcastReceiver"
+            android:exported="true"
+            android:permission="android.permission.ALLOW_BLUETOOTH_BACKUP_DATA">
+            <intent-filter>
+                <action android:name="com.android.bluetooth.backup.ACTION_BACKUP_DATA" />
+            </intent-filter>
+        </receiver>
+
+        <activity android:name="com.android.bluetooth.auracast.NfcAuracastActivity"
+                android:permission="android.permission.DISPATCH_NFC_MESSAGE"
+                android:theme="@android:style/Theme.NoDisplay"
+                android:exported="true"
+                android:excludeFromRecents="true"
+                android:noHistory="true"
+                android:process="@string/process">
+            <intent-filter>
+                <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

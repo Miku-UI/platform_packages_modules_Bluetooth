@@ -20,26 +20,25 @@
 #include <fuzzer/FuzzedDataProvider.h>
 
 #include <cstdint>
-#include <functional>
 #include <vector>
 
+#include "bt_status.h"
 #include "osi/include/allocator.h"
 #include "stack/include/avct_api.h"
 #include "stack/include/avrc_api.h"
 #include "stack/include/bt_psm_types.h"
+#include "stack/mock/mock_stack_acl.h"
+#include "stack/mock/mock_stack_btm_dev.h"
+#include "stack/mock/mock_stack_l2cap_interface.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_btif_config.h"
-#include "test/mock/mock_stack_acl.h"
-#include "test/mock/mock_stack_btm_dev.h"
-#include "test/mock/mock_stack_l2cap_api.h"
-#include "test/mock/mock_stack_l2cap_interface.h"
 
 using bluetooth::Uuid;
 using namespace bluetooth;
 using ::testing::NiceMock;
 using ::testing::Unused;
 
-bt_status_t do_in_main_thread(base::OnceCallback<void()>) {
+BtStatus do_in_main_thread(base::OnceCallback<void()>) {
   // this is not properly mocked, so we use abort to catch if this is used in
   // any test cases
   abort();
@@ -57,7 +56,7 @@ namespace {
 
 constexpr uint16_t kDummyCid = 0x1234;
 constexpr uint8_t kDummyId = 0x77;
-constexpr RawAddress kDummyRemoteAddr({0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC});
+constexpr RawAddress kDummyRemoteAddr("77:88:99:AA:BB:CC");
 
 // Set up default callback structure
 static tL2CAP_APPL_INFO avct_appl, avct_br_appl;
@@ -115,7 +114,9 @@ namespace android {
 namespace sysprop {
 namespace bluetooth {
 namespace Avrcp {
-std::optional<bool> absolute_volume() { return true; }
+bool absolute_volume() { return true; }
+bool isAvrcpControllerCoverArtEnabled() { return true; }
+bool isAvrcpControllerBrowsingEnabled() { return true; }
 }  // namespace Avrcp
 
 namespace Bta {

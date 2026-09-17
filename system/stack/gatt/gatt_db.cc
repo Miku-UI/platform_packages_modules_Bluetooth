@@ -31,7 +31,6 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/l2cap_types.h"
 
-using bluetooth::Uuid;
 using namespace bluetooth;
 
 /*******************************************************************************
@@ -700,33 +699,38 @@ static tGATT_STATUS gatts_send_app_read_request(tGATT_TCB& tcb, uint16_t cid, ui
   tGATT_SRV_LIST_ELEM& el = *gatt_sr_find_i_rcb_by_handle(handle);
   tCONN_ID conn_id = gatt_create_conn_id(tcb.tcb_idx, el.gatt_if);
 
-  if (trans_id == 0) {
+  if (trans_id == GATT_TRANS_ID_INVALID) {
     trans_id = gatt_sr_enqueue_cmd(tcb, cid, op_code, handle);
     gatt_sr_update_cback_cnt(tcb, cid, el.gatt_if, true, true);
+
+    if (trans_id == GATT_TRANS_ID_INVALID) {
+      return (tGATT_STATUS)GATT_BUSY; /* max pending command, application error */
+    }
   }
 
-  if (trans_id != 0) {
-    tGATTS_DATA sr_data;
-    memset(&sr_data, 0, sizeof(tGATTS_DATA));
+  bool is_long = (bool)(op_code == GATT_REQ_READ_BLOB);
 
-    sr_data.read_req.handle = handle;
-    sr_data.read_req.is_long = (bool)(op_code == GATT_REQ_READ_BLOB);
-    sr_data.read_req.offset = offset;
-
-    uint8_t opcode;
-    if (gatt_type == BTGATT_DB_DESCRIPTOR) {
-      opcode = GATTS_REQ_TYPE_READ_DESCRIPTOR;
-    } else if (gatt_type == BTGATT_DB_CHARACTERISTIC) {
-      opcode = GATTS_REQ_TYPE_READ_CHARACTERISTIC;
+  if (gatt_type == BTGATT_DB_DESCRIPTOR) {
+    tGATT_REG* p_reg = gatt_get_regcb(el.gatt_if);
+    if (!p_reg || !p_reg->app_cb.p_req_cb) {
+      log::warn("Call back not found for application conn_id={}", conn_id);
     } else {
-      log::error(
-              "Attempt to read attribute that's not tied with characteristic or descriptor value.");
-      return GATT_ERROR;
+      p_reg->app_cb.p_req_cb->read_descriptor_cb(conn_id, trans_id, tcb.peer_bda, handle, offset,
+                                                 is_long);
     }
-
-    gatt_sr_send_req_callback(conn_id, trans_id, opcode, &sr_data);
+    return (tGATT_STATUS)GATT_PENDING;
+  } else if (gatt_type == BTGATT_DB_CHARACTERISTIC) {
+    tGATT_REG* p_reg = gatt_get_regcb(el.gatt_if);
+    if (!p_reg || !p_reg->app_cb.p_req_cb) {
+      log::warn("Call back not found for application conn_id={}", conn_id);
+    } else {
+      p_reg->app_cb.p_req_cb->read_characteristic_cb(conn_id, trans_id, tcb.peer_bda, handle,
+                                                     offset, is_long);
+    }
     return (tGATT_STATUS)GATT_PENDING;
   } else {
-    return (tGATT_STATUS)GATT_BUSY; /* max pending command, application error */
+    log::error(
+            "Attempt to read attribute that's not tied with characteristic or descriptor value.");
+    return GATT_ERROR;
   }
 }

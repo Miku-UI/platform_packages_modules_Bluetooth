@@ -20,6 +20,7 @@
 
 #include <bluetooth/types/address.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
+#include <frameworks/proto_logging/stats/enums/bluetooth/gatt/enums.pb.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/hci/enums.pb.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/le/enums.pb.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/rfcomm/enums.pb.h>
@@ -49,6 +50,16 @@ void Counter(CounterKey key, int64_t count = 1);
  * @param state state associated with the event
  */
 void LogBluetoothEvent(const hci::Address& address, EventType event_type, State state);
+
+/**
+ * Logs a Bluetooth Event
+ *
+ * @param address address of associated device
+ * @param event_type type of event where this is getting logged from
+ * @param state state associated with the event
+ * @param uid uid of the app associated with the event
+ */
+void LogBluetoothEvent(const hci::Address& address, EventType event_type, State state, int uid);
 
 /**
  * Log link layer connection event
@@ -327,7 +338,14 @@ void LogMetricLeAudioConnectionSessionReported(
         const std::vector<RawAddress>& device_address,
         const std::vector<int64_t>& streaming_offset_nanos,
         const std::vector<int64_t>& streaming_duration_nanos,
-        const std::vector<int32_t>& streaming_context_type);
+        const std::vector<int32_t>& streaming_context_type,
+        const std::vector<int32_t>& codec_format,
+        const std::vector<int32_t>& vendor_company_id,
+        const std::vector<int32_t>& vendor_codec_id,
+        const std::vector<int32_t>& sink_sampling_frequency_hz,
+        const std::vector<int32_t>& source_sampling_frequency_hz,
+        const std::vector<bool>& is_dsa_active,
+        const std::vector<bool>& is_gmap_active);
 
 void LogMetricLeAudioBroadcastSessionReported(int64_t duration_nanos);
 
@@ -343,10 +361,36 @@ void LogMetricsChannelSoundingRequesterSessionReported(
         android::bluetooth::ChannelSoundingType cs_type, int32_t min_subevent_len,
         int32_t min_subevent_len_count);
 
-void LogMetricBluetoothEnergyMonitorReported(uint16_t bqr_version,
-                                             const bluetooth::bqr::BqrEnergyMonitorEvent& event);
+void LogMetricBluetoothEnergyMonitorReported(
+        uint16_t bqr_version, const bluetooth::bqr::BqrEnergyMonitoringEventV7& event);
 
 void LogMetricBluetoothRFStatsReported(uint16_t bqr_version,
                                        const bluetooth::bqr::BqrRFStatsEvent& event);
+
+/**
+ * Logs GATT Offload session state changed metrics.
+ *
+ * @param address Address of associated device
+ * @param session_id Offload session ID assigned from host stack
+ * @param gatt_role Role of the GATT connection (Client or Server)
+ * @param state State of the GATT offload session
+ * @param gatt_characteristic_properties_bitmask Bitmask representing the combined GATT
+ * Characteristic Properties for ALL characteristics included in this offload session. This is an
+ * OR'ed value of all individual characteristic properties. The bits are defined in
+ * android.bluetooth.BluetoothGattCharacteristic and are based on the Bluetooth Core
+ * Specification, Volume 3, Part G, Section 3.3.1.1.
+ * @param session_duration_ms Duration of the offload session in milliseconds
+ * @param error_code Error code of offload session failures
+ * @param uid Connection owner's UID (e.g., App UID).
+ * @param attribution_tag Tag to identify the last caller in the attribution chain, useful for
+ * shared UIDs.
+ */
+void LogGattOffloadSessionStateChanged(const hci::Address& address, int32_t session_id,
+                                       android::bluetooth::gatt::GattRoleEnum gatt_role,
+                                       android::bluetooth::gatt::GattOffloadSessionStateEnum state,
+                                       int32_t gatt_characteristic_properties_bitmask,
+                                       int64_t session_duration_ms,
+                                       android::bluetooth::gatt::GattOffloadErrorEnum error_code,
+                                       int32_t uid, const std::string& attribution_tag);
 
 }  // namespace bluetooth::metrics

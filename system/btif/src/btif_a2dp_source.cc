@@ -35,22 +35,17 @@
 #include <cstdint>
 #include <cstring>
 #include <future>
-#include <iomanip>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "a2dp_api.h"
-#include "a2dp_codec_api.h"
 #include "audio_hal_interface/a2dp_encoding.h"
-#include "avdt_api.h"
 #include "bta_av_api.h"
 #include "bta_av_ci.h"
 #include "btif_av.h"
 #include "btif_av_co.h"
 #include "btif_common.h"
 #include "btif_hf.h"
-#include "btm_iso_api.h"
 #include "common/message_loop_thread.h"
 #include "common/repeating_timer.h"
 #include "common/time_util.h"
@@ -58,12 +53,14 @@
 #include "osi/include/allocator.h"
 #include "osi/include/fixed_queue.h"
 #include "osi/include/wakelock.h"
+#include "stack/include/a2dp_api.h"
+#include "stack/include/a2dp_codec_api.h"
 #include "stack/include/a2dp_sbc_constants.h"
-#include "stack/include/acl_api.h"
-#include "stack/include/acl_api_types.h"
+#include "stack/include/a2dp_vendor_ldac_constants.h"
+#include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
-#include "stack/include/btm_client_interface.h"
-#include "stack/include/btm_status.h"
+#include "stack/include/btm_iso_api.h"
+#include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 
 #ifdef __ANDROID__
@@ -200,8 +197,7 @@ public:
     fixed_queue_free(tx_audio_queue, nullptr);
     tx_audio_queue = nullptr;
     tx_flush = false;
-    if (!com_android_bluetooth_flags_ref_counted_native_wakelock() ||
-        btif_a2dp_source_is_streaming()) {
+    if (btif_a2dp_source_is_streaming()) {
       media_alarm.CancelAndWait();
       wakelock_release();
     }
@@ -254,16 +250,11 @@ static uint8_t btif_a2dp_source_dynamic_audio_buffer_size = MAX_OUTPUT_A2DP_FRAM
 
 static void btif_a2dp_source_init_delayed(void);
 static bool btif_a2dp_source_startup(void);
-static void btif_a2dp_source_startup_delayed(void);
 static void btif_a2dp_source_start_session_delayed(const RawAddress& peer_address,
                                                    std::promise<void> start_session_promise);
 static void btif_a2dp_source_audio_tx_start_event(void);
 static void btif_a2dp_source_audio_tx_stop_event(void);
 static void btif_a2dp_source_audio_tx_flush_event(void);
-// Set up the A2DP Source codec, and prepare the encoder.
-// The peer address is |peer_addr|.
-// This function should be called prior to starting A2DP streaming.
-static void btif_a2dp_source_setup_codec(const RawAddress& peer_addr);
 static void btif_a2dp_source_cleanup_codec_delayed();
 static void btif_a2dp_source_encoder_user_config_update_event(
         const RawAddress& peer_address,
@@ -332,12 +323,10 @@ bool btif_a2dp_source_init(void) {
   // Start A2DP Source media task
   btif_a2dp_source_thread.StartUp();
 
-  if (com_android_bluetooth_flags_a2dp_source_null_fixed_queue()) {
-    if (!btif_a2dp_source_thread.EnableRealTimeScheduling()) {
+  if (!btif_a2dp_source_thread.EnableRealTimeScheduling()) {
 #if defined(__ANDROID__)
-      log::fatal("unable to enable real time scheduling");
+    log::fatal("unable to enable real time scheduling");
 #endif
-    }
   }
 
   do_in_main_thread(base::BindOnce(&btif_a2dp_source_init_delayed));
@@ -360,7 +349,7 @@ class A2dpStreamCallbacks : public bluetooth::audio::a2dp::StreamCallbacks {
 
     // Check if the stream has already been started.
     if (btif_av_stream_started_ready(A2dpType::kSource)) {
-      log::verbose("stream is already started");
+      log::debug("stream is already started");
       return Status::SUCCESS;
     }
 
@@ -370,8 +359,14 @@ class A2dpStreamCallbacks : public bluetooth::audio::a2dp::StreamCallbacks {
       return Status::FAILURE;
     }
 
-    // Check if codec needs to be switched prior to stream start.
-    invoke_switch_codec_cb(low_latency);
+    // TODO: Remove the entire invoke_switch_codec_cb code path (Native -> JNI -> Java)
+    //  when removing the flag a2dp_handle_sa_reconfig_in_native
+    if (com_android_bluetooth_flags_a2dp_handle_sa_reconfig_in_native()) {
+      btif_av_source_set_low_latency_codec(low_latency);
+    } else {
+      // Check if codec needs to be switched prior to stream start.
+      invoke_switch_codec_cb(low_latency);
+    }
 
     // Post start event. The start request is pending, completion will be
     // notified to bluetooth::audio::a2dp::ack_stream_started.
@@ -383,7 +378,7 @@ class A2dpStreamCallbacks : public bluetooth::audio::a2dp::StreamCallbacks {
     // Check if the stream is already suspended.
     if (!btif_av_stream_started_ready(A2dpType::kSource)) {
       btif_av_clear_remote_suspend_flag(A2dpType::kSource);
-      log::verbose("stream is already suspended");
+      log::debug("stream is already suspended");
       return Status::SUCCESS;
     }
 
@@ -397,7 +392,7 @@ class A2dpStreamCallbacks : public bluetooth::audio::a2dp::StreamCallbacks {
     // Check if the stream is already suspended.
     if (!btif_av_stream_started_ready(A2dpType::kSource)) {
       btif_av_clear_remote_suspend_flag(A2dpType::kSource);
-      log::verbose("stream is already stopped");
+      log::debug("stream is already stopped");
       return Status::SUCCESS;
     }
 
@@ -410,6 +405,11 @@ class A2dpStreamCallbacks : public bluetooth::audio::a2dp::StreamCallbacks {
   Status SetLatencyMode(bool low_latency) const override {
     invoke_switch_buffer_size_cb(low_latency);
     btif_av_set_low_latency(low_latency);
+    return Status::SUCCESS;
+  }
+
+  Status SourceMetadataChanged(btav_a2dp_codec_audio_context_t audio_context) const override {
+    btif_av_source_metadata_changed(audio_context);
     return Status::SUCCESS;
   }
 };
@@ -438,33 +438,13 @@ static bool btif_a2dp_source_startup(void) {
   btif_a2dp_source_cb.SetState(BtifA2dpSource::kStateStartingUp);
   btif_a2dp_source_cb.tx_audio_queue = fixed_queue_new(SIZE_MAX);
 
-  if (com_android_bluetooth_flags_a2dp_source_null_fixed_queue()) {
-    if (!bluetooth::audio::a2dp::init(get_main_thread(), &a2dp_stream_callbacks,
-                                      btif_av_is_a2dp_offload_enabled())) {
-      log::warn("Failed to setup the bluetooth audio HAL");
-    }
-    btif_a2dp_source_cb.SetState(BtifA2dpSource::kStateRunning);
-  } else {
-    // Schedule the rest of the operations
-    do_in_main_thread(base::BindOnce(&btif_a2dp_source_startup_delayed));
-  }
-
-  return true;
-}
-
-static void btif_a2dp_source_startup_delayed() {
-  log::info("state={}", btif_a2dp_source_cb.StateStr());
-
-  if (!btif_a2dp_source_thread.EnableRealTimeScheduling()) {
-#if defined(__ANDROID__)
-    log::fatal("unable to enable real time scheduling");
-#endif
-  }
   if (!bluetooth::audio::a2dp::init(get_main_thread(), &a2dp_stream_callbacks,
                                     btif_av_is_a2dp_offload_enabled())) {
     log::warn("Failed to setup the bluetooth audio HAL");
   }
+
   btif_a2dp_source_cb.SetState(BtifA2dpSource::kStateRunning);
+  return true;
 }
 
 bool btif_a2dp_source_start_session(const RawAddress& peer_address,
@@ -473,8 +453,8 @@ bool btif_a2dp_source_start_session(const RawAddress& peer_address,
 
   btif_a2dp_source_audio_tx_flush_req();
 
-  if (do_in_main_thread(base::BindOnce(&btif_a2dp_source_start_session_delayed, peer_address,
-                                       std::move(peer_ready_promise))) != BT_STATUS_SUCCESS) {
+  if (!do_in_main_thread(base::BindOnce(&btif_a2dp_source_start_session_delayed, peer_address,
+                                        std::move(peer_ready_promise)))) {
     log::fatal("peer_address={} state={} fails to context switch", peer_address,
                btif_a2dp_source_cb.StateStr());
     return false;
@@ -483,11 +463,99 @@ bool btif_a2dp_source_start_session(const RawAddress& peer_address,
   return true;
 }
 
+/// Return the MTU for the active peer audio connection.
+static uint16_t btif_a2dp_get_peer_mtu(A2dpCodecConfig* a2dp_config) {
+  uint8_t codec_info[AVDT_CODEC_SIZE];
+  a2dp_config->copyOutOtaCodecConfig(codec_info);
+
+  RawAddress peer_addr = btif_av_source_active_peer();
+  tA2DP_ENCODER_INIT_PEER_PARAMS peer_params;
+  bta_av_co_get_peer_params(peer_addr, &peer_params);
+  uint16_t peer_mtu = peer_params.peer_mtu;
+  uint16_t effective_mtu = bta_av_co_get_encoder_effective_frame_size(peer_addr);
+
+  if (effective_mtu > 0 && effective_mtu < peer_mtu) {
+    peer_mtu = effective_mtu;
+  }
+
+  // b/188020925
+  // When SBC headsets report middle quality bitpool under a larger MTU, we
+  // reduce the packet size to prevent the hardware encoder from putting too
+  // many frames in one packet.
+  if (a2dp_config->codecIndex() == BTAV_A2DP_CODEC_INDEX_SOURCE_SBC &&
+      codec_info[2] /* maxBitpool */ <= A2DP_SBC_BITPOOL_MIDDLE_QUALITY) {
+    peer_mtu = MAX_2MBPS_AVDTP_MTU;
+  }
+
+  // b/177205770
+  // Fix the MTU value not to be greater than an AVDTP packet, so the data
+  // encoded by A2DP hardware encoder can be fitted into one AVDTP packet
+  // without fragmented
+  if (peer_mtu > MAX_3MBPS_AVDTP_MTU) {
+    peer_mtu = MAX_3MBPS_AVDTP_MTU;
+  }
+
+  return peer_mtu;
+}
+
+// Rate control is active only when using LDAC ABR quality mode.
+// It is disabled for all other codecs or LDAC is not in ABR mode.
+static bool get_rate_control_enabled(A2dpCodecConfig* a2dp_codec_config) {
+  btav_a2dp_codec_config_t codec_config = a2dp_codec_config->getCodecConfig();
+  return codec_config.codec_type == BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC &&
+         (codec_config.codec_specific_1 == 0 ||
+          codec_config.codec_specific_1 % 10 == A2DP_LDAC_QUALITY_ABR);
+}
+
 static void btif_a2dp_source_start_session_delayed(const RawAddress& peer_address,
                                                    std::promise<void> peer_ready_promise) {
   log::info("peer_address={} state={}", peer_address, btif_a2dp_source_cb.StateStr());
 
-  btif_a2dp_source_setup_codec(peer_address);
+  tA2DP_ENCODER_INIT_PEER_PARAMS peer_params;
+  bta_av_co_get_peer_params(peer_address, &peer_params);
+  if (!bta_av_co_set_active_source_peer(peer_address)) {
+    log::error("Cannot stream audio: cannot set active peer to {}", peer_address);
+    return;
+  }
+
+  const tA2DP_ENCODER_INTERFACE* encoder_interface = bta_av_co_get_encoder_interface(peer_address);
+  if (encoder_interface == nullptr) {
+    log::error("Cannot stream audio: no source encoder interface");
+    return;
+  }
+
+  A2dpCodecConfig* a2dp_codec_config = bta_av_get_a2dp_current_codec();
+  if (a2dp_codec_config == nullptr) {
+    log::error("Cannot stream audio: current codec is not set");
+    return;
+  }
+
+  encoder_interface->encoder_init(&peer_params, a2dp_codec_config, btif_a2dp_source_read_callback,
+                                  btif_a2dp_source_enqueue_callback);
+
+  if (com_android_bluetooth_flags_ldac_rate_control()) {
+    stack::l2cap::get_interface().L2CA_SetRateControlEnabled(
+            peer_address, get_rate_control_enabled(a2dp_codec_config));
+  }
+
+  // Save a local copy of the encoder_interval_ms
+  btif_a2dp_source_cb.encoder_interface = encoder_interface;
+  btif_a2dp_source_cb.encoder_interval_ms =
+          btif_a2dp_source_cb.encoder_interface->get_encoder_interval_ms();
+
+  if (bluetooth::audio::a2dp::is_hal_enabled()) {
+    bluetooth::audio::a2dp::ahal_codec_configuration config = {
+            .peer_mtu = btif_a2dp_get_peer_mtu(a2dp_codec_config),
+            .preferred_encoding_interval_us = bta_av_co_get_encoder_preferred_interval_us(),
+            .codec_bitrate = a2dp_codec_config->getTrackBitRate(),
+            .codec_config = a2dp_codec_config->getCodecConfig(),
+    };
+    a2dp_codec_config->copyOutOtaCodecConfig(config.codec_specific_information_elements);
+
+    log::debug("{}", config.ToString());
+
+    bluetooth::audio::a2dp::setup_codec(config);
+  }
 
   if (btif_a2dp_source_cb.State() != BtifA2dpSource::kStateRunning) {
     log::error("A2DP Source media task is not running");
@@ -500,6 +568,7 @@ static void btif_a2dp_source_start_session_delayed(const RawAddress& peer_addres
     bluetooth::audio::a2dp::set_remote_delay(btif_av_get_audio_delay(A2dpType::kSource));
   }
 
+  bta_av_co_report_codec_config_changed(peer_address);
   peer_ready_promise.set_value();
 }
 
@@ -570,13 +639,10 @@ void btif_a2dp_source_shutdown(std::promise<void> shutdown_complete_promise) {
   btif_a2dp_source_cb.SetState(BtifA2dpSource::kStateShuttingDown);
 
   // Stop the timer.
-  if (!com_android_bluetooth_flags_ref_counted_native_wakelock() ||
-      btif_a2dp_source_is_streaming()) {
+  if (btif_a2dp_source_is_streaming()) {
     btif_a2dp_source_cb.media_alarm.CancelAndWait();
     wakelock_release();
   }
-
-  bluetooth::audio::a2dp::cleanup();
 
   fixed_queue_free(btif_a2dp_source_cb.tx_audio_queue, nullptr);
   btif_a2dp_source_cb.tx_audio_queue = nullptr;
@@ -593,92 +659,14 @@ void btif_a2dp_source_cleanup(void) {
   std::promise<void> shutdown_complete_promise;
   btif_a2dp_source_shutdown(std::move(shutdown_complete_promise));
 
+  bluetooth::audio::a2dp::cleanup();
+
   // Exit the thread
   btif_a2dp_source_thread.ShutDown();
 }
 
 // This runs on worker thread
 bool btif_a2dp_source_is_streaming(void) { return btif_a2dp_source_cb.media_alarm.IsScheduled(); }
-
-/// Return the MTU for the active peer audio connection.
-static uint16_t btif_a2dp_get_peer_mtu(A2dpCodecConfig* a2dp_config) {
-  uint8_t codec_info[AVDT_CODEC_SIZE];
-  a2dp_config->copyOutOtaCodecConfig(codec_info);
-
-  RawAddress peer_addr = btif_av_source_active_peer();
-  tA2DP_ENCODER_INIT_PEER_PARAMS peer_params;
-  bta_av_co_get_peer_params(peer_addr, &peer_params);
-  uint16_t peer_mtu = peer_params.peer_mtu;
-  uint16_t effective_mtu = bta_av_co_get_encoder_effective_frame_size(peer_addr);
-
-  if (effective_mtu > 0 && effective_mtu < peer_mtu) {
-    peer_mtu = effective_mtu;
-  }
-
-  // b/188020925
-  // When SBC headsets report middle quality bitpool under a larger MTU, we
-  // reduce the packet size to prevent the hardware encoder from putting too
-  // many frames in one packet.
-  if (a2dp_config->codecIndex() == BTAV_A2DP_CODEC_INDEX_SOURCE_SBC &&
-      codec_info[2] /* maxBitpool */ <= A2DP_SBC_BITPOOL_MIDDLE_QUALITY) {
-    peer_mtu = MAX_2MBPS_AVDTP_MTU;
-  }
-
-  // b/177205770
-  // Fix the MTU value not to be greater than an AVDTP packet, so the data
-  // encoded by A2DP hardware encoder can be fitted into one AVDTP packet
-  // without fragmented
-  if (peer_mtu > MAX_3MBPS_AVDTP_MTU) {
-    peer_mtu = MAX_3MBPS_AVDTP_MTU;
-  }
-
-  return peer_mtu;
-}
-
-static void btif_a2dp_source_setup_codec(const RawAddress& peer_address) {
-  log::info("peer_address={} state={}", peer_address, btif_a2dp_source_cb.StateStr());
-
-  tA2DP_ENCODER_INIT_PEER_PARAMS peer_params;
-  bta_av_co_get_peer_params(peer_address, &peer_params);
-  if (!bta_av_co_set_active_source_peer(peer_address)) {
-    log::error("Cannot stream audio: cannot set active peer to {}", peer_address);
-    return;
-  }
-
-  const tA2DP_ENCODER_INTERFACE* encoder_interface = bta_av_co_get_encoder_interface(peer_address);
-  if (encoder_interface == nullptr) {
-    log::error("Cannot stream audio: no source encoder interface");
-    return;
-  }
-
-  A2dpCodecConfig* a2dp_codec_config = bta_av_get_a2dp_current_codec();
-  if (a2dp_codec_config == nullptr) {
-    log::error("Cannot stream audio: current codec is not set");
-    return;
-  }
-
-  encoder_interface->encoder_init(&peer_params, a2dp_codec_config, btif_a2dp_source_read_callback,
-                                  btif_a2dp_source_enqueue_callback);
-
-  // Save a local copy of the encoder_interval_ms
-  btif_a2dp_source_cb.encoder_interface = encoder_interface;
-  btif_a2dp_source_cb.encoder_interval_ms =
-          btif_a2dp_source_cb.encoder_interface->get_encoder_interval_ms();
-
-  if (bluetooth::audio::a2dp::is_hal_enabled()) {
-    bluetooth::audio::a2dp::ahal_codec_configuration config = {
-            .peer_mtu = btif_a2dp_get_peer_mtu(a2dp_codec_config),
-            .preferred_encoding_interval_us = bta_av_co_get_encoder_preferred_interval_us(),
-            .codec_bitrate = a2dp_codec_config->getTrackBitRate(),
-            .codec_config = a2dp_codec_config->getCodecConfig(),
-    };
-    a2dp_codec_config->copyOutOtaCodecConfig(config.codec_specific_information_elements);
-
-    log::verbose("{}", config.ToString());
-
-    bluetooth::audio::a2dp::setup_codec(config);
-  }
-}
 
 static void btif_a2dp_source_cleanup_codec_delayed() {
   log::info("state={}", btif_a2dp_source_cb.StateStr());
@@ -707,9 +695,9 @@ void btif_a2dp_source_encoder_user_config_update_req(
   log::info("peer_address={} state={} {} codec_preference(s)", peer_address,
             btif_a2dp_source_cb.StateStr(), codec_user_preferences.size());
 
-  if (do_in_main_thread(base::BindOnce(&btif_a2dp_source_encoder_user_config_update_event,
-                                       peer_address, codec_user_preferences,
-                                       std::move(peer_ready_promise))) != BT_STATUS_SUCCESS) {
+  if (!do_in_main_thread(base::BindOnce(&btif_a2dp_source_encoder_user_config_update_event,
+                                        peer_address, codec_user_preferences,
+                                        std::move(peer_ready_promise)))) {
     // cannot set promise but triggers crash
     log::fatal("peer_address={} state={} fails to context switch", peer_address,
                btif_a2dp_source_cb.StateStr());
@@ -869,8 +857,7 @@ static void btif_a2dp_source_audio_tx_start_event(void) {
   btif_a2dp_source_cb.tx_flush = false;
   btif_a2dp_source_cb.sw_audio_is_encoding = true;
   btif_a2dp_source_cb.media_alarm.SchedulePeriodic(
-          &btif_a2dp_source_thread,
-          base::BindRepeating(&btif_a2dp_source_audio_handle_timer),
+          &btif_a2dp_source_thread, base::BindRepeating(&btif_a2dp_source_audio_handle_timer),
           std::chrono::milliseconds(
                   btif_a2dp_source_cb.encoder_interface->get_encoder_interval_ms()));
 }
@@ -893,23 +880,21 @@ static void btif_a2dp_source_audio_tx_stop_event(void) {
     return;
   }
 
-  if (!com_android_bluetooth_flags_a2dp_fmq_read_exact()) {
-    /* Drain data still left in the queue */
-    static constexpr size_t AUDIO_STREAM_OUTPUT_BUFFER_SZ = 28 * 512;
-    uint8_t p_buf[AUDIO_STREAM_OUTPUT_BUFFER_SZ * 2];
-    bluetooth::audio::a2dp::read(p_buf, sizeof(p_buf));
+  if (com_android_bluetooth_flags_flush_a2dp_fmq_on_stop()) {
+    // Flush the audio data left in the FMQ.
+    bluetooth::audio::a2dp::flush_source();
   }
 
-  /* Stop the timer first */
+  // Stop the timer first.
   btif_a2dp_source_cb.media_alarm.CancelAndWait();
   wakelock_release();
 
   bluetooth::audio::a2dp::ack_stream_suspended(Status::SUCCESS);
 
-  /* audio engine stopped, reset tx suspended flag */
+  // audio engine stopped, reset tx suspended flag.
   btif_a2dp_source_cb.tx_flush = false;
 
-  /* Reset the media feeding state */
+  // Reset the media feeding state.
   if (btif_a2dp_source_cb.encoder_interface != nullptr) {
     btif_a2dp_source_cb.encoder_interface->feeding_reset();
   }
@@ -980,7 +965,7 @@ static bool btif_a2dp_source_enqueue_callback(BT_HDR* p_buf, size_t frames_n,
 
   // Check if the transmission queue has been flushed.
   if (btif_a2dp_source_cb.tx_flush) {
-    log::verbose("tx suspended, discarded frame");
+    log::debug("tx suspended, discarded frame");
 
     btif_a2dp_source_cb.stats.tx_queue_total_flushed_messages +=
             fixed_queue_length(btif_a2dp_source_cb.tx_audio_queue);

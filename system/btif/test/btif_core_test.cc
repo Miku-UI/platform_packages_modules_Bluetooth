@@ -50,21 +50,26 @@
 #include "packet/packet_view.h"
 #include "packet/raw_builder.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/gatt_api.h"
 #include "stack/include/main_thread.h"
+#include "stack/mock/mock_stack_btm_interface.h"
+#include "stack/mock/mock_stack_btm_sec.h"
+#include "stack/mock/mock_stack_security_client_interface.h"
 #include "test/common/core_interface.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_main_shim_entry.h"
 #include "test/mock/mock_osi_properties.h"
 #include "test/mock/mock_osi_thread.h"
-#include "test/mock/mock_stack_btm_sec.h"
+
+void gatt_set_debug_conn_state_cb(void (*)(const RawAddress&, bool, const tGATT_DISCONN_REASON)) {}
 
 namespace bluetooth::testing {
 void set_hal_cbacks(bt_callbacks_t* callbacks);
 }  // namespace bluetooth::testing
 
 namespace bluetooth::legacy::testing {
-void bta_dm_acl_down(const tAclLinkSpec& link_spec);
-void bta_dm_acl_up(const tAclLinkSpec& acl_link_spec, uint16_t acl_handle);
+void bta_dm_acl_down(const AclLinkSpec& link_spec);
+void bta_dm_acl_up(const AclLinkSpec& acl_link_spec, uint16_t acl_handle, bool locally_initiated);
 }  // namespace bluetooth::legacy::testing
 
 const tBTA_AG_RES_DATA tBTA_AG_RES_DATA::kEmpty = {};
@@ -106,6 +111,7 @@ using testing::_;
 using testing::DoAll;
 using testing::Invoke;
 using testing::Matcher;
+using testing::NiceMock;
 using testing::Return;
 using testing::SaveArg;
 
@@ -121,7 +127,7 @@ PacketView<kLittleEndian> BuilderToView(std::unique_ptr<BasePacketBuilder> build
   return PacketView<kLittleEndian>(packet_bytes);
 }
 
-const RawAddress kRawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+const RawAddress kRawAddress("11:22:33:44:55:66");
 const uint16_t kHciHandle = 123;
 
 auto timeout_time = std::chrono::seconds(3);
@@ -134,23 +140,27 @@ std::map<std::string, std::function<void()>> callback_map_;
 void adapter_state_changed_callback(bt_state_t /* state */) {}
 void adapter_properties_callback(bt_status_t /* status */, int /* num_properties */,
                                  bt_property_t* /* properties */) {}
-void remote_device_properties_callback(bt_status_t /* status */, RawAddress* /* bd_addr */,
+void remote_device_properties_callback(bt_status_t /* status */, RawAddress /* bd_addr */,
                                        uint8_t /* address_type */, int /* num_properties */,
                                        bt_property_t* /* properties */) {}
 void device_found_callback(int /* num_properties */, bt_property_t* /* properties */) {}
 void discovery_state_changed_callback(bt_discovery_state_t /* state */) {}
-void pin_request_callback(RawAddress* /* remote_bd_addr */, bt_bdname_t* /* bd_name */,
-                          uint32_t /* cod */, bool /* min_16_digit */) {}
-void ssp_request_callback(RawAddress* /* remote_bd_addr */, bt_ssp_variant_t /* pairing_variant */,
-                          uint32_t /* pass_key */) {}
-void bond_state_changed_callback(bt_status_t /* status */, RawAddress* /* remote_bd_addr */,
-                                 bt_bond_state_t /* state */, int /* fail_reason */) {}
-void address_consolidate_callback(RawAddress* /* main_bd_addr */,
-                                  RawAddress* /* secondary_bd_addr */) {}
-void le_address_associate_callback(RawAddress* /* main_bd_addr */,
-                                   RawAddress* /* secondary_bd_addr */,
+void pin_request_callback(RawAddress /* remote_bd_addr */, bt_bdname_t* /* bd_name */,
+                          uint32_t /* cod */, bool /* min_16_digit */,
+                          int /* pairing_algorithm */) {}
+void ssp_request_callback(RawAddress /* remote_bd_addr */, int /* transport */,
+                          PairingVariant /* pairing_variant */, uint32_t /* pass_key */,
+                          int /* pairing_algorithm */) {}
+void bond_state_changed_callback(bt_status_t /* status */, RawAddress /* remote_bd_addr */,
+                                 tBT_TRANSPORT /* transport */, bt_bond_state_t /* state */,
+                                 PairingType /* pairing_type */, int /* fail_reason */,
+                                 PairingInitiator /* pairing_initiator */) {}
+void address_consolidate_callback(RawAddress /* main_bd_addr */,
+                                  RawAddress /* secondary_bd_addr */) {}
+void le_address_associate_callback(RawAddress /* main_bd_addr */,
+                                   RawAddress /* secondary_bd_addr */,
                                    uint8_t /* identity_address_type */) {}
-void acl_state_changed_callback(bt_status_t /* status */, tAclLinkSpec& /* link_spec */,
+void acl_state_changed_callback(bt_status_t /* status */, AclLinkSpec& /* link_spec */,
                                 bt_acl_state_t /* state */, bt_hci_error_code_t /* hci_reason */,
                                 bt_conn_direction_t /* direction */, uint16_t /* acl_handle */) {}
 void link_quality_report_callback(uint64_t /* timestamp */, int /* report_id */, int /* rssi */,
@@ -208,6 +218,9 @@ protected:
     bluetooth::hci::testing::mock_controller_ =
             std::make_unique<bluetooth::hci::testing::MockController>();
     bluetooth::testing::set_hal_cbacks(&callbacks);
+
+    set_security_client_interface(mock_btm_security_);
+
     auto promise = std::promise<void>();
     auto future = promise.get_future();
     callback_map_["callback_thread_event"] = [&promise]() { promise.set_value(); };
@@ -222,9 +235,12 @@ protected:
     callback_map_["callback_thread_event"] = [&promise]() { promise.set_value(); };
     CleanCoreInterface();
     ASSERT_EQ(std::future_status::ready, future.wait_for(timeout_time));
+    reset_mock_btm_client_interface();
     bluetooth::hci::testing::mock_controller_.reset();
     callback_map_.erase("callback_thread_event");
   }
+
+  NiceMock<MockSecurityClientInterface> mock_btm_security_;
 };
 
 class BtifCoreWithControllerTest : public BtifCoreTest {
@@ -242,14 +258,15 @@ class BtifCoreWithConnectionTest : public BtifCoreWithControllerTest {
 protected:
   void SetUp() override {
     BtifCoreWithControllerTest::SetUp();
-    tAclLinkSpec link_spec = {.addrt = {.type = BLE_ADDR_PUBLIC, .bda = kRawAddress},
-                              .transport = BT_TRANSPORT_AUTO};
-    bluetooth::legacy::testing::bta_dm_acl_up(link_spec, kHciHandle);
+    AclLinkSpec link_spec = {.addrt = {.type = BLE_ADDR_PUBLIC, .bda = kRawAddress},
+                             .transport = BT_TRANSPORT_AUTO};
+    bool locally_initiated = false;
+    bluetooth::legacy::testing::bta_dm_acl_up(link_spec, kHciHandle, locally_initiated);
   }
 
   void TearDown() override {
-    tAclLinkSpec link_spec = {.addrt = {.type = BLE_ADDR_PUBLIC, .bda = kRawAddress},
-                              .transport = BT_TRANSPORT_AUTO};
+    AclLinkSpec link_spec = {.addrt = {.type = BLE_ADDR_PUBLIC, .bda = kRawAddress},
+                             .transport = BT_TRANSPORT_AUTO};
     bluetooth::legacy::testing::bta_dm_acl_down(link_spec);
     BtifCoreWithControllerTest::TearDown();
   }
@@ -629,97 +646,6 @@ TEST_F(BtifUtilsTest, dump_rc_pdu) {
   ASSERT_TRUE(dump_rc_pdu(std::numeric_limits<uint8_t>::max()).starts_with("Unknown"));
 }
 
-TEST_F(BtifCoreWithControllerTest, btif_dm_get_connection_state__unconnected) {
-  ASSERT_EQ(0, btif_dm_get_connection_state(kRawAddress));
-}
-
-TEST_F(BtifCoreWithConnectionTest, btif_dm_get_connection_state__connected_no_encryption) {
-  test::mock::stack_btm_sec::BTM_IsEncrypted.body = [](const RawAddress& /* bd_addr */,
-                                                       tBT_TRANSPORT transport) {
-    switch (transport) {
-      case BT_TRANSPORT_AUTO:
-        return false;
-      case BT_TRANSPORT_BR_EDR:
-        return false;
-      case BT_TRANSPORT_LE:
-        return false;
-    }
-    return false;
-  };
-  ASSERT_EQ(1, btif_dm_get_connection_state(kRawAddress));
-  test::mock::stack_btm_sec::BTM_IsEncrypted = {};
-}
-
-TEST_F(BtifCoreWithConnectionTest, btif_dm_get_connection_state__connected_classic_encryption) {
-  test::mock::stack_btm_sec::BTM_IsEncrypted.body = [](const RawAddress& /* bd_addr */,
-                                                       tBT_TRANSPORT transport) {
-    switch (transport) {
-      case BT_TRANSPORT_AUTO:
-        return false;
-      case BT_TRANSPORT_BR_EDR:
-        return true;
-      case BT_TRANSPORT_LE:
-        return false;
-    }
-    return false;
-  };
-  ASSERT_EQ(3, btif_dm_get_connection_state(kRawAddress));
-
-  test::mock::stack_btm_sec::BTM_IsEncrypted = {};
-}
-
-TEST_F(BtifCoreWithConnectionTest, btif_dm_get_connection_state__connected_le_encryption) {
-  test::mock::stack_btm_sec::BTM_IsEncrypted.body = [](const RawAddress& /* bd_addr */,
-                                                       tBT_TRANSPORT transport) {
-    switch (transport) {
-      case BT_TRANSPORT_AUTO:
-        return false;
-      case BT_TRANSPORT_BR_EDR:
-        return false;
-      case BT_TRANSPORT_LE:
-        return true;
-    }
-    return false;
-  };
-  ASSERT_EQ(5, btif_dm_get_connection_state(kRawAddress));
-  test::mock::stack_btm_sec::BTM_IsEncrypted = {};
-}
-
-TEST_F(BtifCoreWithConnectionTest, btif_dm_get_connection_state__connected_both_encryption) {
-  test::mock::stack_btm_sec::BTM_IsEncrypted.body = [](const RawAddress& /* bd_addr */,
-                                                       tBT_TRANSPORT transport) {
-    switch (transport) {
-      case BT_TRANSPORT_AUTO:
-        return false;
-      case BT_TRANSPORT_BR_EDR:
-        return true;
-      case BT_TRANSPORT_LE:
-        return true;
-    }
-    return false;
-  };
-  ASSERT_EQ(7, btif_dm_get_connection_state(kRawAddress));
-  test::mock::stack_btm_sec::BTM_IsEncrypted = {};
-}
-
-TEST_F(BtifCoreWithConnectionTest, btif_dm_get_connection_state_sync) {
-  test::mock::stack_btm_sec::BTM_IsEncrypted.body = [](const RawAddress& /* bd_addr */,
-                                                       tBT_TRANSPORT transport) {
-    switch (transport) {
-      case BT_TRANSPORT_AUTO:
-        return false;
-      case BT_TRANSPORT_BR_EDR:
-        return true;
-      case BT_TRANSPORT_LE:
-        return true;
-    }
-    return false;
-  };
-  ASSERT_EQ(7, btif_dm_get_connection_state_sync(kRawAddress));
-
-  test::mock::stack_btm_sec::BTM_IsEncrypted = {};
-}
-
 auto get_properties = [](const char* key, char* value, const char* /* default_value */) -> size_t {
   static bluetooth::bqr::BqrConfiguration config{
           .report_action = bluetooth::bqr::REPORT_ACTION_ADD,
@@ -1034,7 +960,7 @@ TEST_F(BtifCoreSocketTest, CreateRfcommServerSocket) {
   uint64_t hub_id = 0;
   uint64_t endpoint_id = 0;
   int max_rx_packet_size = 0;
-  ASSERT_EQ(BT_STATUS_SUCCESS,
+  ASSERT_EQ(BtifStatus(),
             btif_sock_get_interface()->listen(
                     BTSOCK_RFCOMM, "TestService", &server_uuid, kChannelOne, &socket_number, kFlags,
                     kAppUid, data_path, "TestSocket", hub_id, endpoint_id, max_rx_packet_size));
@@ -1050,19 +976,19 @@ TEST_F(BtifCoreSocketTest, CreateTwoRfcommServerSockets) {
   uint64_t hub_id = 0;
   uint64_t endpoint_id = 0;
   int max_rx_packet_size = 0;
-  ASSERT_EQ(BT_STATUS_SUCCESS,
+  ASSERT_EQ(BtifStatus(),
             btif_sock_get_interface()->listen(
                     BTSOCK_RFCOMM, "TestService", &server_uuid, kChannelOne, &socket_number, kFlags,
                     kAppUid, data_path, "TestSocket", hub_id, endpoint_id, max_rx_packet_size));
   static constexpr int kChannelTwo = 2;
   static constexpr int kFlagsTwo = 4;
   static constexpr int kAppUidTwo = 6;
-  const Uuid server_uuid_two = Uuid::FromString("12345678-1234-2345-3456-456789123456");
+  const Uuid server_uuid_two = Uuid("12345678-1234-2345-3456-456789123456");
   int socket_number_two = 1;
-  ASSERT_EQ(BT_STATUS_SUCCESS, btif_sock_get_interface()->listen(
-                                       BTSOCK_RFCOMM, "ServiceTwo", &server_uuid_two, kChannelTwo,
-                                       &socket_number_two, kFlagsTwo, kAppUidTwo, data_path,
-                                       "TestSocket", hub_id, endpoint_id, max_rx_packet_size));
+  ASSERT_EQ(BtifStatus(), btif_sock_get_interface()->listen(
+                                  BTSOCK_RFCOMM, "ServiceTwo", &server_uuid_two, kChannelTwo,
+                                  &socket_number_two, kFlagsTwo, kAppUidTwo, data_path,
+                                  "TestSocket", hub_id, endpoint_id, max_rx_packet_size));
 }
 
 TEST_F(BtifCoreSocketTest, CreateManyRfcommServerSockets) {
@@ -1077,12 +1003,12 @@ TEST_F(BtifCoreSocketTest, CreateManyRfcommServerSockets) {
     server_uuid_str[2] = (i / 10) % 10 + '0';
     server_uuid_str[1] = (i / 100) % 10 + '0';
     server_uuid_str[0] = (i / 1000) % 10 + '0';
-    Uuid server_uuid = Uuid::FromString(server_uuid_str);
+    Uuid server_uuid = Uuid::FromString(server_uuid_str).value();
     btsock_data_path_t data_path = BTSOCK_DATA_PATH_NO_OFFLOAD;
     uint64_t hub_id = 0;
     uint64_t endpoint_id = 0;
     int max_rx_packet_size = 0;
-    ASSERT_EQ(BT_STATUS_SUCCESS,
+    ASSERT_EQ(BtifStatus(),
               btif_sock_get_interface()->listen(
                       BTSOCK_RFCOMM, "TestService", &server_uuid, channel, &socket_number, flags,
                       app_uuid, data_path, "TestSocket", hub_id, endpoint_id, max_rx_packet_size));

@@ -37,8 +37,8 @@ import android.bluetooth.IBluetoothLeBroadcastCallback;
 import android.content.AttributionSource;
 import android.os.ParcelUuid;
 
-import com.android.bluetooth.Utils;
-import com.android.bluetooth.btservice.ProfileService.IProfileServiceBinder;
+import com.android.bluetooth.Util;
+import com.android.bluetooth.profile.ProfileService.IProfileServiceBinder;
 
 import java.util.Collections;
 import java.util.List;
@@ -60,12 +60,12 @@ class LeAudioServiceBinder extends IBluetoothLeAudio.Stub implements IProfileSer
     private LeAudioService getService() {
         LeAudioService service = mService;
 
-        if (Utils.isInstrumentationTestMode()) {
+        if (Util.isInstrumentationTestMode()) {
             return service;
         }
 
-        if (!Utils.checkServiceAvailable(service, TAG)
-                || !Utils.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)) {
+        if (!Util.checkProfileAvailable(service, TAG)
+                || !Util.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)) {
             return null;
         }
         return service;
@@ -76,13 +76,13 @@ class LeAudioServiceBinder extends IBluetoothLeAudio.Stub implements IProfileSer
         requireNonNull(source);
         LeAudioService service = mService;
 
-        if (Utils.isInstrumentationTestMode()) {
+        if (Util.isInstrumentationTestMode()) {
             return service;
         }
 
-        if (!Utils.checkServiceAvailable(service, TAG)
-                || !Utils.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
-                || !Utils.checkConnectPermissionForDataDelivery(service, source, TAG)) {
+        if (!Util.checkProfileAvailable(service, TAG)
+                || !Util.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
+                || !Util.enforceConnectPermissionForDataDelivery(service, source, TAG)) {
             return null;
         }
         return service;

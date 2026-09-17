@@ -26,98 +26,10 @@ flag {
 }
 
 flag {
-    name: "le_scan_msft_support"
-    namespace: "bluetooth"
-    description: "Support MSFT HCI extension for LE Scanning. go/bt-msft-aosp-dd"
-    bug: "365787977"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "gatt_clear_cache_on_factory_reset"
-    namespace: "bluetooth"
-    description: "Clear GATT cache/hash on factory reset"
-    bug: "373284699"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "initial_conn_params_p1"
-    namespace: "bluetooth"
-    description: "Use aggressive connection parameters when <2 connections exist. go/initial-connection-parameter-optimization"
-    bug: "378595485"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "distance_measurement_thread"
-    namespace: "bluetooth"
-    description: "Makes distance measurement operations run on one thread."
-    bug: "397809459"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "scan_controller_thread"
-    namespace: "bluetooth"
-    description: "Makes scan controller operations run on one thread."
-    bug: "397863857"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "start_discover_service_changed"
-    namespace: "bluetooth"
-    description: "Start discovery again when service change indication arrives."
-    bug: "400828637"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "rssi_scan_filter"
-    namespace: "bluetooth"
-    is_exported: true
-    description: "Add RSSI ScanFilter"
-    bug: "404986559"
-}
-
-flag {
     name: "fix_private_gatt_advertisement"
     namespace: "bluetooth"
     description: "Fix that private GATT advertising is handled as a normal GATT"
     bug: "406124107"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "remove_device_with_connection_manager"
-    namespace: "bluetooth"
-    description: "Remove device through connection_manager to sync accept list"
-    bug: "405283189"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "irk_scan_bond_check_update"
-    namespace: "bluetooth"
-    description: "Update bond state check in IRK scan to cover all identity address types."
-    bug: "406905829"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -131,206 +43,109 @@ flag {
 }
 
 flag {
-    name: "batch_scan_support_check"
+    name: "migrate_btm_scan_to_gd"
     namespace: "bluetooth"
-    description: "Add support check for batch scans when scan starts"
-    bug: "411519279"
+    description: "Migrate btm scan logic to gd le scanning manager"
+    bug: "452239954"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "continue_queued_command_after_discovery"
+    name: "gatt_conn_settings"
     namespace: "bluetooth"
-    description: "Execute enqueued command exiting discovery state"
-    bug: "411021422"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "service_rediscovery_fix"
-    namespace: "bluetooth"
-    description: "Fix handling service change with multiple reconnecting clients trying to discover services immediately after connection"
-    bug: "413723825"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "read_rssi_throttling"
-    namespace: "bluetooth"
-    description: "Modify API to throttle the ability of a client app to trigger remote RSSI reads"
-    bug: "414510325"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "get_svc_uuids_from_ble_adv_data"
-    namespace: "bluetooth"
+    description: "GATT connection settings & related APIs"
+    bug: "450085002"
     is_exported: true
-    description: "Add API for getting service UUIDs from BLE advertising data. go/get-service-uuids-from-advertising-data"
-    bug: "389598210"
 }
 
 flag {
-    name: "handle_encryption_fail_before_sdp_when_paring"
+    name: "irk_scanning_bond_check_update"
     namespace: "bluetooth"
-    description: "handle encryption failure before SDP when pairing cause no SDP records but bonded"
-    bug: "418212151"
+    description: "Update bond state check during IRK scanning to cover all identity address types"
+    bug: "459303393"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "read_ppcp_only_for_success"
+    name: "notify_unconditional_disconnect_le"
     namespace: "bluetooth"
-    description: "Read ppcp only for successful service discovery operations"
-    bug: "417846831"
+    description: "Notify connecting clients of an unconditional disconnect to prevent a stuck connecting state"
+    bug: "458272298"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "save_cache_for_bonded_device"
+    name: "rotate_address_when_connected"
     namespace: "bluetooth"
-    description: "Save db cache for just bonded device if available"
-    bug: "417859848"
+    description: "Rotate address whenever a BLE connection is made"
+    bug: "462281358"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "resolve_address_for_adv_report"
+    name: "unify_device_type_verification_logic"
     namespace: "bluetooth"
-    description: "Change address resolve timing to match between adv data and scan response."
-    bug: "424062882"
+    description: "Unify device type verification logic in GD and BTM"
+    bug: "471319424"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "gatt_failure_callback_on_cancel"
+    name: "use_address_type_from_batch_scan_result"
     namespace: "bluetooth"
-    description: "Invoke failure callback on cancelling connection right after connected."
-    bug: "425563544"
-    metadata {
-            purpose: PURPOSE_BUGFIX
-        }
-}
-
-flag {
-    name: "original_address_filter_match"
-    namespace: "bluetooth"
-    description: "Match other filters along with device address when we use original address."
-    bug: "425250980"
+    description: "Use the address type from batch scan result"
+    bug: "469914545"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "get_svc_uuids_bugfix"
+    name: "track_ad_type_flag_change"
     namespace: "bluetooth"
-    description: "Bug fixes for the flag get_svc_uuids_from_ble_adv_data"
-    bug: "428792613"
+    description: "Track ad type flag value change in advertising reports during discovery"
+    bug: "475648435"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "prevent_adding_both_pseudo_and_identity_addr"
+    name: "convert_pseudo_address_to_identity"
     namespace: "bluetooth"
-    description: "Prevent adding both pseudo and identity address to the accept list."
-    bug: "428800297"
+    description: "Convert pseudo address to identity address when used for APCF filters"
+    bug: "486698443"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "remove_address_cache_from_ble_scanner"
+    name: "pause_clients_before_resolving_list_modification"
     namespace: "bluetooth"
-    description: "Fix the case where device name is not updated when pairing failed."
-    bug: "432614634"
+    description: "Pause clients before adding or removing device from the resolving list"
+    bug: "488175554"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "broadcast_transport_type_on_reset"
+    name: "fix_ppcp_behavior"
     namespace: "bluetooth"
-    description: "Broadcast the transport type on BT reset as part of ACL_DISCONNECTED."
-    bug: "433990971"
+    description: "Distinguish app-requested connection params from PPCP, and other behavior changes (go/fix-ppcp-behavior)"
+    bug: "491294532"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
-}
-
-flag {
-    name: "update_cod_if_missing"
-    namespace: "bluetooth"
-    description: "Update CoD on incoming connection for the bonded devices if it is missing."
-    bug: "435690191"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "l2c_not_cancel_timeout"
-    namespace: "bluetooth"
-    description: "Do not cancel timeout alarm if l2cap is connecting"
-    bug: "436736160"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "reset_service_change_ind_counter"
-    namespace: "bluetooth"
-    description: "Resets service change indication counter when fail to start discover"
-    bug: "438099407"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "ensure_acl_connection_is_removed_from_pending_list"
-    namespace: "bluetooth"
-    description: "Fix that ACL connection is left in the pending list when advertiser is removed right before connection is established."
-    bug: "441211531"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "l2cap_improve_segmented_sdu"
-    namespace: "bluetooth"
-    description: "Improve sending segmented sdu"
-    bug: "437272601"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "delay_jv_pm_idle"
-    namespace: "bluetooth"
-    description: "Delay the transition to the idle state for JV PM connection"
-    bug: "440618134"
 }

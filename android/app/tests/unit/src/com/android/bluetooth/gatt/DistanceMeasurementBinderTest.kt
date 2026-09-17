@@ -16,7 +16,6 @@
 
 package com.android.bluetooth.gatt
 
-import android.bluetooth.BluetoothDevice
 import android.bluetooth.le.DistanceMeasurementMethod
 import android.bluetooth.le.DistanceMeasurementParams
 import android.bluetooth.le.IDistanceMeasurementCallback
@@ -24,9 +23,9 @@ import android.content.AttributionSource
 import android.os.ParcelUuid
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.bluetooth.TestUtils.getTestDevice
 import com.android.bluetooth.btservice.AdapterService
 import com.android.bluetooth.gatt.DistanceMeasurementManager.GetResultTask
+import com.android.bluetooth.getTestDevice
 import com.android.tests.bluetooth.MockitoRule
 import java.util.UUID
 import org.junit.Before
@@ -34,11 +33,11 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
-import org.mockito.Mockito.any
-import org.mockito.Mockito.doAnswer
-import org.mockito.Mockito.doReturn
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.verify
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 /** Test cases for [DistanceMeasurementBinder]. */
@@ -48,15 +47,19 @@ class DistanceMeasurementBinderTest {
 
     @get:Rule val mockitoRule = MockitoRule()
 
-    @Mock private lateinit var attributionSource: AttributionSource
-    @Mock private lateinit var distanceMeasurementManager: DistanceMeasurementManager
+    @Mock private lateinit var source: AttributionSource
     @Mock private lateinit var adapterService: AdapterService
+    @Mock private lateinit var gattService: GattService
+    @Mock private lateinit var distanceMeasurementManager: DistanceMeasurementManager
+
+    private val device = getTestDevice(3)
 
     private lateinit var binder: DistanceMeasurementBinder
 
     @Before
     fun setUp() {
-        binder = DistanceMeasurementBinder(adapterService, distanceMeasurementManager)
+        doReturn(true).whenever(gattService).isAvailable
+        binder = DistanceMeasurementBinder(adapterService, gattService, distanceMeasurementManager)
         doReturn(emptyList<DistanceMeasurementMethod>())
             .whenever(distanceMeasurementManager)
             .getSupportedDistanceMeasurementMethods()
@@ -76,31 +79,29 @@ class DistanceMeasurementBinderTest {
 
     @Test
     fun getSupportedDistanceMeasurementMethods() {
-        binder.getSupportedDistanceMeasurementMethods(attributionSource)
+        binder.getSupportedDistanceMeasurementMethods(source)
         verify(distanceMeasurementManager).supportedDistanceMeasurementMethods
     }
 
     @Test
     fun startDistanceMeasurement() {
         val uuid = UUID.randomUUID()
-        val device: BluetoothDevice = getTestDevice(3)
         val params =
             DistanceMeasurementParams.Builder(device)
                 .setDurationSeconds(123)
                 .setFrequency(DistanceMeasurementParams.REPORT_FREQUENCY_LOW)
                 .build()
-        val callback = mock(IDistanceMeasurementCallback::class.java)
-        binder.startDistanceMeasurement(ParcelUuid(uuid), params, callback, attributionSource)
+        val callback = mock<IDistanceMeasurementCallback>()
+        binder.startDistanceMeasurement(ParcelUuid(uuid), params, callback, source)
         verify(distanceMeasurementManager)
-            .startDistanceMeasurement(uuid, attributionSource.uid, params, callback)
+            .startDistanceMeasurement(uuid, source.uid, params, callback)
     }
 
     @Test
     fun stopDistanceMeasurement() {
         val uuid = UUID.randomUUID()
-        val device: BluetoothDevice = getTestDevice(3)
         val method = DistanceMeasurementMethod.DISTANCE_MEASUREMENT_METHOD_RSSI
-        binder.stopDistanceMeasurement(ParcelUuid(uuid), device, method, attributionSource)
+        binder.stopDistanceMeasurement(ParcelUuid(uuid), device, method, source)
         verify(distanceMeasurementManager).stopDistanceMeasurement(uuid, device, method, false)
     }
 }

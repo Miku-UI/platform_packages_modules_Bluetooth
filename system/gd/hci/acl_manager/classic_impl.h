@@ -16,9 +16,11 @@
 
 #pragma once
 
+#include <android_bluetooth_sysprop.h>
 #include <bluetooth/log.h>
 #include <bluetooth/metrics/bluetooth_event.h>
 #include <bluetooth/metrics/os_metrics.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <memory>
 
@@ -61,7 +63,6 @@ struct classic_impl {
         remote_name_request_module_(remote_name_request_module) {
     handler_ = handler;
     connections.crash_on_unknown_handle_ = crash_on_unknown_handle;
-    should_accept_connection_ = common::Bind([](Address, ClassOfDevice) { return true; });
     acl_connection_interface_ = hci_layer_.GetAclConnectionInterface(
             handler_->BindOn(this, &classic_impl::on_classic_event),
             handler_->BindOn(this, &classic_impl::on_classic_disconnect),
@@ -269,11 +270,8 @@ public:
     if (is_classic_link_already_connected(address)) {
       auto reason = RejectConnectionReason::UNACCEPTABLE_BD_ADDR;
       this->reject_connection(RejectConnectionRequestBuilder::Create(address, reason));
-    } else if (should_accept_connection_.Run(address, cod)) {
-      this->accept_connection(address);
     } else {
-      auto reason = RejectConnectionReason::LIMITED_RESOURCES;  // TODO: determine reason
-      this->reject_connection(RejectConnectionRequestBuilder::Create(address, reason));
+      this->accept_connection(address);
     }
   }
 
@@ -283,12 +281,16 @@ public:
 
   size_t get_connection_count() { return connections.size(); }
 
-  void create_connection(Address address) {
+  void create_connection(Address address, uint16_t clk_offset) {
     // TODO: Configure default connection parameters?
     uint16_t packet_type = 0x4408 /* DM 1,3,5 */ | 0x8810 /*DH 1,3,5 */;
     PageScanRepetitionMode page_scan_repetition_mode = PageScanRepetitionMode::R1;
     uint16_t clock_offset = 0;
     ClockOffsetValid clock_offset_valid = ClockOffsetValid::INVALID;
+    if (com_android_bluetooth_flags_use_cached_clock_offset() && clk_offset != 0) {
+      clock_offset = clk_offset & 0x7FFF;
+      clock_offset_valid = ClockOffsetValid::VALID;
+    }
     CreateConnectionRoleSwitch allow_role_switch = CreateConnectionRoleSwitch::ALLOW_ROLE_SWITCH;
     log::assert_that(client_callbacks_ != nullptr, "assert failed: client_callbacks_ != nullptr");
     std::unique_ptr<CreateConnectionBuilder> packet =
@@ -360,19 +362,17 @@ public:
                     queue_down_end, handler_,
                     connection->GetEventCallbacks(
                             [this](uint16_t handle) { this->connections.invalidate(handle); }));
-    connections.execute(address, [=, this](ConnectionManagementCallbacks* callbacks) {
-      if (delayed_role_change_ == nullptr) {
-        callbacks->OnRoleChange(hci::ErrorCode::SUCCESS, current_role);
-      } else if (delayed_role_change_->GetBdAddr() == address) {
-        log::info("Sending delayed role change for {}", delayed_role_change_->GetBdAddr());
-        callbacks->OnRoleChange(delayed_role_change_->GetStatus(),
-                                delayed_role_change_->GetNewRole());
-        delayed_role_change_.reset();
-      }
-    });
+
+    if (delayed_role_change_ != nullptr && delayed_role_change_->IsValid() &&
+        delayed_role_change_->GetBdAddr() == address) {
+      current_role = delayed_role_change_->GetNewRole();
+      log::verbose("{} Role had changed to {} prior to connection complete", address, current_role);
+      delayed_role_change_.reset();
+    }
+
     client_handler_->Post(common::BindOnce(&ConnectionCallbacks::OnConnectSuccess,
                                            common::Unretained(client_callbacks_),
-                                           std::move(connection)));
+                                           std::move(connection), std::move(current_role)));
   }
 
   void on_connection_complete(EventView packet) {
@@ -393,9 +393,11 @@ public:
                         ErrorCode status, std::string valid_incoming_addresses) {
                       log::warn("No matching connection to {} ({})", address,
                                 ErrorCodeText(status));
-                      log::assert_that(status != ErrorCode::SUCCESS,
-                                       "No prior connection request for {} expecting:{}", address,
-                                       valid_incoming_addresses.c_str());
+                      if (status == ErrorCode::SUCCESS) {
+                        /* This state is considered unexpected in this fallback path.*/
+                        log::error("No prior connection request for {} expecting:{}", address,
+                                   valid_incoming_addresses.c_str());
+                      }
                       remote_name_request_module->ReportRemoteNameRequestCancellation(address);
                     },
                     base::Unretained(&remote_name_request_module_), address, status));
@@ -719,16 +721,30 @@ public:
             handler_->BindOnce(check_complete<WriteDefaultLinkPolicySettingsCompleteView>));
   }
 
-  void accept_connection(Address address) {
-    auto role = AcceptConnectionRequestRole::BECOME_CENTRAL;  // We prefer to be central
+  AcceptConnectionRequestRole get_preferred_role() {
+    auto sysprop_value = android::sysprop::bluetooth::Core::getClassicPreferredRole().value_or(
+            android::sysprop::bluetooth::Core::getClassicPreferredRole_values::CENTRAL);
 
-    // Some devices would not respond when local  accept connection as central.
+    if (sysprop_value ==
+        android::sysprop::bluetooth::Core::getClassicPreferredRole_values::PERIPHERAL) {
+      return AcceptConnectionRequestRole::REMAIN_PERIPHERAL;
+    } else {
+      return AcceptConnectionRequestRole::BECOME_CENTRAL;
+    }
+  }
+
+  void accept_connection(Address address) {
+    auto role = get_preferred_role();
+
+    // Some devices would not respond when local accept connection as central.
     RawAddress raw_address = ToRawAddress(address);
-    if (interop_match_addr(INTEROP_REMAIN_PERIPHERAL_ON_ACCEPT_CONNECTION_REQUEST,
-                             &raw_address)) {
+    if (role == AcceptConnectionRequestRole::BECOME_CENTRAL &&
+        (interop_match_addr(INTEROP_REMAIN_PERIPHERAL_ON_ACCEPT_CONNECTION_REQUEST, raw_address) ||
+         interop_match_addr(INTEROP_DISABLE_ROLE_SWITCH, raw_address))) {
       log::info("IOP workaround for {}, accept connection as peripheral", raw_address);
       role = AcceptConnectionRequestRole::REMAIN_PERIPHERAL;
     }
+
     acl_connection_interface_->EnqueueCommand(
             AcceptConnectionRequestBuilder::Create(address, role),
             handler_->BindOnceOn(this, &classic_impl::on_accept_connection_status, address));
@@ -766,7 +782,6 @@ public:
   ConnectionCallbacks* client_callbacks_ = nullptr;
   os::Handler* client_handler_ = nullptr;
 
-  common::Callback<bool(Address, ClassOfDevice)> should_accept_connection_;
   std::unique_ptr<RoleChangeView> delayed_role_change_ = nullptr;
 };
 

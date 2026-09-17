@@ -28,6 +28,7 @@
 #include <bluetooth/metrics/os_metrics.h>
 #include <bluetooth/types/address.h>
 #include <bluetooth/types/bt_transport.h>
+#include <com_android_bluetooth_flags.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 
 #include <cstddef>
@@ -39,12 +40,12 @@
 #include "hidd_api.h"
 #include "hiddefs.h"
 #include "internal_include/bt_target.h"
-#include "l2cap_types.h"
 #include "osi/include/allocator.h"
 #include "stack/hid/hidd_int.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/l2cap_interface.h"
+#include "stack/include/l2cap_types.h"
 #include "stack/include/l2cdefs.h"
 
 using namespace bluetooth;
@@ -771,8 +772,17 @@ tHID_STATUS hidd_conn_send_data(uint8_t channel, uint8_t msg_type, uint8_t param
     p_buf->len += len;
   }
 
-  // check if connected
-  if (hd_cb.device.state != HIDD_DEV_CONNECTED) {
+  // send data only when connected
+  bool send_data = hd_cb.device.state == HIDD_DEV_CONNECTED;
+  if (com_android_bluetooth_flags_hidd_handle_set_protocol_before_interrupt_connected()) {
+    if (msg_type == HID_TRANS_HANDSHAKE &&
+        hd_cb.device.conn.conn_state == HID_CONN_STATE_CONNECTING_INTR) {
+      // Host might send SET_PROTOCOL before establishing the INTR channel. We reply in this case.
+      send_data = true;
+    }
+  }
+
+  if (!send_data) {
     // for DATA on intr we hold transfer and try to reconnect
     if (msg_type == HID_TRANS_DATA && cid == p_hcon->intr_cid) {
       // drop previous data, we do not queue it for now

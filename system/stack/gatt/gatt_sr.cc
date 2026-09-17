@@ -56,7 +56,8 @@ using namespace bluetooth;
  * Description      This function enqueue the request from client which needs a
  *                  application response, and update the transaction ID.
  *
- * Returns          void
+ * Returns          uint32_t value representing our internal transaction ID, or
+ *                  0 / GATT_TRANS_ID_INVALID on error
  *
  ******************************************************************************/
 uint32_t gatt_sr_enqueue_cmd(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint16_t handle) {
@@ -68,27 +69,30 @@ uint32_t gatt_sr_enqueue_cmd(tGATT_TCB& tcb, uint16_t cid, uint8_t op_code, uint
     EattChannel* channel = EattExtension::GetInstance()->FindEattChannelByCid(tcb.peer_bda, cid);
     if (channel == nullptr) {
       log::warn("{}, cid 0x{:02x} already disconnected", tcb.peer_bda, cid);
-      return 0;
+      return GATT_TRANS_ID_INVALID;
     }
 
     p_cmd = &channel->server_outstanding_cmd_;
   }
 
-  uint32_t trans_id = 0;
+  uint32_t trans_id = GATT_TRANS_ID_INVALID;
 
   p_cmd->cid = cid;
 
   if ((p_cmd->op_code == 0) || (op_code == GATT_HANDLE_VALUE_CONF)) { /* no pending request */
-    if (op_code == GATT_CMD_WRITE || op_code == GATT_SIGN_CMD_WRITE || op_code == GATT_REQ_MTU ||
-        op_code == GATT_HANDLE_VALUE_CONF) {
-      trans_id = ++tcb.trans_id;
-    } else {
-      p_cmd->trans_id = ++tcb.trans_id;
+    // No matter the opcode, grab a new transaction ID and make sure it rolls over properly for the
+    // next time we need to grab one. Note that 0x0 is an invalid transaction ID and shouldn't be
+    // used. This is why the pre-increment is used, as the first transaction ID assigned is 0 and
+    // ++tcb.trans_id always avoids that first 0x0 value.
+    trans_id = ++tcb.trans_id;
+    tcb.trans_id %= GATT_TRANS_ID_MAX;
+
+    if (!(op_code == GATT_CMD_WRITE || op_code == GATT_SIGN_CMD_WRITE || op_code == GATT_REQ_MTU ||
+          op_code == GATT_HANDLE_VALUE_CONF)) {
+      p_cmd->trans_id = trans_id;
       p_cmd->op_code = op_code;
       p_cmd->handle = handle;
       p_cmd->status = GATT_NOT_FOUND;
-      tcb.trans_id %= GATT_TRANS_ID_MAX;
-      trans_id = p_cmd->trans_id;
     }
   }
 
@@ -411,9 +415,13 @@ static void gatt_process_exec_write_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op
     while (prep_cnt_it != tcb.prep_cnt_map.end()) {
       gatt_if = prep_cnt_it->first;
       conn_id = gatt_create_conn_id(tcb.tcb_idx, gatt_if);
-      tGATTS_DATA gatts_data;
-      gatts_data.exec_write = flag;
-      gatt_sr_send_req_callback(conn_id, trans_id, GATTS_REQ_TYPE_WRITE_EXEC, &gatts_data);
+
+      tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
+      if (!p_reg || !p_reg->app_cb.p_req_cb) {
+        log::warn("Call back not found for application conn_id={}", conn_id);
+      } else {
+        p_reg->app_cb.p_req_cb->exec_write_cb(conn_id, trans_id, tcb.peer_bda, flag);
+      }
       prep_cnt_it = tcb.prep_cnt_map.erase(prep_cnt_it);
     }
   } else { /* nothing needs to be executed , send response now */
@@ -508,7 +516,7 @@ static void gatt_process_read_multi_req(tGATT_TCB& tcb, uint16_t cid, uint8_t op
 
   if (err == GATT_SUCCESS) {
     trans_id = gatt_sr_enqueue_cmd(tcb, cid, op_code, multi_req->handles[0]);
-    if (trans_id != 0) {
+    if (trans_id != GATT_TRANS_ID_INVALID) {
       tGATT_SR_CMD* sr_cmd_p = gatt_sr_get_cmd_by_cid(tcb, cid);
       if (sr_cmd_p == nullptr) {
         log::error("Could not send response on CID were request arrived. {}, 0x{:02x}",
@@ -865,7 +873,7 @@ static void gatts_process_find_info(tGATT_TCB& tcb, uint16_t cid, uint8_t op_cod
  *
  ******************************************************************************/
 static void gatts_process_mtu_req(tGATT_TCB& tcb, uint16_t cid, uint16_t len, uint8_t* p_data) {
-  /* BR/EDR conenction, send error response */
+  /* BR/EDR connection, send error response */
   if (cid != L2CAP_ATT_CID) {
     gatt_send_error_rsp(tcb, cid, GATT_REQ_NOT_SUPPORTED, GATT_REQ_MTU, 0, false);
     return;
@@ -907,14 +915,11 @@ static void gatts_process_mtu_req(tGATT_TCB& tcb, uint16_t cid, uint16_t len, ui
 
   bluetooth::shim::arbiter::GetArbiter().OnIncomingMtuReq(tcb.tcb_idx, tcb.payload_size);
 
-  tGATTS_DATA gatts_data;
-  gatts_data.mtu = tcb.payload_size;
-  /* Notify all registered application with new MTU size. Use a transaction ID */
-  /* of 0, as no response is allowed from applications */
+  /* Notify all registered application with new MTU size. */
   for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
-    if (p_reg->in_use) {
+    if (p_reg->in_use && p_reg->app_cb.p_req_cb) {
       tCONN_ID conn_id = gatt_create_conn_id(tcb.tcb_idx, p_reg->gatt_if);
-      gatt_sr_send_req_callback(conn_id, 0, GATTS_REQ_TYPE_MTU, &gatts_data);
+      p_reg->app_cb.p_req_cb->mtu_changed_cb(conn_id, tcb.peer_bda, tcb.payload_size);
     }
   }
 }
@@ -1025,14 +1030,15 @@ static void gatts_process_read_by_type_req(tGATT_TCB& tcb, uint16_t cid, uint8_t
 static void gatts_process_write_req(tGATT_TCB& tcb, uint16_t cid, tGATT_SRV_LIST_ELEM& el,
                                     uint16_t handle, uint8_t op_code, uint16_t len, uint8_t* p_data,
                                     bt_gatt_db_attribute_type_t gatt_type) {
-  tGATTS_DATA sr_data;
   uint32_t trans_id;
   tGATT_STATUS status;
   tGATT_SEC_FLAG sec_flag;
   uint8_t key_size, *p = p_data;
   tCONN_ID conn_id;
-
-  memset(&sr_data, 0, sizeof(tGATTS_DATA));
+  bool is_prep = false;
+  uint16_t offset = 0;
+  bool need_rsp = false;
+  uint8_t value[GATT_MAX_ATTR_LEN]{};
 
   switch (op_code) {
     case GATT_REQ_PREPARE_WRITE:
@@ -1041,8 +1047,8 @@ static void gatts_process_write_req(tGATT_TCB& tcb, uint16_t cid, tGATT_SRV_LIST
         gatt_send_error_rsp(tcb, cid, GATT_INVALID_PDU, op_code, handle, false);
         return;
       }
-      sr_data.write_req.is_prep = true;
-      STREAM_TO_UINT16(sr_data.write_req.offset, p);
+      is_prep = true;
+      STREAM_TO_UINT16(offset, p);
       len -= 2;
       FALLTHROUGH_INTENDED; /* FALLTHROUGH */
     case GATT_SIGN_CMD_WRITE:
@@ -1054,34 +1060,45 @@ static void gatts_process_write_req(tGATT_TCB& tcb, uint16_t cid, tGATT_SRV_LIST
     case GATT_CMD_WRITE:
     case GATT_REQ_WRITE:
       if (op_code == GATT_REQ_WRITE || op_code == GATT_REQ_PREPARE_WRITE) {
-        sr_data.write_req.need_rsp = true;
+        need_rsp = true;
       }
-      sr_data.write_req.handle = handle;
       if (len > GATT_MAX_ATTR_LEN) {
         len = GATT_MAX_ATTR_LEN;
       }
-      sr_data.write_req.len = len;
       if (len != 0 && p != nullptr) {
-        memcpy(sr_data.write_req.value, p, len);
+        memcpy(value, p, len);
       }
       break;
   }
 
   gatt_sr_get_sec_info(tcb.peer_bda, tcb.transport, &sec_flag, &key_size);
 
-  status = gatts_write_attr_perm_check(el.p_db, op_code, handle, sr_data.write_req.offset, p, len,
-                                       sec_flag, key_size);
+  status =
+          gatts_write_attr_perm_check(el.p_db, op_code, handle, offset, p, len, sec_flag, key_size);
 
   if (status == GATT_SUCCESS) {
     trans_id = gatt_sr_enqueue_cmd(tcb, cid, op_code, handle);
-    if (trans_id != 0) {
+    if (trans_id != GATT_TRANS_ID_INVALID) {
       conn_id = gatt_create_conn_id(tcb.tcb_idx, el.gatt_if);
 
-      uint8_t opcode = 0;
       if (gatt_type == BTGATT_DB_DESCRIPTOR) {
-        opcode = GATTS_REQ_TYPE_WRITE_DESCRIPTOR;
+        tGATT_REG* p_reg = gatt_get_regcb(el.gatt_if);
+        if (!p_reg || !p_reg->app_cb.p_req_cb) {
+          log::warn("Call back not found for application conn_id={}", conn_id);
+        } else {
+          p_reg->app_cb.p_req_cb->write_descriptor_cb(conn_id, trans_id, tcb.peer_bda, handle,
+                                                      offset, need_rsp, is_prep, value, len);
+        }
+        status = GATT_PENDING;
       } else if (gatt_type == BTGATT_DB_CHARACTERISTIC) {
-        opcode = GATTS_REQ_TYPE_WRITE_CHARACTERISTIC;
+        tGATT_REG* p_reg = gatt_get_regcb(el.gatt_if);
+        if (!p_reg || !p_reg->app_cb.p_req_cb) {
+          log::warn("Call back not found for application conn_id={}", conn_id);
+        } else {
+          p_reg->app_cb.p_req_cb->write_characteristic_cb(conn_id, trans_id, tcb.peer_bda, handle,
+                                                          offset, need_rsp, is_prep, value, len);
+        }
+        status = GATT_PENDING;
       } else {
         log::error(
                 "Attempt to write attribute that's not tied with "
@@ -1089,10 +1106,6 @@ static void gatts_process_write_req(tGATT_TCB& tcb, uint16_t cid, tGATT_SRV_LIST
         status = GATT_ERROR;
       }
 
-      if (opcode) {
-        gatt_sr_send_req_callback(conn_id, trans_id, opcode, &sr_data);
-        status = GATT_PENDING;
-      }
     } else {
       log::error("max pending command, send error");
       status = GATT_BUSY; /* max pending command, application error */
@@ -1260,6 +1273,7 @@ void gatts_proc_srv_chg_ind_ack(tGATT_TCB tcb) {
   if (p_buf != NULL) {
     log::verbose("NV update set srv chg = false");
     p_buf->srv_changed = false;
+    p_buf->start_handle = 0xFFFF;
     memcpy(&req.srv_chg, p_buf, sizeof(tGATTS_SRV_CHG));
     if (gatt_cb.cb_info.p_srv_chg_callback) {
       (*gatt_cb.cb_info.p_srv_chg_callback)(GATTS_SRV_CHG_CMD_UPDATE_CLIENT, &req, NULL);
@@ -1339,22 +1353,24 @@ static void gatts_process_value_conf(tGATT_TCB& tcb, uint16_t cid, uint8_t op_co
 
   gatt_stop_conf_timer(tcb, cid);
 
-  bool continue_processing = gatts_proc_ind_ack(tcb, handle);
+  if (!gatts_proc_ind_ack(tcb, handle)) {
+    return;
+  }
 
-  if (continue_processing) {
-    tGATTS_DATA gatts_data;
-    gatts_data.handle = handle;
+  auto srv_list_info = gatt_cb.srv_list_info;
+  if (srv_list_info == nullptr) {
+    return;
+  }
 
-    auto srv_list_info = gatt_cb.srv_list_info;
-    if (srv_list_info == nullptr) {
-      return;
-    }
-
-    for (auto& el : *srv_list_info) {
-      if (el.s_hdl <= handle && el.e_hdl >= handle) {
-        uint32_t trans_id = gatt_sr_enqueue_cmd(tcb, cid, op_code, handle);
-        tCONN_ID conn_id = gatt_create_conn_id(tcb.tcb_idx, el.gatt_if);
-        gatt_sr_send_req_callback(conn_id, trans_id, GATTS_REQ_TYPE_CONF, &gatts_data);
+  for (auto& el : *srv_list_info) {
+    if (el.s_hdl <= handle && el.e_hdl >= handle) {
+      uint32_t trans_id = gatt_sr_enqueue_cmd(tcb, cid, op_code, handle);
+      tCONN_ID conn_id = gatt_create_conn_id(tcb.tcb_idx, el.gatt_if);
+      tGATT_REG* p_reg = gatt_get_regcb(el.gatt_if);
+      if (!p_reg || !p_reg->app_cb.p_req_cb) {
+        log::warn("Call back not found for application conn_id={}", conn_id);
+      } else {
+        p_reg->app_cb.p_req_cb->conf_cb(conn_id, trans_id, tcb.peer_bda);
       }
     }
   }

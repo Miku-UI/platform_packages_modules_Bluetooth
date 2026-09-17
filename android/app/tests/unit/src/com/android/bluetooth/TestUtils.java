@@ -20,8 +20,11 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 
 import android.annotation.IntRange;
@@ -44,17 +47,17 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.test.platform.app.InstrumentationRegistry;
 
-import com.android.bluetooth.avrcpcontroller.BluetoothMediaBrowserService;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.media_audio.sink.BluetoothMediaBrowserService;
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 
-import java.time.Duration;
-import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.IntStream;
 
 /** A set of methods useful in Bluetooth instrumentation tests */
 public class TestUtils {
-    private static final String TAG = Utils.BT_PREFIX + TestUtils.class.getSimpleName();
+    private static final String TAG = Util.BT_PREFIX + TestUtils.class.getSimpleName();
 
     private static Context getContext() {
         return InstrumentationRegistry.getInstrumentation().getContext();
@@ -98,7 +101,7 @@ public class TestUtils {
             AdapterService adapterService, BluetoothDevice... devices) {
         for (BluetoothDevice device : devices) {
             final String address = device.getAddress();
-            doReturn(device).when(adapterService).getRemoteDevice(address);
+            lenient().doReturn(device).when(adapterService).getRemoteDevice(address);
         }
     }
 
@@ -109,6 +112,22 @@ public class TestUtils {
     public static void mockSystemPropertyGet(String key, boolean value) {
         ExtendedMockito.doReturn(value)
                 .when(() -> SystemProperties.getBoolean(eq(key), anyBoolean()));
+    }
+
+    /**
+     * Make use of the ExtendedMockito framework to mock the return value of SystemProperty.get.
+     * This method require the test to use a {@link StaticMockitoRule}
+     */
+    public static void mockSystemPropertyGet(String key, String value) {
+        ExtendedMockito.doReturn(value).when(() -> SystemProperties.get(eq(key), anyString()));
+    }
+
+    /**
+     * Make use of the ExtendedMockito framework to mock the return value of SystemProperty.get.
+     * This method require the test to use a {@link StaticMockitoRule}
+     */
+    public static void mockSystemPropertyGet(String key, int value) {
+        ExtendedMockito.doReturn(value).when(() -> SystemProperties.getInt(eq(key), anyInt()));
     }
 
     /**
@@ -268,19 +287,30 @@ public class TestUtils {
      * @param what list of Messages.what that are expected to be run by the handler
      */
     public static void syncHandler(TestLooper looper, int... what) {
-        IntStream.of(what)
-                .forEach(
-                        w -> {
-                            Message msg = looper.nextMessage();
-                            assertWithMessage("Expecting [" + w + "] instead of null Msg")
-                                    .that(msg)
-                                    .isNotNull();
-                            assertWithMessage("Not the expected Message:\n" + msg)
-                                    .that(msg.what)
-                                    .isEqualTo(w);
-                            Log.d(TAG, "Processing message: " + msg);
-                            msg.getTarget().dispatchMessage(msg);
-                        });
+        IntStream.of(what).forEach(w -> syncHandlerInternal(looper, w));
+    }
+
+    private static void syncHandlerInternal(TestLooper looper, int what) {
+        Message msg = looper.nextMessage();
+        assertWithMessage("Expecting [" + what + "] instead of null Msg").that(msg).isNotNull();
+        if (msg.what != what) {
+            List<Message> msgList = new ArrayList<>();
+
+            Message nextMsg;
+            while ((nextMsg = looper.nextMessage()) != null) {
+                msgList.add(nextMsg);
+            }
+
+            String customError =
+                    "Not the expected message."
+                            + (" Expected what=[" + what + "] but got what=[" + msg.what + "].\n")
+                            + ("  -> Received Msg: " + msg + "\n")
+                            + ("  -> List of queued messages: " + msgList);
+
+            assertWithMessage(customError).that(msg.what).isEqualTo(what);
+        }
+        Log.d(TAG, "Processing message: " + msg);
+        msg.getTarget().dispatchMessage(msg);
     }
 
     /**
@@ -328,18 +358,5 @@ public class TestUtils {
         final Intent intent = new Intent(getContext(), BluetoothMediaBrowserService.class);
         intent.setAction(MediaBrowserService.SERVICE_INTERFACE);
         return intent;
-    }
-
-    public static final class FakeTimeProvider implements Utils.TimeProvider {
-        private Instant currentTime = Instant.EPOCH;
-
-        @Override
-        public long elapsedRealtime() {
-            return currentTime.toEpochMilli();
-        }
-
-        public void advanceTime(Duration amountToAdvance) {
-            currentTime = currentTime.plus(amountToAdvance);
-        }
     }
 }

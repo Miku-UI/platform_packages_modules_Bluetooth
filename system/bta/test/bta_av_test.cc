@@ -21,16 +21,16 @@
 #include "bta/av/bta_av_int.h"
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "btif/include/btif_av.h"
+#include "stack/mock/mock_stack_acl.h"
 #include "test/common/mock_functions.h"
 #include "test/mock/mock_osi_alarm.h"
-#include "test/mock/mock_stack_acl.h"
 
 using namespace std::chrono_literals;
 
 bool btif_av_both_enable(void) { return true; }
 
 namespace {
-const RawAddress kRawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+const RawAddress kRawAddress("11:22:33:44:55:66");
 }  // namespace
 
 struct alarm_t {

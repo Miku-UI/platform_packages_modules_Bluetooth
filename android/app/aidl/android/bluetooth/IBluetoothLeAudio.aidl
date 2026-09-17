@@ -29,11 +29,8 @@ import android.content.AttributionSource;
 
 import android.os.ParcelUuid;
 
-/**
- * APIs for Bluetooth LE Audio service
- *
- * @hide
- */
+/** Binder method for LeAudio interaction */
+@JavaPassthrough(annotation="@android.annotation.Hide")
 interface IBluetoothLeAudio {
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     boolean connect(in BluetoothDevice device, in AttributionSource attributionSource);
@@ -107,9 +104,9 @@ interface IBluetoothLeAudio {
 
     // Broadcaster API
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
-    void registerLeBroadcastCallback(in IBluetoothLeBroadcastCallback callback, in AttributionSource attributionSource);
+    oneway void registerLeBroadcastCallback(in IBluetoothLeBroadcastCallback callback, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
-    void unregisterLeBroadcastCallback(in IBluetoothLeBroadcastCallback callback, in AttributionSource attributionSource);
+    oneway void unregisterLeBroadcastCallback(in IBluetoothLeBroadcastCallback callback, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
     void startBroadcast(in BluetoothLeBroadcastSettings broadcastSettings, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")

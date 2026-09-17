@@ -24,11 +24,21 @@
 #include <memory>
 #include <unordered_map>
 
-#include "gatt_api.h"
 #include "le_audio_types.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/gatt_api.h"
 
 namespace bluetooth::le_audio {
+
+struct LeAudioMetricsCodecInfo {
+  uint8_t codec_format = 0;
+  uint16_t vendor_company_id = 0;
+  uint16_t vendor_codec_id = 0;
+  uint32_t sink_sampling_frequency_hz = 0;
+  uint32_t source_sampling_frequency_hz = 0;
+  bool is_dsa_active = false;
+  bool is_gmap_active = false;
+};
 
 namespace metrics {
 using ClockTimePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
@@ -147,7 +157,8 @@ public:
                                     ConnectionStatus status) = 0;
 
   virtual void AddStreamStartedEvent(
-          bluetooth::le_audio::types::LeAudioContextType context_type) = 0;
+          bluetooth::le_audio::types::LeAudioContextType context_type,
+          const LeAudioMetricsCodecInfo& info) = 0;
 
   virtual void AddStreamEndedEvent() = 0;
 
@@ -192,7 +203,8 @@ public:
    * @param group_id Group ID of the associated stream.
    */
   void OnStreamStarted(int32_t group_id,
-                       bluetooth::le_audio::types::LeAudioContextType context_type);
+                       bluetooth::le_audio::types::LeAudioContextType context_type,
+                       const LeAudioMetricsCodecInfo& info);
 
   /**
    * When there is a change in LE Audio stream started

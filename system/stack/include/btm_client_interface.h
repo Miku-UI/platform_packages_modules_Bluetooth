@@ -29,6 +29,7 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_api_types.h"
 #include "stack/include/btm_ble_api_types.h"
+#include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/security_client_callbacks.h"
 
@@ -48,13 +49,10 @@ struct btm_client_interface_t {
   // Acl peer and lifecycle
   struct {
     [[nodiscard]] bool (*BTM_IsAclConnectionUp)(const RawAddress& bd_addr, tBT_TRANSPORT transport);
-    [[nodiscard]] bool (*BTM_ReadConnectedTransportAddress)(RawAddress* bd_addr,
-                                                            tBT_TRANSPORT transport);
     [[nodiscard]] std::pair<RawAddress, RawAddress> (*BTM_GetConnectedTransportAddress)
                                                               (RawAddress bd_addr);
     [[nodiscard]] uint8_t* (*BTM_ReadRemoteFeatures)(const RawAddress&);
-    void (*BTM_ReadDevInfo)(const RawAddress& bd_addr, tBT_DEVICE_TYPE* p_dev_type,
-                            tBLE_ADDR_TYPE* p_addr_type);
+    DevInfo (*BTM_ReadDevInfo)(const RawAddress& bd_addr);
     [[nodiscard]] uint16_t (*BTM_GetMaxPacketSize)(const RawAddress& bd_addr);
     [[nodiscard]] bool (*BTM_ReadRemoteVersion)(const RawAddress& addr, uint8_t* lmp_version,
                                                 uint16_t* manufacturer, uint16_t* lmp_sub_version);
@@ -79,7 +77,6 @@ struct btm_client_interface_t {
     [[nodiscard]] tBTM_STATUS (*BTM_SwitchRoleToCentral)(const RawAddress& remote_bd_addr);
     void (*BTM_block_role_switch_for)(const RawAddress& peer_addr);
     void (*BTM_block_sniff_mode_for)(const RawAddress& peer_addr);
-    void (*BTM_default_unblock_role_switch)();
     void (*BTM_unblock_role_switch_for)(const RawAddress& peer_addr);
     void (*BTM_unblock_sniff_mode_for)(const RawAddress& peer_addr);
     void (*BTM_WritePageTimeout)(uint16_t timeout);
@@ -88,21 +85,18 @@ struct btm_client_interface_t {
   struct {
     [[nodiscard]] tBTM_STATUS (*BTM_GetLinkSuperTout)(const RawAddress& bd_addr,
                                                       uint16_t* p_timeout);
-    [[nodiscard]] tBTM_STATUS (*BTM_ReadRSSI)(const RawAddress& bd_addr, tBTM_CMPL_CB* p_cb);
+    [[nodiscard]] tBTM_STATUS (*BTM_ReadRSSI)(const RawAddress& bd_addr, tBTM_READ_RSSI_CB* p_cb);
   } link_controller;
 
-  SecurityClientInterface security;
   struct {
     [[nodiscard]] tBTM_STATUS (*BTM_BleGetEnergyInfo)(tBTM_BLE_ENERGY_INFO_CBACK* callback);
     [[nodiscard]] tBTM_STATUS (*BTM_BleObserve)(bool start, uint8_t duration,
                                                 tBTM_INQ_RESULTS_CB* p_results_cb,
-                                                tBTM_CMPL_CB* p_cmpl_cb);
+                                                tBTM_INQUIRY_CMPL_CB* p_cmpl_cb);
     [[nodiscard]] tBTM_STATUS (*BTM_SetBleDataLength)(const RawAddress& bd_addr,
                                                       uint16_t tx_pdu_length,
                                                       bool is_privileged_client);
     void (*BTM_BleReadControllerFeatures)(tBTM_BLE_CTRL_FEATURES_CBACK* p_vsc_cback);
-    void (*BTM_BleSetPhy)(const RawAddress& bd_addr, uint8_t tx_phys, uint8_t rx_phys,
-                          uint16_t phy_options);
     void (*BTM_BleSetPrefConnParams)(const RawAddress& bd_addr, uint16_t min_conn_int,
                                      uint16_t max_conn_int, uint16_t peripheral_latency,
                                      uint16_t supervision_tout);
@@ -114,7 +108,8 @@ struct btm_client_interface_t {
   struct {
     [[nodiscard]] tBTM_STATUS (*BTM_CreateSco)(const RawAddress* bd_addr, bool is_orig,
                                                uint16_t pkt_types, uint16_t* p_sco_inx,
-                                               tBTM_SCO_CB* p_conn_cb, tBTM_SCO_CB* p_disc_cb);
+                                               tBTM_SCO_CB* p_conn_cb,
+                                               tBTM_SCO_WITH_REASON_CB* p_disc_cb);
     [[nodiscard]] tBTM_STATUS (*BTM_RegForEScoEvts)(uint16_t sco_inx,
                                                     tBTM_ESCO_CBACK* p_esco_cback);
     [[nodiscard]] tBTM_STATUS (*BTM_RemoveSco)(uint16_t sco_inx);

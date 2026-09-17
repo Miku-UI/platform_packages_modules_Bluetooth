@@ -12,12 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(missing_docs)]
+
 use crate::reader::{Read, Reader};
 use crate::writer::{Write, Writer};
+use crate::BluetoothAddress;
 
 /// HCI Event Packet, as defined in Part E - 5.4.4
 #[derive(Debug)]
 pub enum Event {
+    /// 7.7.3  Connection Complete
+    ConnectionComplete(ConnectionComplete),
     /// 7.7.5   Disconnection Complete
     DisconnectionComplete(DisconnectionComplete),
     /// 7.7.14  Command Complete
@@ -66,6 +71,7 @@ impl Event {
         Some(match code {
             CommandComplete::CODE => Self::CommandComplete(r.read()?),
             CommandStatus::CODE => Self::CommandStatus(r.read()?),
+            ConnectionComplete::CODE => Self::ConnectionComplete(r.read()?),
             DisconnectionComplete::CODE => Self::DisconnectionComplete(r.read()?),
             NumberOfCompletedPackets::CODE => Self::NumberOfCompletedPackets(r.read()?),
             LeCisEstablished::CODE => Self::LeCisEstablished(r.read()?),
@@ -114,17 +120,35 @@ pub trait EventToBytes: EventCode + Write {
         Self: Sized + EventCode + Write;
 }
 
-pub use defs::*;
-
-#[allow(missing_docs)]
-#[rustfmt::skip]
-mod defs {
-
-use super::*;
-use crate::derive::{Read, Write, EventToBytes};
 use crate::command::{OpCode, ReturnParameters};
+use crate::derive::{EventToBytes, Read, Write};
 use crate::status::Status;
 
+// 7.7.3 Connection Complete
+impl EventCode for ConnectionComplete {
+    const CODE: Code = Code(0x03, None);
+}
+
+#[derive(Debug, Read, Write, EventToBytes)]
+pub struct ConnectionComplete {
+    pub status: Status,
+    pub connection_handle: u16,
+    pub bd_addr: BluetoothAddress,
+    pub link_type: u8,
+    pub encryption_enabled: u8,
+}
+
+#[test]
+fn test_connection_complete() {
+    let dump = [0x03, 0x0B, 0x00, 0x60, 0x00, 0x55, 0x44, 0x33, 0x22, 0x11, 0x00, 0x01, 0x00];
+    let Ok(Event::ConnectionComplete(e)) = Event::from_bytes(&dump) else { panic!() };
+    assert_eq!(e.status, Status::Success);
+    assert_eq!(e.connection_handle, 0x60);
+    assert_eq!(e.bd_addr, BluetoothAddress::from_be_bytes([0x00, 0x11, 0x22, 0x33, 0x44, 0x55]));
+    assert_eq!(e.link_type, 0x01);
+    assert_eq!(e.encryption_enabled, 0x00);
+    assert_eq!(e.to_bytes(), &dump[..]);
+}
 
 // 7.7.5 Disconnection Complete
 
@@ -149,7 +173,6 @@ fn test_disconnection_complete() {
     assert_eq!(e.to_bytes(), &dump[..]);
 }
 
-
 // 7.7.14 Command Complete
 
 impl EventCode for CommandComplete {
@@ -169,7 +192,6 @@ fn test_command_complete() {
     assert_eq!(e.num_hci_command_packets, 1);
     assert_eq!(e.to_bytes(), &dump[..]);
 }
-
 
 // 7.7.15 Command Status
 
@@ -193,7 +215,6 @@ fn test_command_status() {
     assert_eq!(e.opcode, OpCode::from(0x01, 0x001));
     assert_eq!(e.to_bytes(), &dump[..]);
 }
-
 
 // 7.7.19 Number Of Completed Packets
 
@@ -224,7 +245,6 @@ fn test_number_of_completed_packets() {
     assert_eq!(e.to_bytes(), &dump[..]);
 }
 
-
 // 7.7.65.25 LE CIS Established
 
 impl EventCode for LeCisEstablished {
@@ -232,6 +252,7 @@ impl EventCode for LeCisEstablished {
 }
 
 #[derive(Debug, Read, Write, EventToBytes)]
+#[rustfmt::skip]
 pub struct LeCisEstablished {
     pub status: Status,
     pub connection_handle: u16,
@@ -254,8 +275,10 @@ pub struct LeCisEstablished {
 #[test]
 fn test_le_cis_established() {
     let dump = [
-        0x3e, 0x1d, 0x19, 0x00, 0x60, 0x00, 0x40, 0x2c, 0x00, 0x40, 0x2c, 0x00, 0xd0, 0x8b, 0x01, 0x60,
-        0x7a, 0x00, 0x02, 0x02, 0x06, 0x02, 0x00, 0x05, 0x01, 0x78, 0x00, 0x00, 0x00, 0x10, 0x00 ];
+        0x3e, 0x1d, 0x19, 0x00, 0x60, 0x00, 0x40, 0x2c, 0x00, 0x40, 0x2c, 0x00, 0xd0, 0x8b, 0x01,
+        0x60, 0x7a, 0x00, 0x02, 0x02, 0x06, 0x02, 0x00, 0x05, 0x01, 0x78, 0x00, 0x00, 0x00, 0x10,
+        0x00,
+    ];
     let Ok(Event::LeCisEstablished(e)) = Event::from_bytes(&dump) else { panic!() };
     assert_eq!(e.status, Status::Success);
     assert_eq!(e.connection_handle, 0x60);
@@ -276,7 +299,6 @@ fn test_le_cis_established() {
     assert_eq!(e.to_bytes(), &dump[..]);
 }
 
-
 // 7.7.65.27 LE Create BIG Complete
 
 impl EventCode for LeCreateBigComplete {
@@ -284,6 +306,7 @@ impl EventCode for LeCreateBigComplete {
 }
 
 #[derive(Debug, Read, Write, EventToBytes)]
+#[rustfmt::skip]
 pub struct LeCreateBigComplete {
     pub status: Status,
     pub big_handle: u8,
@@ -302,8 +325,8 @@ pub struct LeCreateBigComplete {
 #[test]
 fn test_le_create_big_complete() {
     let dump = [
-        0x3e, 0x17, 0x1b, 0x00, 0x00, 0x46, 0x50, 0x00, 0x66, 0x9e, 0x00, 0x02, 0x0f, 0x03, 0x00, 0x05,
-        0x78, 0x00, 0x18, 0x00, 0x02, 0x00, 0x04, 0x01, 0x04
+        0x3e, 0x17, 0x1b, 0x00, 0x00, 0x46, 0x50, 0x00, 0x66, 0x9e, 0x00, 0x02, 0x0f, 0x03, 0x00,
+        0x05, 0x78, 0x00, 0x18, 0x00, 0x02, 0x00, 0x04, 0x01, 0x04,
     ];
     let Ok(Event::LeCreateBigComplete(e)) = Event::from_bytes(&dump) else { panic!() };
     assert_eq!(e.status, Status::Success);
@@ -322,7 +345,6 @@ fn test_le_create_big_complete() {
     assert_eq!(e.bis_handles[1], 0x401);
     assert_eq!(e.to_bytes(), &dump[..]);
 }
-
 
 // 7.7.65.28 LE Terminate BIG Complete
 
@@ -344,7 +366,6 @@ fn test_le_terminate_big_complete() {
     assert_eq!(e.reason, 0x16);
     assert_eq!(e.to_bytes(), &dump[..]);
 }
-
 
 // Vendor-specific LE ISO Link Feedback
 
@@ -371,6 +392,4 @@ fn test_le_iso_link_feedback() {
     assert_eq!(e.in_status, 0);
     assert_eq!(e.tx_status, 0);
     assert_eq!(e.to_bytes(), &dump[..]);
-}
-
 }

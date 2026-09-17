@@ -25,6 +25,7 @@
 
 #include <base/functional/bind.h>
 #include <bluetooth/log.h>
+#include <bluetooth/metrics/bluetooth_event.h>
 #include <bluetooth/types/address.h>
 
 #include <cstdint>
@@ -42,18 +43,18 @@
 using namespace bluetooth;
 
 /* each scb has its own rfcomm callbacks */
-static void bta_ag_port_cback_1(uint32_t code, uint16_t port_handle);
-static void bta_ag_port_cback_2(uint32_t code, uint16_t port_handle);
-static void bta_ag_port_cback_3(uint32_t code, uint16_t port_handle);
-static void bta_ag_port_cback_4(uint32_t code, uint16_t port_handle);
-static void bta_ag_port_cback_5(uint32_t code, uint16_t port_handle);
-static void bta_ag_port_cback_6(uint32_t code, uint16_t port_handle);
-static void bta_ag_mgmt_cback_1(const tPORT_RESULT code, uint16_t port_handle);
-static void bta_ag_mgmt_cback_2(const tPORT_RESULT code, uint16_t port_handle);
-static void bta_ag_mgmt_cback_3(const tPORT_RESULT code, uint16_t port_handle);
-static void bta_ag_mgmt_cback_4(const tPORT_RESULT code, uint16_t port_handle);
-static void bta_ag_mgmt_cback_5(const tPORT_RESULT code, uint16_t port_handle);
-static void bta_ag_mgmt_cback_6(const tPORT_RESULT code, uint16_t port_handle);
+static void bta_ag_port_cback_1(uint32_t code, uint8_t port_handle);
+static void bta_ag_port_cback_2(uint32_t code, uint8_t port_handle);
+static void bta_ag_port_cback_3(uint32_t code, uint8_t port_handle);
+static void bta_ag_port_cback_4(uint32_t code, uint8_t port_handle);
+static void bta_ag_port_cback_5(uint32_t code, uint8_t port_handle);
+static void bta_ag_port_cback_6(uint32_t code, uint8_t port_handle);
+static void bta_ag_mgmt_cback_1(const tPORT_RESULT code, uint8_t port_handle);
+static void bta_ag_mgmt_cback_2(const tPORT_RESULT code, uint8_t port_handle);
+static void bta_ag_mgmt_cback_3(const tPORT_RESULT code, uint8_t port_handle);
+static void bta_ag_mgmt_cback_4(const tPORT_RESULT code, uint8_t port_handle);
+static void bta_ag_mgmt_cback_5(const tPORT_RESULT code, uint8_t port_handle);
+static void bta_ag_mgmt_cback_6(const tPORT_RESULT code, uint8_t port_handle);
 
 /* rfcomm callback function tables */
 typedef tPORT_CALLBACK* tBTA_AG_PORT_CBACK;
@@ -76,7 +77,7 @@ static const tBTA_AG_PORT_MGMT_CBACK bta_ag_mgmt_cback_tbl[] = {
  * Returns          void
  *
  ******************************************************************************/
-static void bta_ag_port_cback(uint32_t /* code */, uint16_t port_handle, uint16_t handle) {
+static void bta_ag_port_cback(uint32_t /* code */, uint8_t port_handle, uint16_t handle) {
   tBTA_AG_SCB* p_scb = bta_ag_scb_by_idx(handle);
   if (p_scb != nullptr) {
     /* ignore port events for port handles other than connected handle */
@@ -90,7 +91,7 @@ static void bta_ag_port_cback(uint32_t /* code */, uint16_t port_handle, uint16_
                  p_scb->peer_addr, bta_ag_state_str(p_scb->state));
     }
     do_in_main_thread(base::BindOnce(&bta_ag_sm_execute_by_handle, handle, BTA_AG_RFC_DATA_EVT,
-                                     tBTA_AG_DATA::kEmpty));
+                                     tBTA_AG_DATA::kEmpty, NO_FAILURE));
   }
 }
 
@@ -104,7 +105,7 @@ static void bta_ag_port_cback(uint32_t /* code */, uint16_t port_handle, uint16_
  * Returns          void
  *
  ******************************************************************************/
-static void bta_ag_mgmt_cback(const tPORT_RESULT code, uint16_t port_handle, uint16_t handle) {
+static void bta_ag_mgmt_cback(const tPORT_RESULT code, uint8_t port_handle, uint16_t handle) {
   tBTA_AG_SCB* p_scb = bta_ag_scb_by_idx(handle);
   log::verbose("code={}, port_handle={}, scb_handle={}, p_scb=0x{}", code, port_handle, handle,
                std::format_ptr(p_scb));
@@ -125,6 +126,8 @@ static void bta_ag_mgmt_cback(const tPORT_RESULT code, uint16_t port_handle, uin
       /* Outgoing connection */
       if (port_handle == p_scb->conn_handle) {
         found_handle = true;
+        bluetooth::metrics::LogRfcommNativeConnectionCompleteEvent(
+                p_scb->peer_addr, bluetooth::metrics::EventType::RFCOMM_HFP_AG_CONNECTION, true, 0);
       }
     } else {
       /* Incoming connection */
@@ -141,16 +144,21 @@ static void bta_ag_mgmt_cback(const tPORT_RESULT code, uint16_t port_handle, uin
       return;
     }
     event = BTA_AG_RFC_OPEN_EVT;
-  } else if (port_handle == p_scb->conn_handle) {
-    /* distinguish server close events */
-    event = BTA_AG_RFC_CLOSE_EVT;
   } else {
-    event = BTA_AG_RFC_SRV_CLOSE_EVT;
+    bluetooth::metrics::LogRfcommPortFailureEvent(
+            p_scb->peer_addr, bluetooth::metrics::EventType::RFCOMM_HFP_AG_CONNECTION_FAILURE, 0,
+            code);
+    if (port_handle == p_scb->conn_handle) {
+      /* distinguish server close events */
+      event = BTA_AG_RFC_CLOSE_EVT;
+    } else {
+      event = BTA_AG_RFC_SRV_CLOSE_EVT;
+    }
   }
 
   tBTA_AG_DATA data = {};
   data.rfc.port_handle = port_handle;
-  do_in_main_thread(base::BindOnce(&bta_ag_sm_execute_by_handle, handle, event, data));
+  do_in_main_thread(base::BindOnce(&bta_ag_sm_execute_by_handle, handle, event, data, NO_FAILURE));
 }
 
 /*******************************************************************************
@@ -165,40 +173,40 @@ static void bta_ag_mgmt_cback(const tPORT_RESULT code, uint16_t port_handle, uin
  * Returns          void
  *
  ******************************************************************************/
-static void bta_ag_mgmt_cback_1(const tPORT_RESULT code, uint16_t port_handle) {
+static void bta_ag_mgmt_cback_1(const tPORT_RESULT code, uint8_t port_handle) {
   bta_ag_mgmt_cback(code, port_handle, 1);
 }
-static void bta_ag_mgmt_cback_2(const tPORT_RESULT code, uint16_t port_handle) {
+static void bta_ag_mgmt_cback_2(const tPORT_RESULT code, uint8_t port_handle) {
   bta_ag_mgmt_cback(code, port_handle, 2);
 }
-static void bta_ag_mgmt_cback_3(const tPORT_RESULT code, uint16_t port_handle) {
+static void bta_ag_mgmt_cback_3(const tPORT_RESULT code, uint8_t port_handle) {
   bta_ag_mgmt_cback(code, port_handle, 3);
 }
-static void bta_ag_mgmt_cback_4(const tPORT_RESULT code, uint16_t port_handle) {
+static void bta_ag_mgmt_cback_4(const tPORT_RESULT code, uint8_t port_handle) {
   bta_ag_mgmt_cback(code, port_handle, 4);
 }
-static void bta_ag_mgmt_cback_5(const tPORT_RESULT code, uint16_t port_handle) {
+static void bta_ag_mgmt_cback_5(const tPORT_RESULT code, uint8_t port_handle) {
   bta_ag_mgmt_cback(code, port_handle, 5);
 }
-static void bta_ag_mgmt_cback_6(const tPORT_RESULT code, uint16_t port_handle) {
+static void bta_ag_mgmt_cback_6(const tPORT_RESULT code, uint8_t port_handle) {
   bta_ag_mgmt_cback(code, port_handle, 6);
 }
-static void bta_ag_port_cback_1(uint32_t code, uint16_t port_handle) {
+static void bta_ag_port_cback_1(uint32_t code, uint8_t port_handle) {
   bta_ag_port_cback(code, port_handle, 1);
 }
-static void bta_ag_port_cback_2(uint32_t code, uint16_t port_handle) {
+static void bta_ag_port_cback_2(uint32_t code, uint8_t port_handle) {
   bta_ag_port_cback(code, port_handle, 2);
 }
-static void bta_ag_port_cback_3(uint32_t code, uint16_t port_handle) {
+static void bta_ag_port_cback_3(uint32_t code, uint8_t port_handle) {
   bta_ag_port_cback(code, port_handle, 3);
 }
-static void bta_ag_port_cback_4(uint32_t code, uint16_t port_handle) {
+static void bta_ag_port_cback_4(uint32_t code, uint8_t port_handle) {
   bta_ag_port_cback(code, port_handle, 4);
 }
-static void bta_ag_port_cback_5(uint32_t code, uint16_t port_handle) {
+static void bta_ag_port_cback_5(uint32_t code, uint8_t port_handle) {
   bta_ag_port_cback(code, port_handle, 5);
 }
-static void bta_ag_port_cback_6(uint32_t code, uint16_t port_handle) {
+static void bta_ag_port_cback_6(uint32_t code, uint8_t port_handle) {
   bta_ag_port_cback(code, port_handle, 6);
 }
 
@@ -330,6 +338,8 @@ bool bta_ag_is_server_closed(tBTA_AG_SCB* p_scb) {
  ******************************************************************************/
 void bta_ag_rfc_do_open(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
   int management_callback_index = bta_ag_scb_to_idx(p_scb) - 1;
+  bluetooth::metrics::LogRfcommNativeStartEvent(
+          p_scb->peer_addr, bluetooth::metrics::EventType::RFCOMM_HFP_AG_CONNECTION, 0);
   int status = RFCOMM_CreateConnectionWithSecurity(
           bta_ag_uuid[p_scb->conn_service], p_scb->peer_scn, false, BTA_AG_MTU, p_scb->peer_addr,
           &(p_scb->conn_handle), bta_ag_mgmt_cback_tbl[management_callback_index],
@@ -365,12 +375,14 @@ void bta_ag_rfc_do_close(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& /* data */) {
     if (RFCOMM_RemoveConnection(p_scb->conn_handle) != PORT_SUCCESS) {
       log::warn("Unable to remove RFCOMM connection handle:0x{:04x}", p_scb->conn_handle);
     }
+    bluetooth::metrics::LogRfcommNativeDisconnectionEvent(
+            p_scb->peer_addr, bluetooth::metrics::EventType::RFCOMM_HFP_AG_CONNECTION, 0);
   } else {
     /* Close API was called while AG is in Opening state.               */
     /* Need to trigger the state machine to send callback to the app    */
     /* and move back to INIT state.                                     */
     do_in_main_thread(base::BindOnce(&bta_ag_sm_execute_by_handle, bta_ag_scb_to_idx(p_scb),
-                                     BTA_AG_RFC_CLOSE_EVT, tBTA_AG_DATA::kEmpty));
+                                     BTA_AG_RFC_CLOSE_EVT, tBTA_AG_DATA::kEmpty, NO_FAILURE));
 
     /* Cancel SDP if it had been started. */
     /*

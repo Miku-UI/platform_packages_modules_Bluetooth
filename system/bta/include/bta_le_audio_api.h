@@ -30,6 +30,7 @@ public:
   static bool SupportsLeAudioHardwareOffload();
   static bool SupportsLeAudioBroadcast();
   static bool SupportsStreamActiveApi();
+  static bool SupportsIsoParameterUpdate();
 };
 
 typedef bool(LeAudioIsoDataCallback)(const RawAddress& address, uint16_t cis_conn_hdl,
@@ -40,8 +41,8 @@ public:
   virtual ~LeAudioClient(void) = default;
 
   static void Initialize(
-          bluetooth::le_audio::LeAudioClientCallbacks* callbacks, base::Closure initCb,
-          base::Callback<bool()> hal_2_1_verifier,
+          bluetooth::le_audio::LeAudioClientCallbacks* callbacks, base::OnceClosure initCb,
+          base::OnceCallback<bool()> hal_2_1_verifier,
           const std::vector<bluetooth::le_audio::btle_audio_codec_config_t>& offloading_preference);
   static void Cleanup(void);
   static LeAudioClient* Get(void);
@@ -63,7 +64,9 @@ public:
           bluetooth::le_audio::btle_audio_codec_config_t output_codec_config) = 0;
   virtual bool IsUsingPreferredCodecConfig(int group_id, int context_type) = 0;
   virtual void SetCcidInformation(int ccid, int context_type) = 0;
+  virtual void SetInGame(bool in_game) = 0;
   virtual void SetInCall(bool in_call) = 0;
+  virtual void SetAllowlistFlag(const RawAddress& address, bool allowed) = 0;
   virtual bool IsInCall() = 0;
   virtual void SetInVoipCall(bool in_call) = 0;
   virtual void SetUnicastMonitorMode(uint8_t direction, bool enable) = 0;

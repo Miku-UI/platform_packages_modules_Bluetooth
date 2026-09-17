@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "common/bidi_queue.h"
 #include "common/contextual_callback.h"
@@ -78,11 +79,24 @@ public:
 
   virtual void UnregisterLeEventHandler(SubeventCode subevent_code) = 0;
 
+  virtual void RegisterDevelopmentEventHandler(
+          DevelopmentSubeventCode subevent_code,
+          common::ContextualCallback<void(DevelopmentEventView)> event_handler) = 0;
+
+  virtual void UnregisterDevelopmentEventHandler(DevelopmentSubeventCode subevent_code) = 0;
+
   virtual void RegisterVendorSpecificEventHandler(
           VseSubeventCode subevent_code,
           common::ContextualCallback<void(VendorSpecificEventView)> event_handler) = 0;
 
   virtual void UnregisterVendorSpecificEventHandler(VseSubeventCode subevent_code) = 0;
+
+  virtual void SetVendorAclHandleRange(uint16_t min, uint16_t max) = 0;
+
+  virtual void RegisterVendorSpecificAclHandler(
+          common::ContextualCallback<void(uint16_t, std::vector<uint8_t>)> handler) = 0;
+
+  virtual void UnregisterVendorSpecificAclHandler() = 0;
 
   virtual void RegisterForDisconnects(
           common::ContextualCallback<void(uint16_t, hci::ErrorCode)> on_disconnect) = 0;

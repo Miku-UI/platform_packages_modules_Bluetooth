@@ -60,6 +60,11 @@ use ffi::{CInterface, Ffi};
 /// Add the binder service, and use HAL C/C++ backend defined as CInterface.
 #[no_mangle]
 pub extern "C" fn __add_bluetooth_hci_service(cintf: CInterface) {
+    android_logger::init_once(
+        android_logger::Config::default()
+            .with_tag("swoff_hal")
+            .with_max_level(log::LevelFilter::Info),
+    );
     binder::add_service(
         &format!("{}/default", BpBluetoothHci::get_descriptor()),
         BnBluetoothHci::new_binder(

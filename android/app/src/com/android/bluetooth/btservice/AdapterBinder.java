@@ -19,21 +19,21 @@ package com.android.bluetooth.btservice;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.DUMP;
 
-import static com.android.bluetooth.Utils.callerIsSystemOrActiveOrManagedUser;
+import static com.android.bluetooth.Util.callerIsSystemOrActiveOrManagedUser;
 
 import android.annotation.RequiresPermission;
 import android.bluetooth.IAdapter;
 import android.bluetooth.IBluetoothCallback;
 import android.util.Log;
 
-import com.android.bluetooth.Utils;
+import com.android.bluetooth.Util;
 
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.PrintWriter;
 
 class AdapterBinder extends IAdapter.Stub {
-    private static final String TAG = Utils.BT_PREFIX + AdapterBinder.class.getSimpleName();
+    private static final String TAG = Util.BT_PREFIX + AdapterBinder.class.getSimpleName();
 
     private final AdapterService mService;
 
@@ -80,16 +80,16 @@ class AdapterBinder extends IAdapter.Stub {
             Log.e(TAG, "killBluetoothProcess: Interrupted while waiting for kill");
         }
 
-        // Bluetooth cannot be killed on the main thread; it is in a deadLock.
+        // Bluetooth cannot be killed on the main thread; it is in a deadlock.
         // Trying to recover by killing the Bluetooth from the binder thread.
         // This is bad :(
-        Log.wtf(TAG, "Failed to kill Bluetooth using its main thread. Trying from binder");
+        Log.wtf(TAG, "killBluetoothProcess: Deadlock on main thread. Trying from binder");
         killAction.run();
     }
 
     @Override
     public void offToBleOn(boolean quietMode, String hciInstanceName) {
-        Log.v(TAG, "offToBleOn(" + quietMode + ", " + hciInstanceName + " )");
+        Log.v(TAG, "offToBleOn(" + quietMode + ", " + hciInstanceName + ")");
         AdapterService service = getServiceAndEnforcePrivileged();
         if (service == null || !callerIsSystemOrActiveOrManagedUser(service, TAG, "offToBleOn")) {
             return;
@@ -99,7 +99,7 @@ class AdapterBinder extends IAdapter.Stub {
 
     @Override
     public void onToBleOn() {
-        Log.v(TAG, "onToBleOn");
+        Log.v(TAG, "onToBleOn()");
         AdapterService service = getServiceAndEnforcePrivileged();
         if (service == null || !callerIsSystemOrActiveOrManagedUser(service, TAG, "onToBleOn")) {
             return;
@@ -150,13 +150,13 @@ class AdapterBinder extends IAdapter.Stub {
     }
 
     @Override
-    public void unregAllGattClient() {
-        Log.v(TAG, "unregAllGattClient()");
+    public void setName(String name) {
+        Log.v(TAG, "setName(" + name + ")");
         AdapterService service = getServiceAndEnforcePrivileged();
         if (service == null) {
             return;
         }
-        service.unregAllGattClient();
+        service.getHandler().post(() -> service.setName(name));
     }
 
     @Override

@@ -16,8 +16,8 @@
 
 #pragma once
 
+#include "a2dp_aidl_transport.h"
 #include "audio_aidl_interfaces.h"
-#include "transport_instance.h"
 
 namespace bluetooth {
 namespace audio {
@@ -34,7 +34,7 @@ using ::aidl::android::hardware::bluetooth::audio::PresentationPosition;
 
 class BluetoothAudioPortImpl : public BnBluetoothAudioPort {
 public:
-  BluetoothAudioPortImpl(IBluetoothTransportInstance* transport_instance,
+  BluetoothAudioPortImpl(const std::shared_ptr<A2dpTransport>& transport_instance,
                          const std::shared_ptr<IBluetoothAudioProvider>& provider);
 
   ndk::ScopedAStatus startStream(bool is_low_latency) override;
@@ -44,16 +44,17 @@ public:
   ndk::ScopedAStatus updateSourceMetadata(const SourceMetadata& source_metadata) override;
   ndk::ScopedAStatus updateSinkMetadata(const SinkMetadata& sink_metadata) override;
   ndk::ScopedAStatus setLatencyMode(LatencyMode latency_mode) override;
+  ndk::ScopedAStatus updateSinkLatency(int64_t in_latency_ms) override;
 
 protected:
   virtual ~BluetoothAudioPortImpl();
 
-  IBluetoothTransportInstance* transport_instance_;
+  // Using weak_ptr here as BluetoothAudioPortImpl instance is shared with the BT Audio HAL and can
+  // outlive the BluetoothAudioClientInterface and by extension this A2dpTransport instance.
+  std::weak_ptr<A2dpTransport> transport_instance_;
   const std::shared_ptr<IBluetoothAudioProvider> provider_;
-  PresentationPosition::TimeSpec timespec_convert_to_hal(const timespec& ts);
 
 private:
-  ndk::ScopedAStatus switchCodec(bool isLowLatency);
   ndk::SpAIBinder createBinder() override;
 };
 

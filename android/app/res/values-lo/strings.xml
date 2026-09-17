@@ -21,6 +21,8 @@
     <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"ອະນຸຍາດໃຫ້ແອັບຯນີ້ເຂົາເຖິງໂຕຈັດການ BluetoothShare ແລະໃຊ້ມັນເພື່ອສົ່ງໄຟລ໌."</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"ສ້າງລາຍຊື່ຍອມຮັບການເຂົ້າເຖິງອຸປະກອນ Bluetooth."</string>
     <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"ອະນຸຍາດໃຫ້ແອັບສ້າງລາຍຊື່ຍອມຮັບການເຂົ້າເຖິງອຸປະກອນ Bluetooth ຊົ່ວຄາວໄດ້, ເຊິ່ງຈະເຮັດໃຫ້ອຸປະກອນນັ້ນສົ່ງໄຟລ໌ໄປຫາອຸປະກອນນີ້ໄດ້ໂດຍບໍ່ຕ້ອງໃຫ້ຜູ້ໃຊ້ຢືນຢັນ."</string>
+    <string name="permlab_bluetoothBackup" msgid="49451988877877942">"ອະນຸຍາດການປະກາດການສຳຮອງຂໍ້ມູນຜ່ານ Bluetooth."</string>
+    <string name="permdesc_bluetoothBackup" msgid="2871500153259509669">"ອະນຸຍາດໃຫ້ແອັບ Bluetooth ຍອມຮັບການປະກາດເພື່ອກະຕຸ້ນການສຳຮອງຂໍ້ມູນການຕັ້ງຄ່າ"</string>
     <string name="bt_share_picker_label" msgid="7464438494743777696">"Bluetooth"</string>
     <string name="unknown_device" msgid="2317679521750821654">"ອຸປະກອນທີ່ບໍ່ຮູ້ຈັກ"</string>
     <string name="unknownNumber" msgid="1245183329830158661">"ບໍ່ຮູ້ຈັກ"</string>
@@ -112,10 +114,10 @@
     <string name="transfer_menu_open" msgid="5193344638774400131">"ເປີດ"</string>
     <string name="transfer_menu_clear" msgid="7213491281898188730">"ລຶບອອກຈາກລາຍການ"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"ລຶບ"</string>
-    <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Now Playing"</string>
+    <string name="bluetooth_media_audio_app_name" msgid="2389937877819723460">"Bluetooth Audio"</string>
+    <string name="bluetooth_media_audio_queue_name" msgid="2327164681598379428">"Now Playing"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"​ໄອ​ຄອນ​ແອັບ​ພລິ​ເຄ​ຊັນ"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"ຕັດການເຊື່ອມຕໍ່ສຽງ Bluetooth ແລ້ວ"</string>
-    <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"ສຽງ Bluetooth"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"ບໍ່ສາມາດໂອນຍ້າຍໄຟລ໌ທີ່ໃຫຍກວ່າ 4GB ໄດ້"</string>
     <string name="bluetooth_connect_action" msgid="2319449093046720209">"ເຊື່ອມຕໍ່ກັບ Bluetooth"</string>
     <string name="bluetooth_enabled_apm_title" msgid="6914461147844949044">"ເປີດ Bluetooth ໃນໂໝດຢູ່ໃນຍົນ"</string>
@@ -130,4 +132,13 @@
     <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"ເປີດ Bluetooth ໃໝ່ແລ້ວ"</string>
     <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"ທ່ານສາມາດປ່ຽນສິ່ງນີ້ຕອນໃດກໍໄດ້ໃນການຕັ້ງຄ່າ"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"ການປ່ຽນສະຖານະ Bluetooth ອັດຕະໂນມັດ"</string>
+    <string name="auracast_notification_channel" msgid="5159181425358316696">"Auracast"</string>
+    <string name="auracast_notification_title" msgid="3101708313009368939">"ການສະຕຣີມສຽງ <xliff:g id="STREAM_NAME">%1$s</xliff:g> ພ້ອມນຳໃຊ້"</string>
+    <string name="auracast_notification_subtext" msgid="4696155233480316395">"ສຽງ LE"</string>
+    <string name="auracast_connect_device_message" msgid="4461776363082532493">"ເຊື່ອມຕໍ່ອຸປະກອນສຽງ LE ເພື່ອເລີ່ມຟັງ"</string>
+    <string name="auracast_listen_on_device_message" msgid="3719491065367993094">"ຟັງການສະຕຣີມສຽງ <xliff:g id="STREAM_NAME">%1$s</xliff:g> ຢູ່ <xliff:g id="DEVICE_NAME">%2$s</xliff:g> ຂອງທ່ານ"</string>
+    <string name="auracast_connect_action" msgid="7157544449029291355">"ເຊື່ອມຕໍ່"</string>
+    <string name="auracast_connection_failed_message" msgid="6490085541428198952">"ເຊື່ອມຕໍ່ກັບການສະຕຣີມສຽງ <xliff:g id="STREAM_NAME">%1$s</xliff:g> ຢູ່ <xliff:g id="DEVICE_NAME">%2$s</xliff:g> ຂອງທ່ານບໍ່ສຳເລັດ."</string>
+    <string name="auracast_default_stream_name" msgid="2824625871526576239">"ໃກ້ຄຽງ"</string>
+    <string name="auracast_default_device_name" msgid="15748131701036354">"ອຸປະກອນ"</string>
 </resources>

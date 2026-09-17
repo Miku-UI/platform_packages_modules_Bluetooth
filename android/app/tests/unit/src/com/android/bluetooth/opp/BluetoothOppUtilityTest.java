@@ -26,7 +26,6 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -44,7 +43,6 @@ import android.content.pm.ResolveInfo;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
-import android.provider.Settings;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -52,7 +50,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.R;
-import com.android.bluetooth.btservice.MetricsLogger;
+import com.android.bluetooth.metrics.MetricsLogger;
 import com.android.bluetooth.opp.BluetoothOppTestUtils.CursorMockData;
 import com.android.tests.bluetooth.MockitoRule;
 
@@ -68,7 +66,6 @@ import org.mockito.Spy;
 import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /** Test cases for {@link BluetoothOppUtility}. */
 @RunWith(AndroidJUnit4.class)
@@ -137,31 +134,6 @@ public class BluetoothOppUtilityTest {
         doReturn(destinationValue).when(mCursor).getString(anyInt());
         assertThat(BluetoothOppUtility.queryRecord(mContext, CORRECT_FORMAT_BUT_INVALID_FILE_URI))
                 .isInstanceOf(BluetoothOppTransferInfo.class);
-    }
-
-    @Test
-    public void queryTransfersInBatch_returnsCorrectUrlArrayList() {
-        long timestampValue = 123456;
-        String where = BluetoothShare.TIMESTAMP + " == " + timestampValue;
-        AtomicInteger cnt = new AtomicInteger(1);
-
-        doReturn(mCursor)
-                .when(mCallProxy)
-                .contentResolverQuery(
-                        any(),
-                        eq(BluetoothShare.CONTENT_URI),
-                        eq(new String[] {BluetoothShare._DATA}),
-                        eq(where),
-                        eq(null),
-                        eq(BluetoothShare._ID));
-
-        doAnswer(invocation -> cnt.incrementAndGet() > 5).when(mCursor).isAfterLast();
-        doReturn(CORRECT_FORMAT_BUT_INVALID_FILE_URI.toString()).when(mCursor).getString(0);
-
-        List<String> answer = BluetoothOppUtility.queryTransfersInBatch(mContext, timestampValue);
-        for (String url : answer) {
-            assertThat(url).isEqualTo(CORRECT_FORMAT_BUT_INVALID_FILE_URI.toString());
-        }
     }
 
     @Test
@@ -444,16 +416,15 @@ public class BluetoothOppUtilityTest {
     @Test
     public void grantPermissionToNearbyComponent() {
         Uri originalUri = Uri.parse("content://test.provider/1");
-        Settings.Secure.putString(
-                mContext.getContentResolver(),
-                "nearby_sharing_component",
-                "com.example/.BComponent");
-        Context spiedContext = spy(new ContextWrapper(mContext));
+        doReturn("com.example/.BComponent")
+                .when(mCallProxy)
+                .settingsSecureGetString(any(), eq("nearby_sharing_component"));
 
-        BluetoothOppUtility.grantPermissionToNearbyComponent(spiedContext, List.of(originalUri));
+        BluetoothOppUtility.grantPermissionToNearbyComponent(mContext, List.of(originalUri));
 
-        verify(spiedContext)
+        verify(mCallProxy)
                 .grantUriPermission(
+                        eq(mContext),
                         eq("com.example"),
                         eq(originalUri),
                         eq(Intent.FLAG_GRANT_READ_URI_PERMISSION));

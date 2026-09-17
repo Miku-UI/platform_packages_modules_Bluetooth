@@ -78,7 +78,7 @@ void cleanupSdpFuzz() {
   sdp_protolist_elem_vect.clear();
 
   // Delete all records
-  [[maybe_unused]] bool rc = get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(0);
+  [[maybe_unused]] bool rc = get_legacy_stack_sdp_api()->SDP_DeleteRecord(0);
   sdp_record_handles.clear();
 
   // Delete Databases
@@ -114,7 +114,7 @@ tSDP_DISC_ATVAL generateArbitrarySdpDiscAttrVal(FuzzedDataProvider* fdp) {
 std::shared_ptr<tSDP_DISC_ATTR> generateArbitrarySdpDiscAttr(FuzzedDataProvider* fdp,
                                                              bool allow_null) {
   // Give it a chance to return a nullptr
-  if ((allow_null && !fdp->ConsumeBool()) || sdp_disc_attr_vect.size() > kMaxVectorSize) {
+  if ((allow_null && !fdp->ConsumeBool()) || sdp_disc_attr_vect.size() >= kMaxVectorSize) {
     return nullptr;
   }
 
@@ -133,7 +133,7 @@ std::shared_ptr<tSDP_DISC_ATTR> generateArbitrarySdpDiscAttr(FuzzedDataProvider*
 std::shared_ptr<tSDP_DISC_REC> generateArbitrarySdpDiscRecord(FuzzedDataProvider* fdp,
                                                               bool allow_null) {
   // Give it a chance to return a nullptr
-  if (allow_null && !fdp->ConsumeBool()) {
+  if ((allow_null && !fdp->ConsumeBool()) || sdp_disc_rec_vect.size() >= kMaxVectorSize) {
     return nullptr;
   }
 

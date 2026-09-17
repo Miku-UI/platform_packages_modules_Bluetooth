@@ -26,12 +26,10 @@
 #include <vector>
 
 #include "hci/controller.h"
-#include "include/bind_helpers.h"
 #include "internal_include/stack_config.h"
 #include "main/shim/entry.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
-#include "stack/btm/btm_sec.h"
 #include "stack/eatt/eatt.h"
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_hdr.h"
@@ -69,6 +67,9 @@ struct eatt_impl {
   uint16_t max_mps_;
   tL2CAP_APPL_INFO reg_info_;
 
+  // Member variables should appear before the WeakPtrFactory, to ensure
+  // that any WeakPtrs are invalidated before its members
+  // variable's destructors are executed, rendering them invalid.
   base::WeakPtrFactory<eatt_impl> weak_factory_{this};
 
   eatt_impl() {
@@ -248,7 +249,7 @@ struct eatt_impl {
   }
 
   void upper_tester_delay_connect(const RawAddress& bda, int timeout_ms) {
-    bt_status_t status =
+    BtStatus status =
             do_in_main_thread_delayed(base::BindOnce(&eatt_impl::upper_tester_delay_connect_cb,
                                                      weak_factory_.GetWeakPtr(), bda),
                                       std::chrono::milliseconds(timeout_ms));
@@ -261,7 +262,7 @@ struct eatt_impl {
     /* This is just for L2CAP PTS test cases*/
     auto min_key_size = stack_config_get_interface()->get_pts_l2cap_ecoc_min_key_size();
     if (min_key_size > 0 && (min_key_size >= 7 && min_key_size <= 16)) {
-      auto key_size = btm_ble_read_sec_key_size(bda);
+      auto key_size = get_security_client_interface().BTM_BleReadSecKeySize(bda);
       if (key_size < min_key_size) {
         std::vector<uint16_t> empty;
         log::error("Insufficient key size ({}<{}) for device {}", key_size, min_key_size, bda);
@@ -290,7 +291,7 @@ struct eatt_impl {
     upper_tester_send_data_if_needed(bda);
 
     if (stack_config_get_interface()->get_pts_l2cap_ecoc_reconfigure()) {
-      bt_status_t status = do_in_main_thread_delayed(
+      BtStatus status = do_in_main_thread_delayed(
               base::BindOnce(&eatt_impl::reconfigure_all, weak_factory_.GetWeakPtr(), bda, 300),
               std::chrono::seconds(4));
       log::info("Scheduled ECOC reconfiguration with status: {}", (int)status);
@@ -303,12 +304,12 @@ struct eatt_impl {
               static_cast<int>(lcids.size()), psm, peer_mtu);
 
     if (!stack_config_get_interface()->get_pts_connect_eatt_before_encryption() &&
-        !BTM_IsEncrypted(bda, BT_TRANSPORT_LE)) {
+        !get_security_client_interface().BTM_IsEncrypted(bda, BT_TRANSPORT_LE)) {
       /* If Link is not encrypted, we shall not accept EATT channel creation. */
       std::vector<uint16_t> empty;
       tL2CAP_LE_RESULT_CODE result =
               tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_AUTHENTICATION;
-      if (BTM_IsBonded(bda, BT_TRANSPORT_LE)) {
+      if (get_security_client_interface().BTM_IsBonded(bda, BT_TRANSPORT_LE)) {
         result = tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_INSUFFICIENT_ENCRYP;
       }
       log::error("ACL to device {} is unencrypted.", bda);

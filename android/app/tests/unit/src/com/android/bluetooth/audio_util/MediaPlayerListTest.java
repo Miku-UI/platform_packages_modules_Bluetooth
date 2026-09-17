@@ -30,7 +30,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -70,9 +69,10 @@ public class MediaPlayerListTest {
     @Mock private MediaPlayerList.MediaUpdateCallback mMediaUpdateCallback;
     @Mock private MediaController mMockController;
     @Mock private MediaPlayerWrapper mMockPlayerWrapper;
+    @Mock private MediaPlayerList.MediaPlayerSettingsEventListener mMockPlayerSettingsListener;
 
-    private @Captor ArgumentCaptor<MediaPlayerWrapper.Callback> mPlayerWrapperCb;
-    private @Captor ArgumentCaptor<MediaData> mMediaUpdateData;
+    @Captor private ArgumentCaptor<MediaPlayerWrapper.Callback> mPlayerWrapperCb;
+    @Captor private ArgumentCaptor<MediaData> mMediaUpdateData;
 
     private MediaPlayerList mMediaPlayerList;
     private MediaPlayerWrapper.Callback mActivePlayerCallback;
@@ -100,10 +100,10 @@ public class MediaPlayerListTest {
         mockGetSystemService(mMockContext, MediaSessionManager.class, mMediaSessionManager);
         mockGetSystemService(mMockContext, AudioManager.class);
 
-        when(mMockContext.registerReceiver(any(), any())).thenReturn(null);
-        when(mMockContext.getApplicationContext()).thenReturn(mMockContext);
-        when(mMockContext.getPackageManager()).thenReturn(mockPackageManager);
-        when(mockPackageManager.queryIntentServices(any(), anyInt())).thenReturn(null);
+        doReturn(null).when(mMockContext).registerReceiver(any(), any());
+        doReturn(mMockContext).when(mMockContext).getApplicationContext();
+        doReturn(mockPackageManager).when(mMockContext).getPackageManager();
+        doReturn(null).when(mockPackageManager).queryIntentServices(any(), anyInt());
 
         MediaControllerFactory.inject(mMockController);
         MediaPlayerWrapperFactory.inject(mMockPlayerWrapper);
@@ -236,5 +236,37 @@ public class MediaPlayerListTest {
         assertThat(activeMediaPlayer).isEqualTo(newActiveMediaPlayer);
 
         session.release();
+    }
+
+    @Test
+    public void addMediaPlayer_whenUpdatingActivePlayer_notifiesPlayerSettingsListener() {
+        // Arrange: An active player is set in setUp. Set a listener to be notified of changes.
+        mMediaPlayerList.setPlayerSettingsCallback(mMockPlayerSettingsListener);
+
+        // Act: Re-adding the same player controller should trigger an update on an existing player.
+        mMediaPlayerList.addMediaPlayer(mMockController);
+
+        // Assert: The listener should be notified because the *active* player's controller was
+        // updated.
+        verify(mMockPlayerSettingsListener).onActivePlayerChanged(mMockPlayerWrapper);
+    }
+
+    @Test
+    public void addMediaPlayer_whenUpdatingInactivePlayer_doesNotNotifyListener() {
+        // Arrange: An active player ("testPlayer") is set in setUp.
+        mMediaPlayerList.setPlayerSettingsCallback(mMockPlayerSettingsListener);
+
+        // Create and add a second, inactive player.
+        MediaController mockInactiveController = mock(MediaController.class);
+        doReturn("inactivePlayer").when(mockInactiveController).getPackageName();
+        // Note: The factory will return the same mMockPlayerWrapper instance due to injection.
+        // This is okay for this test, as MediaPlayerList tracks players by ID.
+        mMediaPlayerList.addMediaPlayer(mockInactiveController);
+
+        // Act: Re-adding the inactive player's controller to trigger an update.
+        mMediaPlayerList.addMediaPlayer(mockInactiveController);
+
+        // Assert: The listener should NOT be notified, as the updated player is not the active one.
+        verify(mMockPlayerSettingsListener, never()).onActivePlayerChanged(any());
     }
 }

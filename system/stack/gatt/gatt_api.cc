@@ -37,19 +37,16 @@
 #include <string>
 
 #include "internal_include/bt_target.h"
-#include "internal_include/stack_config.h"
-#include "main/shim/helpers.h"
 #include "os/system_properties.h"
 #include "osi/include/allocator.h"
 #include "stack/arbiter/acl_arbiter.h"
 #include "stack/btm/btm_dev.h"
-#include "stack/connection_manager/connection_manager.h"
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/ais_api.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/bt_psm_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
-#include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/include/sdp_api.h"
@@ -75,8 +72,6 @@ static tGATT_HDL_LIST_ELEM& gatt_add_an_item_to_list(uint16_t s_handle) {
   auto rit = lst_ptr->emplace(it);
   return *rit;
 }
-
-static tGATT_IF GATT_FindNextFreeClRcbId();
 
 /*****************************************************************************
  *
@@ -357,7 +352,7 @@ tGATT_STATUS GATTS_AddService(tGATT_IF gatt_if, btgatt_db_element_t* service, in
                elem.e_hdl, elem.type, elem.sdp_handle);
 
   gatt_update_for_database_change();
-  gatt_proc_srv_chg();
+  gatt_proc_srv_chg(s_hdl);
 
   return GATT_SERVICE_STARTED;
 }
@@ -409,7 +404,7 @@ bool GATTS_DeleteService(tGATT_IF gatt_if, Uuid* p_svc_uuid, uint16_t svc_inst) 
   }
 
   gatt_update_for_database_change();
-  gatt_proc_srv_chg();
+  gatt_proc_srv_chg(svc_inst);
 
   log::verbose("released handles s_hdl=0x{:x}, e_hdl=0x{:x}", it->asgn_range.s_handle,
                it->asgn_range.e_handle);
@@ -444,7 +439,7 @@ void GATTS_StopService(uint16_t service_handle) {
   }
 
   if (it->sdp_handle) {
-    if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(it->sdp_handle)) {
+    if (!get_legacy_stack_sdp_api()->SDP_DeleteRecord(it->sdp_handle)) {
       log::warn("Unable to delete record handle:{}", it->sdp_handle);
     }
   }
@@ -688,6 +683,58 @@ tGATT_STATUS GATTS_SendRsp(tCONN_ID conn_id, uint32_t trans_id, tGATT_STATUS sta
                                  sr_res_p);
 }
 
+/*******************************************************************************
+ *
+ * Function         GATTS_OffloadCharacteristics
+ *
+ * Description      This function is called to offload characteristics for GATT server.
+ *
+ * Parameter        conn_id         : connection ID.
+ *                  service         : pointer array describing service and characteristics.
+ *                  elements_count  : number of elements in the array.
+ *                  endpoint_id     : ID of the hub end point.
+ *                  hub_id          : ID of the hub to which the end point belongs.
+ *                  uid             : UID of the app.
+ *                  attribution_tag : attribution tag of the app.
+ *                  promise         : object used to signal the completion status.
+ *
+ ******************************************************************************/
+void GATTS_OffloadCharacteristics(tCONN_ID conn_id, btgatt_db_element_t* service,
+                                  size_t elements_count, uint64_t endpoint_id, uint64_t hub_id,
+                                  int uid, std::string attribution_tag,
+                                  std::promise<btgatt_offload_result_t> promise) {
+  gatt_offload_characteristics(conn_id, /* is_server */ true, service, elements_count, endpoint_id,
+                               hub_id, uid, std::move(attribution_tag), std::move(promise));
+}
+
+/*******************************************************************************
+ *
+ * Function         GATTS_UnoffloadCharacteristics
+ *
+ * Description      This function is called to unoffload a session for GATT server.
+ *
+ * Parameter        conn_id         : connection ID.
+ *                  session_id      : session ID.
+ *
+ ******************************************************************************/
+void GATTS_UnoffloadCharacteristics(tCONN_ID conn_id, uint16_t session_id) {
+  log::info("conn_id: {}, session_id: {}", conn_id, session_id);
+  gatt_unoffload_session(conn_id, session_id);
+}
+
+std::optional<bluetooth::Uuid> GATTS_LookupServiceUuidByStartHandle(uint16_t start_handle) {
+  auto end_it = gatt_cb.hdl_list_info->end();
+  for (auto it = gatt_cb.hdl_list_info->begin(); it != end_it; ++it) {
+    if (it->asgn_range.s_handle != start_handle) {
+      continue;
+    }
+    return it->asgn_range.svc_uuid;
+  }
+
+  // No match found
+  return std::nullopt;
+}
+
 /******************************************************************************/
 /* GATT Profile Srvr Functions */
 /******************************************************************************/
@@ -752,7 +799,7 @@ tGATT_STATUS GATTC_ConfigureMTU(tCONN_ID conn_id, uint16_t mtu) {
             mtu);
 
   auto result = attp_send_cl_msg(*p_clcb->p_tcb, p_clcb, GATT_REQ_MTU, &gatt_cl_msg);
-  if (result == GATT_SUCCESS) {
+  if (result == GATT_SUCCESS || result == GATT_CMD_STARTED) {
     p_clcb->p_tcb->pending_user_mtu_exchange_value = mtu;
   }
   return result;
@@ -994,6 +1041,10 @@ tGATT_STATUS GATTC_Read(tCONN_ID conn_id, tGATT_READ_TYPE type, tGATT_READ_PARAM
       p_clcb->s_handle = 0;
       /* copy multiple handles in CB */
       tGATT_READ_MULTI* p_read_multi = (tGATT_READ_MULTI*)osi_malloc(sizeof(tGATT_READ_MULTI));
+      if (!p_read_multi) {
+        log::error("Unable to allocate read multiple buffer");
+        return GATT_NO_RESOURCES;
+      }
       p_clcb->p_attr_buf = (uint8_t*)p_read_multi;
       memcpy(p_read_multi, &p_read->read_multiple, sizeof(tGATT_READ_MULTI));
       break;
@@ -1171,261 +1222,139 @@ tGATT_STATUS GATTC_SendHandleValueConfirm(tCONN_ID conn_id, uint16_t cid) {
   return attp_send_cl_confirmation_msg(*p_tcb, cid);
 }
 
+/*******************************************************************************
+ *
+ * Function         GATTC_OffloadCharacteristics
+ *
+ * Description      This function is called to offload characteristics for GATT client.
+ *
+ * Parameter        conn_id         : connection ID.
+ *                  service         : pointer array describing service and characteristics.
+ *                  elements_count  : number of elements in the service array.
+ *                  endpoint_id     : ID of the hub end point.
+ *                  hub_id          : ID of the hub to which the end point belongs.
+ *                  uid             : UID of the app.
+ *                  attribution_tag : attribution tag of the app.
+ *                  promise         : object used to signal the completion status.
+ *
+ ******************************************************************************/
+void GATTC_OffloadCharacteristics(tCONN_ID conn_id, btgatt_db_element_t* service,
+                                  size_t elements_count, uint64_t endpoint_id, uint64_t hub_id,
+                                  int uid, std::string attribution_tag,
+                                  std::promise<btgatt_offload_result_t> promise) {
+  gatt_offload_characteristics(conn_id, /* is_server */ false, service, elements_count, endpoint_id,
+                               hub_id, uid, std::move(attribution_tag), std::move(promise));
+}
+
+/*******************************************************************************
+ *
+ * Function         GATTC_UnoffloadCharacteristics
+ *
+ * Description      This function is called to unoffload characteristics for GATT client.
+ *
+ * Parameter        conn_id         : connection ID.
+ *                  session_id      : session ID.
+ *
+ ******************************************************************************/
+void GATTC_UnoffloadCharacteristics(tCONN_ID conn_id, uint16_t session_id) {
+  log::info("conn_id: {}, session_id: {}", conn_id, session_id);
+  gatt_unoffload_session(conn_id, session_id);
+}
+
+/*******************************************************************************
+ *
+ * Function         GATTC_InformNotificationHandle
+ *
+ * Description      This function is called to inform the registered notification handle for GATT
+ *client.
+ *
+ * Parameter        remote_bda    : peer device address. (input)
+ *                  handle        : notification handle
+ *
+ ******************************************************************************/
+void GATTC_InformNotificationHandle(const RawAddress& remote_bda, uint16_t handle) {
+  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(remote_bda, BT_TRANSPORT_LE);
+  if (!p_tcb) {
+    log::info("Unknown remote_bda: {}", remote_bda);
+    return;
+  }
+  gattc_inform_notification_handle(p_tcb, handle);
+}
+
+/*******************************************************************************
+ *
+ * Function         GATTC_InformServiceChangedIndication
+ *
+ * Description      This function is called to inform the service changed indication for GATT
+ *client.
+ *
+ * Parameter        remote_bda    : peer device address. (input)
+ *
+ ******************************************************************************/
+void GATTC_InformServiceChangedIndication(const RawAddress& remote_bda) {
+  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(remote_bda, BT_TRANSPORT_LE);
+  if (!p_tcb) {
+    log::info("Unknown remote_bda: {}", remote_bda);
+    return;
+  }
+  gattc_offload_handle_service_changed_indication(p_tcb);
+}
+
+/*******************************************************************************
+ *
+ * Function         GATTC_SetDefaultMtu
+ *
+ * Description      Set the default MTU for ATT bearer associated with remote device.
+ *
+ * Parameter        remote_bda    : peer device address. (input)
+ *
+ ******************************************************************************/
+void GATTC_SetDefaultMtu(const RawAddress& remote_bda) {
+  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(remote_bda, BT_TRANSPORT_LE);
+  if (!p_tcb) {
+    log::info("Unknown remote_bda: {}", remote_bda);
+    return;
+  }
+
+  for (auto& [i, p_reg] : gatt_cb.cl_rcb_map) {
+    if (!p_reg->in_use) {
+      continue;
+    }
+    auto mtu_pref = p_reg->auto_mtu_enabled.find(remote_bda);
+    if (mtu_pref != p_reg->auto_mtu_enabled.cend() && mtu_pref->second) {
+      tCONN_ID conn_id = gatt_create_conn_id(p_tcb->tcb_idx, p_reg->gatt_if);
+      tGATT_STATUS status = GATTC_ConfigureMTU(conn_id, gatt_get_local_mtu());
+      log::verbose("set default MTU for the app: {}, status: {}", p_reg->gatt_if, status);
+      break;
+    }
+  }
+}
+
 /******************************************************************************/
 /*                                                                            */
 /*                  GATT  APIs                                                */
 /*                                                                            */
 /******************************************************************************/
-/*******************************************************************************
- *
- * Function         GATT_SetIdleTimeout
- *
- * Description      This function (common to both client and server) sets the
- *                  idle timeout for a transport connection
- *
- * Parameter        bd_addr:   target device bd address.
- *                  idle_tout: timeout value in seconds.
- *                  transport: transport option.
- *                  is_active: whether we should use this as a signal that an
- *                             active client now exists (which changes link
- *                             timeout logic, see
- *                             t_l2c_linkcb.with_active_local_clients for
- *                             details).
- *
- * Returns          void
- *
- ******************************************************************************/
-void GATT_SetIdleTimeout(const RawAddress& bd_addr, uint16_t idle_tout, tBT_TRANSPORT transport,
-                         bool is_active) {
-  bool status = false;
-
-  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, transport);
-  if (p_tcb != nullptr) {
-    status = stack::l2cap::get_interface().L2CA_SetLeGattTimeout(bd_addr, idle_tout);
-
-    if (is_active) {
-      status &= stack::l2cap::get_interface().L2CA_MarkLeLinkAsActive(bd_addr);
-    }
-
-    if (idle_tout == GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP) {
-      if (!stack::l2cap::get_interface().L2CA_SetIdleTimeoutByBdAddr(
-                  p_tcb->peer_bda, GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP, BT_TRANSPORT_LE)) {
-        log::warn("Unable to set L2CAP link idle timeout peer:{} transport:{}", p_tcb->peer_bda,
-                  bt_transport_text(transport));
-      }
-    }
-  }
-
-  log::info("idle_timeout={}, is_active={}, status={} (1-OK 0-not performed)", idle_tout, is_active,
-            status);
-}
 
 /*******************************************************************************
  *
- * Function         GATT_Register
- *
- * Description      This function is called to register an  application
- *                  with GATT
- *
- * Parameter        p_app_uuid128: Application UUID
- *                  p_cb_info: callback functions.
- *                  eatt_support: indicate eatt support.
- *
- * Returns          0 for error, otherwise the index of the client registered
- *                  with GATT
- *
- ******************************************************************************/
-tGATT_IF GATT_Register(const Uuid& app_uuid128, const std::string& name, tGATT_CBACK* p_cb_info,
-                       bool eatt_support) {
-  for (auto& [gatt_if, p_reg] : gatt_cb.cl_rcb_map) {
-    if (p_reg->app_uuid128 == app_uuid128) {
-      log::error("Application already registered, uuid={}", app_uuid128.ToString());
-      return 0;
-    }
-  }
-
-  if (stack_config_get_interface()->get_pts_use_eatt_for_all_services()) {
-    log::info("PTS: Force to use EATT for servers");
-    eatt_support = true;
-  }
-
-  if (gatt_cb.cl_rcb_map.size() >= GATT_IF_MAX) {
-    log::error("Unable to register GATT client, MAX client reached: {}", gatt_cb.cl_rcb_map.size());
-    return 0;
-  }
-
-  tGATT_IF gatt_if = GATT_FindNextFreeClRcbId();
-  if (gatt_if == GATT_IF_INVALID) {
-    return gatt_if;
-  }
-
-  auto [it, ret] = gatt_cb.cl_rcb_map.emplace(gatt_if, std::make_unique<tGATT_REG>());
-  tGATT_REG* p_reg = it->second.get();
-  p_reg->app_uuid128 = app_uuid128;
-  p_reg->gatt_if = gatt_if;
-  p_reg->app_cb = *p_cb_info;
-  p_reg->in_use = true;
-  p_reg->eatt_support = eatt_support;
-  p_reg->name = name;
-  log::info("Allocated name:{} uuid:{} gatt_if:{} eatt_support:{}", name, app_uuid128.ToString(),
-            p_reg->gatt_if, eatt_support);
-
-  return gatt_if;
-}
-
-static tGATT_IF GATT_FindNextFreeClRcbId() {
-  tGATT_IF gatt_if = gatt_cb.last_gatt_if;
-  for (int i = 0; i < GATT_IF_MAX; i++) {
-    if (++gatt_if > GATT_IF_MAX) {
-      gatt_if = static_cast<tGATT_IF>(1);
-    }
-    if (!gatt_cb.cl_rcb_map.contains(gatt_if)) {
-      gatt_cb.last_gatt_if = gatt_if;
-      return gatt_if;
-    }
-  }
-  log::error("Unable to register GATT client, MAX client reached: {}", gatt_cb.cl_rcb_map.size());
-
-  return GATT_IF_INVALID;
-}
-
-/*******************************************************************************
- *
- * Function         GATT_Deregister
- *
- * Description      This function deregistered the application from GATT.
- *
- * Parameters       gatt_if: application interface.
- *
- * Returns          None.
- *
- ******************************************************************************/
-void GATT_Deregister(tGATT_IF gatt_if) {
-  log::info("gatt_if={}", gatt_if);
-
-  tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
-  /* Index 0 is GAP and is never deregistered */
-  if ((gatt_if == 0) || (p_reg == NULL)) {
-    log::error("Unable to deregister client with invalid gatt_if={}", gatt_if);
-    return;
-  }
-
-  /* stop all services  */
-  /* todo an application can not be deregistered if its services is also used by
-    other application
-    deregistration need to be performed in an orderly fashion
-    no check for now */
-  for (auto it = gatt_cb.srv_list_info->begin(); it != gatt_cb.srv_list_info->end();) {
-    if (it->gatt_if == gatt_if) {
-      GATTS_StopService(it++->s_hdl);
-    } else {
-      ++it;
-    }
-  }
-
-  /* free all services db buffers if owned by this application */
-  gatt_free_srvc_db_buffer_app_id(p_reg->app_uuid128);
-
-  /* When an application deregisters, check remove the link associated with the
-   * app */
-  tGATT_TCB* p_tcb;
-  int i;
-  for (i = 0, p_tcb = gatt_cb.tcb; i < GATT_MAX_PHY_CHANNEL; i++, p_tcb++) {
-    if (!p_tcb->in_use) {
-      continue;
-    }
-
-    if (gatt_get_ch_state(p_tcb) != GATT_CH_CLOSE) {
-      gatt_update_app_use_link_flag(gatt_if, p_tcb, false, true);
-    }
-
-    for (auto clcb_it = gatt_cb.clcb_queue.begin(); clcb_it != gatt_cb.clcb_queue.end();) {
-      if ((clcb_it->p_reg->gatt_if == gatt_if) && (clcb_it->p_tcb->tcb_idx == p_tcb->tcb_idx)) {
-        alarm_cancel(clcb_it->gatt_rsp_timer_ent);
-        gatt_clcb_invalidate(p_tcb, &(*clcb_it));
-        clcb_it = gatt_cb.clcb_queue.erase(clcb_it);
-      } else {
-        clcb_it++;
-      }
-    }
-  }
-
-  connection_manager::on_app_deregistered(gatt_if);
-
-  gatt_cb.cl_rcb_map.erase(gatt_if);
-}
-
-/*******************************************************************************
- *
- * Function         GATT_StartIf
- *
- * Description      This function is called after registration to start
- *                  receiving callbacks for registered interface.  Function may
- *                  call back with connection status and queued notifications
- *
- * Parameter        gatt_if: application interface.
- *
- * Returns          None.
- *
- ******************************************************************************/
-void GATT_StartIf(tGATT_IF gatt_if) {
-  tGATT_REG* p_reg;
-  tGATT_TCB* p_tcb;
-  RawAddress bda = {};
-  uint8_t start_idx, found_idx;
-  tCONN_ID conn_id;
-  tBT_TRANSPORT transport;
-
-  log::debug("Starting GATT interface gatt_if_:{}", gatt_if);
-
-  p_reg = gatt_get_regcb(gatt_if);
-  if (p_reg != NULL) {
-    start_idx = 0;
-    while (gatt_find_the_connected_bda(start_idx, bda, &found_idx, &transport)) {
-      p_tcb = gatt_find_tcb_by_addr(bda, transport);
-      log::info("GATT interface {} already has connected device {}", gatt_if, bda);
-      if (p_reg->app_cb.p_conn_cb && p_tcb) {
-        conn_id = gatt_create_conn_id(p_tcb->tcb_idx, gatt_if);
-        log::info("Invoking callback with connection id {}", conn_id);
-        (*p_reg->app_cb.p_conn_cb)(gatt_if, bda, conn_id, true, GATT_CONN_OK, transport);
-      } else {
-        log::info("Skipping callback as none is registered");
-      }
-      start_idx = ++found_idx;
-    }
-  }
-}
-
-/*******************************************************************************
- *
- * Function         GATT_Connect
+ * Function         GATT_BR_Connect
  *
  * Description      This function initiate a connection to a remote device on
  *                  GATT channel.
  *
  * Parameters       gatt_if: application interface
  *                  bd_addr: peer device address.
- *                  connection_type: is a direct connection or a background
- *                  auto connection or targeted announcements
  *
  * Returns          true if connection started; false if connection start
  *                  failure.
  *
  ******************************************************************************/
-bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
-                  tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic,
-                  uint8_t initiating_phys, uint16_t preferred_mtu, bool prefer_relax_mode) {
+bool GATT_BR_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr) {
   /* Make sure app is registered */
   tGATT_REG* p_reg = gatt_get_regcb(gatt_if);
   if (!p_reg) {
     log::error("Unable to find registered app gatt_if={}", gatt_if);
-    return false;
-  }
-
-  bool is_direct = (connection_type == BTM_BLE_DIRECT_CONNECTION);
-
-  if (!is_direct && transport != BT_TRANSPORT_LE) {
-    log::warn("Unsupported transport for background connection gatt_if={}", gatt_if);
     return false;
   }
 
@@ -1434,131 +1363,39 @@ bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBLE_ADDR_TYPE ad
     return false;
   }
 
-  if (opportunistic) {
-    log::info("Registered for opportunistic connection gatt_if={}", gatt_if);
+  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, BT_TRANSPORT_BR_EDR);
+  if (p_tcb != NULL) {
+    uint8_t st = gatt_get_ch_state(p_tcb);
+    if (st == GATT_CH_CLOSING) {
+      log::info("Must finish disconnection before new connection");
+      /* need to complete the closing first */
+      return false;
+    }
+    log::debug("Already connected, reusing BR/EDR gatt_if={} address={}", gatt_if, bd_addr);
+    gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, false);
     return true;
   }
 
-  bool ret = false;
-  if (is_direct) {
-    log::debug("Starting direct connect gatt_if={} address={} transport={} prefer_relax_mode={}",
-               gatt_if, bd_addr, transport, prefer_relax_mode);
-    bool tcb_exist = !!gatt_find_tcb_by_addr(bd_addr, transport);
-
-    if (tcb_exist || transport == BT_TRANSPORT_BR_EDR) {
-      /* Consider to remove gatt_act_connect at all */
-      ret = gatt_act_connect(p_reg, bd_addr, addr_type, transport, initiating_phys);
-    } else {
-      log::verbose("Connecting without tcb to: {}", bd_addr);
-      bool has_direct_conn = connection_manager::is_direct_connection(bd_addr);
-      ret = connection_manager::direct_connect_add(gatt_if, bd_addr, addr_type, prefer_relax_mode);
-      if (!has_direct_conn && ret) {
-        bluetooth::metrics::LogMetricLeConnectionLifecycle(bd_addr, true /* is_connect */,
-                                                           true /* is_direct */);
-      }
-    }
-  } else {
-    log::debug("Starting background connect gatt_if={} address={}", gatt_if, bd_addr);
-    bluetooth::metrics::LogMetricLeConnectionLifecycle(bd_addr, true /* is_connect */, is_direct);
-    if (!BTM_Sec_AddressKnown(bd_addr)) {
-      //  RPA can rotate, causing address to "expire" in the background
-      //  connection list. RPA is allowed for direct connect, as such request
-      //  times out after 30 seconds
-      log::warn("Unable to add RPA {} to background connection gatt_if={}", bd_addr, gatt_if);
-      ret = false;
-    } else {
-      log::debug("Adding to background connect to device:{}", bd_addr);
-      if (connection_type == BTM_BLE_BKG_CONNECT_ALLOW_LIST) {
-        ret = connection_manager::background_connect_add(gatt_if, bd_addr);
-      } else {
-        ret = connection_manager::background_connect_targeted_announcement_add(gatt_if, bd_addr);
-      }
-    }
-  }
-
-  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, transport);
-  // background connections don't necessarily create tcb
-  if (p_tcb && ret) {
-    gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, !is_direct);
-  } else {
-    if (p_tcb == nullptr) {
-      log::debug("p_tcb is null");
-    }
-    if (!ret) {
-      log::debug("Previous step returned false");
-    }
-  }
-
-  if (ret) {
-    // Save the current MTU preference for this app
-    p_reg->mtu_prefs.erase(bd_addr);
-    if (preferred_mtu > GATT_DEF_BLE_MTU_SIZE) {
-      log::verbose("Saving MTU preference from app {} for {}", gatt_if, bd_addr);
-      p_reg->mtu_prefs.insert({bd_addr, preferred_mtu});
-    }
-  }
-
-  return ret;
-}
-
-bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr, tBTM_BLE_CONN_TYPE connection_type,
-                  tBT_TRANSPORT transport, bool opportunistic) {
-  return GATT_Connect(gatt_if, bd_addr, BLE_ADDR_PUBLIC, connection_type, transport, opportunistic,
-                      LE_PHY_1M, 0, false);
-}
-
-/*******************************************************************************
- *
- * Function         GATT_CancelConnect
- *
- * Description      This function terminates the connection initiation to a
- *                  remote device on GATT channel.
- *
- * Parameters       gatt_if: client interface. If 0 used as unconditionally
- *                           disconnect, typically used for direct connection
- *                           cancellation.
- *                  bd_addr: peer device address.
- *
- * Returns          true if the connection started; false otherwise.
- *
- ******************************************************************************/
-bool GATT_CancelConnect(tGATT_IF gatt_if, const RawAddress& bd_addr, bool is_direct) {
-  log::info("gatt_if:{}, address: {}, direct:{}", gatt_if, bd_addr, is_direct);
-
-  tGATT_REG* p_reg;
-  if (gatt_if) {
-    p_reg = gatt_get_regcb(gatt_if);
-    if (!p_reg) {
-      log::error("gatt_if={} is not registered", gatt_if);
-      return false;
-    }
-
-    if (is_direct) {
-      return gatt_cancel_open(gatt_if, bd_addr);
-    } else {
-      return gatt_auto_connect_dev_remove(p_reg->gatt_if, bd_addr);
-    }
-  }
-
-  log::verbose("unconditional");
-
-  /* only LE connection can be cancelled */
-  tGATT_TCB* p_tcb = gatt_find_tcb_by_addr(bd_addr, BT_TRANSPORT_LE);
-  if (p_tcb && !p_tcb->app_hold_link.empty()) {
-    for (auto it = p_tcb->app_hold_link.begin(); it != p_tcb->app_hold_link.end();) {
-      auto next = std::next(it);
-      // gatt_cancel_open modifies the app_hold_link.
-      gatt_cancel_open(*it, bd_addr);
-
-      it = next;
-    }
-  }
-
-  if (!connection_manager::remove_unconditional(bd_addr)) {
-    log::error("no app associated with the bg device for unconditional removal");
+  log::debug("Starting BR/EDR connection gatt_if={} address={}", gatt_if, bd_addr);
+  p_tcb = gatt_allocate_tcb_by_bdaddr(bd_addr, BT_TRANSPORT_BR_EDR);
+  if (!p_tcb) {
+    log::error("Max TCB for gatt_if [ {}] reached.", p_reg->gatt_if);
     return false;
   }
 
+  gatt_set_ch_state(p_tcb, GATT_CH_CONN);
+  p_tcb->att_lcid = stack::l2cap::get_interface().L2CA_ConnectReqWithSecurity(BT_PSM_ATT, bd_addr,
+                                                                              BTM_SEC_NONE);
+  if (p_tcb->att_lcid == 0) {
+    log::error("gatt_connect failed");
+    fixed_queue_free(p_tcb->pending_ind_q, NULL);
+    alarm_free(p_tcb->conf_timer);
+    alarm_free(p_tcb->ind_ack_timer);
+    *p_tcb = tGATT_TCB();
+    return false;
+  }
+
+  gatt_update_app_use_link_flag(p_reg->gatt_if, p_tcb, true, false);
   return true;
 }
 
@@ -1575,8 +1412,6 @@ bool GATT_CancelConnect(tGATT_IF gatt_if, const RawAddress& bd_addr, bool is_dir
  *
  ******************************************************************************/
 tGATT_STATUS GATT_Disconnect(tCONN_ID conn_id) {
-  log::info("conn_id={}", conn_id);
-
   uint8_t tcb_idx = gatt_get_tcb_idx(conn_id);
   tGATT_TCB* p_tcb = gatt_get_tcb_by_idx(tcb_idx);
   if (!p_tcb) {
@@ -1585,13 +1420,15 @@ tGATT_STATUS GATT_Disconnect(tCONN_ID conn_id) {
   }
 
   tGATT_IF gatt_if = gatt_get_gatt_if(conn_id);
+
+  log::info("gatt_if={}, remote_bda={}, transport={}", gatt_if, p_tcb->peer_bda, p_tcb->transport);
+
   gatt_update_app_use_link_flag(gatt_if, p_tcb, false, true);
 
   if (p_tcb->transport == BT_TRANSPORT_LE && p_tcb->app_hold_link.empty()) {
     bluetooth::metrics::LogMetricLeConnectionLifecycle(p_tcb->peer_bda, false /* is_connect */,
                                                        false /* is_direct */);
   }
-
   return GATT_SUCCESS;
 }
 
@@ -1664,13 +1501,15 @@ static void gatt_bonded_check_add_address(const RawAddress& bda) {
   }
 }
 
+namespace bluetooth::legacy::testing {
 std::optional<bool> OVERRIDE_GATT_LOAD_BONDED = std::nullopt;
+}  // namespace bluetooth::legacy::testing
 
 static bool gatt_load_bonded_is_enabled() {
   static const bool sGATT_LOAD_BONDED =
           bluetooth::os::GetSystemPropertyBool("bluetooth.gatt.load_bonded.enabled", false);
-  if (OVERRIDE_GATT_LOAD_BONDED.has_value()) {
-    return OVERRIDE_GATT_LOAD_BONDED.value();
+  if (bluetooth::legacy::testing::OVERRIDE_GATT_LOAD_BONDED.has_value()) {
+    return bluetooth::legacy::testing::OVERRIDE_GATT_LOAD_BONDED.value();
   }
   return sGATT_LOAD_BONDED;
 }
@@ -1688,14 +1527,14 @@ void gatt_load_bonded(void) {
   if (!load_bonded) {
     return;
   }
-  for (tBTM_SEC_DEV_REC* p_dev_rec : btm_get_sec_dev_rec()) {
-    if (p_dev_rec->sec_rec.is_link_key_known()) {
-      log::verbose("Add bonded BR/EDR transport {}", p_dev_rec->bd_addr);
-      gatt_bonded_check_add_address(p_dev_rec->bd_addr);
+  for (BtmDevice* p_device : btm_get_sec_dev_rec()) {
+    if (p_device->sec_rec.is_link_key_known()) {
+      log::verbose("Add bonded BR/EDR transport {}", p_device->bd_addr);
+      gatt_bonded_check_add_address(p_device->bd_addr);
     }
-    if (p_dev_rec->sec_rec.is_le_link_key_known()) {
-      log::verbose("Add bonded BLE {}", p_dev_rec->ble.pseudo_addr);
-      gatt_bonded_check_add_address(p_dev_rec->ble.pseudo_addr);
+    if (p_device->sec_rec.is_le_link_key_known()) {
+      log::verbose("Add bonded BLE {}", p_device->ble.pseudo_addr);
+      gatt_bonded_check_add_address(p_device->ble.pseudo_addr);
     }
   }
 }

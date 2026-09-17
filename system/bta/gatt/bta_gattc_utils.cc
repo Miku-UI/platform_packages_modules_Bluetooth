@@ -28,6 +28,7 @@
 #include <bluetooth/types/address.h>
 #include <bluetooth/types/bt_transport.h>
 #include <bluetooth/types/hci_role.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 
@@ -45,6 +46,46 @@ static uint8_t ble_acceptlist_size() {
     return 0;
   }
   return bluetooth::shim::GetController()->GetLeFilterAcceptListSize();
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_gattc_cl_get_reported_mtu
+ *
+ * Description      get reported mtu for given client interface.
+ *
+ * Returns          reported mtu value
+ *
+ ******************************************************************************/
+int bta_gattc_cl_get_reported_mtu(uint8_t client_if) {
+  for (auto& p_clcb : bta_gattc_cb.clcb_set) {
+    if (p_clcb->in_use && p_clcb->p_rcb->client_if == client_if) {
+      log::verbose("reurning client_if = {}, reported_mtu = {}", client_if,
+                   p_clcb.get()->reported_mtu);
+      return p_clcb.get()->reported_mtu;
+    }
+  }
+  log::warn("No clcb entry for this client_if = {}", client_if);
+  return 0;
+}
+
+/*******************************************************************************
+ *
+ * Function         bta_gattc_cl_set_reported_mtu
+ *
+ * Description      set reported mtu for given client interface.
+ *
+ ******************************************************************************/
+void bta_gattc_cl_set_reported_mtu(uint8_t client_if, int mtu) {
+  for (auto& p_clcb : bta_gattc_cb.clcb_set) {
+    if (p_clcb->in_use && p_clcb->p_rcb->client_if == client_if) {
+      log::verbose("setting client_if = {}, reported_mtu = {}", client_if, mtu);
+      p_clcb.get()->reported_mtu = mtu;
+      return;
+    }
+  }
+  log::warn("error setting the reported mtu for client_if = {}", client_if);
+  return;
 }
 
 /*******************************************************************************
@@ -247,8 +288,9 @@ void bta_gattc_clcb_dealloc(tBTA_GATTC_CLCB* p_clcb) {
   p_clcb->auto_update = 0;
   p_clcb->disc_active = 0;
   p_clcb->in_use = 0;
-  p_clcb->state = BTA_GATTC_IDLE_ST;
+  p_clcb->state = BTA_GATTC_CONN_ST;
   p_clcb->status = GATT_SUCCESS;
+  p_clcb->reported_mtu = 0;
   // in bta_gattc_sm_execute(), p_clcb is accessed again so we dealloc clcb later.
   // it will be claned up when the client is deregistered or a new clcb is allocated.
   bta_gattc_cb.clcb_pending_dealloc.insert(p_clcb);
@@ -347,36 +389,36 @@ tBTA_GATTC_SERV* bta_gattc_find_scb_by_cid(tCONN_ID conn_id) {
  *
  ******************************************************************************/
 tBTA_GATTC_SERV* bta_gattc_srcb_alloc(const RawAddress& bda) {
-  tBTA_GATTC_SERV *p_tcb = &bta_gattc_cb.known_server[0], *p_recycle = NULL;
+  tBTA_GATTC_SERV *p_srcb = &bta_gattc_cb.known_server[0], *p_recycle = NULL;
   bool found = false;
   uint8_t i;
 
-  for (i = 0; i < ble_acceptlist_size(); i++, p_tcb++) {
-    if (!p_tcb->in_use) {
+  for (i = 0; i < ble_acceptlist_size(); i++, p_srcb++) {
+    if (!p_srcb->in_use) {
       found = true;
       break;
-    } else if (!p_tcb->connected) {
-      p_recycle = p_tcb;
+    } else if (!p_srcb->connected) {
+      p_recycle = p_srcb;
     }
   }
 
   /* if not found, try to recycle one known device */
   if (!found && !p_recycle) {
-    p_tcb = NULL;
+    p_srcb = NULL;
   } else if (!found && p_recycle) {
-    p_tcb = p_recycle;
+    p_srcb = p_recycle;
   }
 
-  if (p_tcb != NULL) {
+  if (p_srcb != NULL) {
     // clear reallocating
-    p_tcb->gatt_database.Clear();
-    p_tcb->pending_discovery.Clear();
-    *p_tcb = tBTA_GATTC_SERV();
+    p_srcb->gatt_database.Clear();
+    p_srcb->pending_discovery.Clear();
+    *p_srcb = tBTA_GATTC_SERV();
 
-    p_tcb->in_use = true;
-    p_tcb->server_bda = bda;
+    p_srcb->in_use = true;
+    p_srcb->server_bda = bda;
   }
-  return p_tcb;
+  return p_srcb;
 }
 
 void bta_gattc_send_mtu_response(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data,
@@ -455,6 +497,18 @@ bool bta_gattc_is_data_queued(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_
 
   auto it = std::find(p_clcb->p_q_cmd_queue.begin(), p_clcb->p_q_cmd_queue.end(), p_data);
   return it != p_clcb->p_q_cmd_queue.end();
+}
+
+void bta_gattc_set_state(tBTA_GATTC_CLCB* p_clcb, tBTA_GATTC_STATE state) {
+  if (!p_clcb || p_clcb->state == state) {
+    return;
+  }
+  auto in_state = p_clcb->state;
+  p_clcb->state = state;
+
+  log::verbose("{}: GATTC State Change: [{} ({:#x})] -> [{} ({:#x})]", p_clcb->bda,
+               bta_clcb_state_text(in_state), in_state, bta_clcb_state_text(p_clcb->state),
+               p_clcb->state);
 }
 /*******************************************************************************
  *
@@ -623,33 +677,6 @@ bool bta_gattc_check_bg_conn(tGATT_IF client_if, const RawAddress& remote_bda, u
 }
 /*******************************************************************************
  *
- * Function         bta_gattc_send_open_cback
- *
- * Description      send open callback
- *
- * Returns
- *
- ******************************************************************************/
-void bta_gattc_send_open_cback(tBTA_GATTC_RCB* p_clreg, tGATT_STATUS status,
-                               const RawAddress& remote_bda, tCONN_ID conn_id,
-                               tBT_TRANSPORT transport, uint16_t mtu) {
-  tBTA_GATTC cb_data;
-
-  if (p_clreg->p_cback) {
-    memset(&cb_data, 0, sizeof(tBTA_GATTC));
-
-    cb_data.open.status = status;
-    cb_data.open.client_if = p_clreg->client_if;
-    cb_data.open.conn_id = conn_id;
-    cb_data.open.mtu = mtu;
-    cb_data.open.transport = transport;
-    cb_data.open.remote_bda = remote_bda;
-
-    (*p_clreg->p_cback)(BTA_GATTC_OPEN_EVT, &cb_data);
-  }
-}
-/*******************************************************************************
- *
  * Function         bta_gattc_conn_alloc
  *
  * Description      allocate connection tracking spot
@@ -796,6 +823,31 @@ tBTA_GATTC_CLCB* bta_gattc_find_int_disconn_clcb(tBTA_GATTC_DATA* p_msg) {
   return p_clcb;
 }
 
+/*******************************************************************************
+ *
+ * Function         bta_gattc_get_regcb_by_notification_handle
+ *
+ * Description      get registration control block by notification handle.
+ *
+ * Returns          pointer to the regcb
+ *
+ ******************************************************************************/
+tBTA_GATTC_RCB* bta_gattc_get_regcb_by_notification_handle(uint16_t handle, const RawAddress& bda) {
+  for (auto it = bta_gattc_cb.cl_rcb_map.begin(); it != bta_gattc_cb.cl_rcb_map.end(); ++it) {
+    tBTA_GATTC_RCB* p_clreg = it->second.get();
+    if (!p_clreg) {
+      continue;
+    }
+    for (uint8_t i = 0; i < BTA_GATTC_NOTIF_REG_MAX; i++) {
+      if (p_clreg->notif_reg[i].in_use && p_clreg->notif_reg[i].remote_bda == bda &&
+          p_clreg->notif_reg[i].handle == handle) {
+        return p_clreg;
+      }
+    }
+  }
+  return nullptr;
+}
+
 void bta_gatt_client_dump(int fd) {
   std::stringstream stream;
   int entry_count = 0;
@@ -819,8 +871,10 @@ void bta_gatt_client_dump(int fd) {
       continue;
     }
     entry_count++;
-    stream << "  address: " << p_bg_track->remote_bda.ToRedactedStringForLogging()
-           << "  cif_mask: " << loghex(p_bg_track->cif_mask);
+    stream << "  address: " << p_bg_track->remote_bda.ToRedactedStringForLogging() << "  cif_set: ";
+    for (auto& cif : p_bg_track->cif_set) {
+      stream << static_cast<int>(cif) << " ";
+    }
     stream << "\n";
   }
 
@@ -829,7 +883,8 @@ void bta_gatt_client_dump(int fd) {
   stream << " ->cl_rcb (dynamic)\n";
   for (auto& [i, p_cl_rcb] : bta_gattc_cb.cl_rcb_map) {
     entry_count++;
-    stream << "  client_if: " << +p_cl_rcb->client_if << "  app uuids: " << p_cl_rcb->app_uuid
+    stream << "  client_if: " << +p_cl_rcb->client_if
+           << "  app uuids: " << p_cl_rcb->app_uuid.ToString()
            << "  clcb_num: " << +p_cl_rcb->num_clcb;
     stream << "\n";
   }
@@ -853,7 +908,7 @@ void bta_gatt_client_dump(int fd) {
   stream << "  -- used: " << entry_count << "\n";
   entry_count = 0;
   stream << " ->known_server (BTA_GATTC_KNOWN_SR_MAX=" << BTA_GATTC_KNOWN_SR_MAX << ")\n";
-  for (int i = 0; i < BTA_GATTC_CL_MAX; i++) {
+  for (int i = 0; i < BTA_GATTC_KNOWN_SR_MAX; i++) {
     tBTA_GATTC_SERV* p_known_server = &bta_gattc_cb.known_server[i];
     if (!p_known_server->in_use) {
       continue;
@@ -865,7 +920,7 @@ void bta_gatt_client_dump(int fd) {
            << "  num_clcb: " << +p_known_server->num_clcb
            << "  state: " << bta_server_state_text(p_known_server->state)
            << "  connected: " << p_known_server->connected
-           << "  srvc_disc_count: " << p_known_server->srvc_disc_count
+           << "  srvc_disc_count: " << static_cast<int>(p_known_server->srvc_disc_count)
            << "  disc_blocked_waiting_on_version: "
            << p_known_server->disc_blocked_waiting_on_version
            << "  srvc_hdl_chg: " << +p_known_server->srvc_hdl_chg
@@ -877,6 +932,6 @@ void bta_gatt_client_dump(int fd) {
 
   stream << "  -- used: " << entry_count << "\n";
   entry_count = 0;
-  dprintf(fd, "BTA_GATTC_CB state %s \n%s\n", bta_gattc_state_text(bta_gattc_cb.state).c_str(),
+  dprintf(fd, "BTA_GATTC_CB state %s\n%s\n", bta_gattc_state_text(bta_gattc_cb.state).c_str(),
           stream.str().c_str());
 }

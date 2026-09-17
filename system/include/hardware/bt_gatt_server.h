@@ -18,9 +18,11 @@
 #define ANDROID_INCLUDE_BT_GATT_SERVER_H
 
 #include <bluetooth/types/address.h>
+#include <hardware/bt_common_types.h>
 #include <stdint.h>
 
 #include "bt_gatt_types.h"
+#include "bt_status.h"
 
 __BEGIN_DECLS
 
@@ -53,9 +55,6 @@ typedef void (*connection_callback)(int conn_id, int server_if, int transport, i
 /** Callback invoked in response to create_service */
 typedef void (*service_added_callback)(int status, int server_if,
                                        const btgatt_db_element_t* service, size_t service_count);
-
-/** Callback invoked in response to stop_service */
-typedef void (*service_stopped_callback)(int status, int server_if, int srvc_handle);
 
 /** Callback triggered when a service has been deleted */
 typedef void (*service_deleted_callback)(int status, int server_if, int srvc_handle);
@@ -113,12 +112,17 @@ typedef void (*conn_updated_callback)(int conn_id, uint16_t interval, uint16_t l
 /** Callback invoked when the subrate change event for a given connection
  * is received */
 typedef void (*subrate_change_callback)(int conn_id, uint16_t subrate_factor, uint16_t latency,
-                                        uint16_t cont_num, uint16_t timeout, uint8_t status);
+                                        uint16_t cont_num, uint16_t timeout, uint8_t subrate_mode,
+                                        uint8_t status);
+
+/** Callback invoked when the characteristics unoffloaded event for a given connection is received
+ */
+typedef void (*characteristics_unoffloaded_callback)(int conn_id, int session_id, uint8_t status);
+
 typedef struct {
   register_server_callback register_server_cb;
   connection_callback connection_cb;
   service_added_callback service_added_cb;
-  service_stopped_callback service_stopped_cb;
   service_deleted_callback service_deleted_cb;
   request_read_callback request_read_characteristic_cb;
   request_read_callback request_read_descriptor_cb;
@@ -132,46 +136,52 @@ typedef struct {
   phy_updated_callback phy_updated_cb;
   conn_updated_callback conn_updated_cb;
   subrate_change_callback subrate_chg_cb;
+  characteristics_unoffloaded_callback characteristics_unoffloaded_cb;
 } btgatt_server_callbacks_t;
 
 /** Represents the standard BT-GATT server interface. */
 typedef struct {
   /** Registers a GATT server application with the stack */
-  bt_status_t (*register_server)(const bluetooth::Uuid& uuid, bool eatt_support);
+  BtStatus (*register_server)(const bluetooth::Uuid& uuid, bool eatt_support);
 
   /** Unregister a server application from the stack */
-  bt_status_t (*unregister_server)(int server_if);
+  BtStatus (*unregister_server)(int server_if);
 
   /** Create a connection to a remote peripheral */
-  bt_status_t (*connect)(int server_if, const RawAddress& bd_addr, uint8_t addr_type,
-                         bool is_direct, int transport);
+  BtStatus (*connect)(int server_if, const RawAddress& bd_addr, uint8_t addr_type, bool is_direct,
+                      int transport);
 
   /** Disconnect an established connection or cancel a pending one */
-  bt_status_t (*disconnect)(int server_if, const RawAddress& bd_addr, int conn_id);
+  BtStatus (*disconnect)(int server_if, const RawAddress& bd_addr, int conn_id);
 
   /** Create a new service */
-  bt_status_t (*add_service)(int server_if, const btgatt_db_element_t* service,
-                             size_t service_count);
-
-  /** Stops a local service */
-  bt_status_t (*stop_service)(int server_if, int service_handle);
+  BtStatus (*add_service)(int server_if, const btgatt_db_element_t* service, size_t service_count);
 
   /** Delete a local service */
-  bt_status_t (*delete_service)(int server_if, int service_handle);
+  BtStatus (*delete_service)(int server_if, int service_handle);
 
   /** Send value indication to a remote device */
-  bt_status_t (*send_indication)(int server_if, int attribute_handle, int conn_id, int confirm,
-                                 const uint8_t* value, size_t length);
+  BtStatus (*send_indication)(int server_if, int attribute_handle, int conn_id, int confirm,
+                              const uint8_t* value, size_t length);
 
   /** Send a response to a read/write operation */
-  bt_status_t (*send_response)(int conn_id, int trans_id, int status,
-                               const btgatt_response_t& response);
+  BtStatus (*send_response)(int conn_id, int trans_id, int status,
+                            const btgatt_response_t& response);
 
-  bt_status_t (*set_preferred_phy)(const RawAddress& bd_addr, uint8_t tx_phy, uint8_t rx_phy,
-                                   uint16_t phy_options);
+  BtStatus (*set_preferred_phy)(const RawAddress& bd_addr, uint8_t tx_phy, uint8_t rx_phy,
+                                uint16_t phy_options);
 
-  bt_status_t (*read_phy)(const RawAddress& bd_addr,
-                          base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb);
+  BtStatus (*read_phy)(const RawAddress& bd_addr,
+                       base::OnceCallback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb);
+
+  /** Offload GATT characteristics */
+  BtStatus (*offload_characteristics)(int conn_id, btgatt_db_element_t* service,
+                                      size_t element_count, uint64_t endpoint_id, uint64_t hub_id,
+                                      int uid, std::string attribution_tag,
+                                      btgatt_offload_result_t* result);
+
+  /** Unoffload GATT characteristics */
+  BtStatus (*unoffload_characteristics)(int conn_id, int session_id);
 } btgatt_server_interface_t;
 
 __END_DECLS

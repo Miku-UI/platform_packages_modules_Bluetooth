@@ -1,8 +1,8 @@
 //! D-Bus proxy implementations of the APIs.
 
 use bt_topshim::btif::{
-    BtAddrType, BtBondState, BtConnectionState, BtDeviceType, BtDiscMode, BtPropertyType,
-    BtSspVariant, BtStatus, BtTransport, BtVendorProductInfo, DisplayAddress, RawAddress, Uuid,
+    BtAddrType, BtBondState, BtConnectionState, BtDeviceType, BtDiscMode, BtPropertyType, BtStatus,
+    BtTransport, BtVendorProductInfo, DisplayAddress, PairingVariant, RawAddress, Uuid,
 };
 use bt_topshim::profiles::a2dp::{
     A2dpCodecBitsPerSample, A2dpCodecChannelMode, A2dpCodecConfig, A2dpCodecIndex,
@@ -81,7 +81,7 @@ use btstack::bluetooth_qa::IBluetoothQACallback;
 
 use crate::dbus_arg::{DBusArg, DBusArgError, DirectDBus, RefArgToRust};
 
-fn make_object_path(idx: i32, name: &str) -> dbus::Path {
+fn make_object_path(idx: i32, name: &str) -> dbus::Path<'_> {
     dbus::Path::new(format!("/org/chromium/bluetooth/hci{}/{}", idx, name)).unwrap()
 }
 
@@ -91,7 +91,7 @@ impl_dbus_arg_enum!(BtConnectionState);
 impl_dbus_arg_enum!(BtDeviceType);
 impl_dbus_arg_enum!(BtAddrType);
 impl_dbus_arg_enum!(BtPropertyType);
-impl_dbus_arg_enum!(BtSspVariant);
+impl_dbus_arg_enum!(PairingVariant);
 impl_dbus_arg_enum!(BtStatus);
 impl_dbus_arg_enum!(BtTransport);
 impl_dbus_arg_from_into!(BtLeAudioUsage, i32);
@@ -639,7 +639,7 @@ impl IBluetoothCallback for IBluetoothCallbackDBus {
         &mut self,
         remote_device: BluetoothDevice,
         cod: u32,
-        variant: BtSspVariant,
+        variant: PairingVariant,
         passkey: u32,
     ) {
     }
@@ -728,11 +728,13 @@ impl_dbus_arg_enum!(BtDiscMode);
 // `generate_dbus_interface_client` below.
 #[derive(Clone)]
 pub(crate) struct BluetoothDBusRPC {
+    #[allow(dead_code)]
     client_proxy: ClientDBusProxy,
 }
 
 pub(crate) struct BluetoothDBus {
     client_proxy: ClientDBusProxy,
+    #[allow(dead_code)]
     pub rpc: BluetoothDBusRPC,
 }
 
@@ -779,9 +781,8 @@ impl IBluetooth for BluetoothDBus {
         dbus_generated!()
     }
 
-    fn init(&mut self, _hci_index: i32) -> bool {
+    fn init(&mut self, _hci_index: i32) {
         // Not implemented by server
-        true
     }
 
     fn enable(&mut self) -> bool {
@@ -814,7 +815,7 @@ impl IBluetooth for BluetoothDBus {
     }
 
     #[dbus_method("SetName")]
-    fn set_name(&self, name: String) -> bool {
+    fn set_name(&mut self, name: String) -> bool {
         dbus_generated!()
     }
 
@@ -1129,11 +1130,13 @@ impl_dbus_arg_enum!(UnstableAflagsUseMode);
 // `generate_dbus_interface_client` below.
 #[derive(Clone)]
 pub(crate) struct BluetoothManagerDBusRPC {
+    #[allow(dead_code)]
     client_proxy: ClientDBusProxy,
 }
 
 pub(crate) struct BluetoothManagerDBus {
     client_proxy: ClientDBusProxy,
+    #[allow(dead_code)]
     pub rpc: BluetoothManagerDBusRPC,
 }
 
@@ -1356,11 +1359,13 @@ pub struct PeriodicAdvertisingParametersDBus {
 
 #[derive(Clone)]
 pub(crate) struct BluetoothAdminDBusRPC {
+    #[allow(dead_code)]
     client_proxy: ClientDBusProxy,
 }
 
 pub(crate) struct BluetoothAdminDBus {
     client_proxy: ClientDBusProxy,
+    #[allow(dead_code)]
     pub rpc: BluetoothAdminDBusRPC,
 }
 
@@ -1458,11 +1463,13 @@ impl IBluetoothAdminPolicyCallback for IBluetoothAdminPolicyCallbackDBus {
 
 #[derive(Clone)]
 pub(crate) struct BluetoothGattDBusRPC {
+    #[allow(dead_code)]
     client_proxy: ClientDBusProxy,
 }
 
 pub(crate) struct BluetoothGattDBus {
     client_proxy: ClientDBusProxy,
+    #[allow(dead_code)]
     pub rpc: BluetoothGattDBusRPC,
 }
 
@@ -2136,11 +2143,13 @@ pub struct SocketResultDBus {
 
 #[derive(Clone)]
 pub(crate) struct BluetoothSocketManagerDBusRPC {
+    #[allow(dead_code)]
     client_proxy: ClientDBusProxy,
 }
 
 pub(crate) struct BluetoothSocketManagerDBus {
     client_proxy: ClientDBusProxy,
+    #[allow(dead_code)]
     pub rpc: BluetoothSocketManagerDBusRPC,
 }
 
@@ -2402,11 +2411,13 @@ impl ISuspendCallback for ISuspendCallbackDBus {
 
 #[derive(Clone)]
 pub(crate) struct BluetoothTelephonyDBusRPC {
+    #[allow(dead_code)]
     client_proxy: ClientDBusProxy,
 }
 
 pub(crate) struct BluetoothTelephonyDBus {
     client_proxy: ClientDBusProxy,
+    #[allow(dead_code)]
     pub rpc: BluetoothTelephonyDBusRPC,
 }
 
@@ -2528,11 +2539,13 @@ impl IBluetoothTelephonyCallback for IBluetoothTelephonyCallbackDBus {
 
 #[derive(Clone)]
 pub(crate) struct BluetoothQADBusRPC {
+    #[allow(dead_code)]
     client_proxy: ClientDBusProxy,
 }
 
 pub(crate) struct BluetoothQADBus {
     client_proxy: ClientDBusProxy,
+    #[allow(dead_code)]
     pub rpc: BluetoothQADBusRPC,
 }
 
@@ -2657,11 +2670,13 @@ impl IBluetoothQACallback for IBluetoothQACallbackDBus {
 
 #[derive(Clone)]
 pub(crate) struct BluetoothMediaDBusRPC {
+    #[allow(dead_code)]
     client_proxy: ClientDBusProxy,
 }
 
 pub(crate) struct BluetoothMediaDBus {
     client_proxy: ClientDBusProxy,
+    #[allow(dead_code)]
     pub rpc: BluetoothMediaDBusRPC,
 }
 
@@ -3033,11 +3048,13 @@ impl IBluetoothMediaCallback for IBluetoothMediaCallbackDBus {
 
 #[derive(Clone)]
 pub(crate) struct BatteryManagerDBusRPC {
+    #[allow(dead_code)]
     client_proxy: ClientDBusProxy,
 }
 
 pub(crate) struct BatteryManagerDBus {
     client_proxy: ClientDBusProxy,
+    #[allow(dead_code)]
     pub rpc: BatteryManagerDBusRPC,
 }
 
@@ -3112,12 +3129,14 @@ impl IBatteryManagerCallback for IBatteryManagerCallbackDBus {
 
 #[allow(dead_code)]
 pub(crate) struct BluetoothLoggingDBusRPC {
+    #[allow(dead_code)]
     client_proxy: ClientDBusProxy,
 }
 
 #[allow(dead_code)]
 pub(crate) struct BluetoothLoggingDBus {
     client_proxy: ClientDBusProxy,
+    #[allow(dead_code)]
     pub rpc: BluetoothLoggingDBusRPC,
 }
 

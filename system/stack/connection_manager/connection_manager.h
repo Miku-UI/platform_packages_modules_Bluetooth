@@ -58,10 +58,20 @@ bool background_connect_remove(tAPP_ID app_id, const RawAddress& address);
 
 bool remove_unconditional(const RawAddress& address);
 
+void on_removed_from_accept_list(const RawAddress& address);
+
 void reset(bool after_reset);
 
 void on_app_deregistered(tAPP_ID app_id);
+
+/* earliest signal that conection is established */
+void on_connection_maybe(const RawAddress& address);
+
+/* connection is configured and notified to everybody */
 void on_connection_complete(const RawAddress& address);
+
+/* connection attempt failed */
+void on_connection_failed(const RawAddress& address);
 
 std::set<tAPP_ID> get_apps_connecting_to(const RawAddress& remote_bda);
 
@@ -82,7 +92,6 @@ void dump(int fd);
 /* This callback will be executed when direct connect attempt fails due to
  * timeout. It must be implemented by users of connection_manager */
 void on_connection_timed_out(uint8_t app_id, const RawAddress& address);
-void on_connection_timed_out_from_shim(const RawAddress& address);
 
 bool is_background_connection(const RawAddress& address);
 bool is_direct_connection(const RawAddress& address);

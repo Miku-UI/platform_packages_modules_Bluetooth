@@ -1,10 +1,20 @@
-module: "android.sysprop.bluetooth.hardware"
+module: "android.sysprop.bluetooth.Hardware"
 owner: Platform
 
 prop {
     api_name: "wakeup_supported"
     type: Boolean
+    default_value: "true"
     scope: Internal
     access: Readonly
     prop_name: "bluetooth.hardware.wakeup_supported"
+}
+
+prop {
+    api_name: "degraded_performance_mode"
+    type: Boolean
+    default_value: "false"
+    scope: Internal
+    access: Readonly
+    prop_name: "bluetooth.hardware.degraded_performance_mode.enabled"
 }

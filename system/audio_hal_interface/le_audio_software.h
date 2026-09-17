@@ -22,8 +22,6 @@
 #include <hardware/audio.h>
 #endif
 
-#include <com_android_bluetooth_flags.h>
-
 #include <functional>
 #include <optional>
 
@@ -38,10 +36,14 @@ namespace le_audio {
 using ::bluetooth::le_audio::DsaMode;
 using ::bluetooth::le_audio::DsaModes;
 
-enum class StartRequestState {
+enum class BluetoothRequest {
+  RESUME = 0x00,
+};
+
+enum class BluetoothRequestState {
   IDLE = 0x00,
-  PENDING_BEFORE_RESUME,
-  PENDING_AFTER_RESUME,
+  PENDING_BEFORE_REQUEST,
+  PENDING_AFTER_REQUEST,
   CONFIRMED,
   CANCELED,
 };
@@ -147,6 +149,7 @@ public:
   };
   class Source : public IClientInterfaceEndpoint {
   public:
+    Source(bool is_broadcast_sink = false) : is_broadcast_sink_(is_broadcast_sink) {}
     virtual ~Source() = default;
 
     void Cleanup() override;
@@ -159,11 +162,22 @@ public:
     void UpdateAudioConfigToHal(const ::bluetooth::le_audio::stream_config& config) override;
     void SetCodecPriority(const ::bluetooth::le_audio::types::LeAudioCodecId& codecId,
                           int32_t priority) override;
+    void UpdateBroadcastAudioConfigToHal(
+            const ::bluetooth::le_audio::broadcast_offload_config& config);
     void SuspendedForReconfiguration() override;
     void ReconfigurationComplete() override;
     void StreamSuspended() override;
     // Source the given stream of bytes to be sinked into the upper layers
     size_t Write(const uint8_t* p_buf, uint32_t len);
+    bool IsBroadcastSink() { return is_broadcast_sink_; }
+    std::optional<::bluetooth::le_audio::broadcaster::BroadcastConfiguration> GetBroadcastConfig(
+            const std::vector<std::pair<::bluetooth::le_audio::types::LeAudioContextType, uint8_t>>&
+                    subgroup_quality,
+            const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs)
+            const;
+
+  private:
+    bool is_broadcast_sink_ = false;
   };
 
   // Get LE Audio sink client interface if it's not previously acquired and not
@@ -179,9 +193,12 @@ public:
 
   // Get LE Audio source client interface if it's not previously acquired and
   // not yet released.
-  Source* GetSource(StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* message_loop);
-  // This should be called before trying to get source interface
-  bool IsSourceAcquired();
+  Source* GetSource(StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* message_loop,
+                    bool is_broadcasting_session_type = false);
+  // This should be called before trying to get unicast source interface
+  bool IsUnicastSourceAcquired();
+  // This should be called before trying to get broadcast source interface
+  bool IsBroadcastSourceAcquired();
   // Release source interface if belongs to LE audio client interface
   bool ReleaseSource(Source* source);
 
@@ -199,9 +216,19 @@ private:
   static LeAudioClientInterface* interface;
   Sink* unicast_sink_ = nullptr;
   Sink* broadcast_sink_ = nullptr;
-  Source* source_ = nullptr;
+  Source* unicast_source_ = nullptr;
+  Source* broadcast_source_ = nullptr;
 };
 
 }  // namespace le_audio
 }  // namespace audio
 }  // namespace bluetooth
+
+namespace std {
+template <>
+struct formatter<bluetooth::audio::le_audio::BluetoothRequest>
+    : enum_formatter<bluetooth::audio::le_audio::BluetoothRequest> {};
+template <>
+struct formatter<bluetooth::audio::le_audio::BluetoothRequestState>
+    : enum_formatter<bluetooth::audio::le_audio::BluetoothRequestState> {};
+}  // namespace std

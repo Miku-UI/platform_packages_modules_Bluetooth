@@ -19,21 +19,27 @@ package com.android.bluetooth.a2dpsink;
 import static java.util.Objects.requireNonNull;
 
 import android.bluetooth.BluetoothDevice;
-import android.util.Log;
 
-import com.android.bluetooth.Utils;
+import com.android.bluetooth.Util;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.profile.NativeInterface;
 
-/** A2DP Sink Native Interface to/from JNI. */
-public class A2dpSinkNativeInterface {
-    private static final String TAG = A2dpSinkNativeInterface.class.getSimpleName();
+public class A2dpSinkNativeInterface extends NativeInterface<A2dpSinkNativeCallback> {
 
     private final AdapterService mAdapterService;
-    private final A2dpSinkService mService;
 
-    A2dpSinkNativeInterface(AdapterService adapterService, A2dpSinkService service) {
-        mAdapterService = requireNonNull(adapterService);
-        mService = service;
+    // match up with btav_audio_state_t enum of bt_av.h
+    static final int AUDIO_STATE_REMOTE_SUSPEND = 0;
+    static final int AUDIO_STATE_STOPPED = 1;
+    static final int AUDIO_STATE_STARTED = 2;
+
+    // Match up with btif_a2dp_sink_focus_state_t focus states from btif_a2dp_sink.h
+    static final int STATE_FOCUS_LOST = 0;
+    static final int STATE_FOCUS_GRANTED = 1;
+
+    A2dpSinkNativeInterface(A2dpSinkNativeCallback nativeCallback, AdapterService adapterService) {
+        super(requireNonNull(nativeCallback));
+        mAdapterService = adapterService;
     }
 
     /**
@@ -45,13 +51,9 @@ public class A2dpSinkNativeInterface {
         initNative(maxConnectedAudioDevices);
     }
 
-    /** Cleanup the native interface. */
+    @Override
     public void cleanup() {
         cleanupNative();
-    }
-
-    private BluetoothDevice getDevice(byte[] address) {
-        return mAdapterService.getDeviceFromByte(address);
     }
 
     /**
@@ -61,7 +63,7 @@ public class A2dpSinkNativeInterface {
      * @return true on success, otherwise false.
      */
     public boolean connectA2dpSink(BluetoothDevice device) {
-        return connectA2dpNative(Utils.getByteBrEdrAddress(mAdapterService, device));
+        return connectA2dpNative(mAdapterService.getByteBrEdrAddress(device));
     }
 
     /**
@@ -71,7 +73,7 @@ public class A2dpSinkNativeInterface {
      * @return true on success, otherwise false.
      */
     public boolean disconnectA2dpSink(BluetoothDevice device) {
-        return disconnectA2dpNative(Utils.getByteBrEdrAddress(mAdapterService, device));
+        return disconnectA2dpNative(mAdapterService.getByteBrEdrAddress(device));
     }
 
     /**
@@ -88,9 +90,9 @@ public class A2dpSinkNativeInterface {
         // Translate to byte address for JNI. Use an all 0 MAC for no active device
         byte[] address = null;
         if (device != null) {
-            address = Utils.getByteBrEdrAddress(mAdapterService, device);
+            address = mAdapterService.getByteBrEdrAddress(device);
         } else {
-            address = Utils.getBytesFromAddress("00:00:00:00:00:00");
+            address = Util.getBytesFromAddress("00:00:00:00:00:00");
         }
         return setActiveDeviceNative(address);
     }
@@ -105,26 +107,13 @@ public class A2dpSinkNativeInterface {
         informAudioTrackGainNative(gain);
     }
 
-    /** For the JNI to send messages about connection state changes */
-    public void onConnectionStateChanged(byte[] address, int state) {
-        StackEvent event = StackEvent.connectionStateChanged(getDevice(address), state);
-        Log.d(TAG, "onConnectionStateChanged: " + event);
-        mService.messageFromNative(event);
-    }
-
-    /** For the JNI to send messages about audio stream state changes */
-    public void onAudioStateChanged(byte[] address, int state) {
-        StackEvent event = StackEvent.audioStateChanged(getDevice(address), state);
-        Log.d(TAG, "onAudioStateChanged: " + event);
-        mService.messageFromNative(event);
-    }
-
-    /** For the JNI to send messages about audio configuration changes */
-    public void onAudioConfigChanged(byte[] address, int sampleRate, int channelCount) {
-        StackEvent event =
-                StackEvent.audioConfigChanged(getDevice(address), sampleRate, channelCount);
-        Log.d(TAG, "onAudioConfigChanged: " + event);
-        mService.messageFromNative(event);
+    public static String audioStateToString(int state) {
+        return switch (state) {
+            case A2dpSinkNativeInterface.AUDIO_STATE_STARTED -> "AUDIO_STATE_STARTED";
+            case A2dpSinkNativeInterface.AUDIO_STATE_STOPPED -> "AUDIO_STATE_STOPPED";
+            case A2dpSinkNativeInterface.AUDIO_STATE_REMOTE_SUSPEND -> "AUDIO_STATE_REMOTE_SUSPEND";
+            default -> "UNKNOWN (" + state + ")";
+        };
     }
 
     // Native methods that call into the JNI interface

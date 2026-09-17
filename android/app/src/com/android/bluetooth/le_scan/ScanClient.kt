@@ -19,50 +19,108 @@ package com.android.bluetooth.le_scan
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanSettings
 import android.os.UserHandle
+import com.android.bluetooth.flags.Flags
+import com.android.bluetooth.le_scan.ScanUtil.toBuilder
 import java.util.Objects
-import java.util.Optional
-import kotlin.jvm.optionals.getOrNull
 
 /** Helper class identifying a client that has requested LE scan results. */
 class ScanClient
 private constructor(
+    val app: ScannerApp,
+    val appUid: Int,
     val scannerId: Int,
     var settings: ScanSettings,
     val scanModeApp: Int,
     val filters: List<ScanFilter>,
-    val appUid: Int,
     val userHandle: UserHandle?,
-    val isInternalClient: Boolean,
-    var started: Boolean = false,
-    var appDied: Boolean = false,
-    var hasLocationPermission: Boolean = false,
-    var isQApp: Boolean = false,
-    var isEligibleForSanitizedExposureNotification: Boolean = false,
-    var hasNetworkSettingsPermission: Boolean = false,
-    var hasNetworkSetupWizardPermission: Boolean = false,
-    var hasScanWithoutLocationPermission: Boolean = false,
-    var hasDisavowedLocation: Boolean = false,
-    var associatedDevices: List<String> = emptyList(),
-    @get:JvmName("getAppScanStats")
-    @set:JvmName("setAppScanStats")
-    internal var appScanStats: Optional<AppScanStats> = Optional.empty(),
+    val isInternal: Boolean = false,
+    val hasLocationPermission: Boolean = false,
+    val isEligibleForSanitizedExposureNotification: Boolean = false,
+    val hasNetworkSettingsPermission: Boolean = false,
+    val hasNetworkSetupWizardPermission: Boolean = false,
+    val hasScanWithoutLocationPermission: Boolean = false,
+    val hasDisavowedLocation: Boolean = false,
+    val associatedDevices: List<String> = emptyList(),
 ) {
-    @JvmOverloads
+    val appScanStats = app.appScanStats
+    val isFiltered: Boolean
+        get() =
+            if (Flags.treatEmptyFiltersAsUnfiltered()) hasNonEmptyFilters else filters.isNotEmpty()
+
+    // TODO(b/461650493) inline within the above `val isFiltered` on flag cleanup
+    // A valid filter need at least one field not empty
+    val hasNonEmptyFilters = filters.any { !it.isAllFieldsEmpty }
+
+    var started = false
+    var appDied = false
+
     constructor(
-        scannerId: Int,
+        app: ScannerApp,
         settings: ScanSettings,
-        filterList: List<ScanFilter>?,
-        appUid: Int,
-        userHandle: UserHandle? = null,
-        isInternalClient: Boolean = false,
+        userHandle: UserHandle,
+        eligibleForSanitizedExposureNotification: Boolean = false,
+        hasDisavowedLocation: Boolean = false,
+        hasLocationPermission: Boolean = false,
+        hasNetworkSettingsPermission: Boolean = false,
+        hasNetworkSetupWizardPermission: Boolean = false,
+        hasScanWithoutLocationPermission: Boolean = false,
+        associatedDevices: List<String> = emptyList(),
     ) : this(
-        scannerId,
-        settings,
-        settings.scanMode,
-        filterList ?: emptyList(),
-        appUid,
-        userHandle,
-        isInternalClient,
+        app = app,
+        appUid = app.uid,
+        scannerId = app.scannerId,
+        settings = settings,
+        scanModeApp = settings.scanMode,
+        filters = app.filters,
+        userHandle = userHandle,
+        isEligibleForSanitizedExposureNotification = eligibleForSanitizedExposureNotification,
+        hasDisavowedLocation = hasDisavowedLocation,
+        hasLocationPermission = hasLocationPermission,
+        hasNetworkSettingsPermission = hasNetworkSettingsPermission,
+        hasNetworkSetupWizardPermission = hasNetworkSetupWizardPermission,
+        hasScanWithoutLocationPermission = hasScanWithoutLocationPermission,
+        associatedDevices = associatedDevices,
+    )
+
+    // Constructor to be used for internal clients only
+    constructor(
+        app: ScannerApp,
+        appUid: Int,
+        userHandle: UserHandle,
+        hasNetworkSettingsPermission: Boolean,
+        hasNetworkSetupWizardPermission: Boolean,
+        hasScanWithoutLocationPermission: Boolean,
+    ) : this(
+        app = app,
+        appUid = appUid,
+        scannerId = app.scannerId,
+        settings = app.settings,
+        scanModeApp = app.settings.scanMode,
+        filters = app.filters,
+        userHandle = userHandle,
+        isInternal = true,
+        hasNetworkSettingsPermission = hasNetworkSettingsPermission,
+        hasNetworkSetupWizardPermission = hasNetworkSetupWizardPermission,
+        hasScanWithoutLocationPermission = hasScanWithoutLocationPermission,
+    )
+
+    constructor(
+        app: ScannerApp
+    ) : this(
+        app = app,
+        appUid = app.uid,
+        scannerId = app.scannerId,
+        settings = app.settings,
+        scanModeApp = app.settings.scanMode,
+        filters = app.filters,
+        userHandle = app.userHandle,
+        hasLocationPermission = app.hasLocationPermission,
+        isEligibleForSanitizedExposureNotification = app.eligibleForSanitizedExposureNotification,
+        hasNetworkSettingsPermission = app.hasNetworkSettingsPermission,
+        hasNetworkSetupWizardPermission = app.hasNetworkSetupWizardPermission,
+        hasScanWithoutLocationPermission = app.hasScanWithoutLocationPermission,
+        associatedDevices = app.associatedDevices ?: emptyList(),
+        hasDisavowedLocation = app.hasDisavowedLocation,
     )
 
     override fun equals(other: Any?): Boolean {
@@ -79,16 +137,9 @@ private constructor(
         return Objects.hash(scannerId)
     }
 
-    override fun toString(): String {
-        val sb = StringBuilder("ScanClient(")
-        sb.append("scannerId=").append(scannerId)
-        sb.append(", scanModeApp=").append(ScanSettings.getScanModeString(scanModeApp))
-        sb.append(", scanModeUsed=").append(ScanSettings.getScanModeString(settings.scanMode))
-        appScanStats.getOrNull()?.let { stats ->
-            sb.append(", appScanStats.appName=").append(stats.mAppName)
-        }
-        return sb.append(")").toString()
-    }
+    override fun toString() =
+        "ScanClient(${appScanStats.name}" +
+            "id=$scannerId, mode[${ScanMode(scanModeApp)}, used=${ScanMode(settings.scanMode)}])"
 
     /**
      * Update scan settings with the new scan mode.
@@ -100,17 +151,7 @@ private constructor(
             return false
         }
 
-        settings =
-            ScanSettings.Builder()
-                .setScanMode(newScanMode)
-                .setCallbackType(settings.callbackType)
-                .setScanResultType(settings.scanResultType)
-                .setReportDelay(settings.reportDelayMillis)
-                .setNumOfMatches(settings.numOfMatches)
-                .setMatchMode(settings.matchMode)
-                .setLegacy(settings.legacy)
-                .setPhy(settings.phy)
-                .build()
+        settings = settings.toBuilder().setScanMode(newScanMode).build()
         return true
     }
 }

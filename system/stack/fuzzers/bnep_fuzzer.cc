@@ -19,18 +19,15 @@
 #include <fuzzer/FuzzedDataProvider.h>
 
 #include <cstdint>
-#include <functional>
 #include <vector>
 
 #include "osi/include/allocator.h"
 #include "stack/include/bnep_api.h"
+#include "stack/mock/mock_stack_acl.h"
+#include "stack/mock/mock_stack_btm_dev.h"
+#include "stack/mock/mock_stack_l2cap_interface.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_btif_config.h"
-#include "test/mock/mock_stack_acl.h"
-#include "test/mock/mock_stack_btm_dev.h"
-#include "test/mock/mock_stack_l2cap_api.h"
-#include "test/mock/mock_stack_l2cap_ble.h"
-#include "test/mock/mock_stack_l2cap_interface.h"
 
 using bluetooth::Uuid;
 using ::testing::NiceMock;
@@ -40,7 +37,7 @@ namespace {
 
 constexpr uint16_t kDummyCid = 0x1234;
 constexpr uint8_t kDummyId = 0x77;
-constexpr RawAddress kDummyRemoteAddr({0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC});
+constexpr RawAddress kDummyRemoteAddr("77:88:99:AA:BB:CC");
 constexpr uint8_t kDummySrcUuid[] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
                                      0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff};
 constexpr uint8_t kDummyDstUuid[] = {0x00, 0x00, 0x00, 0x00, 0x22, 0x22, 0x22, 0x22,

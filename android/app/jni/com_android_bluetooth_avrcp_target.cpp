@@ -20,6 +20,7 @@
 #include <base/functional/callback.h>
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
+#include <com_android_bluetooth_flags.h>
 #include <jni.h>
 
 #include <cerrno>
@@ -65,7 +66,7 @@ static std::shared_timed_mutex callbacks_mutex;
 // Forward Declarations
 static void sendMediaKeyEvent(const RawAddress& address, int, KeyState);
 static std::string getCurrentMediaId();
-static SongInfo getSongInfo();
+static SongInfo getSongInfo(std::string media_id);
 static PlayStatus getCurrentPlayStatus();
 static std::vector<SongInfo> getNowPlayingList();
 static uint16_t getCurrentPlayerId();
@@ -106,6 +107,8 @@ SetPlayerSettingValueCb set_player_setting_value_cb;
 SetBrowsedPlayerCb set_browsed_player_cb;
 using map_entry = std::pair<std::string, GetFolderItemsCb>;
 std::map<std::string, GetFolderItemsCb> get_folder_items_cb_map;
+// Use map of vectors instead of multi-map to send response as per requests order
+std::map<std::string, std::vector<GetFolderItemsCb>> get_folder_item_cb_list_map;
 std::map<RawAddress, ::bluetooth::avrcp::VolumeInterface::VolumeChangedCb> volumeCallbackMap;
 
 template <typename T>
@@ -132,45 +135,45 @@ public:
     sendMediaKeyEvent(bdaddr, key, state);
   }
 
-  void GetSongInfo(SongInfoCallback cb) override {
-    auto info = getSongInfo();
-    cb.Run(info);
+  void GetSongInfo(std::string media_id, SongInfoCallback cb) override {
+    auto info = getSongInfo(media_id);
+    std::move(cb).Run(info);
   }
 
   void GetPlayStatus(PlayStatusCallback cb) override {
     auto status = getCurrentPlayStatus();
-    cb.Run(status);
+    std::move(cb).Run(status);
   }
 
   void GetNowPlayingList(NowPlayingCallback cb) override {
     auto curr_song_id = getCurrentMediaId();
     auto now_playing_list = getNowPlayingList();
-    cb.Run(curr_song_id, std::move(now_playing_list));
+    std::move(cb).Run(curr_song_id, std::move(now_playing_list));
   }
 
   void GetMediaPlayerList(MediaListCallback cb) override {
     uint16_t current_player = getCurrentPlayerId();
     auto player_list = getMediaPlayerList();
-    cb.Run(current_player, std::move(player_list));
+    std::move(cb).Run(current_player, std::move(player_list));
   }
 
   void GetFolderItems(uint16_t player_id, std::string media_id,
                       FolderItemsCallback folder_cb) override {
-    getFolderItems(player_id, media_id, folder_cb);
+    getFolderItems(player_id, media_id, std::move(folder_cb));
   }
 
   void GetAddressedPlayer(GetAddressedPlayerCallback cb) override {
     uint16_t current_player = getCurrentPlayerId();
-    cb.Run(current_player);
+    std::move(cb).Run(current_player);
   }
 
   void SetBrowsedPlayer(uint16_t player_id, std::string current_path,
                         SetBrowsedPlayerCallback browse_cb) override {
-    setBrowsedPlayer(player_id, current_path, browse_cb);
+    setBrowsedPlayer(player_id, current_path, std::move(browse_cb));
   }
 
   void SetAddressedPlayer(uint16_t player_id, SetAddressedPlayerCallback addressed_cb) override {
-    addressed_cb.Run(setAddressedPlayer(player_id));
+    std::move(addressed_cb).Run(setAddressedPlayer(player_id));
   }
 
   void RegisterUpdateCallback(MediaCallbacks* callback) override {
@@ -195,7 +198,7 @@ public:
   void DeviceConnected(const RawAddress& bdaddr) override { volumeDeviceConnected(bdaddr); }
 
   void DeviceConnected(const RawAddress& bdaddr, VolumeChangedCb cb) override {
-    volumeDeviceConnected(bdaddr, cb);
+    volumeDeviceConnected(bdaddr, std::move(cb));
   }
 
   void DeviceDisconnected(const RawAddress& bdaddr) override { volumeDeviceDisconnected(bdaddr); }
@@ -206,25 +209,25 @@ static VolumeInterfaceImpl mVolumeInterface;
 
 class PlayerSettingsInterfaceImpl : public PlayerSettingsInterface {
 public:
-  void ListPlayerSettings(ListPlayerSettingsCallback cb) { listPlayerSettings(cb); }
+  void ListPlayerSettings(ListPlayerSettingsCallback cb) { listPlayerSettings(std::move(cb)); }
 
   void ListPlayerSettingValues(PlayerAttribute setting, ListPlayerSettingValuesCallback cb) {
-    listPlayerSettingValues(setting, cb);
+    listPlayerSettingValues(setting, std::move(cb));
   }
 
   void GetCurrentPlayerSettingValue(std::vector<PlayerAttribute> attributes,
                                     GetCurrentPlayerSettingValueCallback cb) {
-    getPlayerSettings(attributes, cb);
+    getPlayerSettings(attributes, std::move(cb));
   }
 
   void SetPlayerSettings(std::vector<PlayerAttribute> attributes, std::vector<uint8_t> values,
                          SetPlayerSettingValueCallback cb) {
-    setPlayerSettings(attributes, values, cb);
+    setPlayerSettings(attributes, values, std::move(cb));
   }
 };
 static PlayerSettingsInterfaceImpl mPlayerSettingsInterface;
 
-static jmethodID method_getCurrentSongInfo;
+static jmethodID method_getSongInfo;
 static jmethodID method_getPlaybackStatus;
 static jmethodID method_sendMediaKeyEvent;
 
@@ -311,6 +314,7 @@ static void cleanupNative(JNIEnv* env, jobject /* object */) {
   std::unique_lock<std::shared_timed_mutex> callbacks_lock(callbacks_mutex);
 
   get_folder_items_cb_map.clear();
+  get_folder_item_cb_list_map.clear();
   volumeCallbackMap.clear();
 
   sServiceInterface->Cleanup();
@@ -382,6 +386,7 @@ static std::string getImageHandleFromJavaObj(JNIEnv* env, jobject image) {
           env->GetMethodID(class_image, "getImageHandle", "()Ljava/lang/String;");
   jstring imageHandle = (jstring)env->CallObjectMethod(image, method_getImageHandle);
   if (imageHandle == nullptr) {
+    env->DeleteLocalRef(class_image);
     return handle;
   }
 
@@ -389,6 +394,7 @@ static std::string getImageHandleFromJavaObj(JNIEnv* env, jobject image) {
   handle = std::string(value);
   env->ReleaseStringUTFChars(imageHandle, value);
   env->DeleteLocalRef(imageHandle);
+  env->DeleteLocalRef(class_image);
   return handle;
 }
 
@@ -485,6 +491,7 @@ static SongInfo getSongInfoFromJavaObj(JNIEnv* env, jobject metadata) {
     env->DeleteLocalRef(object_image);
   }
 
+  env->DeleteLocalRef(class_metadata);
   return info;
 }
 
@@ -516,10 +523,11 @@ static FolderInfo getFolderInfoFromJavaObj(JNIEnv* env, jobject folder) {
   }
   info.folderType = env->GetIntField(folder, field_folderType);
 
+  env->DeleteLocalRef(class_folder);
   return info;
 }
 
-static SongInfo getSongInfo() {
+static SongInfo getSongInfo(std::string media_id) {
   log::debug("");
   std::shared_lock<std::shared_timed_mutex> lock(callbacks_mutex);
   CallbackEnv sCallbackEnv(__func__);
@@ -527,7 +535,8 @@ static SongInfo getSongInfo() {
     return SongInfo();
   }
 
-  jobject metadata = sCallbackEnv->CallObjectMethod(mJavaInterface, method_getCurrentSongInfo);
+  jstring j_media_id = sCallbackEnv->NewStringUTF(media_id.c_str());
+  jobject metadata = sCallbackEnv->CallObjectMethod(mJavaInterface, method_getSongInfo, j_media_id);
   SongInfo info = getSongInfoFromJavaObj(sCallbackEnv.get(), metadata);
   sCallbackEnv->DeleteLocalRef(metadata);
   return info;
@@ -702,7 +711,7 @@ static void setBrowsedPlayer(uint16_t player_id, std::string current_path, SetBr
     return;
   }
 
-  set_browsed_player_cb = cb;
+  set_browsed_player_cb = std::move(cb);
   jstring j_current_path = sCallbackEnv->NewStringUTF(current_path.c_str());
   sCallbackEnv->CallVoidMethod(mJavaInterface, method_setBrowsedPlayer, player_id, j_current_path);
 }
@@ -718,7 +727,13 @@ static void setBrowsedPlayerResponseNative(JNIEnv* env, jobject /* object */, ji
     env->ReleaseStringUTFChars(current_path, value);
   }
 
-  set_browsed_player_cb.Run(success == JNI_TRUE, path, num_items);
+  // If everything works correctly, the callback will be set and it will only be called once,
+  // checking is for extra safety.
+  if (set_browsed_player_cb) {
+    std::move(set_browsed_player_cb).Run(success == JNI_TRUE, path, num_items);
+  } else {
+    log::error("set_browsed_player_cb is not set");
+  }
 }
 
 static uint16_t setAddressedPlayer(uint16_t player_id) {
@@ -745,21 +760,36 @@ static void getFolderItemsResponseNative(JNIEnv* env, jobject /* object */, jstr
     env->ReleaseStringUTFChars(parent_id, value);
   }
 
-  // TODO(apanicke): Right now browsing will fail on a second device if two
-  // devices browse the same folder. Use a MultiMap to fix this behavior so
-  // that both callbacks can be handled with one lookup if a request comes
-  // for a folder that is already trying to be looked at.
-  if (get_folder_items_cb_map.find(id) == get_folder_items_cb_map.end()) {
-    log::error("Could not find response callback for the request of \"{}\"", id);
-    return;
-  }
+  std::vector<GetFolderItemsCb> pending_cb_list;
+  GetFolderItemsCb callback;
+  if (com_android_bluetooth_flags_fix_multiple_browse_requests()) {
+    auto iterator = get_folder_item_cb_list_map.find(id);
+    if (iterator == get_folder_item_cb_list_map.end()) {
+      log::error("Could not find any response callbacks for the request of \"{}\"", id);
+      return;
+    }
 
-  auto callback = get_folder_items_cb_map.find(id)->second;
-  get_folder_items_cb_map.erase(id);
+    pending_cb_list = std::move(iterator->second);
+    get_folder_item_cb_list_map.erase(id);
+  } else {
+    if (get_folder_items_cb_map.find(id) == get_folder_items_cb_map.end()) {
+      log::error("Could not find response callback for the request of \"{}\"", id);
+      return;
+    }
+
+    callback = std::move(get_folder_items_cb_map.find(id)->second);
+    get_folder_items_cb_map.erase(id);
+  }
 
   if (list == nullptr) {
     log::error("Got a null get folder items response list");
-    callback.Run(std::vector<ListItem>());
+    if (com_android_bluetooth_flags_fix_multiple_browse_requests()) {
+      for (auto& cb : pending_cb_list) {
+        std::move(cb).Run(std::vector<ListItem>());
+      }
+    } else {
+      std::move(callback).Run(std::vector<ListItem>());
+    }
     return;
   }
 
@@ -769,7 +799,13 @@ static void getFolderItemsResponseNative(JNIEnv* env, jobject /* object */, jstr
 
   jint list_size = env->CallIntMethod(list, method_size);
   if (list_size == 0) {
-    callback.Run(std::vector<ListItem>());
+    if (com_android_bluetooth_flags_fix_multiple_browse_requests()) {
+      for (auto& cb : pending_cb_list) {
+        std::move(cb).Run(std::vector<ListItem>());
+      }
+    } else {
+      std::move(callback).Run(std::vector<ListItem>());
+    }
     return;
   }
 
@@ -803,7 +839,13 @@ static void getFolderItemsResponseNative(JNIEnv* env, jobject /* object */, jstr
 
   env->DeleteLocalRef(list_item);
 
-  callback.Run(std::move(ret_list));
+  if (com_android_bluetooth_flags_fix_multiple_browse_requests()) {
+    for (auto& cb : pending_cb_list) {
+      std::move(cb).Run(ret_list);
+    }
+  } else {
+    std::move(callback).Run(std::move(ret_list));
+  }
 }
 
 static void getFolderItems(uint16_t player_id, std::string media_id, GetFolderItemsCb cb) {
@@ -816,7 +858,20 @@ static void getFolderItems(uint16_t player_id, std::string media_id, GetFolderIt
 
   // TODO(apanicke): Fix a potential media_id collision if two media players
   // use the same media_id scheme or two devices browse the same content.
-  get_folder_items_cb_map.insert(map_entry(media_id, cb));
+  if (com_android_bluetooth_flags_fix_multiple_browse_requests()) {
+    auto iterator = get_folder_item_cb_list_map.find(media_id);
+    if (iterator != get_folder_item_cb_list_map.end()) {
+      log::debug("Queuing browsing request for \"{}\"", media_id);
+      iterator->second.push_back(std::move(cb));
+      return;
+    }
+
+    std::vector<GetFolderItemsCb> callbacks;
+    callbacks.push_back(std::move(cb));
+    get_folder_item_cb_list_map[media_id] = std::move(callbacks);
+  } else {
+    get_folder_items_cb_map[media_id] = std::move(cb);
+  }
 
   jstring j_media_id = sCallbackEnv->NewStringUTF(media_id.c_str());
   sCallbackEnv->CallVoidMethod(mJavaInterface, method_getFolderItemsRequest, player_id, j_media_id);
@@ -956,7 +1011,13 @@ static void listPlayerSettingsResponseNative(JNIEnv* env, jobject /* object */,
   std::vector<PlayerAttribute> attributes_vector;
   copyJavaArraytoCppVector(env, attributes, &attributes_vector);
 
-  list_player_settings_cb.Run(std::move(attributes_vector));
+  // If everything works correctly, the callback will be set and it will only be called once,
+  // checking is for extra safety.
+  if (list_player_settings_cb) {
+    std::move(list_player_settings_cb).Run(std::move(attributes_vector));
+  } else {
+    log::error("list_player_settings_cb is not set");
+  }
 }
 
 // Called from native to list available values for player setting
@@ -978,7 +1039,14 @@ static void listPlayerSettingValuesResponseNative(JNIEnv* env, jobject /* object
   PlayerAttribute player_attribute = static_cast<PlayerAttribute>(attribute);
   std::vector<uint8_t> values_vector;
   copyJavaArraytoCppVector(env, values, &values_vector);
-  list_player_setting_values_cb.Run(player_attribute, std::move(values_vector));
+
+  // If everything works correctly, the callback will be set and it will only be called once,
+  // checking is for extra safety.
+  if (list_player_setting_values_cb) {
+    std::move(list_player_setting_values_cb).Run(player_attribute, std::move(values_vector));
+  } else {
+    log::error("list_player_setting_values_cb is not set");
+  }
 }
 
 // Called from native to get current player settings
@@ -1006,7 +1074,15 @@ static void getPlayerSettingsResponseNative(JNIEnv* env, jobject /* object */,
   std::vector<uint8_t> values_vector;
   copyJavaArraytoCppVector(env, attributes, &attributes_vector);
   copyJavaArraytoCppVector(env, values, &values_vector);
-  get_current_player_setting_value_cb.Run(std::move(attributes_vector), std::move(values_vector));
+
+  // If everything works correctly, the callback will be set and it will only be called once,
+  // checking is for extra safety.
+  if (get_current_player_setting_value_cb) {
+    std::move(get_current_player_setting_value_cb)
+            .Run(std::move(attributes_vector), std::move(values_vector));
+  } else {
+    log::error("get_current_player_setting_value_cb is not set");
+  }
 }
 
 // Called from native to set current player settings
@@ -1042,7 +1118,13 @@ static void setPlayerSettings(std::vector<PlayerAttribute> attributes, std::vect
 static void setPlayerSettingsResponseNative(JNIEnv* /* env */, jobject /* object */,
                                             jboolean success) {
   log::debug("");
-  set_player_setting_value_cb.Run(success);
+  // If everything works correctly, the callback will be set and it will only be called once,
+  // checking is for extra safety.
+  if (set_player_setting_value_cb) {
+    std::move(set_player_setting_value_cb).Run(success);
+  } else {
+    log::error("set_player_setting_value_cb is not set");
+  }
 }
 
 static void sendPlayerSettingsNative(JNIEnv* env, jobject /* object */, jbyteArray attributes,
@@ -1098,8 +1180,8 @@ int register_com_android_bluetooth_avrcp_target(JNIEnv* env) {
   }
 
   const JNIJavaMethod javaMethods[] = {
-          {"getCurrentSongInfo", "()Lcom/android/bluetooth/audio_util/Metadata;",
-           &method_getCurrentSongInfo},
+          {"getSongInfo", "(Ljava/lang/String;)Lcom/android/bluetooth/audio_util/Metadata;",
+           &method_getSongInfo},
           {"getPlayStatus", "()Lcom/android/bluetooth/audio_util/PlayStatus;",
            &method_getPlaybackStatus},
           {"sendMediaKeyEvent", "(Ljava/lang/String;IZ)V", &method_sendMediaKeyEvent},

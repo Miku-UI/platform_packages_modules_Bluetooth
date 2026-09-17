@@ -47,7 +47,8 @@ public:
   ~Acl();
 
   // hci::acl_manager::ConnectionCallbacks
-  void OnConnectSuccess(std::unique_ptr<hci::acl_manager::ClassicAclConnection>) override;
+  void OnConnectSuccess(std::unique_ptr<hci::acl_manager::ClassicAclConnection>,
+                        hci::Role role) override;
   void OnConnectRequest(hci::Address, hci::ClassOfDevice) override;
   void OnConnectFail(hci::Address, hci::ErrorCode reason, bool locally_initiated) override;
 
@@ -65,7 +66,7 @@ public:
   void GetAdvertisingSetConnectedTo(const RawAddress& remote_bda,
                                     std::promise<std::optional<uint8_t>> promise);
 
-  void CreateClassicConnection(const hci::Address& address);
+  void CreateClassicConnection(const hci::Address& address, uint16_t clock_offset);
   void CancelClassicConnection(const hci::Address& address);
   void DisconnectClassic(uint16_t handle, tHCI_REASON reason, const std::string& comment);
   void DisconnectLe(uint16_t handle, tHCI_REASON reason, const std::string& comment);

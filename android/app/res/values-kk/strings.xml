@@ -21,6 +21,8 @@
     <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"Қолданбаға BluetoothБөлісу менеджеріне кіріп, оны файлдары аудару үшін қолдану мүмкіндігін береді."</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"Bluetooth құрылғысын рұқсатқа ие тізімге қосу"</string>
     <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"Қолданба Bluetooth құрылғысына уақытша рұқсат беріп, файлдарды сол құрылғыдан осы құрылғыға пайдаланушының растауынсыз жібере алады."</string>
+    <string name="permlab_bluetoothBackup" msgid="49451988877877942">"Bluetooth cақтық көшірмесінің тарату хабарларына рұқсат ету."</string>
+    <string name="permdesc_bluetoothBackup" msgid="2871500153259509669">"Параметрлер деректерінің сақтық көшірмесін жасауды іске қосу үшін Bluetooth қолданбасына тарату хабарларын қабылдауға рұқсат етеді."</string>
     <string name="bt_share_picker_label" msgid="7464438494743777696">"Bluetooth"</string>
     <string name="unknown_device" msgid="2317679521750821654">"Белгісіз құрылғы"</string>
     <string name="unknownNumber" msgid="1245183329830158661">"Белгісіз"</string>
@@ -112,10 +114,10 @@
     <string name="transfer_menu_open" msgid="5193344638774400131">"Ашу"</string>
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Тізімнен өшіру."</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Өшіру"</string>
-    <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Қазір ойнауда"</string>
+    <string name="bluetooth_media_audio_app_name" msgid="2389937877819723460">"Bluetooth aудиосы"</string>
+    <string name="bluetooth_media_audio_queue_name" msgid="2327164681598379428">"Now Playing"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Қолданба белгішесі"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Bluetooth дыбысы ажыратылды"</string>
-    <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Bluetooth aудиосы"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"Көлемі 4 ГБ-тан асатын файлдар тасымалданбайды"</string>
     <string name="bluetooth_connect_action" msgid="2319449093046720209">"Bluetooth-қа қосылу"</string>
     <string name="bluetooth_enabled_apm_title" msgid="6914461147844949044">"Bluetooth ұшақ режимінде қосулы"</string>
@@ -130,4 +132,13 @@
     <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"Bluetooth қайта қосылды."</string>
     <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"Мұны кез келген уақытта \"Параметрлер\" бөлімінен өзгертуге болады."</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"Bluetooth-тің күйін автоматты түрде өзгерту"</string>
+    <string name="auracast_notification_channel" msgid="5159181425358316696">"Auracast"</string>
+    <string name="auracast_notification_title" msgid="3101708313009368939">"<xliff:g id="STREAM_NAME">%1$s</xliff:g> аудио трансляциясы қолжетімді"</string>
+    <string name="auracast_notification_subtext" msgid="4696155233480316395">"LE Audio"</string>
+    <string name="auracast_connect_device_message" msgid="4461776363082532493">"Тыңдауды бастау үшін LE Audio құрылғысын қосыңыз."</string>
+    <string name="auracast_listen_on_device_message" msgid="3719491065367993094">"<xliff:g id="STREAM_NAME">%1$s</xliff:g> аудио трансляциясын <xliff:g id="DEVICE_NAME">%2$s</xliff:g> құрылғысынан тыңдаңыз."</string>
+    <string name="auracast_connect_action" msgid="7157544449029291355">"Қосылу"</string>
+    <string name="auracast_connection_failed_message" msgid="6490085541428198952">"<xliff:g id="DEVICE_NAME">%2$s</xliff:g> құрылғысындағы <xliff:g id="STREAM_NAME">%1$s</xliff:g> аудио трансляциясына қосылу мүмкін болмады."</string>
+    <string name="auracast_default_stream_name" msgid="2824625871526576239">"Маңайда"</string>
+    <string name="auracast_default_device_name" msgid="15748131701036354">"құрылғылар"</string>
 </resources>

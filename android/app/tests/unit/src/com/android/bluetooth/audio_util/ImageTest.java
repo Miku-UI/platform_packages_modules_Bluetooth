@@ -18,7 +18,7 @@ package com.android.bluetooth.audio_util;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doReturn;
 
 import android.content.ContentResolver;
 import android.content.Context;
@@ -58,8 +58,6 @@ public class ImageTest {
 
     private final Resources mTestResources = TestUtils.getTestApplicationResources();
 
-    private MockContentResolver mTestContentResolver;
-
     private static final String TEST_AUTHORITY = "com.android.bluetooth.avrcp.test";
     private static final Uri TEST_CONTENT_URI =
             new Uri.Builder()
@@ -79,7 +77,8 @@ public class ImageTest {
                     .appendQueryParameter("handle", IMAGE_HANDLE_SECURITY_ERROR)
                     .build();
 
-    private Bitmap mTestBitmap = null;
+    private MockContentResolver mTestContentResolver;
+    private Bitmap mTestBitmap;
 
     @Before
     public void setUp() throws Exception {
@@ -101,7 +100,7 @@ public class ImageTest {
                     }
                 });
 
-        when(mMockContext.getContentResolver()).thenReturn(mTestContentResolver);
+        doReturn(mTestContentResolver).when(mMockContext).getContentResolver();
         Util.UriImagesSupport.sValue = true;
     }
 

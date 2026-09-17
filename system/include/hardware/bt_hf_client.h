@@ -19,6 +19,8 @@
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
 
+#include "bt_status.h"
+
 typedef enum {
   BTHF_CLIENT_CONNECTION_STATE_DISCONNECTED = 0,
   BTHF_CLIENT_CONNECTION_STATE_CONNECTING,
@@ -166,7 +168,7 @@ typedef enum {
  *  peer/chld_features are valid only for
  * BTHF_CLIENT_CONNECTION_STATE_SLC_CONNECTED state
  */
-typedef void (*bthf_client_connection_state_callback)(const RawAddress* bd_addr,
+typedef void (*bthf_client_connection_state_callback)(RawAddress bd_addr,
                                                       bthf_client_connection_state_t state,
                                                       unsigned int peer_feat,
                                                       unsigned int chld_feat);
@@ -174,112 +176,108 @@ typedef void (*bthf_client_connection_state_callback)(const RawAddress* bd_addr,
 /** Callback for audio connection state change.
  *  state will have one of the values from BtHfAudioState
  */
-typedef void (*bthf_client_audio_state_callback)(const RawAddress* bd_addr,
+typedef void (*bthf_client_audio_state_callback)(RawAddress bd_addr,
                                                  bthf_client_audio_state_t state);
 
 /** Callback for VR connection state change.
  *  state will have one of the values from BtHfVRState
  */
-typedef void (*bthf_client_vr_cmd_callback)(const RawAddress* bd_addr,
-                                            bthf_client_vr_state_t state);
+typedef void (*bthf_client_vr_cmd_callback)(RawAddress bd_addr, bthf_client_vr_state_t state);
 
 /** Callback for network state change
  */
-typedef void (*bthf_client_network_state_callback)(const RawAddress* bd_addr,
+typedef void (*bthf_client_network_state_callback)(RawAddress bd_addr,
                                                    bthf_client_network_state_t state);
 
 /** Callback for network roaming status change
  */
-typedef void (*bthf_client_network_roaming_callback)(const RawAddress* bd_addr,
+typedef void (*bthf_client_network_roaming_callback)(RawAddress bd_addr,
                                                      bthf_client_service_type_t type);
 
 /** Callback for signal strength indication
  */
-typedef void (*bthf_client_network_signal_callback)(const RawAddress* bd_addr, int signal_strength);
+typedef void (*bthf_client_network_signal_callback)(RawAddress bd_addr, int signal_strength);
 
 /** Callback for battery level indication
  */
-typedef void (*bthf_client_battery_level_callback)(const RawAddress* bd_addr, int battery_level);
+typedef void (*bthf_client_battery_level_callback)(RawAddress bd_addr, int battery_level);
 
 /** Callback for current operator name
  */
-typedef void (*bthf_client_current_operator_callback)(const RawAddress* bd_addr, const char* name);
+typedef void (*bthf_client_current_operator_callback)(RawAddress bd_addr, const char* name);
 
 /** Callback for call indicator
  */
-typedef void (*bthf_client_call_callback)(const RawAddress* bd_addr, bthf_client_call_t call);
+typedef void (*bthf_client_call_callback)(RawAddress bd_addr, bthf_client_call_t call);
 
 /** Callback for callsetup indicator
  */
-typedef void (*bthf_client_callsetup_callback)(const RawAddress* bd_addr,
+typedef void (*bthf_client_callsetup_callback)(RawAddress bd_addr,
                                                bthf_client_callsetup_t callsetup);
 
 /** Callback for callheld indicator
  */
-typedef void (*bthf_client_callheld_callback)(const RawAddress* bd_addr,
-                                              bthf_client_callheld_t callheld);
+typedef void (*bthf_client_callheld_callback)(RawAddress bd_addr, bthf_client_callheld_t callheld);
 
 /** Callback for response and hold
  */
-typedef void (*bthf_client_resp_and_hold_callback)(const RawAddress* bd_addr,
+typedef void (*bthf_client_resp_and_hold_callback)(RawAddress bd_addr,
                                                    bthf_client_resp_and_hold_t resp_and_hold);
 
 /** Callback for Calling Line Identification notification
  *  Will be called only when there is an incoming call and number is provided.
  */
-typedef void (*bthf_client_clip_callback)(const RawAddress* bd_addr, const char* number);
+typedef void (*bthf_client_clip_callback)(RawAddress bd_addr, const char* number);
 
 /**
  * Callback for Call Waiting notification
  */
-typedef void (*bthf_client_call_waiting_callback)(const RawAddress* bd_addr, const char* number);
+typedef void (*bthf_client_call_waiting_callback)(RawAddress bd_addr, const char* number);
 
 /**
  *  Callback for listing current calls. Can be called multiple time.
  *  If number is unknown NULL is passed.
  */
-typedef void (*bthf_client_current_calls)(const RawAddress* bd_addr, int index,
+typedef void (*bthf_client_current_calls)(RawAddress bd_addr, int index,
                                           bthf_client_call_direction_t dir,
                                           bthf_client_call_state_t state,
                                           bthf_client_call_mpty_type_t mpty, const char* number);
 
 /** Callback for audio volume change
  */
-typedef void (*bthf_client_volume_change_callback)(const RawAddress* bd_addr,
+typedef void (*bthf_client_volume_change_callback)(RawAddress bd_addr,
                                                    bthf_client_volume_type_t type, int volume);
 
 /** Callback for command complete event
  *  cme is valid only for BTHF_CLIENT_CMD_COMPLETE_ERROR_CME type
  */
-typedef void (*bthf_client_cmd_complete_callback)(const RawAddress* bd_addr,
+typedef void (*bthf_client_cmd_complete_callback)(RawAddress bd_addr,
                                                   bthf_client_cmd_complete_t type, int cme);
 
 /** Callback for subscriber information
  */
-typedef void (*bthf_client_subscriber_info_callback)(const RawAddress* bd_addr, const char* name,
+typedef void (*bthf_client_subscriber_info_callback)(RawAddress bd_addr, const char* name,
                                                      bthf_client_subscriber_service_type_t type);
 
 /** Callback for in-band ring tone settings
  */
-typedef void (*bthf_client_in_band_ring_tone_callback)(const RawAddress* bd_addr,
+typedef void (*bthf_client_in_band_ring_tone_callback)(RawAddress bd_addr,
                                                        bthf_client_in_band_ring_state_t state);
 
 /**
  * Callback for requested number from AG
  */
-typedef void (*bthf_client_last_voice_tag_number_callback)(const RawAddress* bd_addr,
-                                                           const char* number);
+typedef void (*bthf_client_last_voice_tag_number_callback)(RawAddress bd_addr, const char* number);
 
 /**
  * Callback for sending ring indication to app
  */
-typedef void (*bthf_client_ring_indication_callback)(const RawAddress* bd_addr);
+typedef void (*bthf_client_ring_indication_callback)(RawAddress bd_addr);
 
 /**
  * Callback for sending unknown (vendor specific) event
  */
-typedef void (*bthf_client_unknown_event_callback)(const RawAddress* bd_addr,
-                                                   const char* unknow_event);
+typedef void (*bthf_client_unknown_event_callback)(RawAddress bd_addr, const char* unknown_event);
 
 /** BT-HF callback structure. */
 typedef struct {
@@ -316,67 +314,65 @@ typedef struct {
   /**
    * Register the BtHf callbacks
    */
-  bt_status_t (*init)(bthf_client_callbacks_t* callbacks);
+  BtStatus (*init)(bthf_client_callbacks_t* callbacks);
 
   /** connect to audio gateway */
-  bt_status_t (*connect)(const RawAddress bd_addr);
+  BtStatus (*connect)(const RawAddress bd_addr);
 
   /** disconnect from audio gateway */
-  bt_status_t (*disconnect)(const RawAddress bd_addr);
+  BtStatus (*disconnect)(const RawAddress bd_addr);
 
   /** create an audio connection */
-  bt_status_t (*connect_audio)(const RawAddress bd_addr);
+  BtStatus (*connect_audio)(const RawAddress bd_addr);
 
   /** close the audio connection */
-  bt_status_t (*disconnect_audio)(const RawAddress bd_addr);
+  BtStatus (*disconnect_audio)(const RawAddress bd_addr);
 
   /** start voice recognition */
-  bt_status_t (*start_voice_recognition)(const RawAddress bd_addr);
+  BtStatus (*start_voice_recognition)(const RawAddress bd_addr);
 
   /** stop voice recognition */
-  bt_status_t (*stop_voice_recognition)(const RawAddress bd_addr);
+  BtStatus (*stop_voice_recognition)(const RawAddress bd_addr);
 
   /** volume control */
-  bt_status_t (*volume_control)(const RawAddress bd_addr, bthf_client_volume_type_t type,
-                                int volume);
+  BtStatus (*volume_control)(const RawAddress bd_addr, bthf_client_volume_type_t type, int volume);
 
   /** place a call with number a number
    * if number is NULL or empty, last called number is called (aka re-dial)*/
-  bt_status_t (*dial)(const RawAddress bd_addr, const char* number);
+  BtStatus (*dial)(const RawAddress bd_addr, const char* number);
 
   /** place a call with number specified by location (speed dial) */
-  bt_status_t (*dial_memory)(const RawAddress bd_addr, int location);
+  BtStatus (*dial_memory)(const RawAddress bd_addr, int location);
 
   /** perform specified call related action
    * idx is limited only for enhanced call control related action
    */
-  bt_status_t (*handle_call_action)(const RawAddress bd_addr, bthf_client_call_action_t action,
-                                    int idx);
+  BtStatus (*handle_call_action)(const RawAddress bd_addr, bthf_client_call_action_t action,
+                                 int idx);
 
   /** query list of current calls */
-  bt_status_t (*query_current_calls)(const RawAddress bd_addr);
+  BtStatus (*query_current_calls)(const RawAddress bd_addr);
 
   /** query name of current selected operator */
-  bt_status_t (*query_current_operator_name)(const RawAddress bd_addr);
+  BtStatus (*query_current_operator_name)(const RawAddress bd_addr);
 
   /** Retrieve subscriber information */
-  bt_status_t (*retrieve_subscriber_info)(const RawAddress bd_addr);
+  BtStatus (*retrieve_subscriber_info)(const RawAddress bd_addr);
 
   /** Send DTMF code*/
-  bt_status_t (*send_dtmf)(const RawAddress bd_addr, char code);
+  BtStatus (*send_dtmf)(const RawAddress bd_addr, char code);
 
   /** Request a phone number from AG corresponding to last voice tag recorded */
-  bt_status_t (*request_last_voice_tag_number)(const RawAddress bd_addr);
+  BtStatus (*request_last_voice_tag_number)(const RawAddress bd_addr);
 
   /** Closes the interface. */
   void (*cleanup)(void);
 
   /** Send AT Command. */
-  bt_status_t (*send_at_cmd)(const RawAddress bd_addr, int cmd, int val1, int val2,
-                             const char* arg);
+  BtStatus (*send_at_cmd)(const RawAddress bd_addr, int cmd, int val1, int val2, const char* arg);
 
   /** Send hfp audio policy to remote */
-  bt_status_t (*send_android_at)(const RawAddress bd_addr, const char* arg);
+  BtStatus (*send_android_at)(const RawAddress bd_addr, const char* arg);
 } bthf_client_interface_t;
 
 namespace std {

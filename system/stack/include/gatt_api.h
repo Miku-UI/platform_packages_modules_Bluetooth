@@ -24,16 +24,17 @@
 #include <bluetooth/types/uuid.h>
 
 #include <cstdint>
+#include <future>
 #include <list>
 #include <string>
 
 #include "btm_ble_api.h"
-#include "gattdefs.h"
 #include "hardware/bt_gatt_types.h"
 #include "include/hardware/bt_common_types.h"
 #include "internal_include/bt_target.h"
 #include "macros.h"
 #include "stack/include/btm_ble_api_types.h"
+#include "stack/include/gattdefs.h"
 #include "stack/include/hci_error_code.h"
 
 /*****************************************************************************
@@ -81,8 +82,10 @@ typedef enum GattStatus : uint8_t {
   GATT_ALREADY_OPEN = 0x91, /* 0x91 */
   GATT_CANCEL = 0x92,       /* 0x92 */
   GATT_CONNECTION_TIMEOUT = 0x93,
-  /* = 0xE0 ~ 0xFC reserved for future use */
+  /* = 0xE0 ~ 0xFB reserved for future use */
 
+  /* Write Request Rejected */
+  GATT_WRITE_REQ_REJECTED = 0xFC,
   /* Client Characteristic Configuration Descriptor Improperly Configured */
   GATT_CCC_CFG_ERR = 0xFD,
   /* Procedure Already in progress */
@@ -506,51 +509,6 @@ typedef union {
 #define GATT_PREP_WRITE_EXEC 0x01
 typedef uint8_t tGATT_EXEC_FLAG;
 
-/* read request always based on UUID */
-typedef struct {
-  uint16_t handle;
-  uint16_t offset;
-  bool is_long;
-  bt_gatt_db_attribute_type_t gatt_type; /* are we writing characteristic or descriptor */
-} tGATT_READ_REQ;
-
-/* write request data */
-typedef struct {
-  uint16_t handle;                       /* attribute handle */
-  uint16_t offset;                       /* attribute value offset, if no offset is needed for the
-                                            command, ignore it */
-  uint16_t len;                          /* length of attribute value */
-  uint8_t value[GATT_MAX_ATTR_LEN];      /* the actual attribute value */
-  bool need_rsp;                         /* need write response */
-  bool is_prep;                          /* is prepare write */
-  bt_gatt_db_attribute_type_t gatt_type; /* are we writing characteristic or descriptor */
-} tGATT_WRITE_REQ;
-
-/* callback data for server access request from client */
-typedef union {
-  tGATT_READ_REQ read_req; /* read request, read by Type, read blob */
-
-  tGATT_WRITE_REQ write_req;  /* write */
-                              /* prepare write */
-                              /* write blob */
-  uint16_t handle;            /* handle value confirmation */
-  uint16_t mtu;               /* MTU exchange request */
-  tGATT_EXEC_FLAG exec_write; /* execute write */
-} tGATTS_DATA;
-
-typedef uint8_t tGATT_SERV_IF; /* GATT Service Interface */
-
-enum {
-  GATTS_REQ_TYPE_READ_CHARACTERISTIC = 1, /* Char read request */
-  GATTS_REQ_TYPE_READ_DESCRIPTOR,         /* Desc read request */
-  GATTS_REQ_TYPE_WRITE_CHARACTERISTIC,    /* Char write request */
-  GATTS_REQ_TYPE_WRITE_DESCRIPTOR,        /* Desc write request */
-  GATTS_REQ_TYPE_WRITE_EXEC,              /* Execute write */
-  GATTS_REQ_TYPE_MTU,                     /* MTU exchange information */
-  GATTS_REQ_TYPE_CONF                     /* handle value confirmation */
-};
-typedef uint8_t tGATTS_REQ_TYPE;
-
 /* Client Used Data Structure
  */
 /* definition of different discovery types */
@@ -672,7 +630,7 @@ typedef union {
   tGATT_INCL_SRVC incl_service;  /* include service value */
   tGATT_GROUP_VALUE group_value; /* Service UUID type.
                                     This field is used with GATT_DISC_SRVC_ALL
-                                    or GATT_DISC_SRVC_BY_UUID
+                                    || GATT_DISC_SRVC_BY_UUID
                                     type of discovery result callback. */
 
   uint16_t handle; /* When used with GATT_DISC_INC_SRVC type discovery result,
@@ -690,69 +648,27 @@ typedef struct {
   tGATT_DISC_VALUE value;
 } tGATT_DISC_RES;
 
+typedef enum : uint8_t {
+  GATT_SUBRATE_SM_IDLE = 0x00,
+  GATT_SUBRATE_SM_CONFIG_PENDING = 0x01,
+} tGATT_SUBRATE_SM_STATE;
+
+typedef enum : uint8_t {
+  GATT_SUBRATE_MODE_OFF = 0x00,
+  GATT_SUBRATE_MODE_LOW = 0x01,
+  GATT_SUBRATE_MODE_BALANCED = 0x02,
+  GATT_SUBRATE_MODE_HIGH = 0x03,
+  GATT_SUBRATE_MODE_LEA = 0x04,
+  GATT_SUBRATE_MODE_SYSTEM_UPDATE = 0x63,
+} tGATT_SUBRATE_MODE;
+
 #define GATT_LINK_IDLE_TIMEOUT_WHEN_NO_APP  \
-  1 /* start a idle timer for this duration \
+  4 /* start a idle timer for this duration \
      when no application need to use the link */
 
 #define GATT_LINK_NO_IDLE_TIMEOUT 0xFFFF
 
 #define GATT_INVALID_ACL_HANDLE 0xFFFF
-/* discover result callback function */
-typedef void(tGATT_DISC_RES_CB)(tCONN_ID conn_id, tGATT_DISC_TYPE disc_type,
-                                tGATT_DISC_RES* p_data);
-
-/* discover complete callback function */
-typedef void(tGATT_DISC_CMPL_CB)(tCONN_ID conn_id, tGATT_DISC_TYPE disc_type, tGATT_STATUS status);
-
-/* Define a callback function for when read/write/disc/config operation is
- * completed. */
-typedef void(tGATT_CMPL_CBACK)(tCONN_ID conn_id, tGATTC_OPTYPE op, tGATT_STATUS status,
-                               tGATT_CL_COMPLETE* p_data);
-
-/* Define a callback function when an initialized connection is established. */
-typedef void(tGATT_CONN_CBACK)(tGATT_IF gatt_if, const RawAddress& bda, tCONN_ID conn_id,
-                               bool connected, tGATT_DISCONN_REASON reason,
-                               tBT_TRANSPORT transport);
-
-/* attribute request callback for ATT server */
-typedef void(tGATT_REQ_CBACK)(tCONN_ID conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
-                              tGATTS_DATA* p_data);
-
-/* channel congestion/uncongestion callback */
-typedef void(tGATT_CONGESTION_CBACK)(tCONN_ID conn_id, bool congested);
-
-/* Define a callback function when encryption is established. */
-typedef void(tGATT_ENC_CMPL_CB)(tGATT_IF gatt_if, const RawAddress& bda);
-
-/* Define a callback function when phy is updated. */
-typedef void(tGATT_PHY_UPDATE_CB)(tGATT_IF gatt_if, tCONN_ID conn_id, uint8_t tx_phy,
-                                  uint8_t rx_phy, tGATT_STATUS status);
-
-/* Define a callback function when connection parameters are updated */
-typedef void(tGATT_CONN_UPDATE_CB)(tGATT_IF gatt_if, tCONN_ID conn_id, uint16_t interval,
-                                   uint16_t latency, uint16_t timeout, tGATT_STATUS status);
-
-/* Define a callback function when subrate change event is received */
-typedef void(tGATT_SUBRATE_CHG_CB)(tGATT_IF gatt_if, tCONN_ID conn_id, uint16_t subrate_factor,
-                                   uint16_t latency, uint16_t cont_num, uint16_t timeout,
-                                   tGATT_STATUS status);
-
-/* Define the structure that applications use to register with
- * GATT. This structure includes callback functions. All functions
- * MUST be provided.
- */
-typedef struct {
-  tGATT_CONN_CBACK* p_conn_cb{nullptr};
-  tGATT_CMPL_CBACK* p_cmpl_cb{nullptr};
-  tGATT_DISC_RES_CB* p_disc_res_cb{nullptr};
-  tGATT_DISC_CMPL_CB* p_disc_cmpl_cb{nullptr};
-  tGATT_REQ_CBACK* p_req_cb{nullptr};
-  tGATT_ENC_CMPL_CB* p_enc_cmpl_cb{nullptr};
-  tGATT_CONGESTION_CBACK* p_congestion_cb{nullptr};
-  tGATT_PHY_UPDATE_CB* p_phy_update_cb{nullptr};
-  tGATT_CONN_UPDATE_CB* p_conn_update_cb{nullptr};
-  tGATT_SUBRATE_CHG_CB* p_subrate_chg_cb{nullptr};
-} tGATT_CBACK;
 
 /*****************  Start Handle Management Definitions   *********************/
 
@@ -774,6 +690,7 @@ typedef uint8_t tGATTS_SRV_CHG_CMD;
 typedef struct {
   RawAddress bda;
   bool srv_changed;
+  uint16_t start_handle;
 } tGATTS_SRV_CHG;
 
 typedef union {
@@ -827,7 +744,7 @@ typedef struct {
 
 /*******************************************************************************
  *
- * Function         BTA_GATTS_AddService
+ * Function         GATTS_AddService
  *
  * Description      Add a service. When service is ready, a callback
  *                  event BTA_GATTS_ADD_SRVC_EVT is called to report status
@@ -928,6 +845,41 @@ void GATTS_StopService(uint16_t service_handle);
  ******************************************************************************/
 [[nodiscard]] tGATT_STATUS GATTS_SendRsp(tCONN_ID conn_id, uint32_t trans_id, tGATT_STATUS status,
                                          tGATTS_RSP* p_msg);
+
+/*******************************************************************************
+ *
+ * Function         GATTS_OffloadCharacteristics
+ *
+ * Description      This function is called to offload characteristics for GATT server.
+ *
+ * Parameter        conn_id         : connection ID.
+ *                  service         : pointer array describing service and characteristics.
+ *                  elements_count  : number of elements in the array.
+ *                  endpoint_id     : ID of the hub end point.
+ *                  hub_id          : ID of the hub to which the end point belongs.
+ *                  uid             : UID of the app.
+ *                  attribution_tag : attribution tag of the app.
+ *                  promise         : object used to signal the completion status.
+ *
+ ******************************************************************************/
+void GATTS_OffloadCharacteristics(tCONN_ID conn_id, btgatt_db_element_t* service,
+                                  size_t elements_count, uint64_t endpoint_id, uint64_t hub_id,
+                                  int uid, std::string attribution_tag,
+                                  std::promise<btgatt_offload_result_t> promise);
+
+/*******************************************************************************
+ *
+ * Function         GATTS_UnoffloadCharacteristics
+ *
+ * Description      This function is called to unoffload a session for GATT server.
+ *
+ * Parameter        conn_id         : connection ID.
+ *                  session_id      : session ID.
+ *
+ ******************************************************************************/
+void GATTS_UnoffloadCharacteristics(tCONN_ID conn_id, uint16_t session_id);
+
+std::optional<bluetooth::Uuid> GATTS_LookupServiceUuidByStartHandle(uint16_t start_handle);
 
 /******************************************************************************/
 /* GATT Profile Client Functions */
@@ -1086,75 +1038,7 @@ void GATTC_UpdateUserAttMtuIfNeeded(const RawAddress& remote_bda, tBT_TRANSPORT 
 
 /*******************************************************************************
  *
- * Function         GATT_SetIdleTimeout
- *
- * Description      This function (common to both client and server) sets the
- *                  idle timeout for a transport connection
- *
- * Parameter        bd_addr:   target device bd address.
- *                  idle_tout: timeout value in seconds.
- *                  transport: transport option.
- *                  is_active: whether we should use this as a signal that an
- *                             active client now exists (which changes link
- *                             timeout logic, see
- *                             t_l2c_linkcb.with_active_local_clients for
- *                             details).
- *
- * Returns          void
- *
- ******************************************************************************/
-void GATT_SetIdleTimeout(const RawAddress& bd_addr, uint16_t idle_tout, tBT_TRANSPORT transport,
-                         bool is_active);
-
-/*******************************************************************************
- *
- * Function         GATT_Register
- *
- * Description      This function is called to register an  application
- *                  with GATT
- *
- * Parameter        p_app_uuid128: Application UUID
- *                  p_cb_info: callback functions.
- *                  eatt_support: set support for eatt
- *
- * Returns          0 for error, otherwise the index of the client registered
- *                  with GATT
- *
- ******************************************************************************/
-[[nodiscard]] tGATT_IF GATT_Register(const bluetooth::Uuid& p_app_uuid128, const std::string& name,
-                                     tGATT_CBACK* p_cb_info, bool eatt_support);
-
-/*******************************************************************************
- *
- * Function         GATT_Deregister
- *
- * Description      This function deregistered the application from GATT.
- *
- * Parameters       gatt_if: application interface.
- *
- * Returns          None.
- *
- ******************************************************************************/
-void GATT_Deregister(tGATT_IF gatt_if);
-
-/*******************************************************************************
- *
- * Function         GATT_StartIf
- *
- * Description      This function is called after registration to start
- *                  receiving callbacks for registered interface.  Function may
- *                  call back with connection status and queued notifications
- *
- * Parameter        gatt_if: application interface.
- *
- * Returns          None
- *
- ******************************************************************************/
-void GATT_StartIf(tGATT_IF gatt_if);
-
-/*******************************************************************************
- *
- * Function         GATT_Connect
+ * Function         GATT_BR_Connect
  *
  * Description      This function initiate a connection to a remote device on
  *                  GATT channel.
@@ -1165,40 +1049,11 @@ void GATT_StartIf(tGATT_IF gatt_if);
  *                  connection_type: connection type
  *                  transport : Physical transport for GATT connection
  *                              (BR/EDR or LE)
- *                  opportunistic: will not keep device connected if other apps
- *                      disconnect, will not update connected apps counter, when
- *                      disconnected won't cause physical disconnection.
  *
  * Returns          true if connection started; else false
  *
  ******************************************************************************/
-[[nodiscard]] bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
-                                tBLE_ADDR_TYPE addr_type, tBTM_BLE_CONN_TYPE connection_type,
-                                tBT_TRANSPORT transport, bool opportunistic,
-                                uint8_t initiating_phys, uint16_t preferred_transport,
-                                bool prefer_relax_mode);
-[[nodiscard]] bool GATT_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr,
-                                tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport,
-                                bool opportunistic);
-
-/*******************************************************************************
- *
- * Function         GATT_CancelConnect
- *
- * Description      Terminate the connection initiation to a remote device on a
- *                  GATT channel.
- *
- * Parameters       gatt_if: client interface. If 0 used as unconditionally
- *                           disconnect, typically used for direct connection
- *                           cancellation.
- *                  bd_addr: peer device address.
- *                  is_direct: is a direct connection or a background auto
- *                             connection
- *
- * Returns          true if connection started; else false
- *
- ******************************************************************************/
-[[nodiscard]] bool GATT_CancelConnect(tGATT_IF gatt_if, const RawAddress& bd_addr, bool is_direct);
+[[nodiscard]] bool GATT_BR_Connect(tGATT_IF gatt_if, const RawAddress& bd_addr);
 
 /*******************************************************************************
  *
@@ -1253,15 +1108,82 @@ void GATT_StartIf(tGATT_IF gatt_if);
 
 /*******************************************************************************
  *
- * Function         GATT_ConfigServiceChangeCCC
+ * Function         GATT_LE_ConfigServiceChangeCCC
  *
  * Description      Configure service change indication on remote device
  *
  * Returns          None.
  *
  ******************************************************************************/
-void GATT_ConfigServiceChangeCCC(const RawAddress& remote_bda, bool enable,
-                                 tBT_TRANSPORT transport);
+void GATT_LE_ConfigServiceChangeCCC(const RawAddress& remote_bda, bool enable);
+
+/*******************************************************************************
+ *
+ * Function         GATTC_OffloadCharacteristics
+ *
+ * Description      This function is called to offload characteristics for GATT client.
+ *
+ * Parameter        conn_id         : connection ID.
+ *                  service         : pointer array describing service and characteristics.
+ *                  elements_count  : number of elements in the array.
+ *                  endpoint_id     : ID of the hub end point.
+ *                  hub_id          : ID of the hub to which the end point belongs.
+ *                  uid             : UID of the app.
+ *                  attribution_tag : attribution tag of the app.
+ *                  promise         : object used to signal the completion status.
+ *
+ ******************************************************************************/
+void GATTC_OffloadCharacteristics(tCONN_ID conn_id, btgatt_db_element_t* service,
+                                  size_t elements_count, uint64_t endpoint_id, uint64_t hub_id,
+                                  int uid, std::string attribution_tag,
+                                  std::promise<btgatt_offload_result_t> promise);
+
+/*******************************************************************************
+ *
+ * Function         GATTC_UnoffloadCharacteristics
+ *
+ * Description      This function is called to unoffload characteristics for GATT client.
+ *
+ * Parameter        conn_id         : connection ID.
+ *                  session_id      : session ID.
+ *
+ ******************************************************************************/
+void GATTC_UnoffloadCharacteristics(tCONN_ID conn_id, uint16_t session_id);
+
+/*******************************************************************************
+ *
+ * Function         GATTC_InformNotificationHandle
+ *
+ * Description      This function is called to inform the registered notification handle for GATT
+ *client.
+ *
+ * Parameter        remote_bda    : peer device address. (input)
+ *                  handle        : notification handle
+ *
+ ******************************************************************************/
+void GATTC_InformNotificationHandle(const RawAddress& remote_bda, uint16_t handle);
+
+/*******************************************************************************
+ *
+ * Function         GATTC_InformServiceChangedIndication
+ *
+ * Description      This function is called to inform the registered notification handle for GATT
+ *client.
+ *
+ * Parameter        remote_bda    : peer device address. (input)
+ *
+ ******************************************************************************/
+void GATTC_InformServiceChangedIndication(const RawAddress& remote_bda);
+
+/*******************************************************************************
+ * Function         GATTC_SetDefaultMtu
+ *
+ * Description      Set the default MTU for ATT bearer associated with remote device.
+ *
+ * Parameter        remote_bda    : peer device address. (input)
+ *
+ ******************************************************************************/
+void GATTC_SetDefaultMtu(const RawAddress& remote_bda);
 
 // Enables the GATT profile on the device.
 // It clears out the control blocks, and registers with L2CAP.
@@ -1287,6 +1209,14 @@ void gatt_load_bonded(void);
 
 void gatt_tcb_dump(int fd);
 
+void gatt_offload_sessions_dump(int fd);
+
+void gatt_set_br_pm_callbacks(void (*open)(const RawAddress&), void (*close)(const RawAddress&),
+                              void (*client)(const RawAddress&), void (*server)(const RawAddress&));
+
+void gatt_set_debug_conn_state_cb(void (*debug_conn_state)(
+        const RawAddress& bda, bool connected, const tGATT_DISCONN_REASON disconnect_reason));
+
 namespace std {
 template <>
 struct formatter<GattStatus> : enum_formatter<GattStatus> {};
@@ -1298,6 +1228,8 @@ template <>
 struct formatter<tGATT_OP_CODE> : enum_formatter<tGATT_OP_CODE> {};
 template <>
 struct formatter<tGATT_DISC_TYPE> : enum_formatter<tGATT_DISC_TYPE> {};
+template <>
+struct formatter<tGATT_SUBRATE_MODE> : enum_formatter<tGATT_SUBRATE_MODE> {};
 }  // namespace std
 
 #endif /* GATT_API_H */

@@ -57,7 +57,7 @@ protected:
 
     acl_scheduler_ = std::make_unique<AclScheduler>(client_handler_);
 
-    com::android::bluetooth::flags::provider_->reset_flags();
+    com_android_bluetooth_flags_reset_flags();
 
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   }
@@ -215,8 +215,6 @@ TEST_F(AclSchedulerTest, UnknownConnectionCallback) {
 }
 
 TEST_F(AclSchedulerTest, TiebreakForOutgoingConnection) {
-  com::android::bluetooth::flags::provider_->acl_fix_in_and_out_connection_reqs(true);
-
   auto promise1 = std::promise<void>{};
   auto future1 = promise1.get_future();
   auto promise2 = std::promise<void>{};

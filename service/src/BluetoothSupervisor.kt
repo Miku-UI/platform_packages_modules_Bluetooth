@@ -16,53 +16,18 @@
 
 package com.android.server.bluetooth
 
-import android.content.Context
-import android.os.Looper
 import android.os.UserHandle
-import com.android.bluetooth.flags.Flags
 
-class BluetoothSupervisor(
-    context: Context,
-    val looper: Looper,
-    bluetoothComponent: BluetoothComponent?,
-) {
-    private val bms: BluetoothManagerService
+interface BluetoothSupervisor {
+    val api: BluetoothManagerServiceApi
 
-    init {
-        val hciInstance =
-            if (Flags.hciInstanceNameUseInjected()) {
-                BluetoothHciInstance().getInstance()
-            } else {
-                "default"
-            }
+    fun onRestrictionChange()
 
-        bms = BluetoothManagerService(context, looper, hciInstance, bluetoothComponent)
-        Log.i("Created BluetoothSupervisor")
-    }
+    fun onBootCompleted()
 
-    fun api(): BluetoothManagerServiceApi {
-        return bms.api
-    }
+    suspend fun onUserStarting(userHandle: UserHandle)
 
-    fun onBluetoothDisallowed() {
-        enforceCorrectThread()
-        bms.onBluetoothDisallowed()
-    }
+    suspend fun onUserSwitching(userHandle: UserHandle)
 
-    fun handleOnBootPhase(userHandle: UserHandle) {
-        enforceCorrectThread()
-        bms.handleOnBootPhase(userHandle)
-    }
-
-    fun onUserSwitching(userHandle: UserHandle) {
-        enforceCorrectThread()
-        bms.onUserSwitching(userHandle)
-    }
-
-    private fun enforceCorrectThread() {
-        if (looper == Looper.myLooper()) {
-            return
-        }
-        throw IllegalThreadStateException("Must be called on BluetoothSystemServer looper")
-    }
+    suspend fun onUserStopping(userHandle: UserHandle)
 }

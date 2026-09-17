@@ -16,12 +16,11 @@
 
 package android.bluetooth;
 
-/**
- * Callback definitions for HCI Vendor Specific Callback.
- * @hide
- */
+/** Callback definitions for HCI Vendor Specific Callback. */
+@JavaPassthrough(annotation="@android.annotation.Hide")
 oneway interface IBluetoothHciVendorSpecificCallback {
     void onCommandStatus(int ocf, in int status);
     void onCommandComplete(int ocf, in byte[] returnParameters);
     void onEvent(int code, in byte[] data);
+    void onAclEvent(int handle, in byte[] data);
 }

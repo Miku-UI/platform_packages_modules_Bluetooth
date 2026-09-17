@@ -20,6 +20,7 @@
 
 #include <base/functional/callback.h>
 #include <bluetooth/types/address.h>
+#include <com_android_bluetooth_flags.h>
 
 #include "hci/acl_manager/acl_manager_le.h"
 #include "hci/controller.h"
@@ -27,8 +28,8 @@
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
 #include "main/shim/stack.h"
-#include "stack/btm/btm_ble_sec.h"
 #include "stack/btm/btm_dev.h"
+#include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_status.h"
 
 tBTM_STATUS bluetooth::shim::BTM_ClearEventFilter() {
@@ -63,15 +64,19 @@ tBTM_STATUS bluetooth::shim::BTM_SetEventFilterConnectionSetupAllDevices() {
 tBTM_STATUS bluetooth::shim::BTM_AllowWakeByHid(
         std::vector<RawAddress> classic_hid_devices,
         std::vector<std::pair<RawAddress, uint8_t>> le_hid_devices) {
-  // First set ACL to suspended state.
-  Stack::GetInstance()->GetAcl()->SetSystemSuspendState(/*suspended=*/true);
-
+  if (!com_android_bluetooth_flags_le_hid_connection_policy_suspend()) {
+    // First set ACL to suspended state.
+    Stack::GetInstance()->GetAcl()->SetSystemSuspendState(/*suspended=*/true);
+  }
   // Allow classic HID wake.
   auto controller = GetController();
   for (auto device : classic_hid_devices) {
     controller->SetEventFilterConnectionSetupAddress(device, hci::AutoAcceptFlag::AUTO_ACCEPT_OFF);
   }
 
+  if (com_android_bluetooth_flags_le_hid_connection_policy_suspend()) {
+    return tBTM_STATUS::BTM_SUCCESS;
+  }
   // Allow BLE HID
   for (auto hid_address : le_hid_devices) {
     tBLE_BD_ADDR bdaddr = BTM_Sec_GetAddressWithType(hid_address.first);
@@ -85,9 +90,10 @@ tBTM_STATUS bluetooth::shim::BTM_AllowWakeByHid(
 
 tBTM_STATUS bluetooth::shim::BTM_RestoreFilterAcceptList(
         std::vector<std::pair<RawAddress, uint8_t>> le_devices) {
-  // First, mark ACL as no longer suspended.
-  Stack::GetInstance()->GetAcl()->SetSystemSuspendState(/*suspended=*/false);
-
+  if (!com_android_bluetooth_flags_le_hid_connection_policy_suspend()) {
+    // First, mark ACL as no longer suspended.
+    Stack::GetInstance()->GetAcl()->SetSystemSuspendState(/*suspended=*/false);
+  }
   // Next, Allow BLE connection from all devices that need to be restored.
   // This will also re-arm the LE connection.
   for (auto address_pair : le_devices) {
@@ -114,8 +120,13 @@ tBTM_STATUS bluetooth::shim::BTM_SetEventFilterInquiryResultAllDevices() {
   return tBTM_STATUS::BTM_SUCCESS;
 }
 
+tBTM_STATUS bluetooth::shim::BTM_SetSuspendState(bool suspend) {
+  Stack::GetInstance()->GetAcl()->SetSystemSuspendState(suspend);
+  return tBTM_STATUS::BTM_SUCCESS;
+}
+
 tBTM_STATUS bluetooth::shim::BTM_BleResetId() {
-  btm_ble_reset_id();
+  get_security_client_interface().BTM_BleResetId();
   return tBTM_STATUS::BTM_SUCCESS;
 }
 

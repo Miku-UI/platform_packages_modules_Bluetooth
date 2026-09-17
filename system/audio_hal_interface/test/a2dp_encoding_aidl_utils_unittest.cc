@@ -22,11 +22,11 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "a2dp_constants.h"
-#include "a2dp_vendor_aptx_constants.h"
-#include "a2dp_vendor_aptx_hd_constants.h"
-#include "a2dp_vendor_ldac_constants.h"
-#include "a2dp_vendor_opus_constants.h"
+#include "stack/include/a2dp_constants.h"
+#include "stack/include/a2dp_vendor_aptx_constants.h"
+#include "stack/include/a2dp_vendor_aptx_hd_constants.h"
+#include "stack/include/a2dp_vendor_ldac_constants.h"
+#include "stack/include/a2dp_vendor_opus_constants.h"
 
 using ::aidl::android::hardware::bluetooth::audio::ChannelMode;
 using ::aidl::android::hardware::bluetooth::audio::CodecId;
@@ -137,8 +137,8 @@ TEST_F(A2dpEncodingAidlUtilsTest, StackCodecCapabilitiesSbc) {
 
   ASSERT_TRUE(convertCodecCapabilities(sbc, capabilities, codec_info));
 
-  bluetooth::log::info("codec_info: \n{}", codecInfoToString(codec_info));
-  bluetooth::log::info("result_sbc_codec_info: \n{}", codecInfoToString(result_sbc_codec_info));
+  bluetooth::log::info("codec_info:\n{}", codecInfoToString(codec_info));
+  bluetooth::log::info("result_sbc_codec_info:\n{}", codecInfoToString(result_sbc_codec_info));
 
   ASSERT_EQ(memcmp(codec_info, result_sbc_codec_info, sizeof(result_sbc_codec_info)), 0);
 }
@@ -162,8 +162,8 @@ TEST_F(A2dpEncodingAidlUtilsTest, StackCodecCapabilitiesVendor) {
 
   ASSERT_TRUE(convertCodecCapabilities(ldac, capabilities, codec_info));
 
-  bluetooth::log::info("codec_info: \n{}", codecInfoToString(codec_info));
-  bluetooth::log::info("result_ldac_codec_info: \n{}", codecInfoToString(result_ldac_codec_info));
+  bluetooth::log::info("codec_info:\n{}", codecInfoToString(codec_info));
+  bluetooth::log::info("result_ldac_codec_info:\n{}", codecInfoToString(result_ldac_codec_info));
 
   ASSERT_EQ(memcmp(codec_info, result_ldac_codec_info, sizeof(result_ldac_codec_info)), 0);
 }

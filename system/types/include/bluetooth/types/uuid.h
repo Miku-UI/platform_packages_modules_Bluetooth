@@ -18,10 +18,12 @@
 
 #pragma once
 
-#include <stdint.h>
-
 #include <array>
+#include <cstdint>
+#include <format>
 #include <string>
+
+#include "consteval_helpers.h"
 
 namespace bluetooth {
 
@@ -47,6 +49,61 @@ public:
 
   Uuid() = default;
 
+  // Consteval constructor to create an UUID from the 16-bit string representation with format
+  // xxxx. Invalid input values will trigger compile time errors.
+  consteval Uuid(const char (&s)[5]) {
+    consteval_assert(s[4] == '\0', "expected nul termination");
+    for (size_t i = 0; i < 4; i++) {
+      consteval_assert(is_hex_char(s[i]), "expected alphanumerical character");
+    }
+
+    uu = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+          0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
+    uu[2] = hex_to_byte(s[0], s[1]);
+    uu[3] = hex_to_byte(s[2], s[3]);
+  }
+
+  // Consteval constructor to create an UUID from the 32-bit string representation with format
+  // xxxxxxxx. Invalid input values will trigger compile time errors.
+  consteval Uuid(const char (&s)[9]) {
+    consteval_assert(s[8] == '\0', "expected nul termination");
+    for (size_t i = 0; i < 8; i++) {
+      consteval_assert(is_hex_char(s[i]), "expected alphanumerical character");
+    }
+
+    uu = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+          0x80, 0x00, 0x00, 0x80, 0x5f, 0x9b, 0x34, 0xfb};
+    uu[0] = hex_to_byte(s[0], s[1]);
+    uu[1] = hex_to_byte(s[2], s[3]);
+    uu[2] = hex_to_byte(s[4], s[5]);
+    uu[3] = hex_to_byte(s[6], s[7]);
+  }
+
+  // Consteval constructor to create an UUID from the 128-bit string representation with format
+  // xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx. Invalid input values will trigger compile time errors.
+  consteval Uuid(const char (&s)[37]) {
+    consteval_assert(s[36] == '\0', "expected nul termination");
+    for (size_t i = 0; i < 36; i++) {
+      if (i == 8 || i == 13 || i == 18 || i == 23) {
+        consteval_assert(s[i] == '-', "expected hyphens");
+      } else {
+        consteval_assert(is_hex_char(s[i]), "expected alphanumerical character");
+      }
+    }
+
+    uu = {
+            hex_to_byte(s[0], s[1]),   hex_to_byte(s[2], s[3]),   hex_to_byte(s[4], s[5]),
+            hex_to_byte(s[6], s[7]),   hex_to_byte(s[9], s[10]),  hex_to_byte(s[11], s[12]),
+            hex_to_byte(s[14], s[15]), hex_to_byte(s[16], s[17]), hex_to_byte(s[19], s[20]),
+            hex_to_byte(s[21], s[22]), hex_to_byte(s[24], s[25]), hex_to_byte(s[26], s[27]),
+            hex_to_byte(s[28], s[29]), hex_to_byte(s[30], s[31]), hex_to_byte(s[32], s[33]),
+            hex_to_byte(s[34], s[35]),
+    };
+  }
+
+  // Constructor from MSB/LSB
+  Uuid(uint64_t msb, uint64_t lsb);
+
   // Returns the shortest possible representation of this UUID in bytes. Either
   // kNumBytes16, kNumBytes32, or kNumBytes128
   size_t GetShortestRepresentationSize() const;
@@ -62,14 +119,25 @@ public:
   // GetShortestRepresentationSize() before using this method.
   uint32_t As32Bit() const;
 
+  // Returns the most significant 64 bits of this UUID
+  uint64_t msb() const;
+
+  // Returns the least significant 64 bits of this UUID
+  uint64_t lsb() const;
+
   // Converts string representing 128, 32, or 16 bit UUID in
-  // xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx, xxxxxxxx, or xxxx format to UUID. If
-  // set, optional is_valid parameter will be set to true if conversion is
-  // successfull, false otherwise.
-  static Uuid FromString(const std::string& uuid, bool* is_valid = nullptr);
+  // xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx, xxxxxxxx, or xxxx format to UUID.
+  // Returns std::nullopt is the input string is invalid.
+  static std::optional<Uuid> FromString(const std::string& uuid);
 
   // Converts 16bit Little Endian representation of UUID to UUID
-  static Uuid From16Bit(uint16_t uuid16bit);
+  static constexpr Uuid From16Bit(uint16_t uuid16bit) {
+    Uuid u = From128BitBE({0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0x80,
+                           0x5f, 0x9b, 0x34, 0xfb});
+    u.uu[2] = (uint8_t)((0xFF00 & uuid16bit) >> 8);
+    u.uu[3] = (uint8_t)(0x00FF & uuid16bit);
+    return u;
+  }
 
   // Converts 32bit Little Endian representation of UUID to UUID
   static Uuid From32Bit(uint32_t uuid32bit);
@@ -107,8 +175,9 @@ public:
   // Returns true if this UUID is equal to kBase
   bool IsBase() const;
 
-  // Update UUID with new value
-  void UpdateUuid(const Uuid& uuid);
+  // Returns true if this UUID is valid (i.e. neither 128-bit empty zeros
+  // nor 16/32-bit 0-value which resolves to kBase).
+  bool IsValid() const;
 
   bool operator<(const Uuid& rhs) const;
   bool operator==(const Uuid& rhs) const;
@@ -119,22 +188,18 @@ private:
 
   // Network-byte-ordered ID (Big Endian).
   UUID128Bit uu;
-};
 
-inline std::ostream& operator<<(std::ostream& os, const bluetooth::Uuid& a) {
-  os << a.ToString();
-  return os;
-}
+  friend class UuidTest_ConstructorUuid16_Test;
+  friend class UuidTest_ConstructorUuid32_Test;
+  friend class UuidTest_ConstructorUuid128_Test;
+};
 
 }  // namespace bluetooth
 
-// Custom std::hash specialization so that bluetooth::UUID can be used as a key
-// in std::unordered_map.
 namespace std {
-
 template <>
-struct hash<bluetooth::Uuid> {
-  std::size_t operator()(const bluetooth::Uuid& key) const {
+struct hash<::bluetooth::Uuid> {
+  std::size_t operator()(const ::bluetooth::Uuid& key) const {
     const auto& uuid_bytes = key.To128BitBE();
     std::hash<std::string> hash_fn;
     return hash_fn(
@@ -142,17 +207,12 @@ struct hash<bluetooth::Uuid> {
   }
 };
 
-}  // namespace std
-
-// This file is used outside bluetooth in components
-// that do not have access to bluetooth/log.h
-#if __has_include(<bluetooth/log.h>)
-
-#include <bluetooth/log.h>
-
-namespace std {
 template <>
-struct formatter<bluetooth::Uuid> : ostream_formatter {};
+struct formatter<::bluetooth::Uuid> : formatter<std::string> {
+  template <class Context>
+  typename Context::iterator format(const ::bluetooth::Uuid& uuid, Context& ctx) const {
+    std::string repr = uuid.ToString();
+    return std::formatter<std::string>::format(repr, ctx);
+  }
+};
 }  // namespace std
-
-#endif  // __has_include(<bluetooth/log.h>)

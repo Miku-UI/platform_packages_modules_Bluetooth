@@ -20,11 +20,11 @@
 
 #include <bluetooth/log.h>
 #include <bluetooth/metrics/os_metrics.h>
+#include <bluetooth/types/string_helpers.h>
 #include <statslog_bt.h>
 
 #include "../metric_id_manager.h"
 #include "common/audit_log.h"
-#include "common/strings.h"
 #include "hardware/bt_av.h"
 #include "hci/hci_packets.h"
 #include "hci/hci_status.h"
@@ -71,6 +71,15 @@ struct formatter<android::bluetooth::SocketErrorEnum>
 template <>
 struct formatter<bluetooth::metrics::CounterKey> : enum_formatter<bluetooth::metrics::CounterKey> {
 };
+template <>
+struct formatter<android::bluetooth::gatt::GattRoleEnum>
+    : enum_formatter<android::bluetooth::gatt::GattRoleEnum> {};
+template <>
+struct formatter<android::bluetooth::gatt::GattOffloadSessionStateEnum>
+    : enum_formatter<android::bluetooth::gatt::GattOffloadSessionStateEnum> {};
+template <>
+struct formatter<android::bluetooth::gatt::GattOffloadErrorEnum>
+    : enum_formatter<android::bluetooth::gatt::GattOffloadErrorEnum> {};
 }  // namespace std
 
 namespace bluetooth::metrics {
@@ -91,20 +100,24 @@ void Counter(CounterKey key, int64_t count) {
   }
 }
 
-void LogBluetoothEvent(const Address& address, EventType event_type, State state) {
+void LogBluetoothEvent(const Address& address, EventType event_type, State state, int uid) {
   if (address.IsEmpty()) {
     log::warn("Failed BluetoothEvent Upload - Address is Empty");
     return;
   }
 
   int metric_id = MetricIdManager::GetInstance().AllocateId(address);
-  int ret = stats_write(BLUETOOTH_CROSS_LAYER_EVENT_REPORTED, event_type, state, 0, metric_id,
+  int ret = stats_write(BLUETOOTH_CROSS_LAYER_EVENT_REPORTED, event_type, state, uid, metric_id,
                         BytesField(nullptr, 0));
 
   if (ret < 0) {
-    log::warn("Failed BluetoothEvent Upload - Address {}, Event_type {}, State {}", address,
-              event_type, state);
+    log::warn("Failed BluetoothEvent Upload - Address {}, Event_type {}, State {}, Uid {}", address,
+              event_type, state, uid);
   }
+}
+
+void LogBluetoothEvent(const Address& address, EventType event_type, State state) {
+  LogBluetoothEvent(address, event_type, state, 0);
 }
 
 void LogMetricLinkLayerConnectionEvent(const Address& address, uint32_t connection_handle,
@@ -454,7 +467,14 @@ void LogMetricLeAudioConnectionSessionReported(
         const std::vector<RawAddress>& device_address,
         const std::vector<int64_t>& streaming_offset_nanos,
         const std::vector<int64_t>& streaming_duration_nanos,
-        const std::vector<int32_t>& streaming_context_type) {
+        const std::vector<int32_t>& streaming_context_type,
+        const std::vector<int32_t>& codec_format,
+        const std::vector<int32_t>& vendor_company_id,
+        const std::vector<int32_t>& vendor_codec_id,
+        const std::vector<int32_t>& sink_sampling_frequency_hz,
+        const std::vector<int32_t>& source_sampling_frequency_hz,
+        const std::vector<bool>& is_dsa_active,
+        const std::vector<bool>& is_gmap_active) {
   std::vector<int32_t> device_metric_id(device_address.size());
   for (uint64_t i = 0; i < device_address.size(); i++) {
     if (!device_address[i].IsEmpty()) {
@@ -463,11 +483,21 @@ void LogMetricLeAudioConnectionSessionReported(
       device_metric_id[i] = 0;
     }
   }
-  int ret = stats_write(LE_AUDIO_CONNECTION_SESSION_REPORTED, group_size, group_metric_id,
-                        connection_duration_nanos, device_connecting_offset_nanos,
-                        device_connected_offset_nanos, device_connection_duration_nanos,
-                        device_connection_status, device_disconnection_status, device_metric_id,
-                        streaming_offset_nanos, streaming_duration_nanos, streaming_context_type);
+
+  auto temp_is_dsa_active_buffer = std::make_unique<bool[]>(is_dsa_active.size());
+  std::copy(is_dsa_active.begin(), is_dsa_active.end(), temp_is_dsa_active_buffer.get());
+  auto temp_is_gmap_active_buffer = std::make_unique<bool[]>(is_gmap_active.size());
+  std::copy(is_gmap_active.begin(), is_gmap_active.end(), temp_is_gmap_active_buffer.get());
+
+  int ret = stats_write(
+          LE_AUDIO_CONNECTION_SESSION_REPORTED, group_size, group_metric_id,
+          connection_duration_nanos, device_connecting_offset_nanos, device_connected_offset_nanos,
+          device_connection_duration_nanos, device_connection_status, device_disconnection_status,
+          device_metric_id, streaming_offset_nanos, streaming_duration_nanos,
+          streaming_context_type, codec_format, vendor_company_id, vendor_codec_id,
+          sink_sampling_frequency_hz, source_sampling_frequency_hz,
+          temp_is_dsa_active_buffer.get(), is_dsa_active.size(),
+          temp_is_gmap_active_buffer.get(), is_gmap_active.size());
   if (ret < 0) {
     log::warn(
             "failed for group {}device_connecting_offset_nanos[{}], "
@@ -475,12 +505,18 @@ void LogMetricLeAudioConnectionSessionReported(
             "device_connection_duration_nanos[{}], device_connection_status[{}], "
             "device_disconnection_status[{}], device_metric_id[{}], "
             "streaming_offset_nanos[{}], streaming_duration_nanos[{}], "
-            "streaming_context_type[{}]",
+            "streaming_context_type[{}], "
+            "codec_format[{}], vendor_company_id[{}], vendor_codec_id[{}], "
+            "sink_sampling_frequency_hz[{}], source_sampling_frequency_hz[{}], "
+            "is_dsa_active[{}], is_gmap_active[{}]",
             group_metric_id, device_connecting_offset_nanos.size(),
             device_connected_offset_nanos.size(), device_connection_duration_nanos.size(),
             device_connection_status.size(), device_disconnection_status.size(),
             device_metric_id.size(), streaming_offset_nanos.size(), streaming_duration_nanos.size(),
-            streaming_context_type.size());
+            streaming_context_type.size(),
+            codec_format.size(), vendor_company_id.size(), vendor_codec_id.size(),
+            sink_sampling_frequency_hz.size(), source_sampling_frequency_hz.size(),
+            is_dsa_active.size(), is_gmap_active.size());
   }
 }
 
@@ -531,19 +567,22 @@ void LogMetricsChannelSoundingRequesterSessionReported(
   }
 }
 
-void LogMetricBluetoothEnergyMonitorReported(uint16_t bqr_version,
-                                             const bqr::BqrEnergyMonitorEvent& event) {
+void LogMetricBluetoothEnergyMonitorReported(
+        uint16_t bqr_version, const bluetooth::bqr::BqrEnergyMonitoringEventV7& event) {
   int ret = stats_write(
-          BLUETOOTH_ENERGY_MONITOR_REPORTED, bqr_version, event.quality_report_id,
-          event.avg_current_consume, event.idle_total_time, event.idle_state_enter_count,
-          event.active_total_time, event.active_state_enter_count, event.bredr_tx_total_time,
-          event.bredr_tx_state_enter_count, event.bredr_tx_avg_power_lv,
-          event.bredr_rx_total_time, event.bredr_rx_state_enter_count, event.le_tx_total_time,
-          event.le_tx_state_enter_count, event.le_tx_avg_power_lv, event.le_rx_total_time,
-          event.le_rx_state_enter_count, event.tm_period, event.rx_active_one_chain_time,
-          event.rx_active_two_chain_time, event.tx_ipa_active_one_chain_time,
-          event.tx_ipa_active_two_chain_time, event.tx_epa_active_one_chain_time,
-          event.tx_epa_active_two_chain_time);
+          BLUETOOTH_ENERGY_MONITOR_REPORTED, bqr_version, event.base.quality_report_id,
+          event.base.avg_current_consume, event.base.idle_total_time,
+          event.base.idle_state_enter_count, event.base.active_total_time,
+          event.base.active_state_enter_count, event.base.bredr_tx_total_time,
+          event.base.bredr_tx_state_enter_count, event.base.bredr_tx_avg_power_lv,
+          event.base.bredr_rx_total_time, event.base.bredr_rx_state_enter_count,
+          event.base.le_tx_total_time, event.base.le_tx_state_enter_count,
+          event.base.le_tx_avg_power_lv, event.base.le_rx_total_time,
+          event.base.le_rx_state_enter_count, event.base.tm_period,
+          event.base.rx_active_one_chain_time, event.base.rx_active_two_chain_time,
+          event.base.tx_ipa_active_one_chain_time, event.base.tx_ipa_active_two_chain_time,
+          event.base.tx_epa_active_one_chain_time, event.base.tx_epa_active_two_chain_time,
+          event.bredr_rx_active_scan_total_time, event.le_rx_active_scan_total_time);
   if (ret < 0) {
     log::warn("failed to log BQR energy monitor event to statsd, error {}", ret);
   }
@@ -559,6 +598,25 @@ void LogMetricBluetoothRFStatsReported(uint16_t bqr_version, const bqr::BqrRFSta
           event.rssi_delta_5_8, event.rssi_delta_8_11, event.rssi_delta_11_up);
   if (ret < 0) {
     log::warn("failed to log BQR RF stats event to statsd, error {}", ret);
+  }
+}
+
+void LogGattOffloadSessionStateChanged(const Address& address, int32_t session_id,
+                                       android::bluetooth::gatt::GattRoleEnum gatt_role,
+                                       android::bluetooth::gatt::GattOffloadSessionStateEnum state,
+                                       int32_t gatt_characteristic_properties_bitmask,
+                                       int64_t session_duration_ms,
+                                       android::bluetooth::gatt::GattOffloadErrorEnum error_code,
+                                       int32_t uid, const std::string& attribution_tag) {
+  int metric_id = 0;
+  if (!address.IsEmpty()) {
+    metric_id = MetricIdManager::GetInstance().AllocateId(address);
+  }
+  int ret = stats_write(BLUETOOTH_GATT_OFFLOAD_SESSION_STATE_CHANGED, metric_id, session_id,
+                        gatt_role, state, gatt_characteristic_properties_bitmask,
+                        session_duration_ms, error_code, uid, attribution_tag.c_str());
+  if (ret < 0) {
+    log::warn("failed to log gatt offload session state changed to statsd, error {}", ret);
   }
 }
 

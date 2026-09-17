@@ -21,7 +21,6 @@
 
 #include <bluetooth/types/address.h>
 
-#include "macros.h"
 #include "osi/include/alarm.h"
 #include "stack/btm/neighbor_inquiry.h"
 #include "stack/include/btm_ble_api_types.h"
@@ -188,6 +187,7 @@ private:
   uint8_t scan_activity_; /* LE scan activity mask */
 
 public:
+  // TODO(b/459944050): Delete these state keeping functions when scan multiplexing feature is done.
   bool is_ble_inquiry_active() const { return scan_activity_ & kBTM_BLE_INQUIRY_ACTIVE; }
   bool is_ble_observe_active() const { return scan_activity_ & kBTM_BLE_OBSERVE_ACTIVE; }
 
@@ -206,7 +206,7 @@ public:
 
   /* observer callback and timer */
   tBTM_INQ_RESULTS_CB* p_obs_results_cb;
-  tBTM_CMPL_CB* p_obs_cmpl_cb;
+  tBTM_INQUIRY_CMPL_CB* p_obs_cmpl_cb;
   alarm_t* observer_timer;
 
   /* opportunistic observer */

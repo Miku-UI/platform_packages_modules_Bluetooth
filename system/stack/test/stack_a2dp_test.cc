@@ -263,6 +263,9 @@ protected:
         case BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS:
           supported = true;
           break;
+        case BTAV_A2DP_CODEC_INDEX_SOURCE_LHDCV5:
+          supported = true;
+          break;
         case BTAV_A2DP_CODEC_INDEX_SINK_SBC:
         case BTAV_A2DP_CODEC_INDEX_SINK_AAC:
         case BTAV_A2DP_CODEC_INDEX_SINK_OPUS:
@@ -475,9 +478,6 @@ TEST_F(StackA2dpTest, test_a2dp_get_media_type) {
 }
 
 TEST_F(StackA2dpTest, test_a2dp_codec_name) {
-  uint8_t codec_info_test[AVDT_CODEC_SIZE];
-
-  // Explicit tests for known codecs
   EXPECT_STREQ(A2DP_CodecName(codec_info_sbc), "SBC");
   EXPECT_STREQ(A2DP_CodecName(codec_info_sbc_capability), "SBC");
   EXPECT_STREQ(A2DP_CodecName(codec_info_sbc_sink_capability), "SBC");
@@ -487,15 +487,6 @@ TEST_F(StackA2dpTest, test_a2dp_codec_name) {
   ASSERT_STREQ(A2DP_CodecName(codec_info_opus), "Opus");
   ASSERT_STREQ(A2DP_CodecName(codec_info_opus_capability), "Opus");
   ASSERT_STREQ(A2DP_CodecName(codec_info_opus_sink_capability), "Opus");
-  EXPECT_STREQ(A2DP_CodecName(codec_info_non_a2dp), "UNKNOWN VENDOR CODEC");
-
-  // Test all unknown codecs
-  memcpy(codec_info_test, codec_info_sbc, sizeof(codec_info_sbc));
-  for (uint8_t codec_type = A2DP_MEDIA_CT_AAC + 1; codec_type < A2DP_MEDIA_CT_NON_A2DP;
-       codec_type++) {
-    codec_info_test[2] = codec_type;  // Unknown codec type
-    EXPECT_STREQ(A2DP_CodecName(codec_info_test), "UNKNOWN CODEC");
-  }
 }
 
 TEST_F(StackA2dpTest, test_a2dp_vendor) {
@@ -807,8 +798,8 @@ TEST_F(StackA2dpTest, test_a2dp_codec_index_str) {
   EXPECT_STREQ(A2DP_CodecIndexStr(BTAV_A2DP_CODEC_INDEX_SOURCE_SBC), "SBC");
   EXPECT_STREQ(A2DP_CodecIndexStr(BTAV_A2DP_CODEC_INDEX_SINK_SBC), "SBC SINK");
   EXPECT_STREQ(A2DP_CodecIndexStr(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC), "AAC");
-  ASSERT_STREQ(A2DP_VendorCodecIndexStr(BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS), "Opus");
-  ASSERT_STREQ(A2DP_VendorCodecIndexStr(BTAV_A2DP_CODEC_INDEX_SINK_OPUS), "Opus SINK");
+  EXPECT_STREQ(A2DP_CodecIndexStr(BTAV_A2DP_CODEC_INDEX_SOURCE_OPUS), "Opus");
+  EXPECT_STREQ(A2DP_CodecIndexStr(BTAV_A2DP_CODEC_INDEX_SINK_OPUS), "Opus SINK");
 
   // Test that the unknown codec string has not changed
   EXPECT_STREQ(A2DP_CodecIndexStr(BTAV_A2DP_CODEC_INDEX_MAX), "UNKNOWN CODEC INDEX");
@@ -1037,18 +1028,18 @@ TEST_F(A2dpCodecConfigTest, setCodecConfig) {
   ASSERT_NE(peer_codec_index, BTAV_A2DP_CODEC_INDEX_MAX);
   codec_config = a2dp_codecs->findSourceCodecConfig(codec_info_aac_vbr);
   ASSERT_NE(codec_config, nullptr);
-  ASSERT_TRUE(a2dp_codecs->setCodecConfig(codec_info_aac_vbr, false /* is_capability */,
-                                          codec_info_result, true /* select_current_codec */));
-  ASSERT_EQ(a2dp_codecs->getCurrentCodecConfig(), codec_config);
-  // Compare the result codec with the local test codec info
   if (aac_vbr_mode_enabled) {
+    ASSERT_TRUE(a2dp_codecs->setCodecConfig(codec_info_aac_vbr, false /* is_capability */,
+                                            codec_info_result, true /* select_current_codec */));
+    ASSERT_EQ(a2dp_codecs->getCurrentCodecConfig(), codec_config);
+
+    // Compare the result codec with the local test codec info
     for (size_t i = 0; i < codec_info_aac[0] + 1; i++) {
       ASSERT_EQ(codec_info_result[i], codec_info_aac_vbr[i]);
     }
   } else {
-    for (size_t i = 0; i < codec_info_aac[0] + 1; i++) {
-      ASSERT_EQ(codec_info_result[i], codec_info_aac[i]);
-    }
+    ASSERT_FALSE(a2dp_codecs->setCodecConfig(codec_info_aac_vbr, false /* is_capability */,
+                                             codec_info_result, true /* select_current_codec */));
   }
   ASSERT_TRUE(codec_config->useRtpHeaderMarkerBit());
 

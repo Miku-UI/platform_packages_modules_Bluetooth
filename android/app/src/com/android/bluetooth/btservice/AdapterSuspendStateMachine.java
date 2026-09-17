@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.bluetooth.btservice;
 
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
-import com.android.bluetooth.Utils;
-import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.Util;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
@@ -60,7 +60,7 @@ import java.io.PrintWriter;
 /** Bluetooth StateMachine to handle system suspend and wake by Bluetooth. */
 final class AdapterSuspendStateMachine extends StateMachine {
     private static final String TAG =
-            Utils.BT_PREFIX + AdapterSuspendStateMachine.class.getSimpleName();
+            Util.BT_PREFIX + AdapterSuspendStateMachine.class.getSimpleName();
 
     // Messages used to communicate with the state machine.
     static final int MSG_SCREEN_ON = 1;
@@ -128,14 +128,10 @@ final class AdapterSuspendStateMachine extends StateMachine {
         }
 
         void handleSuspendLocked(boolean wakeByHidAllowed) {
-            if (Flags.refCountedNativeWakelock()) {
-                mAdapterService.acquireWakeLock("bluetooth_suspend");
-            }
+            mAdapterService.acquireWakeLock("bluetooth_suspend");
             mWakeByHidAllowed = wakeByHidAllowed;
             mAdapterSuspend.handleSuspend(wakeByHidAllowed);
-            if (Flags.refCountedNativeWakelock()) {
-                mAdapterService.releaseWakeLock("bluetooth_suspend");
-            }
+            mAdapterService.releaseWakeLock("bluetooth_suspend");
         }
 
         void infoLog(String msg) {
@@ -238,13 +234,9 @@ final class AdapterSuspendStateMachine extends StateMachine {
             switch (msg.what) {
                 case MSG_SCREEN_ON -> {
                     mScreenOn = true;
-                    if (Flags.refCountedNativeWakelock()) {
-                        mAdapterService.acquireWakeLock("bluetooth_resume");
-                    }
+                    mAdapterService.acquireWakeLock("bluetooth_resume");
                     mAdapterSuspend.handleResume();
-                    if (Flags.refCountedNativeWakelock()) {
-                        mAdapterService.releaseWakeLock("bluetooth_resume");
-                    }
+                    mAdapterService.releaseWakeLock("bluetooth_resume");
                     if (!mWakeLockHeld) {
                         transitionTo(mActiveState);
                     } else {

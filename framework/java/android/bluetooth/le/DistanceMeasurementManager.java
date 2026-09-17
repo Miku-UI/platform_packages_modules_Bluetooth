@@ -21,6 +21,7 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 
 import static java.util.Objects.requireNonNull;
 
+import android.annotation.Hide;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresNoPermission;
@@ -55,27 +56,23 @@ import java.util.stream.Collectors;
  *
  * <p>Use {@link BluetoothAdapter#getDistanceMeasurementManager()} to get an instance of {@link
  * DistanceMeasurementManager}.
- *
- * @hide
  */
+@Hide
 @SystemApi
 public final class DistanceMeasurementManager {
     private static final String TAG = DistanceMeasurementManager.class.getSimpleName();
 
     private final ConcurrentHashMap<BluetoothDevice, DistanceMeasurementSession> mSessionMap =
             new ConcurrentHashMap<>();
-    private final BluetoothAdapter mBluetoothAdapter;
+    private final BluetoothAdapter mAdapter;
     private final AttributionSource mAttributionSource;
     private final ParcelUuid mUuid;
 
-    /**
-     * Use {@link BluetoothAdapter#getDistanceMeasurementManager()} instead.
-     *
-     * @hide
-     */
+    /** Use {@link BluetoothAdapter#getDistanceMeasurementManager()} instead. */
+    @Hide
     public DistanceMeasurementManager(BluetoothAdapter bluetoothAdapter) {
-        mBluetoothAdapter = requireNonNull(bluetoothAdapter);
-        mAttributionSource = mBluetoothAdapter.getAttributionSource();
+        mAdapter = requireNonNull(bluetoothAdapter);
+        mAttributionSource = mAdapter.getAttributionSource();
         mUuid = new ParcelUuid(UUID.randomUUID());
     }
 
@@ -85,15 +82,15 @@ public final class DistanceMeasurementManager {
      * <p>This can be used to check supported methods before start distance measurement.
      *
      * @return a list of {@link DistanceMeasurementMethod}
-     * @hide
      */
+    @Hide
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @NonNull List<DistanceMeasurementMethod> getSupportedMethods() {
         final List<DistanceMeasurementMethod> supportedMethods = new ArrayList<>();
         try {
-            IDistanceMeasurement distanceMeasurement = mBluetoothAdapter.getDistanceMeasurement();
+            IDistanceMeasurement distanceMeasurement = mAdapter.getDistanceMeasurement();
             if (distanceMeasurement == null) {
                 Log.e(TAG, "Distance Measurement is null");
                 return supportedMethods;
@@ -123,8 +120,8 @@ public final class DistanceMeasurementManager {
      *     DistanceMeasurementSession}
      * @throws NullPointerException if any input parameter is null
      * @throws IllegalStateException if the session is already registered
-     * @hide
      */
+    @Hide
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
@@ -136,7 +133,7 @@ public final class DistanceMeasurementManager {
         requireNonNull(executor);
         requireNonNull(callback);
         try {
-            IDistanceMeasurement distanceMeasurement = mBluetoothAdapter.getDistanceMeasurement();
+            IDistanceMeasurement distanceMeasurement = mAdapter.getDistanceMeasurement();
             if (distanceMeasurement == null) {
                 Log.e(TAG, "Distance Measurement is null");
                 return null;
@@ -178,8 +175,8 @@ public final class DistanceMeasurementManager {
      * @return max supported security level, {@link ChannelSoundingParams#CS_SECURITY_LEVEL_UNKNOWN}
      *     when Channel Sounding is not supported or encounters an internal error.
      * @deprecated do not use it, this is meaningless, no alternative API.
-     * @hide
      */
+    @Hide
     @Deprecated
     @SystemApi
     @RequiresBluetoothConnectPermission
@@ -189,7 +186,7 @@ public final class DistanceMeasurementManager {
         requireNonNull(remoteDevice);
         final int defaultValue = ChannelSoundingParams.CS_SECURITY_LEVEL_UNKNOWN;
         try {
-            IDistanceMeasurement distanceMeasurement = mBluetoothAdapter.getDistanceMeasurement();
+            IDistanceMeasurement distanceMeasurement = mAdapter.getDistanceMeasurement();
             if (distanceMeasurement == null) {
                 Log.e(TAG, "Distance Measurement is null");
                 return defaultValue;
@@ -211,8 +208,8 @@ public final class DistanceMeasurementManager {
      * @return max supported security level, {@link ChannelSoundingParams#CS_SECURITY_LEVEL_UNKNOWN}
      *     when Channel Sounding is not supported or encounters an internal error.
      * @deprecated use {@link #getChannelSoundingSupportedSecurityLevels} instead.
-     * @hide
      */
+    @Hide
     @Deprecated
     @SystemApi
     @RequiresBluetoothConnectPermission
@@ -220,7 +217,7 @@ public final class DistanceMeasurementManager {
     public @CsSecurityLevel int getLocalChannelSoundingMaxSupportedSecurityLevel() {
         final int defaultValue = ChannelSoundingParams.CS_SECURITY_LEVEL_UNKNOWN;
         try {
-            IDistanceMeasurement distanceMeasurement = mBluetoothAdapter.getDistanceMeasurement();
+            IDistanceMeasurement distanceMeasurement = mAdapter.getDistanceMeasurement();
             if (distanceMeasurement == null) {
                 Log.e(TAG, "Distance Measurement is null");
                 return defaultValue;
@@ -243,14 +240,14 @@ public final class DistanceMeasurementManager {
      * @throws UnsupportedOperationException if the {@link
      *     android.content.pm.PackageManager#FEATURE_BLUETOOTH_LE_CHANNEL_SOUNDING} is not
      *     supported.
-     * @hide
      */
+    @Hide
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
     public @NonNull Set<@CsSecurityLevel Integer> getChannelSoundingSupportedSecurityLevels() {
         try {
-            IDistanceMeasurement distanceMeasurement = mBluetoothAdapter.getDistanceMeasurement();
+            IDistanceMeasurement distanceMeasurement = mAdapter.getDistanceMeasurement();
             if (distanceMeasurement == null) {
                 Log.e(TAG, "Distance Measurement is null");
                 return Collections.emptySet();
@@ -266,11 +263,8 @@ public final class DistanceMeasurementManager {
         return Collections.emptySet();
     }
 
-    /**
-     * Clear session map. Should be called when bluetooth is down.
-     *
-     * @hide
-     */
+    /** Clear session map. Should be called when bluetooth is down. */
+    @Hide
     @RequiresNoPermission
     public void cleanup() {
         mSessionMap.clear();

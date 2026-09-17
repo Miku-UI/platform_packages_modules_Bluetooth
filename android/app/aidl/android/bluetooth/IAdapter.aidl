@@ -12,17 +12,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package android.bluetooth;
 
 import android.bluetooth.IBluetoothCallback;
 import android.content.AttributionSource;
 
-/**
- * Expose adapter method to be called by the Bluetooth System Server only
- * @hide
- */
-oneway interface IAdapter
-{
+/** AdapterService methods exposed exclusively to the Bluetooth System Server */
+@JavaPassthrough(annotation="@android.annotation.Hide")
+oneway interface IAdapter {
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
     void offToBleOn(boolean quietMode, in String hciInstanceName);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
@@ -38,8 +36,8 @@ oneway interface IAdapter
     void unregisterCallback(in IBluetoothCallback callback);
 
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
-    void unregAllGattClient();
+    void killBluetoothProcess();
 
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_PRIVILEGED)")
-    void killBluetoothProcess();
+    void setName(in String name);
 }

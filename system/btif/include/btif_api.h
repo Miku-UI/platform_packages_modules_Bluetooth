@@ -131,15 +131,6 @@ int get_common_criteria_config_compare_result(void);
  ******************************************************************************/
 bool is_atv_device(void);
 
-/*******************************************************************************
- *
- * Function         btif_get_adapter_properties
- *
- * Description      Fetches all local adapter properties
- *
- ******************************************************************************/
-void btif_get_adapter_properties(void);
-
 bt_property_t* property_deep_copy(const bt_property_t* prop);
 
 /*******************************************************************************
@@ -197,7 +188,7 @@ void btif_get_remote_device_properties(RawAddress remote_addr);
  *                  remote device property that can be set
  *
  ******************************************************************************/
-void btif_set_remote_device_property(RawAddress* remote_addr, bt_property_t* property);
+void btif_set_remote_device_property(RawAddress remote_addr, bt_property_t* property);
 
 /*******************************************************************************
  *  BTIF DM API
@@ -270,14 +261,13 @@ void btif_dm_cancel_bond(const RawAddress bd_addr);
  ******************************************************************************/
 void btif_dm_remove_bond(const RawAddress bd_addr);
 
+#ifdef TARGET_FLOSS
 /*******************************************************************************
  *
  * Function         btif_dm_get_connection_state
- *                  btif_dm_get_connection_state_sync
  *
  * Description      Returns bitmask on remote device connection state indicating
- *                  connection and encryption.  The `_sync` version properly
- *                  synchronizes the state and is the preferred mechanism.
+ *                  connection and encryption.
  *                  NOTE: Currently no address resolution is attempted upon
  *                  LE random addresses.
  *
@@ -294,7 +284,7 @@ void btif_dm_remove_bond(const RawAddress bd_addr);
  *
  ******************************************************************************/
 uint16_t btif_dm_get_connection_state(const RawAddress& bd_addr);
-uint16_t btif_dm_get_connection_state_sync(const RawAddress& bd_addr);
+#endif
 
 /*******************************************************************************
  *
@@ -314,7 +304,7 @@ void btif_dm_pin_reply(const RawAddress bd_addr, uint8_t accept, uint8_t pin_len
  *                  Entry
  *
  ******************************************************************************/
-void btif_dm_ssp_reply(const RawAddress bd_addr, bt_ssp_variant_t variant, uint8_t accept);
+void btif_dm_ssp_reply(const RawAddress bd_addr, PairingVariant variant, uint8_t accept);
 
 /*******************************************************************************
  *
@@ -338,29 +328,7 @@ bt_status_t btif_dm_get_adapter_property(bt_property_t* prop);
  ******************************************************************************/
 void btif_dm_get_remote_services(const RawAddress remote_addr, tBT_TRANSPORT transport);
 
-/*******************************************************************************
- *
- * Function         btif_dut_mode_configure
- *
- * Description      Configure Test Mode - 'enable' to 1 puts the device in test
- *                  mode and 0 exits test mode
- *
- ******************************************************************************/
-void btif_dut_mode_configure(uint8_t enable);
-
-bool btif_is_dut_mode();
-
-/*******************************************************************************
- *
- * Function         btif_dut_mode_send
- *
- * Description     Sends a HCI Vendor specific command to the controller
- *
- ******************************************************************************/
-void btif_dut_mode_send(uint16_t opcode, uint8_t* buf, uint8_t len);
-
 void btif_ble_transmitter_test(uint8_t tx_freq, uint8_t test_data_len, uint8_t packet_payload);
-
 void btif_ble_receiver_test(uint8_t rx_freq);
 void btif_ble_test_end();
 

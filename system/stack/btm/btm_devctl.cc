@@ -27,16 +27,17 @@
 
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
+#include <com_android_bluetooth_flags.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "acl_api_types.h"
-#include "btm_sec_cb.h"
 #include "btm_sec_int_types.h"
+#include "btm_security.h"
 #include "hci/controller.h"
-#include "main/shim/btm_api.h"
 #include "main/shim/entry.h"
+#include "main/shim/shim.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/btm/internal/btm_api.h"
@@ -44,12 +45,10 @@
 #include "stack/include/acl_api.h"
 #include "stack/include/acl_api_types.h"
 #include "stack/include/acl_hci_link_interface.h"
-#include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_privacy.h"
 #include "stack/include/btm_inq.h"
 #include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_status.h"
-#include "stack/include/dev_hci_link_interface.h"
 #include "stack/include/hcidefs.h"
 #include "stack/include/l2cap_controller_interface.h"
 
@@ -84,46 +83,44 @@ static void decode_controller_support();
  *
  ******************************************************************************/
 void BTM_db_reset(void) {
-  tBTM_CMPL_CB* p_cb;
-
   btm_inq_db_reset();
 
   if (btm_cb.devcb.p_rln_cmpl_cb) {
-    p_cb = btm_cb.devcb.p_rln_cmpl_cb;
+    std::vector<uint8_t> packet = {
+            static_cast<uint8_t>(bluetooth::hci::EventCode::COMMAND_COMPLETE),
+            252,  // Param len
+            1,    // Num HCI Cmd Packets
+            static_cast<uint8_t>(bluetooth::hci::OpCode::READ_LOCAL_NAME) & 0xFF,
+            (static_cast<uint8_t>(bluetooth::hci::OpCode::READ_LOCAL_NAME) >> 8) & 0xFF,
+            static_cast<uint8_t>(bluetooth::hci::ErrorCode::HARDWARE_FAILURE),  // Status
+    };
+    packet.insert(packet.end(), 248, 0);  // Local Name
+    auto packet_ptr = std::make_shared<std::vector<uint8_t>>(std::move(packet));
+    auto packet_view =
+            bluetooth::hci::PacketView<bluetooth::hci::kLittleEndian>(std::move(packet_ptr));
+    auto event_view = bluetooth::hci::EventView::Create(std::move(packet_view));
+    auto view = bluetooth::hci::CommandCompleteView::Create(std::move(event_view));
+    (*btm_cb.devcb.p_rln_cmpl_cb)(std::move(view));
     btm_cb.devcb.p_rln_cmpl_cb = NULL;
-
-    if (p_cb) {
-      (*p_cb)(nullptr);
-    }
   }
 
   if (btm_cb.devcb.p_rssi_cmpl_cb) {
-    p_cb = btm_cb.devcb.p_rssi_cmpl_cb;
+    tBTM_READ_RSSI_CB* p_cb = btm_cb.devcb.p_rssi_cmpl_cb;
+    (*p_cb)(tBTM_STATUS::BTM_DEV_RESET, 0, RawAddress::kEmpty);
     btm_cb.devcb.p_rssi_cmpl_cb = NULL;
-
-    if (p_cb) {
-      tBTM_RSSI_RESULT btm_rssi_result;
-      btm_rssi_result.status = tBTM_STATUS::BTM_DEV_RESET;
-      (*p_cb)(&btm_rssi_result);
-    }
   }
 
   if (btm_cb.devcb.p_automatic_flush_timeout_cmpl_cb) {
-    p_cb = btm_cb.devcb.p_automatic_flush_timeout_cmpl_cb;
+    tBTM_READ_AUTOMATIC_FLUSH_TIMEOUT_CB* p_cb = btm_cb.devcb.p_automatic_flush_timeout_cmpl_cb;
+    (*p_cb)(RawAddress::kEmpty);
     btm_cb.devcb.p_automatic_flush_timeout_cmpl_cb = NULL;
-
-    if (p_cb) {
-      tBTM_AUTOMATIC_FLUSH_TIMEOUT_RESULT btm_automatic_flush_timeout_result;
-      btm_automatic_flush_timeout_result.status = tBTM_STATUS::BTM_DEV_RESET;
-      (*p_cb)(&btm_automatic_flush_timeout_result);
-    }
   }
 }
 
 static bool set_sec_state_idle(void* data, void* /* context */) {
-  tBTM_SEC_DEV_REC* p_dev_rec = static_cast<tBTM_SEC_DEV_REC*>(data);
-  p_dev_rec->sec_rec.le_link = tSECURITY_STATE::IDLE;
-  p_dev_rec->sec_rec.classic_link = tSECURITY_STATE::IDLE;
+  BtmDevice* p_device = static_cast<BtmDevice*>(data);
+  p_device->sec_rec.le_link = tSECURITY_STATE::IDLE;
+  p_device->sec_rec.classic_link = tSECURITY_STATE::IDLE;
   return true;
 }
 
@@ -132,7 +129,11 @@ void BTM_reset_complete() {
   l2cu_device_reset();
 
   /* Clear current security state */
-  list_foreach(btm_sec_cb.sec_dev_rec, set_sec_state_idle, NULL);
+  if (!com_android_bluetooth_flags_use_array_instead_list_in_sec_dev_rec()) {
+    list_foreach(BtmSecurity::Get().sec_dev_rec_, set_sec_state_idle, NULL);
+  } else {
+    BtmSecurity::Get().for_each_dev_rec(set_sec_state_idle, NULL);
+  }
 
   /* After the reset controller should restore all parameters to defaults. */
   btm_cb.btm_inq_vars.inq_counter = 1;
@@ -158,8 +159,14 @@ void BTM_reset_complete() {
       bluetooth::shim::GetController()->SupportsBlePrivacy() &&
       bluetooth::shim::GetController()->GetLeResolvingListSize() > 0) {
     btm_ble_resolving_list_init(bluetooth::shim::GetController()->GetLeResolvingListSize());
-    /* set the default random private address timeout */
-    btsnd_hcic_ble_set_rand_priv_addr_timeout(btm_get_next_private_address_interval_ms() / 1000);
+
+    // If HCI_LE_Set_Resolvable_Private_Address_Timeout [v2] is supported, RPA generation will be
+    // completely offloaded to the controller by LE Address Manager. In that we don't need to use
+    // the HCI_LE_Set_Resolvable_Private_Address_Timeout [v1] here.
+    if (!bluetooth::shim::GetController()->IsRpaGenerationSupported()) {
+      /* Set the default random private address timeout */
+      btsnd_hcic_ble_set_rand_priv_addr_timeout(btm_get_next_private_address_interval_ms() / 1000);
+    }
   } else {
     log::info("Le Address Resolving list disabled due to lack of controller support");
   }
@@ -169,7 +176,11 @@ void BTM_reset_complete() {
             bluetooth::shim::GetController()->GetLeBufferSize().total_num_le_packets_);
   }
 
-  BTM_SetPinType(btm_sec_cb.cfg.pin_type, btm_sec_cb.cfg.pin_code, btm_sec_cb.cfg.pin_code_len);
+  if (!com_android_bluetooth_flags_local_pin_key_type()) {
+    get_security_client_interface().BTM_SetPinType(BtmSecurity::Get().cfg_.pin_type,
+                                                   BtmSecurity::Get().cfg_.pin_code,
+                                                   BtmSecurity::Get().cfg_.pin_code_len);
+  }
 
   decode_controller_support();
 }
@@ -183,7 +194,7 @@ void BTM_reset_complete() {
  * Returns          true if device is up, else false
  *
  ******************************************************************************/
-bool BTM_IsDeviceUp(void) { return bluetooth::shim::GetController() != nullptr; }
+bool BTM_IsDeviceUp(void) { return bluetooth::shim::is_gd_stack_started_up(); }
 
 static void decode_controller_support() {
   /* Create (e)SCO supported packet types mask */
@@ -277,7 +288,7 @@ tBTM_STATUS BTM_SetLocalDeviceName(const char* p_name) {
   }
   /* Save the device name if local storage is enabled */
 
-  bd_name_from_char_pointer(btm_sec_cb.cfg.bd_name, p_name);
+  bd_name_from_char_pointer(BtmSecurity::Get().cfg_.bd_name, p_name);
 
   bluetooth::shim::GetController()->WriteLocalName(p_name);
   return tBTM_STATUS::BTM_CMD_STARTED;
@@ -297,7 +308,7 @@ tBTM_STATUS BTM_SetLocalDeviceName(const char* p_name) {
  *
  ******************************************************************************/
 tBTM_STATUS BTM_ReadLocalDeviceName(const char** p_name) {
-  *p_name = (const char*)btm_sec_cb.cfg.bd_name;
+  *p_name = (const char*)BtmSecurity::Get().cfg_.bd_name;
   return tBTM_STATUS::BTM_SUCCESS;
 }
 
@@ -382,128 +393,4 @@ void BTM_WriteVoiceSettings(uint16_t settings) {
 
   /* Send the HCI command */
   btsnd_hcic_write_voice_settings((uint16_t)(settings & 0x03ff));
-}
-
-/*******************************************************************************
- *
- * Function         BTM_EnableTestMode
- *
- * Description      Send HCI the enable device under test command.
- *
- *                  Note: Controller can only be taken out of this mode by
- *                      resetting the controller.
- *
- * Returns
- *      tBTM_STATUS::BTM_SUCCESS         Command sent.
- *      tBTM_STATUS::BTM_NO_RESOURCES    If out of resources to send the command.
- *
- *
- ******************************************************************************/
-tBTM_STATUS BTM_EnableTestMode(void) {
-  uint8_t cond;
-
-  log::verbose("BTM: BTM_EnableTestMode");
-
-  /* set auto accept connection as this is needed during test mode */
-  /* Allocate a buffer to hold HCI command */
-  cond = HCI_DO_AUTO_ACCEPT_CONNECT;
-  btsnd_hcic_set_event_filter(HCI_FILTER_CONNECTION_SETUP, HCI_FILTER_COND_NEW_DEVICE, &cond,
-                              sizeof(cond));
-
-  /* put device to connectable mode */
-  if (BTM_SetConnectability(BTM_CONNECTABLE) != tBTM_STATUS::BTM_SUCCESS) {
-    return tBTM_STATUS::BTM_NO_RESOURCES;
-  }
-
-  /* put device to discoverable mode */
-  if (BTM_SetDiscoverability(BTM_GENERAL_DISCOVERABLE) != tBTM_STATUS::BTM_SUCCESS) {
-    return tBTM_STATUS::BTM_NO_RESOURCES;
-  }
-
-  /* mask off all of event from controller */
-  bluetooth::shim::BTM_ClearEventMask();
-
-  /* Send the HCI command */
-  btsnd_hcic_enable_test_mode();
-  return tBTM_STATUS::BTM_SUCCESS;
-}
-
-/*******************************************************************************
- *
- * Function         BTM_DeleteStoredLinkKey
- *
- * Description      This function is called to delete link key for the specified
- *                  device addresses from the NVRAM storage attached to the
- *                  Bluetooth controller.
- *
- * Parameters:      bd_addr      - Addresses of the devices
- *                  p_cb         - Call back function to be called to return
- *                                 the results
- *
- ******************************************************************************/
-tBTM_STATUS BTM_DeleteStoredLinkKey(const RawAddress* bd_addr, tBTM_CMPL_CB* p_cb) {
-  /* Read and Write STORED link key stems from a legacy use-case */
-  /* If the controller doesn't support this then just return success */
-  if (!bluetooth::shim::GetController()->IsSupported(
-              bluetooth::hci::OpCode::DELETE_STORED_LINK_KEY)) {
-    log::info("BTM: BTM_DeleteStoredLinkKey: DELETE_STORED_LINK_KEY not supported");
-    return tBTM_STATUS::BTM_SUCCESS;
-  }
-
-  /* Check if the previous command is completed */
-  if (btm_sec_cb.devcb.p_stored_link_key_cmpl_cb) {
-    return tBTM_STATUS::BTM_BUSY;
-  }
-
-  bool delete_all_flag = !bd_addr;
-
-  log::verbose("BTM: BTM_DeleteStoredLinkKey: delete_all_flag: {}", delete_all_flag);
-
-  btm_sec_cb.devcb.p_stored_link_key_cmpl_cb = p_cb;
-  if (!bd_addr) {
-    /* This is to delete all link keys */
-    /* We don't care the BD address. Just pass a non zero pointer */
-    RawAddress local_bd_addr = RawAddress::kEmpty;
-    btsnd_hcic_delete_stored_key(local_bd_addr, delete_all_flag);
-  } else {
-    btsnd_hcic_delete_stored_key(*bd_addr, delete_all_flag);
-  }
-
-  return tBTM_STATUS::BTM_SUCCESS;
-}
-
-/*******************************************************************************
- *
- * Function         btm_delete_stored_link_key_complete
- *
- * Description      This function is called when the command complete message
- *                  is received from the HCI for the delete stored link key
- *                  command.
- *
- * Returns          void
- *
- ******************************************************************************/
-void btm_delete_stored_link_key_complete(uint8_t* p, uint16_t evt_len) {
-  tBTM_CMPL_CB* p_cb = btm_sec_cb.devcb.p_stored_link_key_cmpl_cb;
-  tBTM_DELETE_STORED_LINK_KEY_COMPLETE result;
-
-  /* If there was a callback registered for read stored link key, call it */
-  btm_sec_cb.devcb.p_stored_link_key_cmpl_cb = NULL;
-
-  if (p_cb) {
-    /* Set the call back event to indicate command complete */
-    result.event = BTM_CB_EVT_DELETE_STORED_LINK_KEYS;
-
-    if (evt_len < 3) {
-      log::error("Malformatted event packet, too short");
-      return;
-    }
-
-    /* Extract the result fields from the HCI event */
-    STREAM_TO_UINT8(result.status, p);
-    STREAM_TO_UINT16(result.num_keys, p);
-
-    /* Call the call back and pass the result */
-    (*p_cb)(&result);
-  }
 }

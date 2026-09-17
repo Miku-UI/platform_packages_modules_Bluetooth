@@ -25,7 +25,7 @@
 
 #define LOG_TAG "bluetooth-a2dp"
 
-#include "a2dp_sbc.h"
+#include "stack/include/a2dp_sbc.h"
 
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
@@ -36,17 +36,17 @@
 #include <sstream>
 #include <string>
 
-#include "a2dp_api.h"
-#include "a2dp_codec_api.h"
-#include "a2dp_constants.h"
-#include "a2dp_sbc_constants.h"
-#include "a2dp_sbc_decoder.h"
-#include "a2dp_sbc_encoder.h"
-#include "avdt_api.h"
 #include "embdrv/sbc/encoder/include/sbc_encoder.h"
 #include "gd/common/utils.h"
 #include "hardware/bt_av.h"
 #include "internal_include/bt_trace.h"
+#include "stack/include/a2dp_api.h"
+#include "stack/include/a2dp_codec_api.h"
+#include "stack/include/a2dp_constants.h"
+#include "stack/include/a2dp_sbc_constants.h"
+#include "stack/include/a2dp_sbc_decoder.h"
+#include "stack/include/a2dp_sbc_encoder.h"
+#include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
 
 #define A2DP_SBC_MAX_BITPOOL 53
@@ -137,26 +137,26 @@ static void A2DP_AdjustBitpool(tA2DP_SBC_CIE* p_ie) {
 
   // minbitpool < 2, then set minbitpool = 2
   if (p_ie->min_bitpool < A2DP_SBC_IE_MIN_BITPOOL) {
-    log::verbose("min_bitpool value adjusted from: {} to {}", p_ie->min_bitpool,
-                 A2DP_SBC_IE_MIN_BITPOOL);
+    log::debug("min_bitpool value adjusted from: {} to {}", p_ie->min_bitpool,
+               A2DP_SBC_IE_MIN_BITPOOL);
     p_ie->min_bitpool = A2DP_SBC_IE_MIN_BITPOOL;
   }
   // minbitpool > 250, then set minbitpool = 250
   if (p_ie->min_bitpool > A2DP_SBC_IE_MAX_BITPOOL) {
-    log::verbose("min_bitpool value adjusted from: {} to {}", p_ie->min_bitpool,
-                 A2DP_SBC_IE_MAX_BITPOOL);
+    log::debug("min_bitpool value adjusted from: {} to {}", p_ie->min_bitpool,
+               A2DP_SBC_IE_MAX_BITPOOL);
     p_ie->min_bitpool = A2DP_SBC_IE_MAX_BITPOOL;
   }
   // maxbitpool > 250, then set maxbitpool = 250
   if (p_ie->max_bitpool > A2DP_SBC_IE_MAX_BITPOOL) {
-    log::verbose("max_bitpool value adjusted from: {} to {}", p_ie->max_bitpool,
-                 A2DP_SBC_IE_MAX_BITPOOL);
+    log::debug("max_bitpool value adjusted from: {} to {}", p_ie->max_bitpool,
+               A2DP_SBC_IE_MAX_BITPOOL);
     p_ie->max_bitpool = A2DP_SBC_IE_MAX_BITPOOL;
   }
   // minbitpool > maxbitpool, then set maxbitpool = minbitpool
   if (p_ie->min_bitpool > p_ie->max_bitpool) {
     p_ie->max_bitpool = p_ie->min_bitpool;
-    log::verbose(
+    log::debug(
             "min bitpool value received for SBC is more than DUT supported Max bitpool"
             "Clamping the max bitpool configuration further from {} to {}",
             p_ie->max_bitpool, p_ie->min_bitpool);
@@ -235,7 +235,7 @@ static tA2DP_STATUS A2DP_ParseInfoSbc(tA2DP_SBC_CIE* p_ie, const uint8_t* p_code
   p_ie->min_bitpool = *p_codec_info++;
   p_ie->max_bitpool = *p_codec_info++;
 
-  if (com::android::bluetooth::flags::a2dp_adjust_sbc_bitpool()) {
+  if (com_android_bluetooth_flags_a2dp_adjust_sbc_bitpool()) {
     A2DP_AdjustBitpool(p_ie);
   }
 
@@ -315,8 +315,6 @@ static void A2DP_BuildMediaPayloadHeaderSbc(uint8_t* p_dst, bool frag, bool star
   *p_dst |= (A2DP_SBC_HDR_NUM_MSK & num);
 }
 
-const char* A2DP_CodecNameSbc(const uint8_t* /* p_codec_info */) { return "SBC"; }
-
 bool A2DP_IsCodecValidSbc(const uint8_t* p_codec_info) {
   tA2DP_SBC_CIE cfg_cie;
 
@@ -355,17 +353,16 @@ static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilitySbc(const tA2DP_SBC_CIE* p_ca
 
   /* verify that each parameter is in range */
 
-  log::verbose("FREQ peer: 0x{:x}, capability 0x{:x}", cfg_cie.samp_freq, p_cap->samp_freq);
-  log::verbose("CH_MODE peer: 0x{:x}, capability 0x{:x}", cfg_cie.ch_mode, p_cap->ch_mode);
-  log::verbose("BLOCK_LEN peer: 0x{:x}, capability 0x{:x}", cfg_cie.block_len, p_cap->block_len);
-  log::verbose("SUB_BAND peer: 0x{:x}, capability 0x{:x}", cfg_cie.num_subbands,
-               p_cap->num_subbands);
-  log::verbose("ALLOC_METHOD peer: 0x{:x}, capability 0x{:x}", cfg_cie.alloc_method,
-               p_cap->alloc_method);
-  log::verbose("MIN_BitPool peer: 0x{:x}, capability 0x{:x}", cfg_cie.min_bitpool,
-               p_cap->min_bitpool);
-  log::verbose("MAX_BitPool peer: 0x{:x}, capability 0x{:x}", cfg_cie.max_bitpool,
-               p_cap->max_bitpool);
+  log::debug("FREQ peer: 0x{:x}, capability 0x{:x}", cfg_cie.samp_freq, p_cap->samp_freq);
+  log::debug("CH_MODE peer: 0x{:x}, capability 0x{:x}", cfg_cie.ch_mode, p_cap->ch_mode);
+  log::debug("BLOCK_LEN peer: 0x{:x}, capability 0x{:x}", cfg_cie.block_len, p_cap->block_len);
+  log::debug("SUB_BAND peer: 0x{:x}, capability 0x{:x}", cfg_cie.num_subbands, p_cap->num_subbands);
+  log::debug("ALLOC_METHOD peer: 0x{:x}, capability 0x{:x}", cfg_cie.alloc_method,
+             p_cap->alloc_method);
+  log::debug("MIN_BitPool peer: 0x{:x}, capability 0x{:x}", cfg_cie.min_bitpool,
+             p_cap->min_bitpool);
+  log::debug("MAX_BitPool peer: 0x{:x}, capability 0x{:x}", cfg_cie.max_bitpool,
+             p_cap->max_bitpool);
 
   /* sampling frequency */
   if ((cfg_cie.samp_freq & p_cap->samp_freq) == 0) {
@@ -660,7 +657,8 @@ int A2DP_GetMaxBitpoolSbc(const uint8_t* p_codec_info) {
   return sbc_cie.max_bitpool;
 }
 
-uint32_t A2DP_GetBitrateSbc() { return a2dp_sbc_get_bitrate(); }
+int A2dpCodecConfigSbcBase::getTrackBitRate() const { return a2dp_sbc_get_bitrate(); }
+
 int A2DP_GetSinkTrackChannelTypeSbc(const uint8_t* p_codec_info) {
   tA2DP_SBC_CIE sbc_cie;
 
@@ -772,8 +770,7 @@ std::string A2DP_CodecInfoStringSbc(const uint8_t* p_codec_info) {
   return res.str();
 }
 
-const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceSbc(
-    const uint8_t* p_codec_info) {
+const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceSbc(const uint8_t* p_codec_info) {
   if (!A2DP_IsCodecValidSbc(p_codec_info)) {
     return NULL;
   }
@@ -781,8 +778,7 @@ const tA2DP_ENCODER_INTERFACE* A2DP_GetEncoderInterfaceSbc(
   return &a2dp_encoder_interface_sbc;
 }
 
-const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceSbc(
-    const uint8_t* p_codec_info) {
+const tA2DP_DECODER_INTERFACE* A2DP_GetDecoderInterfaceSbc(const uint8_t* p_codec_info) {
   if (!A2DP_IsCodecValidSbc(p_codec_info)) {
     return NULL;
   }
@@ -807,18 +803,6 @@ bool A2DP_AdjustCodecSbc(uint8_t* p_codec_info) {
   return A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &cfg_cie, p_codec_info);
 }
 
-btav_a2dp_codec_index_t A2DP_SourceCodecIndexSbc(const uint8_t* /* p_codec_info */) {
-  return BTAV_A2DP_CODEC_INDEX_SOURCE_SBC;
-}
-
-btav_a2dp_codec_index_t A2DP_SinkCodecIndexSbc(const uint8_t* /* p_codec_info */) {
-  return BTAV_A2DP_CODEC_INDEX_SINK_SBC;
-}
-
-const char* A2DP_CodecIndexStrSbc(void) { return "SBC"; }
-
-const char* A2DP_CodecIndexStrSbcSink(void) { return "SBC SINK"; }
-
 bool A2DP_InitCodecConfigSbc(AvdtpSepConfig* p_cfg) {
   return A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &a2dp_sbc_source_caps, p_cfg->codec_info);
 }
@@ -828,8 +812,7 @@ bool A2DP_InitCodecConfigSbcSink(AvdtpSepConfig* p_cfg) {
 }
 
 A2dpCodecConfigSbcSource::A2dpCodecConfigSbcSource(btav_a2dp_codec_priority_t codec_priority)
-    : A2dpCodecConfigSbcBase(BTAV_A2DP_CODEC_INDEX_SOURCE_SBC, A2DP_CodecIndexStrSbc(),
-                             codec_priority, true) {
+    : A2dpCodecConfigSbcBase(BTAV_A2DP_CODEC_INDEX_SOURCE_SBC, "SBC", codec_priority, true) {
   // Compute the local capability
   if (a2dp_sbc_source_caps.samp_freq & A2DP_SBC_IE_SAMP_FREQ_44) {
     codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
@@ -854,9 +837,7 @@ A2dpCodecConfigSbcSource::A2dpCodecConfigSbcSource(btav_a2dp_codec_priority_t co
 
 A2dpCodecConfigSbcSource::~A2dpCodecConfigSbcSource() {}
 
-bool A2dpCodecConfigSbcSource::init() {
-  return true;
-}
+bool A2dpCodecConfigSbcSource::init() { return true; }
 
 bool A2dpCodecConfigSbcSource::useRtpHeaderMarkerBit() const { return false; }
 
@@ -1035,13 +1016,10 @@ tA2DP_STATUS A2dpCodecConfigSbcBase::setCodecConfig(const uint8_t* p_peer_codec_
   btav_a2dp_codec_config_t saved_codec_selectable_capability = codec_selectable_capability_;
   btav_a2dp_codec_config_t saved_codec_user_config = codec_user_config_;
   btav_a2dp_codec_config_t saved_codec_audio_config = codec_audio_config_;
-  uint8_t saved_ota_codec_config[AVDT_CODEC_SIZE];
-  uint8_t saved_ota_codec_peer_capability[AVDT_CODEC_SIZE];
-  uint8_t saved_ota_codec_peer_config[AVDT_CODEC_SIZE];
-  memcpy(saved_ota_codec_config, ota_codec_config_, sizeof(ota_codec_config_));
-  memcpy(saved_ota_codec_peer_capability, ota_codec_peer_capability_,
-         sizeof(ota_codec_peer_capability_));
-  memcpy(saved_ota_codec_peer_config, ota_codec_peer_config_, sizeof(ota_codec_peer_config_));
+  bluetooth::a2dp::MediaCodecCapabilities saved_ota_codec_config = ota_codec_config_;
+  bluetooth::a2dp::MediaCodecCapabilities saved_ota_codec_peer_capability =
+          ota_codec_peer_capability_;
+  bluetooth::a2dp::MediaCodecCapabilities saved_ota_codec_peer_config = ota_codec_peer_config_;
 
   tA2DP_STATUS status = A2DP_ParseInfoSbc(&peer_info_cie, p_peer_codec_info, is_capability);
   if (status != A2DP_SUCCESS) {
@@ -1309,7 +1287,7 @@ tA2DP_STATUS A2dpCodecConfigSbcBase::setCodecConfig(const uint8_t* p_peer_codec_
     result_config_cie.max_bitpool = peer_info_cie.max_bitpool;
   }
 
-  if (com::android::bluetooth::flags::a2dp_adjust_sbc_bitpool()) {
+  if (com_android_bluetooth_flags_a2dp_adjust_sbc_bitpool()) {
     A2DP_AdjustBitpool(&result_config_cie);
   }
 
@@ -1347,16 +1325,17 @@ tA2DP_STATUS A2dpCodecConfigSbcBase::setCodecConfig(const uint8_t* p_peer_codec_
   // Create a local copy of the peer codec capability/config, and the
   // result codec config.
   if (is_capability) {
-    log::assert_that(
-            A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_capability_),
-            "Failed to build media codec capabilities");
+    log::assert_that(A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie,
+                                       ota_codec_peer_capability_.data()),
+                     "Failed to build media codec capabilities");
   } else {
     log::assert_that(
-            A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_config_),
+            A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_config_.data()),
             "Failed to build media codec capabilities");
   }
-  log::assert_that(A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, ota_codec_config_),
-                   "Failed to build media codec capabilities");
+  log::assert_that(
+          A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, ota_codec_config_.data()),
+          "Failed to build media codec capabilities");
   return A2DP_SUCCESS;
 
 fail:
@@ -1365,10 +1344,9 @@ fail:
   codec_selectable_capability_ = saved_codec_selectable_capability;
   codec_user_config_ = saved_codec_user_config;
   codec_audio_config_ = saved_codec_audio_config;
-  memcpy(ota_codec_config_, saved_ota_codec_config, sizeof(ota_codec_config_));
-  memcpy(ota_codec_peer_capability_, saved_ota_codec_peer_capability,
-         sizeof(ota_codec_peer_capability_));
-  memcpy(ota_codec_peer_config_, saved_ota_codec_peer_config, sizeof(ota_codec_peer_config_));
+  ota_codec_config_ = saved_ota_codec_config;
+  ota_codec_peer_capability_ = saved_ota_codec_peer_capability;
+  ota_codec_peer_config_ = saved_ota_codec_peer_config;
   return status;
 }
 
@@ -1381,9 +1359,8 @@ bool A2dpCodecConfigSbcBase::setPeerCodecCapabilities(const uint8_t* p_peer_code
 
   // Save the internal state
   btav_a2dp_codec_config_t saved_codec_selectable_capability = codec_selectable_capability_;
-  uint8_t saved_ota_codec_peer_capability[AVDT_CODEC_SIZE];
-  memcpy(saved_ota_codec_peer_capability, ota_codec_peer_capability_,
-         sizeof(ota_codec_peer_capability_));
+  bluetooth::a2dp::MediaCodecCapabilities saved_ota_codec_peer_capability =
+          ota_codec_peer_capability_;
 
   tA2DP_STATUS status = A2DP_ParseInfoSbc(&peer_info_cie, p_peer_codec_capabilities, true);
   if (status != A2DP_SUCCESS) {
@@ -1418,28 +1395,24 @@ bool A2dpCodecConfigSbcBase::setPeerCodecCapabilities(const uint8_t* p_peer_code
     codec_selectable_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
   }
 
-  log::assert_that(
-          A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_capability_),
-          "Failed to build media codec capabilities");
+  log::assert_that(A2DP_BuildInfoSbc(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie,
+                                     ota_codec_peer_capability_.data()),
+                   "Failed to build media codec capabilities");
   return true;
 
 fail:
   // Restore the internal state
   codec_selectable_capability_ = saved_codec_selectable_capability;
-  memcpy(ota_codec_peer_capability_, saved_ota_codec_peer_capability,
-         sizeof(ota_codec_peer_capability_));
+  ota_codec_peer_capability_ = saved_ota_codec_peer_capability;
   return false;
 }
 
 A2dpCodecConfigSbcSink::A2dpCodecConfigSbcSink(btav_a2dp_codec_priority_t codec_priority)
-    : A2dpCodecConfigSbcBase(BTAV_A2DP_CODEC_INDEX_SINK_SBC, A2DP_CodecIndexStrSbcSink(),
-                             codec_priority, false) {}
+    : A2dpCodecConfigSbcBase(BTAV_A2DP_CODEC_INDEX_SINK_SBC, "SBC SINK", codec_priority, false) {}
 
 A2dpCodecConfigSbcSink::~A2dpCodecConfigSbcSink() {}
 
-bool A2dpCodecConfigSbcSink::init() {
-  return true;
-}
+bool A2dpCodecConfigSbcSink::init() { return true; }
 
 bool A2dpCodecConfigSbcSink::useRtpHeaderMarkerBit() const {
   // TODO: This method applies only to Source codecs

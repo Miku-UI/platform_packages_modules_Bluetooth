@@ -15,13 +15,9 @@
 
 package com.android.bluetooth.map;
 
-import android.bluetooth.BluetoothProfile;
-import android.bluetooth.BluetoothProtoEnums;
 import android.telephony.PhoneNumberUtils;
 import android.util.Log;
 
-import com.android.bluetooth.BluetoothStatsLog;
-import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 import com.android.bluetooth.map.BluetoothMapUtils.TYPE;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -34,7 +30,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
-// Next tag value for ContentProfileErrorReportUtils.report(): 10
 public abstract class BluetoothMapbMessage {
     static final String TAG = BluetoothMapbMessage.class.getSimpleName();
 
@@ -337,7 +332,6 @@ public abstract class BluetoothMapbMessage {
                     envLevel);
         }
     }
-    ;
 
     @VisibleForTesting
     static class BMsgReader {
@@ -347,7 +341,7 @@ public abstract class BluetoothMapbMessage {
             this.mInStream = is;
         }
 
-        private byte[] getLineAsBytes() {
+        private byte[] getLineAsBytes(boolean includeNewline) {
             int readByte;
 
             /* TODO: Actually the vCard spec. allows to break lines by using a newLine
@@ -359,59 +353,73 @@ public abstract class BluetoothMapbMessage {
              */
 
             ByteArrayOutputStream output = new ByteArrayOutputStream();
+            boolean characterWritten = false;
             try {
                 while ((readByte = mInStream.read()) != -1) {
                     if (readByte == '\r') {
                         if ((readByte = mInStream.read()) != -1 && readByte == '\n') {
-                            if (output.size() == 0) {
-                                continue; /* Skip empty lines */
+                            // Include preceding new lines but wait for meaningful characters.
+                            if (includeNewline) {
+                                output.write('\r');
+                                output.write('\n');
+                            }
+                            if (!characterWritten) {
+                                continue;
                             } else {
                                 break;
                             }
                         } else {
                             output.write('\r');
                         }
-                    } else if (readByte == '\n' && output.size() == 0) {
+                    } else if (!includeNewline && readByte == '\n' && !characterWritten) {
                         /* Empty line - skip */
                         continue;
                     }
 
+                    characterWritten = true;
                     output.write(readByte);
                 }
             } catch (IOException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_BMESSAGE,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        0);
                 Log.w(TAG, e);
                 return null;
             }
-            return output.toByteArray();
+            if (!characterWritten) {
+                return new byte[0];
+            } else {
+                return output.toByteArray();
+            }
         }
 
         /**
          * Read a line of text from the BMessage.
          *
+         * @param includeNewline if true, newline characters will be included in the result. Empty
+         *     lines may be added before the non-empty line.
          * @return the next line of text, or null at end of file, or if UTF-8 is not supported.
          */
-        public String getLine() {
-            byte[] line = getLineAsBytes();
-            if (line.length == 0) {
+        public String getLine(boolean includeNewline) {
+            byte[] line = getLineAsBytes(includeNewline);
+            if (line == null || line.length == 0) {
                 return null;
             } else {
                 return new String(line, StandardCharsets.UTF_8);
             }
         }
 
+        public String getLineEnforce() {
+            return getLineEnforce(/* includeNewline= */ false);
+        }
+
         /**
          * same as getLine(), but throws an exception, if we run out of lines. Use this function
          * when ever more lines are needed for the bMessage to be complete.
          *
+         * @param includeNewline if true, newline characters will be included in the result. Empty
+         *     lines may be added before the non-empty line.
          * @return the next line
          */
-        public String getLineEnforce() {
-            String line = getLine();
+        public String getLineEnforce(boolean includeNewline) {
+            String line = getLine(includeNewline);
             if (line == null) {
                 throw new IllegalArgumentException("Bmessage too short");
             }
@@ -426,28 +434,11 @@ public abstract class BluetoothMapbMessage {
          * @throws IllegalArgumentException If the expected substring is not found.
          */
         public void expect(String subString) throws IllegalArgumentException {
-            String line = getLine();
+            String line = getLine(/* includeNewline= */ false);
             if (line == null || subString == null) {
                 throw new IllegalArgumentException("Line or substring is null");
             } else if (!line.toUpperCase(Locale.ROOT)
                     .contains(subString.toUpperCase(Locale.ROOT))) {
-                throw new IllegalArgumentException(
-                        "Expected \"" + subString + "\" in: \"" + line + "\"");
-            }
-        }
-
-        /**
-         * Same as expect(String), but with two strings.
-         *
-         * @throws IllegalArgumentException If one of the strings are not found.
-         */
-        public void expect(String subString, String subString2) throws IllegalArgumentException {
-            String line = getLine();
-            if (!line.toUpperCase(Locale.ROOT).contains(subString.toUpperCase(Locale.ROOT))) {
-                throw new IllegalArgumentException(
-                        "Expected \"" + subString + "\" in: \"" + line + "\"");
-            }
-            if (!line.toUpperCase(Locale.ROOT).contains(subString2.toUpperCase(Locale.ROOT))) {
                 throw new IllegalArgumentException(
                         "Expected \"" + subString + "\" in: \"" + line + "\"");
             }
@@ -473,18 +464,12 @@ public abstract class BluetoothMapbMessage {
                     offset += bytesRead;
                 }
             } catch (IOException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_BMESSAGE,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        2);
                 Log.w(TAG, e);
                 return null;
             }
             return data;
         }
     }
-    ;
 
     public BluetoothMapbMessage() {}
 
@@ -612,11 +597,6 @@ public abstract class BluetoothMapbMessage {
         try {
             bMsgStream.close();
         } catch (IOException e) {
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_BMESSAGE,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                    7);
             /* Ignore if we cannot close the stream. */
         }
 
@@ -657,12 +637,6 @@ public abstract class BluetoothMapbMessage {
                     try {
                         Long unusedId = Long.parseLong(arg[1].trim());
                     } catch (NumberFormatException e) {
-                        ContentProfileErrorReportUtils.report(
-                                BluetoothProfile.MAP,
-                                BluetoothProtoEnums.BLUETOOTH_MAP_BMESSAGE,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                                8);
                         throw new IllegalArgumentException("Wrong value in 'PARTID': " + arg[1]);
                     }
                 } else {
@@ -723,9 +697,9 @@ public abstract class BluetoothMapbMessage {
                 // Read until we receive END:MSG as some carkits send bad message lengths
                 StringBuilder data = new StringBuilder();
                 String messageLine = "";
-                while (!messageLine.equals("END:MSG")) {
+                while (!messageLine.endsWith("END:MSG\r\n")) {
                     data.append(messageLine);
-                    messageLine = reader.getLineEnforce();
+                    messageLine = reader.getLineEnforce(/* includeNewline= */ true);
                 }
 
                 // The MAP spec says that all END:MSG strings in the body
@@ -1001,11 +975,6 @@ public abstract class BluetoothMapbMessage {
             Log.v(TAG, stream.toString(StandardCharsets.UTF_8));
             return stream.toByteArray();
         } catch (IOException e) {
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_BMESSAGE,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                    9);
             Log.w(TAG, e);
             return null;
         }

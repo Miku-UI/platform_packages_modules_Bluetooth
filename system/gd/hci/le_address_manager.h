@@ -15,15 +15,15 @@
  */
 #pragma once
 
+#include <base/functional/callback.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/bt_octets.h>
 
 #include <map>
 #include <variant>
 
-#include "common/callback.h"
 #include "hci/address_with_type.h"
 #include "hci/controller.h"
-#include "hci/octets.h"
 #include "os/alarm.h"
 #include "os/handler.h"
 
@@ -47,7 +47,7 @@ struct PrivateAddressIntervalRange {
 
 class LeAddressManager {
 public:
-  LeAddressManager(common::Callback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
+  LeAddressManager(base::RepeatingCallback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
                    os::Handler* handler, Address public_address, uint8_t accept_list_size,
                    uint8_t resolving_list_size, Controller* controller);
   virtual ~LeAddressManager();
@@ -99,7 +99,7 @@ public:
   void ClearFilterAcceptList();
   void ClearResolvingList();
   void OnCommandComplete(CommandCompleteView view);
-  std::chrono::milliseconds GetNextPrivateAddressIntervalMs();
+  void PrepareToRotateAddress();
   PrivateAddressIntervalRange GetNextPrivateAddressIntervalRange(const std::string& client_name);
   void CheckAddressRotationHappenedInExpectedTimeInterval(
           const std::chrono::time_point<std::chrono::system_clock>& interval_min,
@@ -170,7 +170,7 @@ private:
   template <class View>
   void on_command_complete(CommandCompleteView view);
 
-  common::Callback<void(std::unique_ptr<CommandBuilder>)> enqueue_command_;
+  base::RepeatingCallback<void(std::unique_ptr<CommandBuilder>)> enqueue_command_;
   os::Handler* handler_;
   std::map<LeAddressManagerCallback*, ClientState> registered_clients_;
 
@@ -186,8 +186,10 @@ private:
   bool supports_ble_privacy_{false};
 
   // Only used for logging error in address rotation time.
-  std::optional<std::chrono::time_point<std::chrono::system_clock>> address_rotation_interval_min;
-  std::optional<std::chrono::time_point<std::chrono::system_clock>> address_rotation_interval_max;
+  std::optional<std::chrono::time_point<std::chrono::system_clock>>
+          expected_address_rotation_interval_min;
+  std::optional<std::chrono::time_point<std::chrono::system_clock>>
+          expected_address_rotation_interval_max;
 
   Controller* controller_;
 };

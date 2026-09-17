@@ -22,7 +22,7 @@
 #include <hardware/bluetooth.h>
 
 #include "bta/le_audio/le_audio_types.h"
-#include "bta_gatt_api_mock.h"
+#include "bta/mock/bta_gatt_api_mock.h"
 #include "test/common/mock_functions.h"
 
 using ::testing::_;
@@ -42,20 +42,22 @@ using ::testing::NiceMock;
 
 using bluetooth::Uuid;
 using namespace bluetooth;
-using bluetooth::le_audio::GmapCharacteristic;
-using bluetooth::le_audio::GmapServer;
+
+namespace bluetooth::le_audio {
 
 class GmapServerTest : public ::testing::Test {
 public:
-  RawAddress addr = RawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+  RawAddress addr = RawAddress("11:22:33:44:55:66");
   NiceMock<gatt::MockBtaGattServerInterface> gatt_server_interface;
   uint8_t role = 0b1;
   uint8_t UGG_feature = 0b111;
 
   void SetUp(void) override {
+    uint8_t server_if = 10;
     reset_mock_function_count_map();
     gatt::SetMockBtaGattServerInterface(&gatt_server_interface);
-    EXPECT_CALL(gatt_server_interface, AppRegister(_, _, _)).Times(1);
+    EXPECT_CALL(gatt_server_interface, AppRegister(_, _, _)).Times(1).WillOnce(Return(server_if));
+    EXPECT_CALL(gatt_server_interface, AddService(_, _)).WillOnce(Return(GATT_SERVICE_STARTED));
     GmapServer::Initialize(role, UGG_feature);
   }
 };
@@ -66,78 +68,58 @@ TEST_F(GmapServerTest, test_get_UGG_feature) {
   ASSERT_EQ(GmapServer::GetUGGFeature(), UGG_feature);
 }
 
-TEST_F(GmapServerTest, test_add_service) {
-  tBTA_GATTS gatts_cb_data;
-  uint8_t server_if = 10;
-  gatts_cb_data.reg_oper.status = GATT_SUCCESS;
-  gatts_cb_data.reg_oper.server_if = server_if;
-
-  EXPECT_CALL(gatt_server_interface, AddService(_, _, _)).Times(1);
-  GmapServer::GattsCallback(BTA_GATTS_REG_EVT, &gatts_cb_data);
-}
-
-TEST_F(GmapServerTest, test_app_deregister) {
-  tBTA_GATTS gatts_cb_data;
-  EXPECT_CALL(gatt_server_interface, AppDeregister(_)).Times(1);
-  GmapServer::GattsCallback(BTA_GATTS_DEREG_EVT, &gatts_cb_data);
-}
-
 TEST_F(GmapServerTest, test_read_invalid_characteristic) {
   uint16_t handle = 10;
-  tGATTS_DATA gatts_data;
-  gatts_data.read_req.handle = handle;
-  tBTA_GATTS gatts_cb_data;
-  gatts_cb_data.req_data.p_data = &gatts_data;
+  uint16_t conn_id = 1;
+  uint32_t trans_id = 1;
+  RawAddress remote_bda = RawAddress::kEmpty;
 
   EXPECT_CALL(gatt_server_interface, SendRsp(_, _, GATT_INVALID_HANDLE, _)).Times(1);
-  GmapServer::GattsCallback(BTA_GATTS_READ_CHARACTERISTIC_EVT, &gatts_cb_data);
+  GmapServer::OnReadCharacteristic(conn_id, trans_id, remote_bda, handle, 0, false);
 }
 
 TEST_F(GmapServerTest, test_read_invalid_role_characteristic) {
   uint16_t handle = 10;
+  uint16_t conn_id = 1;
+  uint32_t trans_id = 1;
+  RawAddress remote_bda = RawAddress::kEmpty;
+
   GmapCharacteristic invalidGmapCharacteristic{
           .uuid_ = bluetooth::le_audio::uuid::kTelephonyMediaAudioProfileRoleCharacteristicUuid,
           .attribute_handle_ = handle};
   GmapServer::GetCharacteristics()[handle] = invalidGmapCharacteristic;
 
-  tGATTS_DATA gatts_data;
-  gatts_data.read_req.handle = handle;
-  tBTA_GATTS gatts_cb_data;
-  gatts_cb_data.req_data.p_data = &gatts_data;
-
   EXPECT_CALL(gatt_server_interface, SendRsp(_, _, GATT_ILLEGAL_PARAMETER, _)).Times(1);
-  GmapServer::GattsCallback(BTA_GATTS_READ_CHARACTERISTIC_EVT, &gatts_cb_data);
+  GmapServer::OnReadCharacteristic(conn_id, trans_id, remote_bda, handle, 0, false);
 }
 
 TEST_F(GmapServerTest, test_read_valid_role_characteristic) {
   uint16_t handle = 10;
+  uint16_t conn_id = 1;
+  uint32_t trans_id = 1;
+  RawAddress remote_bda = RawAddress::kEmpty;
+
   GmapCharacteristic gmapCharacteristic{.uuid_ = bluetooth::le_audio::uuid::kRoleCharacteristicUuid,
                                         .attribute_handle_ = handle};
   GmapServer::GetCharacteristics()[handle] = gmapCharacteristic;
 
-  tGATTS_DATA gatts_data;
-  gatts_data.read_req.handle = handle;
-  tBTA_GATTS gatts_cb_data;
-  gatts_cb_data.req_data.p_data = &gatts_data;
-
   EXPECT_CALL(gatt_server_interface, SendRsp(_, _, GATT_SUCCESS, _)).Times(1);
-  GmapServer::GattsCallback(BTA_GATTS_READ_CHARACTERISTIC_EVT, &gatts_cb_data);
+  GmapServer::OnReadCharacteristic(conn_id, trans_id, remote_bda, handle, 0, false);
 }
 
 TEST_F(GmapServerTest, test_read_valid_ugg_feature_characteristic) {
   uint16_t handle = 10;
+  uint16_t conn_id = 1;
+  uint32_t trans_id = 1;
+  RawAddress remote_bda = RawAddress::kEmpty;
+
   GmapCharacteristic gmapCharacteristic{
           .uuid_ = bluetooth::le_audio::uuid::kUnicastGameGatewayCharacteristicUuid,
           .attribute_handle_ = handle};
   GmapServer::GetCharacteristics()[handle] = gmapCharacteristic;
 
-  tGATTS_DATA gatts_data;
-  gatts_data.read_req.handle = handle;
-  tBTA_GATTS gatts_cb_data;
-  gatts_cb_data.req_data.p_data = &gatts_data;
-
   EXPECT_CALL(gatt_server_interface, SendRsp(_, _, GATT_SUCCESS, _)).Times(1);
-  GmapServer::GattsCallback(BTA_GATTS_READ_CHARACTERISTIC_EVT, &gatts_cb_data);
+  GmapServer::OnReadCharacteristic(conn_id, trans_id, remote_bda, handle, 0, false);
 }
 
 TEST_F(GmapServerTest, test_get_UGG_feature_handle) {
@@ -165,3 +147,5 @@ TEST_F(GmapServerTest, test_get_role_handle) {
 
   ASSERT_EQ(GmapServer::GetRoleHandle(), handle);
 }
+
+}  // namespace bluetooth::le_audio

@@ -17,7 +17,6 @@
 
 #include <bluetooth/log.h>
 
-#include "security_client_callbacks.h"
 #include "stack/btm/btm_ble_int.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/btm_ble_api.h"
@@ -39,7 +38,6 @@ static struct btm_client_interface_t btm_client_interface = {
         .peer =
                 {
                         .BTM_IsAclConnectionUp = ::BTM_IsAclConnectionUp,
-                        .BTM_ReadConnectedTransportAddress = ::BTM_ReadConnectedTransportAddress,
                         .BTM_GetConnectedTransportAddress = ::BTM_GetConnectedTransportAddress,
                         .BTM_ReadRemoteFeatures = ::BTM_ReadRemoteFeatures,
                         .BTM_ReadDevInfo = ::BTM_ReadDevInfo,
@@ -62,7 +60,6 @@ static struct btm_client_interface_t btm_client_interface = {
                         .BTM_SwitchRoleToCentral = ::BTM_SwitchRoleToCentral,
                         .BTM_block_role_switch_for = ::BTM_block_role_switch_for,
                         .BTM_block_sniff_mode_for = ::BTM_block_sniff_mode_for,
-                        .BTM_default_unblock_role_switch = ::BTM_default_unblock_role_switch,
                         .BTM_unblock_role_switch_for = ::BTM_unblock_role_switch_for,
                         .BTM_unblock_sniff_mode_for = ::BTM_unblock_sniff_mode_for,
                         .BTM_WritePageTimeout = ::BTM_WritePageTimeout,
@@ -74,15 +71,12 @@ static struct btm_client_interface_t btm_client_interface = {
                         .BTM_ReadRSSI = ::BTM_ReadRSSI,
                 },
 
-        .security = get_security_client_interface(),
-
         .ble =
                 {
                         .BTM_BleGetEnergyInfo = ::BTM_BleGetEnergyInfo,
                         .BTM_BleObserve = ::BTM_BleObserve,
                         .BTM_SetBleDataLength = ::BTM_SetBleDataLength,
                         .BTM_BleReadControllerFeatures = ::BTM_BleReadControllerFeatures,
-                        .BTM_BleSetPhy = ::BTM_BleSetPhy,
                         .BTM_BleSetPrefConnParams = ::BTM_BleSetPrefConnParams,
                         .BTM_UseLeLink = ::BTM_UseLeLink,
                         .BTM_IsRemoteVersionReceived = ::BTM_IsRemoteVersionReceived,

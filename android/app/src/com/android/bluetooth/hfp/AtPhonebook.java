@@ -36,6 +36,7 @@ import android.util.Log;
 
 import com.android.bluetooth.BluetoothMethodProxy;
 import com.android.bluetooth.R;
+import com.android.bluetooth.Util;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.util.DevicePolicyUtils;
@@ -46,7 +47,7 @@ import java.util.HashMap;
 
 /** Helper for managing phonebook presentation over AT commands */
 public class AtPhonebook {
-    private static final String TAG = Utils.BT_PREFIX + AtPhonebook.class.getSimpleName();
+    private static final String TAG = Util.BT_PREFIX + AtPhonebook.class.getSimpleName();
 
     /**
      * The projection to use when querying the call log database in response to AT+CPBR for the MC,
@@ -122,7 +123,7 @@ public class AtPhonebook {
         mPhonebooks.clear();
     }
 
-    /** Returns the last dialled number, or null if no numbers have been called */
+    /** Returns the last dialed number, or null if no numbers have been called */
     public String getLastDialledNumber() {
         String[] projection = {Calls.NUMBER};
         Bundle queryArgs = new Bundle();
@@ -309,7 +310,7 @@ public class AtPhonebook {
                     pbr.cursor = null;
                 }
                 if (size == 0) {
-                    /* Sending "+CPBR: (1-0)" can confused some carkits, send "1-1" * instead */
+                    /* Sending "+CPBR: (1-0)" can confuse some carkits, send "1-1" * instead */
                     size = 1;
                 }
                 atCommandResponse = "+CPBR: (1-" + size + "),30,30";
@@ -666,7 +667,7 @@ public class AtPhonebook {
         mAdapterService.sendOrderedBroadcast(
                 intent,
                 BLUETOOTH_CONNECT,
-                Utils.getTempBroadcastBundle(),
+                Util.getTempBroadcastBundle(),
                 null,
                 null,
                 Activity.RESULT_OK,

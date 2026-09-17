@@ -55,12 +55,14 @@ std::ostream& operator<<(std::ostream& os, const BluetoothAudioCtrlAck& ack) {
     case BluetoothAudioCtrlAck::FAILURE:
       return os << "FAILURE";
     default:
-      return os << "UNDEFINED " << static_cast<int8_t>(ack);
+      return os << "UNDEFINED " << static_cast<int>(ack);
   }
 }
 
-BluetoothAudioClientInterface::BluetoothAudioClientInterface(IBluetoothTransportInstance* instance)
-    : provider_(nullptr),
+BluetoothAudioClientInterface::BluetoothAudioClientInterface(
+        IBluetoothTransportInstance* instance, bluetooth::common::MessageLoopThread* message_loop)
+    : death_handler_thread_(message_loop),
+      provider_(nullptr),
       provider_factory_(nullptr),
       session_started_(false),
       data_mq_(nullptr),
@@ -151,23 +153,42 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
       return;
     }
 
-    capabilities_.clear();
-    auto aidl_retval =
-            provider_factory->getProviderCapabilities(transport_->GetSessionType(), &capabilities_);
-    if (!aidl_retval.isOk()) {
-      log::error("BluetoothAudioHal::getProviderCapabilities failure: {}, retry number {}",
-                 aidl_retval.getDescription(), retry_no + 1);
-      continue;
+    if (transport_->GetSessionType() ==
+                SessionType::LE_AUDIO_BROADCAST_HARDWARE_OFFLOAD_DECODING_DATAPATH) {
+      provider_info_ = std::nullopt;
+      auto aidl_retval =
+          provider_factory->getProviderInfo(transport_->GetSessionType(), &provider_info_);
+      if (!aidl_retval.isOk()) {
+        log::error("BluetoothAudioHal::getProviderInfo failure: {}, retry number {}",
+                  aidl_retval.getDescription(), retry_no + 1);
+        continue;
+      }
+      if (!provider_info_.has_value()) {
+        log::warn("SessionType={} No provider info returned by BluetoothAudioHal",
+                  toString(transport_->GetSessionType()));
+        return;
+      }
+      log::info("BluetoothAudioHal SessionType={} has providerInfo: {}",
+                toString(transport_->GetSessionType()), provider_info_ -> toString());
+    } else {
+      capabilities_.clear();
+      auto aidl_retval =
+          provider_factory->getProviderCapabilities(transport_->GetSessionType(), &capabilities_);
+      if (!aidl_retval.isOk()) {
+        log::error("BluetoothAudioHal::getProviderCapabilities failure: {}, retry number {}",
+                  aidl_retval.getDescription(), retry_no + 1);
+        continue;
+      }
+      if (capabilities_.empty()) {
+        log::warn("SessionType={} Not supported by BluetoothAudioHal",
+                  toString(transport_->GetSessionType()));
+        return;
+      }
+      log::info("BluetoothAudioHal SessionType={} has {} AudioCapabilities",
+                toString(transport_->GetSessionType()), capabilities_.size());
     }
-    if (capabilities_.empty()) {
-      log::warn("SessionType={} Not supported by BluetoothAudioHal",
-                toString(transport_->GetSessionType()));
-      return;
-    }
-    log::info("BluetoothAudioHal SessionType={} has {} AudioCapabilities",
-              toString(transport_->GetSessionType()), capabilities_.size());
 
-    aidl_retval = provider_factory->openProvider(transport_->GetSessionType(), &provider_);
+    auto aidl_retval = provider_factory->openProvider(transport_->GetSessionType(), &provider_);
     if (!aidl_retval.isOk() || provider_ == nullptr) {
       log::error("BluetoothAudioHal::openProvider failure: {}, retry number {}",
                  aidl_retval.getDescription(), retry_no + 1);
@@ -176,7 +197,10 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
       break;
     }
   }
-  log::assert_that(provider_factory_ != nullptr, "assert failed: provider_factory_ != nullptr");
+
+  log::assert_that(provider_factory_ != nullptr,
+                   "IBluetoothAudioProvidersFactory::openProvider({}) failed {} times",
+                   toString(transport_->GetSessionType()), kFetchAudioProviderRetryNumber);
   log::assert_that(provider_ != nullptr, "assert failed: provider_ != nullptr");
 
   binder_status_t binder_status =
@@ -190,8 +214,8 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
 }
 
 BluetoothAudioSinkClientInterface::BluetoothAudioSinkClientInterface(
-        IBluetoothSinkTransportInstance* sink)
-    : BluetoothAudioClientInterface{sink}, sink_(sink) {
+        IBluetoothSinkTransportInstance* sink, bluetooth::common::MessageLoopThread* message_loop)
+    : BluetoothAudioClientInterface{sink, message_loop}, sink_(sink) {
   FetchAudioProvider();
 }
 
@@ -202,8 +226,9 @@ BluetoothAudioSinkClientInterface::~BluetoothAudioSinkClientInterface() {
 }
 
 BluetoothAudioSourceClientInterface::BluetoothAudioSourceClientInterface(
-        IBluetoothSourceTransportInstance* source)
-    : BluetoothAudioClientInterface{source}, source_(source) {
+        IBluetoothSourceTransportInstance* source,
+        bluetooth::common::MessageLoopThread* message_loop)
+    : BluetoothAudioClientInterface{source, message_loop}, source_(source) {
   FetchAudioProvider();
 }
 
@@ -220,7 +245,15 @@ void BluetoothAudioClientInterface::binderDiedCallbackAidl(void* ptr) {
     log::error("null audio HAL died!");
     return;
   }
-  client->RenewAudioProviderAndSession();
+  bluetooth::common::MessageLoopThread* death_handler_thread = client->death_handler_thread_;
+  if (death_handler_thread == nullptr) {
+    log::error("death handler thread is null");
+  } else {
+    log::info("calling RenewAudioProviderAndSession on death handler thread");
+    death_handler_thread->DoInThread(
+            base::BindOnce(&BluetoothAudioClientInterface::RenewAudioProviderAndSession,
+                           base::Unretained(client)));
+  }
 }
 
 bool BluetoothAudioClientInterface::UpdateAudioConfig(const AudioConfiguration& audio_config) {
@@ -232,6 +265,8 @@ bool BluetoothAudioClientInterface::UpdateAudioConfig(const AudioConfiguration& 
            transport_->GetSessionType() == SessionType::LE_AUDIO_SOFTWARE_DECODING_DATAPATH ||
            transport_->GetSessionType() ==
                    SessionType::LE_AUDIO_BROADCAST_SOFTWARE_ENCODING_DATAPATH ||
+           transport_->GetSessionType() ==
+                   SessionType::LE_AUDIO_BROADCAST_SOFTWARE_DECODING_DATAPATH ||
            (bta_ag_is_sco_managed_by_audio() &&
             (transport_->GetSessionType() == SessionType::HFP_SOFTWARE_ENCODING_DATAPATH ||
              transport_->GetSessionType() == SessionType::HFP_SOFTWARE_DECODING_DATAPATH)));
@@ -244,7 +279,9 @@ bool BluetoothAudioClientInterface::UpdateAudioConfig(const AudioConfiguration& 
                    SessionType::LE_AUDIO_HARDWARE_OFFLOAD_DECODING_DATAPATH);
   bool is_leaudio_broadcast_offload_session =
           (transport_->GetSessionType() ==
-           SessionType::LE_AUDIO_BROADCAST_HARDWARE_OFFLOAD_ENCODING_DATAPATH);
+           SessionType::LE_AUDIO_BROADCAST_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
+           transport_->GetSessionType() ==
+           SessionType::LE_AUDIO_BROADCAST_HARDWARE_OFFLOAD_DECODING_DATAPATH);
   auto audio_config_tag = audio_config.getTag();
   bool is_software_audio_config =
           (is_software_session && audio_config_tag == AudioConfiguration::pcmConfig);
@@ -369,6 +406,8 @@ int BluetoothAudioClientInterface::StartSession() {
                      SessionType::LE_AUDIO_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
              transport_->GetSessionType() ==
                      SessionType::LE_AUDIO_BROADCAST_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
+             transport_->GetSessionType() ==
+                     SessionType::LE_AUDIO_BROADCAST_HARDWARE_OFFLOAD_DECODING_DATAPATH ||
              (bta_ag_is_sco_managed_by_audio() &&
               transport_->GetSessionType() == SessionType::HFP_HARDWARE_OFFLOAD_DATAPATH)) {
     transport_->ResetPresentationPosition();
@@ -455,6 +494,8 @@ void BluetoothAudioClientInterface::FlushAudioData() {
       transport_->GetSessionType() == SessionType::LE_AUDIO_HARDWARE_OFFLOAD_DECODING_DATAPATH ||
       transport_->GetSessionType() ==
               SessionType::LE_AUDIO_BROADCAST_HARDWARE_OFFLOAD_ENCODING_DATAPATH ||
+      transport_->GetSessionType() ==
+              SessionType::LE_AUDIO_BROADCAST_HARDWARE_OFFLOAD_DECODING_DATAPATH ||
       (bta_ag_is_sco_managed_by_audio() &&
        transport_->GetSessionType() == SessionType::HFP_HARDWARE_OFFLOAD_DATAPATH)) {
     return;
@@ -545,7 +586,7 @@ void BluetoothAudioClientInterface::RenewAudioProviderAndSession() {
   if (session_started_) {
     log::info("Restart the session while audio HAL recovering");
     session_started_ = false;
-
+    transport_->StopRequest();
     StartSession();
   }
 }

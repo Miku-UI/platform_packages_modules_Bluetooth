@@ -21,11 +21,8 @@ cc_defaults {
     ],
     include_dirs: [
         "packages/modules/Bluetooth/system",
-        "packages/modules/Bluetooth/system/bta/include",
-        "packages/modules/Bluetooth/system/bta/sys",
         "packages/modules/Bluetooth/system/gd",
         "packages/modules/Bluetooth/system/include",
-        "packages/modules/Bluetooth/system/stack/include",
         "packages/modules/Bluetooth/system/stack/test",
     ],
     static_libs: [
@@ -40,11 +37,12 @@ cc_defaults {
         "android.system.suspend.control-V1-ndk",
         "bluetooth_flags_c_lib_for_test",
         "libFraunhoferAAC",
-        "libbluetooth_core_rs",
+        "libPlatformProperties",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_log",
         "libbluetooth_metrics_mock",
+        "libbluetooth_private_gatt_rs",
         "libbluetooth_types",
         "libbt-audio-hal-interface",
         "libbt-bta",
@@ -71,7 +69,6 @@ cc_defaults {
         "libudrv-uipc",
     ],
     shared_libs: [
-        "libPlatformProperties",
         "libaaudio",
         "libaconfig_storage_read_api_cc",
         "libbase",

@@ -18,9 +18,9 @@ package android.bluetooth.opp
 
 import android.Manifest
 import android.app.KeyguardManager
-import android.bluetooth.BluetoothManager
 import android.bluetooth.Host
 import android.bluetooth.PandoraDevice
+import android.bluetooth.adapter
 import android.bluetooth.test_utils.EnableBluetoothRule
 import android.content.ClipData
 import android.content.Intent
@@ -34,7 +34,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
-import com.android.bluetooth.flags.Flags
 import com.android.compatibility.common.util.AdoptShellPermissionsRule
 import com.google.common.truth.Truth.assertThat
 import com.google.testing.junit.testparameterinjector.TestParameter
@@ -56,59 +55,52 @@ import org.junit.runner.RunWith
 @RunWith(TestParameterInjector::class)
 @ExperimentalCoroutinesApi
 class OppSendFileTest {
-    val mInstrumentation = InstrumentationRegistry.getInstrumentation()
-    val mContext = mInstrumentation.targetContext
-    val mDevice
-        get() = UiDevice.getInstance(mInstrumentation)
 
-    val mAdapter
-        get() = mContext.getSystemService(BluetoothManager::class.java).adapter
+    @get:Rule(order = 0) val checkFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
+    val instrumentation = InstrumentationRegistry.getInstrumentation()
 
-    @get:Rule(order = 1) // Cleans up shell permissions, must be run before shell permissions rule
-    val mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
-
-    @get:Rule(order = 2)
-    val mPermissionRule =
+    @get:Rule(order = 1)
+    val permissionRule =
         AdoptShellPermissionsRule(
-            mInstrumentation.uiAutomation,
+            instrumentation.uiAutomation,
             Manifest.permission.BLUETOOTH_PRIVILEGED,
             Manifest.permission.CREATE_USERS,
             Manifest.permission.INTERACT_ACROSS_USERS,
         )
 
-    @get:Rule(order = 3) val mBumble = PandoraDevice()
+    @get:Rule(order = 2) val bumble = PandoraDevice()
 
-    @get:Rule(order = 4)
-    val mEnableBluetoothRule =
-        EnableBluetoothRule(/* enableTestMode= */ false, /* toggleBluetooth= */ true)
+    @get:Rule(order = 3) val enableBluetoothRule = EnableBluetoothRule(false, true)
 
-    val mRemoteDevice
-        get() = mBumble.remoteDevice
+    val context = instrumentation.targetContext
+    val device
+        get() = UiDevice.getInstance(instrumentation)
 
-    lateinit var mHost: Host
+    val remoteDevice
+        get() = bumble.remoteDevice
+
+    lateinit var host: Host
 
     @Before
     fun setUp() {
-        mHost = Host(mContext)
+        host = Host(context)
         navigateToUnlockedHomeScreen()
-        mAdapter.bondedDevices.forEach(mHost::removeBondAndVerify)
-        mHost.createBondAndVerify(mRemoteDevice)
+        adapter.bondedDevices.forEach(host::removeBondAndVerify)
+        host.createBondAndVerify(remoteDevice)
     }
 
     private fun navigateToUnlockedHomeScreen() {
-        val keyguardManager: KeyguardManager =
-            mContext.getSystemService(KeyguardManager::class.java)
+        val keyguardManager: KeyguardManager = context.getSystemService(KeyguardManager::class.java)
         if (keyguardManager.isKeyguardLocked) {
             dismissKeyguard()
         }
-        mDevice.pressHome()
+        device.pressHome()
     }
 
     private fun dismissKeyguard() {
-        val keyguardManager: KeyguardManager =
-            mContext.getSystemService(KeyguardManager::class.java)
+        val keyguardManager: KeyguardManager = context.getSystemService(KeyguardManager::class.java)
         retryUntil(condition = { !keyguardManager.isKeyguardLocked }) {
-            mDevice.executeShellCommand("wm dismiss-keyguard")
+            device.executeShellCommand("wm dismiss-keyguard")
         }
     }
 
@@ -132,14 +124,14 @@ class OppSendFileTest {
 
     @After
     fun tearDown() {
-        mRemoteDevice.removeBond()
-        mDevice.pressBack()
-        mDevice.pressHome()
+        remoteDevice.removeBond()
+        device.pressBack()
+        device.pressHome()
     }
 
     @Test
     @Throws(Exception::class)
-    @RequiresFlagsEnabled(Flags.FLAG_OPP_CHECK_CONTENT_URI_PERMISSIONS)
+    @RequiresFlagsEnabled("com.android.bluetooth.flags.opp_check_content_uri_permissions")
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.VANILLA_ICE_CREAM)
     fun sendViaBluetoothShare(
         @TestParameter crossUser: Boolean,
@@ -164,7 +156,7 @@ class OppSendFileTest {
 
     @Test
     @Throws(Exception::class)
-    @RequiresFlagsEnabled(Flags.FLAG_OPP_CHECK_CONTENT_URI_PERMISSIONS)
+    @RequiresFlagsEnabled("com.android.bluetooth.flags.opp_check_content_uri_permissions")
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.VANILLA_ICE_CREAM)
     fun sendMultipleViaBluetoothShare(
         @TestParameter crossUser: Boolean,
@@ -185,7 +177,7 @@ class OppSendFileTest {
 
     @Test
     @Throws(Exception::class)
-    @RequiresFlagsEnabled(Flags.FLAG_OPP_CHECK_CONTENT_URI_PERMISSIONS)
+    @RequiresFlagsEnabled("com.android.bluetooth.flags.opp_check_content_uri_permissions")
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.VANILLA_ICE_CREAM)
     fun sendMultipleViaBluetoothShare_oneAlwaysAllowed(
         @TestParameter crossUser: Boolean,
@@ -220,17 +212,17 @@ class OppSendFileTest {
     }
 
     private fun startIntentAndAssertDevicePicker(intent: Intent, shouldSucceed: Boolean) {
-        mContext.startActivity(intent)
+        context.startActivity(intent)
 
         val devicePickerText =
-            mDevice.wait(Until.findObject(By.text("Available devices")), TIMEOUT_MS)
+            device.wait(Until.findObject(By.text("Available devices")), TIMEOUT_MS)
         if (shouldSucceed) {
             assertThat(devicePickerText).isNotNull()
 
-            val name = mRemoteDevice.name
+            val name = remoteDevice.name
 
             val shareToBumbleButton =
-                mDevice.wait(Until.findObject(By.textStartsWith(name)), ASSERT_TIMEOUT_MS)
+                device.wait(Until.findObject(By.textStartsWith(name)), ASSERT_TIMEOUT_MS)
 
             assertThat(shareToBumbleButton).isNotNull()
         } else {
@@ -271,7 +263,7 @@ class OppSendFileTest {
     }
 
     private fun List<Uri>.revokePermissions() = forEach {
-        mContext.revokeUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        context.revokeUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
 
     companion object {

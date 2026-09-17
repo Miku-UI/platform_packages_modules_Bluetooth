@@ -31,8 +31,8 @@ import android.bluetooth.IBluetoothCsipSetCoordinatorLockCallback;
 import android.content.AttributionSource;
 import android.os.ParcelUuid;
 
-import com.android.bluetooth.Utils;
-import com.android.bluetooth.btservice.ProfileService.IProfileServiceBinder;
+import com.android.bluetooth.Util;
+import com.android.bluetooth.profile.ProfileService.IProfileServiceBinder;
 
 import java.util.Collections;
 import java.util.List;
@@ -58,13 +58,13 @@ class CsipSetCoordinatorServiceBinder extends IBluetoothCsipSetCoordinator.Stub
     private CsipSetCoordinatorService getService(AttributionSource source) {
         CsipSetCoordinatorService service = mService;
 
-        if (Utils.isInstrumentationTestMode()) {
+        if (Util.isInstrumentationTestMode()) {
             return service;
         }
 
-        if (!Utils.checkServiceAvailable(service, TAG)
-                || !Utils.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
-                || !Utils.checkConnectPermissionForDataDelivery(service, source, TAG)) {
+        if (!Util.checkProfileAvailable(service, TAG)
+                || !Util.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
+                || !Util.enforceConnectPermissionForDataDelivery(service, source, TAG)) {
             return null;
         }
 
@@ -178,7 +178,7 @@ class CsipSetCoordinatorServiceBinder extends IBluetoothCsipSetCoordinator.Stub
             BluetoothDevice device, AttributionSource source) {
         CsipSetCoordinatorService service = getService(source);
         if (service == null) {
-            return null;
+            return Collections.emptyMap();
         }
         return service.getGroupUuidMapByDevice(device);
     }

@@ -22,14 +22,13 @@
 #include <base/functional/callback_forward.h>
 #include <bluetooth/types/address.h>
 #include <bluetooth/types/ble_address_with_type.h>
+#include <bluetooth/types/bt_octets.h>
 
 #include <cstdint>
 #include <vector>
 
 #include "device/include/esco_parameters.h"
 #include "stack/include/bt_lap.h"
-#include "stack/include/bt_name.h"
-#include "stack/include/bt_octets.h"
 #include "stack/include/btm_api_types.h"
 
 /* Message by message.... */
@@ -71,7 +70,7 @@ void btsnd_hcic_link_key_neg_reply(const RawAddress& bd_addr);
 
 /* PIN Code Request Reply */
 void btsnd_hcic_pin_code_req_reply(const RawAddress& bd_addr, uint8_t pin_code_len,
-                                   PIN_CODE pin_code);
+                                   PinCode pin_code);
 
 /* Link Key Request Neg Reply */
 void btsnd_hcic_pin_code_neg_reply(const RawAddress& bd_addr);
@@ -99,10 +98,6 @@ void btsnd_hcic_accept_esco_conn(const RawAddress& bd_addr, uint32_t transmit_ba
                                  uint16_t packet_types);
 
 void btsnd_hcic_reject_esco_conn(const RawAddress& bd_addr, uint8_t reason);
-/* Hold Mode */
-void btsnd_hcic_hold_mode(uint16_t handle, uint16_t max_hold_period, uint16_t min_hold_period);
-
-/* Hold Mode */
 
 /* Sniff Mode */
 void btsnd_hcic_sniff_mode(uint16_t handle, uint16_t max_sniff_period, uint16_t min_sniff_period,
@@ -110,13 +105,6 @@ void btsnd_hcic_sniff_mode(uint16_t handle, uint16_t max_sniff_period, uint16_t 
 
 /* Exit Sniff Mode */
 void btsnd_hcic_exit_sniff_mode(uint16_t handle);
-
-/* Park Mode */
-void btsnd_hcic_park_mode(uint16_t handle, uint16_t beacon_max_interval,
-                          uint16_t beacon_min_interval);
-
-/* Exit Park Mode */
-void btsnd_hcic_exit_park_mode(uint16_t handle);
 
 /* Write Policy Settings */
 void btsnd_hcic_write_policy_set(uint16_t handle, uint16_t settings);
@@ -159,13 +147,8 @@ void btsnd_hcic_rem_oob_neg_reply(const RawAddress& bd_addr);
 
 /**** end of Simple Pairing Commands ****/
 
-extern void btsnd_hcic_set_event_filter(uint8_t filt_type, uint8_t filt_cond_type,
-                                        uint8_t* filt_cond, uint8_t filt_cond_len);
-/* Set Event Filter */
-
 /* Delete Stored Key */
 void btsnd_hcic_delete_stored_key(const RawAddress& bd_addr, bool delete_all_flag);
-/* Delete Stored Key */
 
 #define HCIC_PARAM_SIZE_READ_CMD 0
 
@@ -173,7 +156,9 @@ void btsnd_hcic_delete_stored_key(const RawAddress& bd_addr, bool delete_all_fla
 
 #define HCIC_PARAM_SIZE_WRITE_PARAM3 3
 
+// TODO : Remove when the flag local_pin_key_type is shipped
 void btsnd_hcic_write_pin_type(uint8_t type);      /* Write PIN Type */
+
 void btsnd_hcic_write_page_tout(uint16_t timeout); /* Write Page Timeout */
 void btsnd_hcic_write_scan_enable(uint8_t flag);   /* Write Scan Enable */
 void btsnd_hcic_write_pagescan_cfg(uint16_t interval,
@@ -184,7 +169,9 @@ void btsnd_hcic_write_pagescan_cfg(uint16_t interval,
 void btsnd_hcic_write_inqscan_cfg(uint16_t interval, uint16_t window);
 /* Write Inquiry Scan Activity */
 
+// TODO (b/460502961): Remove once the flag security_mode_3_pairing is shipped.
 void btsnd_hcic_write_auth_enable(uint8_t flag);      /* Write Authentication Enable */
+
 void btsnd_hcic_write_dev_class(DEV_CLASS dev);       /* Write Class of Device */
 void btsnd_hcic_write_voice_settings(uint16_t flags); /* Write Voice Settings */
 
@@ -202,7 +189,6 @@ void btsnd_hcic_write_cur_iac_lap(uint8_t num_cur_iac,
 void btsnd_hcic_read_rssi(uint16_t handle); /* Read RSSI */
 using ReadEncKeySizeCb = base::OnceCallback<void(uint8_t, uint16_t, uint8_t)>;
 void btsnd_hcic_read_encryption_key_size(uint16_t handle, ReadEncKeySizeCb cb);
-void btsnd_hcic_enable_test_mode(void);            /* Enable Device Under Test Mode */
 void btsnd_hcic_write_pagescan_type(uint8_t type); /* Write Page Scan Type */
 void btsnd_hcic_write_inqscan_type(uint8_t type);  /* Write Inquiry Scan Type */
 void btsnd_hcic_write_inquiry_mode(uint8_t type);  /* Write Inquiry Mode */
@@ -255,10 +241,9 @@ void btsnd_hcic_ble_read_acceptlist_size(void);
 
 void btsnd_hcic_ble_read_remote_feat(uint16_t handle);
 
-void btsnd_hcic_ble_rand(base::Callback<void(BT_OCTET8)> cb);
+void btsnd_hcic_ble_rand(base::OnceCallback<void(Octet8)> cb);
 
-void btsnd_hcic_ble_start_enc(uint16_t handle, uint8_t rand[HCIC_BLE_RAND_DI_SIZE], uint16_t ediv,
-                              const Octet16& ltk);
+void btsnd_hcic_ble_start_enc(uint16_t handle, Octet8 rand, uint16_t ediv, const Octet16& ltk);
 
 void btsnd_hcic_ble_ltk_req_reply(uint16_t handle, const Octet16& ltk);
 
@@ -307,31 +292,31 @@ void btsnd_hcic_write_authenticated_payload_tout(uint16_t handle, uint16_t timeo
 
 struct EXT_CIS_CFG {
   uint8_t cis_id;
-  uint16_t max_sdu_size_mtos;
-  uint16_t max_sdu_size_stom;
-  uint8_t phy_mtos;
-  uint8_t phy_stom;
-  uint8_t rtn_mtos;
-  uint8_t rtn_stom;
+  uint16_t max_sdu_size_c_to_p;
+  uint16_t max_sdu_size_p_to_c;
+  uint8_t phy_c_to_p;
+  uint8_t phy_p_to_c;
+  uint8_t rtn_c_to_p;
+  uint8_t rtn_p_to_c;
 };
 
-void btsnd_hcic_set_cig_params(uint8_t cig_id, uint32_t sdu_itv_mtos, uint32_t sdu_itv_stom,
-                               uint8_t sca, uint8_t packing, uint8_t framing,
-                               uint16_t max_trans_lat_stom, uint16_t max_trans_lat_mtos,
-                               uint8_t cis_cnt, const EXT_CIS_CFG* cis_cfg,
-                               base::OnceCallback<void(uint8_t*, uint16_t)> cb);
+void btsnd_hcic_ble_set_cig_params(uint8_t cig_id, uint32_t sdu_itv_c_to_p, uint32_t sdu_itv_p_to_c,
+                                   uint8_t sca, uint8_t packing, uint8_t framing,
+                                   uint16_t max_trans_lat_c_to_p, uint16_t max_trans_lat_p_to_c,
+                                   uint8_t cis_cnt, const EXT_CIS_CFG* cis_cfg,
+                                   base::OnceCallback<void(uint8_t*, uint16_t)> cb);
 
 struct EXT_CIS_TEST_CFG {
   uint8_t cis_id;
   uint8_t nse;
-  uint16_t max_sdu_size_mtos;
-  uint16_t max_sdu_size_stom;
-  uint8_t max_pdu_mtos;
-  uint8_t max_pdu_stom;
-  uint8_t phy_mtos;
-  uint8_t phy_stom;
-  uint8_t bn_mtos;
-  uint8_t bn_stom;
+  uint16_t max_sdu_size_c_to_p;
+  uint16_t max_sdu_size_p_to_c;
+  uint8_t max_pdu_c_to_p;
+  uint8_t max_pdu_p_to_c;
+  uint8_t phy_c_to_p;
+  uint8_t phy_p_to_c;
+  uint8_t bn_c_to_p;
+  uint8_t bn_p_to_c;
 };
 
 struct EXT_CIS_CREATE_CFG {
@@ -339,73 +324,48 @@ struct EXT_CIS_CREATE_CFG {
   uint16_t acl_conn_handle;
 };
 
-void btsnd_hcic_create_cis(uint8_t num_cis, const EXT_CIS_CREATE_CFG* cis_create_cfg,
-                           base::OnceCallback<void(uint8_t*, uint16_t)> cb);
+void btsnd_hcic_ble_create_cis(uint8_t num_cis, const EXT_CIS_CREATE_CFG* cis_create_cfg,
+                               base::OnceCallback<void(uint8_t*, uint16_t)> cb);
 
-void btsnd_hcic_remove_cig(uint8_t cig_id, base::OnceCallback<void(uint8_t*, uint16_t)> cb);
+void btsnd_hcic_ble_remove_cig(uint8_t cig_id, base::OnceCallback<void(uint8_t*, uint16_t)> cb);
 
-void btsnd_hcic_req_peer_sca(uint16_t conn_handle);
+void btsnd_hcic_ble_req_peer_sca(uint16_t conn_handle);
 
-void btsnd_hcic_create_big(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
-                           uint32_t sdu_itv, uint16_t max_sdu_size, uint16_t max_trans_lat,
-                           uint8_t rtn, uint8_t phy, uint8_t packing, uint8_t framing, uint8_t enc,
-                           std::array<uint8_t, 16> bcst_code);
+void btsnd_hcic_ble_create_big(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
+                               uint32_t sdu_itv, uint16_t max_sdu_size, uint16_t max_trans_lat,
+                               uint8_t rtn, uint8_t phy, uint8_t packing, uint8_t framing,
+                               uint8_t enc, std::array<uint8_t, 16> bcst_code);
 
-void btsnd_hcic_term_big(uint8_t big_handle, uint8_t reason);
+void btsnd_hcic_ble_term_big(uint8_t big_handle, uint8_t reason);
 
-void btsnd_hcic_setup_iso_data_path(uint16_t iso_handle, uint8_t data_path_dir,
-                                    uint8_t data_path_id, uint8_t codec_id_format,
-                                    uint16_t codec_id_company, uint16_t codec_id_vendor,
-                                    uint32_t controller_delay, std::vector<uint8_t> codec_conf,
-                                    base::OnceCallback<void(uint8_t*, uint16_t)> cb);
+void btsnd_hcic_ble_big_create_sync(uint8_t big_handle, uint16_t sync_handle, uint8_t encryption,
+                                    const std::array<uint8_t, 16>& bcast_code, uint8_t mse,
+                                    uint16_t sync_timeout, const std::vector<uint8_t>& bis);
 
-void btsnd_hcic_remove_iso_data_path(uint16_t iso_handle, uint8_t data_path_dir,
-                                     base::OnceCallback<void(uint8_t*, uint16_t)> cb);
+void btsnd_hcic_ble_big_terminate_sync(uint8_t big_handle,
+                                       base::OnceCallback<void(uint8_t*, uint16_t)> cb);
 
-void btsnd_hcic_read_iso_link_quality(uint16_t iso_handle,
-                                      base::OnceCallback<void(uint8_t*, uint16_t)> cb);
+void btsnd_hcic_ble_setup_iso_data_path(uint16_t iso_handle, uint8_t data_path_dir,
+                                        uint8_t data_path_id, uint8_t codec_id_format,
+                                        uint16_t codec_id_company, uint16_t codec_id_vendor,
+                                        uint32_t controller_delay, std::vector<uint8_t> codec_conf,
+                                        base::OnceCallback<void(uint8_t*, uint16_t)> cb);
 
-void btsnd_hcic_ble_periodic_advertising_create_sync(uint8_t options, uint8_t adv_sid,
-                                                     uint8_t adv_addr_type,
-                                                     const RawAddress& adv_addr, uint16_t skip_num,
-                                                     uint16_t sync_timeout, uint8_t sync_cte_type);
+void btsnd_hcic_ble_remove_iso_data_path(uint16_t iso_handle, uint8_t data_path_dir,
+                                         base::OnceCallback<void(uint8_t*, uint16_t)> cb);
 
-void btsnd_hcic_ble_periodic_advertising_create_sync_cancel(
-        base::OnceCallback<void(uint8_t*, uint16_t)> cb);
-
-void btsnd_hcic_ble_periodic_advertising_terminate_sync(
-        uint16_t sync_handle, base::OnceCallback<void(uint8_t*, uint16_t)> cb);
-
-void btsnd_hci_ble_add_device_to_periodic_advertiser_list(
-        uint8_t adv_addr_type, const RawAddress& adv_addr, uint8_t adv_sid,
-        base::OnceCallback<void(uint8_t*, uint16_t)> cb);
-
-void btsnd_hci_ble_remove_device_from_periodic_advertiser_list(
-        uint8_t adv_addr_type, const RawAddress& adv_addr, uint8_t adv_sid,
-        base::OnceCallback<void(uint8_t*, uint16_t)> cb);
-
-void btsnd_hci_ble_clear_periodic_advertiser_list(base::OnceCallback<void(uint8_t*, uint16_t)> cb);
-
-void btsnd_hcic_ble_set_periodic_advertising_receive_enable(
-        uint16_t sync_handle, bool enable, base::OnceCallback<void(uint8_t*, uint16_t)> cb);
-
-void btsnd_hcic_ble_periodic_advertising_sync_transfer(
-        uint16_t conn_handle, uint16_t service_data, uint16_t sync_handle,
-        base::OnceCallback<void(uint8_t*, uint16_t)> cb);
-
-void btsnd_hcic_ble_periodic_advertising_set_info_transfer(
-        uint16_t conn_handle, uint16_t service_data, uint8_t adv_handle,
-        base::OnceCallback<void(uint8_t*, uint16_t)> cb);
-
-void btsnd_hcic_ble_set_periodic_advertising_sync_transfer_params(
-        uint16_t conn_handle, uint8_t mode, uint16_t skip, uint16_t sync_timeout, uint8_t cte_type,
-        base::OnceCallback<void(uint8_t*, uint16_t)> cb);
-
-void btsnd_hcic_ble_set_default_periodic_advertising_sync_transfer_params(
-        uint16_t conn_handle, uint8_t mode, uint16_t skip, uint16_t sync_timeout, uint8_t cte_type,
-        base::OnceCallback<void(uint8_t*, uint16_t)> cb);
+void btsnd_hcic_ble_read_iso_link_quality(uint16_t iso_handle,
+                                          base::OnceCallback<void(uint8_t*, uint16_t)> cb);
 
 void btsnd_hcic_configure_data_path(hci_data_direction_t data_path_direction, uint8_t data_path_id,
                                     std::vector<uint8_t> vendor_config);
+
+void btsnd_hcic_ble_set_big_channel_map_classification_vsc(uint8_t action, uint8_t big_handle,
+                                                           const std::vector<uint16_t>& handles);
+
+void btsnd_hcic_ble_accept_cis_req(uint16_t cis_conn_handle);
+
+void btsnd_hcic_ble_reject_cis_req(uint16_t cis_conn_handle, uint8_t reason,
+                                   base::OnceCallback<void(uint8_t*, uint16_t)> cb);
 
 #endif

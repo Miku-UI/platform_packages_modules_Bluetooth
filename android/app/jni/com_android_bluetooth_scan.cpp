@@ -43,45 +43,9 @@
 #include "hardware/ble_scanner.h"
 #include "hardware/bluetooth.h"
 #include "hardware/bt_common_types.h"
-#include "hardware/bt_gatt.h"
 #include "main/shim/le_scanning_manager.h"
 
 using bluetooth::Uuid;
-
-#define UUID_PARAMS(uuid) uuid_lsb(uuid), uuid_msb(uuid)
-
-static Uuid from_java_uuid(jlong uuid_msb, jlong uuid_lsb) {
-  std::array<uint8_t, Uuid::kNumBytes128> uu;
-  for (int i = 0; i < 8; i++) {
-    uu[7 - i] = (uuid_msb >> (8 * i)) & 0xFF;
-    uu[15 - i] = (uuid_lsb >> (8 * i)) & 0xFF;
-  }
-  return Uuid::From128BitBE(uu);
-}
-
-static uint64_t uuid_lsb(const Uuid& uuid) {
-  uint64_t lsb = 0;
-
-  auto uu = uuid.To128BitBE();
-  for (int i = 8; i <= 15; i++) {
-    lsb <<= 8;
-    lsb |= uu[i];
-  }
-
-  return lsb;
-}
-
-static uint64_t uuid_msb(const Uuid& uuid) {
-  uint64_t msb = 0;
-
-  auto uu = uuid.To128BitBE();
-  for (int i = 0; i <= 7; i++) {
-    msb <<= 8;
-    msb |= uu[i];
-  }
-
-  return msb;
-}
 
 static RawAddress str2addr(JNIEnv* env, jstring address) {
   const char* c_address = env->GetStringUTFChars(address, NULL);
@@ -93,14 +57,6 @@ static RawAddress str2addr(JNIEnv* env, jstring address) {
   env->ReleaseStringUTFChars(address, c_address);
 
   return bd_addr.value_or(RawAddress::kEmpty);
-}
-
-static jstring bdaddr2newjstr(JNIEnv* env, const RawAddress* bda) {
-  char c_address[32];
-  snprintf(c_address, sizeof(c_address), "%02X:%02X:%02X:%02X:%02X:%02X", bda->address[0],
-           bda->address[1], bda->address[2], bda->address[3], bda->address[4], bda->address[5]);
-
-  return env->NewStringUTF(c_address);
 }
 
 namespace android {
@@ -136,7 +92,9 @@ static jmethodID method_onBigInfoReport;
 /** Pointer to the LE scanner interface methods.*/
 static BleScannerInterface* sScanner = NULL;
 static jobject mScanCallbacksObj = NULL;
+static jfieldID sScanCallbacksField;
 static jobject mPeriodicScanCallbacksObj = NULL;
+static jfieldID sPeriodicScanCallbacksField;
 static std::shared_mutex callbacks_mutex;
 
 class JniScanningCallbacks : ScanningCallbacks {
@@ -153,7 +111,7 @@ public:
       return;
     }
     sCallbackEnv->CallVoidMethod(mScanCallbacksObj, method_onScannerRegistered, status, scannerId,
-                                 UUID_PARAMS(app_uuid));
+                                 app_uuid.msb(), app_uuid.lsb());
   }
 
   void OnSetScannerParameterComplete(uint8_t scannerId, uint8_t status) {
@@ -175,7 +133,7 @@ public:
       return;
     }
 
-    ScopedLocalRef<jstring> address(sCallbackEnv.get(), bdaddr2newjstr(sCallbackEnv.get(), &bda));
+    ScopedLocalRef<jstring> address = addressToJString(sCallbackEnv, bda);
     ScopedLocalRef<jbyteArray> jb(sCallbackEnv.get(), sCallbackEnv->NewByteArray(adv_data.size()));
     sCallbackEnv->SetByteArrayRegion(jb.get(), 0, adv_data.size(), (jbyte*)adv_data.data());
 
@@ -200,8 +158,7 @@ public:
       return;
     }
 
-    ScopedLocalRef<jstring> address(
-            sCallbackEnv.get(), bdaddr2newjstr(sCallbackEnv.get(), &track_info.advertiser_address));
+    ScopedLocalRef<jstring> address = addressToJString(sCallbackEnv, track_info.advertiser_address);
 
     ScopedLocalRef<jbyteArray> jb_adv_pkt(sCallbackEnv.get(),
                                           sCallbackEnv->NewByteArray(track_info.adv_packet_len));
@@ -265,7 +222,7 @@ public:
       log::error("mPeriodicScanCallbacksObj is NULL. Return.");
       return;
     }
-    ScopedLocalRef<jstring> addr(sCallbackEnv.get(), bdaddr2newjstr(sCallbackEnv.get(), &address));
+    ScopedLocalRef<jstring> addr = addressToJString(sCallbackEnv, address);
 
     sCallbackEnv->CallVoidMethod(mPeriodicScanCallbacksObj, method_onSyncStarted, reg_id,
                                  sync_handle, sid, address_type, addr.get(), phy, interval, status);
@@ -306,7 +263,7 @@ public:
       log::error("mPeriodicScanCallbacksObj is NULL. Return.");
       return;
     }
-    ScopedLocalRef<jstring> addr(sCallbackEnv.get(), bdaddr2newjstr(sCallbackEnv.get(), &address));
+    ScopedLocalRef<jstring> addr = addressToJString(sCallbackEnv, address);
 
     sCallbackEnv->CallVoidMethod(mPeriodicScanCallbacksObj, method_onSyncTransferredCallback,
                                  pa_source, status, addr.get());
@@ -332,24 +289,13 @@ public:
  * Native Client functions
  */
 
-static void btgattc_register_scanner_cb(const Uuid& app_uuid, uint8_t scannerId, uint8_t status) {
-  std::shared_lock<std::shared_mutex> lock(callbacks_mutex);
-  CallbackEnv sCallbackEnv(__func__);
-  if (!sCallbackEnv.valid() || !mScanCallbacksObj) {
-    return;
-  }
-  sCallbackEnv->CallVoidMethod(mScanCallbacksObj, method_onScannerRegistered, status, scannerId,
-                               UUID_PARAMS(app_uuid));
-}
-
-static void registerScannerNative(JNIEnv* /* env */, jobject /* object */, jlong app_uuid_lsb,
-                                  jlong app_uuid_msb) {
+static void registerScannerNative(JNIEnv* /* env */, jobject /* object */, jlong app_uuid_msb,
+                                  jlong app_uuid_lsb) {
   if (!sScanner) {
     return;
   }
-
-  Uuid uuid = from_java_uuid(app_uuid_msb, app_uuid_lsb);
-  sScanner->RegisterScanner(uuid, base::Bind(&btgattc_register_scanner_cb, uuid));
+  Uuid uuid(app_uuid_msb, app_uuid_lsb);
+  sScanner->RegisterScanner(uuid);
 }
 
 static void unregisterScannerNative(JNIEnv* /* env */, jobject /* object */, jint scanner_id) {
@@ -367,10 +313,10 @@ static void scanNative(JNIEnv* /* env */, jobject /* object */, jboolean start) 
   sScanner->Scan(start);
 }
 
-static void gattSetScanParametersNative(JNIEnv* /* env */, jobject /* object */, jint client_if_1m,
-                                        jint scan_interval_unit_1m, jint scan_window_unit_1m,
-                                        jint client_if_coded, jint scan_interval_unit_coded,
-                                        jint scan_window_unit_coded, jint scan_phy) {
+static void setScanParametersNative(JNIEnv* /* env */, jobject /* object */, jint client_if_1m,
+                                    jint scan_interval_unit_1m, jint scan_window_unit_1m,
+                                    jint client_if_coded, jint scan_interval_unit_coded,
+                                    jint scan_window_unit_coded, jint scan_phy) {
   if (!sScanner) {
     return;
   }
@@ -397,44 +343,44 @@ static void scanFilterParamAddNative(JNIEnv* env, jobject /* object */, jobject 
   const int add_scan_filter_params_action = 0;
   auto filt_params = std::make_unique<btgatt_filt_param_setup_t>();
 
-  jmethodID methodId = 0;
+  jfieldID fieldId = 0;
   ScopedLocalRef<jclass> filtparam(env, env->GetObjectClass(params));
 
-  methodId = env->GetMethodID(filtparam.get(), "clientInterface", "()I");
-  uint8_t client_if = env->CallIntMethod(params, methodId);
+  fieldId = env->GetFieldID(filtparam.get(), "clientInterface", "I");
+  uint8_t client_if = env->GetIntField(params, fieldId);
 
-  methodId = env->GetMethodID(filtparam.get(), "filterIndex", "()I");
-  uint8_t filt_index = env->CallIntMethod(params, methodId);
+  fieldId = env->GetFieldID(filtparam.get(), "filterIndex", "I");
+  uint8_t filt_index = env->GetIntField(params, fieldId);
 
-  methodId = env->GetMethodID(filtparam.get(), "featureSelection", "()I");
-  filt_params->feat_seln = env->CallIntMethod(params, methodId);
+  fieldId = env->GetFieldID(filtparam.get(), "featureSelection", "I");
+  filt_params->feat_seln = env->GetIntField(params, fieldId);
 
-  methodId = env->GetMethodID(filtparam.get(), "listLogicType", "()I");
-  filt_params->list_logic_type = env->CallIntMethod(params, methodId);
+  fieldId = env->GetFieldID(filtparam.get(), "listLogicType", "I");
+  filt_params->list_logic_type = env->GetIntField(params, fieldId);
 
-  methodId = env->GetMethodID(filtparam.get(), "filterLogicType", "()I");
-  filt_params->filt_logic_type = env->CallIntMethod(params, methodId);
+  fieldId = env->GetFieldID(filtparam.get(), "filterLogicType", "I");
+  filt_params->filt_logic_type = env->GetIntField(params, fieldId);
 
-  methodId = env->GetMethodID(filtparam.get(), "delayMode", "()I");
-  filt_params->dely_mode = env->CallIntMethod(params, methodId);
+  fieldId = env->GetFieldID(filtparam.get(), "delayMode", "I");
+  filt_params->dely_mode = env->GetIntField(params, fieldId);
 
-  methodId = env->GetMethodID(filtparam.get(), "foundTimeout", "()I");
-  filt_params->found_timeout = env->CallIntMethod(params, methodId);
+  fieldId = env->GetFieldID(filtparam.get(), "foundTimeout", "I");
+  filt_params->found_timeout = env->GetIntField(params, fieldId);
 
-  methodId = env->GetMethodID(filtparam.get(), "lostTimeout", "()I");
-  filt_params->lost_timeout = env->CallIntMethod(params, methodId);
+  fieldId = env->GetFieldID(filtparam.get(), "lostTimeout", "I");
+  filt_params->lost_timeout = env->GetIntField(params, fieldId);
 
-  methodId = env->GetMethodID(filtparam.get(), "foundTimeoutCount", "()I");
-  filt_params->found_timeout_cnt = env->CallIntMethod(params, methodId);
+  fieldId = env->GetFieldID(filtparam.get(), "foundTimeoutCount", "I");
+  filt_params->found_timeout_cnt = env->GetIntField(params, fieldId);
 
-  methodId = env->GetMethodID(filtparam.get(), "numberOfTrackEntries", "()I");
-  filt_params->num_of_tracking_entries = env->CallIntMethod(params, methodId);
+  fieldId = env->GetFieldID(filtparam.get(), "numberOfTrackEntries", "I");
+  filt_params->num_of_tracking_entries = env->GetIntField(params, fieldId);
 
-  methodId = env->GetMethodID(filtparam.get(), "rssiHighValue", "()I");
-  filt_params->rssi_high_thres = env->CallIntMethod(params, methodId);
+  fieldId = env->GetFieldID(filtparam.get(), "rssiHighValue", "I");
+  filt_params->rssi_high_thres = env->GetIntField(params, fieldId);
 
-  methodId = env->GetMethodID(filtparam.get(), "rssiLowValue", "()I");
-  filt_params->rssi_low_thres = env->CallIntMethod(params, methodId);
+  fieldId = env->GetFieldID(filtparam.get(), "rssiLowValue", "I");
+  filt_params->rssi_low_thres = env->GetIntField(params, fieldId);
 
   sScanner->ScanFilterParamSetup(client_if, add_scan_filter_params_action, filt_index,
                                  std::move(filt_params),
@@ -449,15 +395,6 @@ static void scanFilterParamDeleteNative(JNIEnv* /* env */, jobject /* object */,
   const int delete_scan_filter_params_action = 1;
   sScanner->ScanFilterParamSetup(client_if, delete_scan_filter_params_action, filt_index, nullptr,
                                  base::Bind(&scan_filter_param_cb, client_if));
-}
-
-static void scanFilterParamClearAllNative(JNIEnv* /* env */, jobject /* object */, jint client_if) {
-  if (!sScanner) {
-    return;
-  }
-  const int clear_scan_filter_params_action = 2;
-  sScanner->ScanFilterParamSetup(client_if, clear_scan_filter_params_action, 0 /* index, unused */,
-                                 nullptr, base::Bind(&scan_filter_param_cb, client_if));
 }
 
 static void scan_filter_cfg_cb(uint8_t client_if, uint8_t filt_type, uint8_t avbl_space,
@@ -555,14 +492,14 @@ static void scanFilterAddNative(JNIEnv* env, jobject /* object */, jint client_i
     if (uuid.get() != NULL) {
       jlong uuid_msb = env->CallLongMethod(uuid.get(), uuidGetMsb);
       jlong uuid_lsb = env->CallLongMethod(uuid.get(), uuidGetLsb);
-      curr.uuid = from_java_uuid(uuid_msb, uuid_lsb);
+      curr.uuid = Uuid(uuid_msb, uuid_lsb);
     }
 
     ScopedLocalRef<jobject> uuid_mask(env, env->GetObjectField(current.get(), uuidMaskFid));
     if (uuid.get() != NULL) {
       jlong uuid_msb = env->CallLongMethod(uuid_mask.get(), uuidGetMsb);
       jlong uuid_lsb = env->CallLongMethod(uuid_mask.get(), uuidGetLsb);
-      curr.uuid_mask = from_java_uuid(uuid_msb, uuid_lsb);
+      curr.uuid_mask = Uuid(uuid_msb, uuid_lsb);
     }
 
     ScopedLocalRef<jstring> name(env, (jstring)env->GetObjectField(current.get(), nameFid));
@@ -684,7 +621,8 @@ static bool isMsftSupportedNative(JNIEnv* /* env */, jobject /* object */) {
 
 static void msftAdvMonitorAddNative(JNIEnv* env, jobject /* object*/, jobject msft_adv_monitor,
                                     jobjectArray msft_adv_monitor_patterns,
-                                    jobject msft_adv_monitor_address, jint filter_index) {
+                                    jobject msft_adv_monitor_uuid, jobject msft_adv_monitor_address,
+                                    jint filter_index) {
   if (!sScanner) {
     return;
   }
@@ -697,10 +635,6 @@ static void msftAdvMonitorAddNative(JNIEnv* env, jobject /* object*/, jobject ms
   jfieldID rssiSamplingPeriodFid =
           env->GetFieldID(msftAdvMonitorClazz, "rssi_sampling_period", "B");
   jfieldID conditionTypeFid = env->GetFieldID(msftAdvMonitorClazz, "condition_type", "B");
-
-  jclass msftAdvMonitorAddressClazz = env->GetObjectClass(msft_adv_monitor_address);
-  jfieldID addrTypeFid = env->GetFieldID(msftAdvMonitorAddressClazz, "addr_type", "B");
-  jfieldID bdAddrFid = env->GetFieldID(msftAdvMonitorAddressClazz, "bd_addr", "Ljava/lang/String;");
 
   MsftAdvMonitor native_msft_adv_monitor{};
   ScopedLocalRef<jobject> msft_adv_monitor_object(env, msft_adv_monitor);
@@ -715,16 +649,56 @@ static void msftAdvMonitorAddNative(JNIEnv* env, jobject /* object*/, jobject ms
   native_msft_adv_monitor.condition_type =
           env->GetByteField(msft_adv_monitor_object.get(), conditionTypeFid);
 
-  MsftAdvMonitorAddress native_msft_adv_monitor_address{};
-  ScopedLocalRef<jobject> msft_adv_monitor_address_object(env, msftAdvMonitorAddressClazz);
-  native_msft_adv_monitor_address.addr_type =
-          env->GetByteField(msft_adv_monitor_address_object.get(), addrTypeFid);
-  native_msft_adv_monitor_address.bd_addr = str2addr(
-          env, (jstring)env->GetObjectField(msft_adv_monitor_address_object.get(), bdAddrFid));
-  native_msft_adv_monitor.addr_info = native_msft_adv_monitor_address;
+  if (native_msft_adv_monitor.condition_type == MSFT_CONDITION_TYPE_ADDRESS) {
+    jclass msftAdvMonitorAddressClazz = env->GetObjectClass(msft_adv_monitor_address);
+    jfieldID addrTypeFid = env->GetFieldID(msftAdvMonitorAddressClazz, "addr_type", "B");
+    jfieldID bdAddrFid =
+            env->GetFieldID(msftAdvMonitorAddressClazz, "bd_addr", "Ljava/lang/String;");
 
-  int numPatterns = env->GetArrayLength(msft_adv_monitor_patterns);
-  if (numPatterns == 0) {
+    MsftAdvMonitorAddress native_msft_adv_monitor_address{};
+    ScopedLocalRef<jobject> msft_adv_monitor_address_object(env, msft_adv_monitor_address);
+    native_msft_adv_monitor_address.addr_type =
+            env->GetByteField(msft_adv_monitor_address_object.get(), addrTypeFid);
+    native_msft_adv_monitor_address.bd_addr = str2addr(
+            env, (jstring)env->GetObjectField(msft_adv_monitor_address_object.get(), bdAddrFid));
+
+    native_msft_adv_monitor.addr_info = native_msft_adv_monitor_address;
+
+    sScanner->MsftAdvMonitorAdd(std::move(native_msft_adv_monitor),
+                                base::Bind(&msft_monitor_add_cb, filter_index));
+    return;
+  }
+
+  if (native_msft_adv_monitor.condition_type == MSFT_CONDITION_TYPE_UUID) {
+    jclass msftAdvMonitorUuidClazz = env->GetObjectClass(msft_adv_monitor_uuid);
+    jfieldID uuidFid = env->GetFieldID(msftAdvMonitorUuidClazz, "uuid", "[B");
+
+    MsftAdvMonitorUuid native_msft_adv_monitor_uuid{};
+    ScopedLocalRef<jobject> msft_adv_monitor_uuid_object(env, msft_adv_monitor_uuid);
+
+    ScopedLocalRef<jbyteArray> uuidByteArray(
+            env, (jbyteArray)env->GetObjectField(msft_adv_monitor_uuid_object.get(), uuidFid));
+    if (uuidByteArray.get() == nullptr) {
+      log::error("Cannot obtain uuid byte array.");
+      jniThrowIOException(env, EINVAL);
+      return;
+    }
+
+    jbyte* uuidBytes = env->GetByteArrayElements(uuidByteArray.get(), NULL);
+    if (uuidBytes == NULL) {
+      log::error("Cannot obtain uuid bytes.");
+      jniThrowIOException(env, EINVAL);
+      return;
+    }
+
+    native_msft_adv_monitor_uuid.uuid.resize(env->GetArrayLength(uuidByteArray.get()));
+    std::copy(uuidBytes, uuidBytes + env->GetArrayLength(uuidByteArray.get()),
+              native_msft_adv_monitor_uuid.uuid.begin());
+
+    env->ReleaseByteArrayElements(uuidByteArray.get(), uuidBytes, 0);
+
+    native_msft_adv_monitor.uuid_info = native_msft_adv_monitor_uuid;
+
     sScanner->MsftAdvMonitorAdd(std::move(native_msft_adv_monitor),
                                 base::Bind(&msft_monitor_add_cb, filter_index));
     return;
@@ -736,7 +710,9 @@ static void msftAdvMonitorAddNative(JNIEnv* env, jobject /* object*/, jobject ms
   jfieldID startByteFid = env->GetFieldID(msftAdvMonitorPatternClazz, "start_byte", "B");
   jfieldID patternFid = env->GetFieldID(msftAdvMonitorPatternClazz, "pattern", "[B");
 
+  int numPatterns = env->GetArrayLength(msft_adv_monitor_patterns);
   std::vector<MsftAdvMonitorPattern> patterns;
+
   for (int i = 0; i < numPatterns; i++) {
     MsftAdvMonitorPattern native_msft_adv_monitor_pattern{};
     ScopedLocalRef<jobject> msft_adv_monitor_pattern_object(
@@ -849,7 +825,10 @@ static void periodicScanInitializeNative(JNIEnv* env, jobject object) {
     mPeriodicScanCallbacksObj = NULL;
   }
 
-  mPeriodicScanCallbacksObj = env->NewGlobalRef(object);
+  if ((mPeriodicScanCallbacksObj = env->NewGlobalRef(
+               env->GetObjectField(object, sPeriodicScanCallbacksField))) == nullptr) {
+    log::fatal("Failed to allocate Global Ref for Periodic Scan Callbacks");
+  }
 }
 
 static void periodicScanCleanupNative(JNIEnv* env, jobject /* object */) {
@@ -872,7 +851,10 @@ static void scanInitializeNative(JNIEnv* env, jobject object) {
     mScanCallbacksObj = NULL;
   }
 
-  mScanCallbacksObj = env->NewGlobalRef(object);
+  if ((mScanCallbacksObj = env->NewGlobalRef(env->GetObjectField(object, sScanCallbacksField))) ==
+      nullptr) {
+    log::fatal("Failed to allocate Global Ref for Scan Callbacks");
+  }
 }
 
 static void scanCleanupNative(JNIEnv* env, jobject /* object */) {
@@ -886,12 +868,12 @@ static void scanCleanupNative(JNIEnv* env, jobject /* object */) {
   }
 }
 
-static void startSyncNative(JNIEnv* env, jobject /* object */, jint sid, jstring address, jint skip,
-                            jint timeout, jint reg_id) {
+static void startSyncNative(JNIEnv* env, jobject /* object */, jint sid, jstring address,
+                            jint addressType, jint skip, jint timeout, jint reg_id) {
   if (!sScanner) {
     return;
   }
-  sScanner->StartSync(sid, str2addr(env, address), skip, timeout, reg_id);
+  sScanner->StartSync(sid, str2addr(env, address), addressType, skip, timeout, reg_id);
 }
 
 static void stopSyncNative(JNIEnv* /* env */, jobject /* object */, jint sync_handle) {
@@ -924,11 +906,7 @@ static void transferSetInfoNative(JNIEnv* env, jobject /* object */, jint pa_sou
   sScanner->TransferSetInfo(str2addr(env, addr), service_data, adv_handle, pa_source);
 }
 
-/**
- * JNI function definitions
- */
-
-// JNI functions defined in ScanNativeInterface class.
+// JNI functions defined in ScanNativeInterface
 static int register_com_android_bluetooth_scan_(JNIEnv* env) {
   const JNINativeMethod methods[] = {
           {"initializeNative", "()V", (void*)scanInitializeNative},
@@ -945,29 +923,31 @@ static int register_com_android_bluetooth_scan_(JNIEnv* env) {
           {"scanFilterParamAddNative", "(Lcom/android/bluetooth/le_scan/FilterParams;)V",
            (void*)scanFilterParamAddNative},
           {"scanFilterParamDeleteNative", "(II)V", (void*)scanFilterParamDeleteNative},
-          {"scanFilterParamClearAllNative", "(I)V", (void*)scanFilterParamClearAllNative},
           {"scanFilterAddNative", "(I[Lcom/android/bluetooth/le_scan/ScanFilterQueue$Entry;I)V",
            (void*)scanFilterAddNative},
           {"scanFilterClearNative", "(II)V", (void*)scanFilterClearNative},
           {"scanFilterEnableNative", "(IZ)V", (void*)scanFilterEnableNative},
-          {"gattSetScanParametersNative", "(IIIIIII)V", (void*)gattSetScanParametersNative},
+          {"setScanParametersNative", "(IIIIIII)V", (void*)setScanParametersNative},
           // MSFT HCI Extension functions.
           {"isMsftSupportedNative", "()Z", (bool*)isMsftSupportedNative},
           {"msftAdvMonitorAddNative",
            "(Lcom/android/bluetooth/le_scan/MsftAdvMonitor$Monitor;[Lcom/android/bluetooth/le_scan/"
-           "MsftAdvMonitor$Pattern;Lcom/android/bluetooth/le_scan/MsftAdvMonitor$Address;I)V",
+           "MsftAdvMonitor$Pattern;Lcom/android/bluetooth/le_scan/MsftAdvMonitor$Uuid;Lcom/android/"
+           "bluetooth/le_scan/MsftAdvMonitor$Address;I)V",
            (void*)msftAdvMonitorAddNative},
           {"msftAdvMonitorRemoveNative", "(II)V", (void*)msftAdvMonitorRemoveNative},
           {"msftAdvMonitorEnableNative", "(Z)V", (void*)msftAdvMonitorEnableNative},
   };
-  const int result = REGISTER_NATIVE_METHODS(
-          env, "com/android/bluetooth/le_scan/ScanNativeInterface", methods);
+  const char* jniNativeInterfaceClass = "com/android/bluetooth/le_scan/ScanNativeInterface";
+  const int result = REGISTER_NATIVE_METHODS(env, jniNativeInterfaceClass, methods);
   if (result != 0) {
     return result;
   }
 
+  sScanCallbacksField = getNativeCallbackField(env, jniNativeInterfaceClass);
+
+  // Client callback functions defined in ScanNativeCallback
   const JNIJavaMethod javaMethods[] = {
-          // Client callbacks
           {"onScannerRegistered", "(IIJJ)V", &method_onScannerRegistered},
           {"onScanResult", "(IILjava/lang/String;IIIIII[BLjava/lang/String;)V",
            &method_onScanResult},
@@ -989,27 +969,30 @@ static int register_com_android_bluetooth_scan_(JNIEnv* env) {
           {"onMsftAdvMonitorRemove", "(II)V", &method_onMsftAdvMonitorRemove},
           {"onMsftAdvMonitorEnable", "(ZI)V", &method_onMsftAdvMonitorEnable},
   };
-  GET_JAVA_METHODS(env, "com/android/bluetooth/le_scan/ScanNativeInterface", javaMethods);
+  GET_JAVA_METHODS(env, "com/android/bluetooth/le_scan/ScanNativeCallback", javaMethods);
   return 0;
 }
 
-// JNI functions defined in PeriodicScanNativeInterface class.
+// JNI functions defined in PeriodicScanNativeInterface
 static int register_com_android_bluetooth_periodic_scan(JNIEnv* env) {
   const JNINativeMethod methods[] = {
           {"initializeNative", "()V", (void*)periodicScanInitializeNative},
           {"cleanupNative", "()V", (void*)periodicScanCleanupNative},
-          {"startSyncNative", "(ILjava/lang/String;III)V", (void*)startSyncNative},
+          {"startSyncNative", "(ILjava/lang/String;IIII)V", (void*)startSyncNative},
           {"stopSyncNative", "(I)V", (void*)stopSyncNative},
           {"cancelSyncNative", "(ILjava/lang/String;)V", (void*)cancelSyncNative},
           {"syncTransferNative", "(ILjava/lang/String;II)V", (void*)syncTransferNative},
           {"transferSetInfoNative", "(ILjava/lang/String;II)V", (void*)transferSetInfoNative},
   };
-  const int result = REGISTER_NATIVE_METHODS(
-          env, "com/android/bluetooth/le_scan/PeriodicScanNativeInterface", methods);
+  const char* jniNativeInterfaceClass = "com/android/bluetooth/le_scan/PeriodicScanNativeInterface";
+  const int result = REGISTER_NATIVE_METHODS(env, jniNativeInterfaceClass, methods);
   if (result != 0) {
     return result;
   }
 
+  sPeriodicScanCallbacksField = getNativeCallbackField(env, jniNativeInterfaceClass);
+
+  // Client callback functions defined in PeriodicScanNativeCallback
   const JNIJavaMethod javaMethods[] = {
           {"onSyncStarted", "(IIIILjava/lang/String;III)V", &method_onSyncStarted},
           {"onSyncReport", "(IIII[B)V", &method_onSyncReport},
@@ -1018,7 +1001,7 @@ static int register_com_android_bluetooth_periodic_scan(JNIEnv* env) {
            &method_onSyncTransferredCallback},
           {"onBigInfoReport", "(IZ)V", &method_onBigInfoReport},
   };
-  GET_JAVA_METHODS(env, "com/android/bluetooth/le_scan/PeriodicScanNativeInterface", javaMethods);
+  GET_JAVA_METHODS(env, "com/android/bluetooth/le_scan/PeriodicScanNativeCallback", javaMethods);
   return 0;
 }
 

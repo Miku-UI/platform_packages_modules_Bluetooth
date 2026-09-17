@@ -37,8 +37,6 @@ import static java.util.Objects.requireNonNull;
 import android.annotation.SuppressLint;
 import android.app.NotificationManager;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothProfile;
-import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.BluetoothSocket;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.SdpOppOpsRecord;
@@ -57,19 +55,14 @@ import android.os.Process;
 import android.util.Log;
 
 import com.android.bluetooth.BluetoothMethodProxy;
-import com.android.bluetooth.BluetoothObexTransport;
-import com.android.bluetooth.BluetoothStatsLog;
-import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
+import com.android.bluetooth.obex.BluetoothObexTransport;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.obex.ObexTransport;
 
 import java.io.IOException;
 
 /** This class run an actual Opp transfer session (from connect target device to disconnect) */
-// Next tag value for ContentProfileErrorReportUtils.report(): 24
-@SuppressLint("AndroidFrameworkRequiresPermission")
 public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatchListener {
     private static final String TAG = BluetoothOppTransfer.class.getSimpleName();
 
@@ -103,12 +96,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 if (device == null) {
                     Log.e(TAG, "Device is null");
-                    ContentProfileErrorReportUtils.report(
-                            BluetoothProfile.OPP,
-                            BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
-                            0);
                     return;
                 } else if (mCurrentShare == null) {
                     Log.e(
@@ -119,12 +106,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                                     + mBatch
                                     + " mCurrentShare :"
                                     + mCurrentShare);
-                    ContentProfileErrorReportUtils.report(
-                            BluetoothProfile.OPP,
-                            BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
-                            1);
                     return;
                 }
                 try {
@@ -151,12 +132,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                                         BluetoothOppObexSession.MSG_CONNECT_TIMEOUT);
                     }
                 } catch (Exception e) {
-                    ContentProfileErrorReportUtils.report(
-                            BluetoothProfile.OPP,
-                            BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                            2);
                     Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                 }
             } else if (action.equals(BluetoothDevice.ACTION_SDP_RECORD)) {
@@ -170,40 +145,21 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                             intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                     if (mDevice == null) {
                         Log.w(TAG, "OPP SDP search, target device is null, ignoring result");
-                        ContentProfileErrorReportUtils.report(
-                                BluetoothProfile.OPP,
-                                BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                                3);
                         return;
                     }
-                    String deviceIdentityAddress = Utils.getBrEdrAddress(device, mAdapterService);
-                    String transferDeviceIdentityAddress =
-                            Utils.getBrEdrAddress(mDevice, mAdapterService);
+                    String deviceIdentityAddress = mAdapterService.getBrEdrAddress(device);
+                    String transferDeviceIdentityAddress = mAdapterService.getBrEdrAddress(mDevice);
                     if (deviceIdentityAddress == null
                             || transferDeviceIdentityAddress == null
                             || !deviceIdentityAddress.equalsIgnoreCase(
                                     transferDeviceIdentityAddress)) {
                         Log.w(TAG, " OPP SDP search for wrong device, ignoring!!");
-                        ContentProfileErrorReportUtils.report(
-                                BluetoothProfile.OPP,
-                                BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                                4);
                         return;
                     }
                     SdpOppOpsRecord record =
                             intent.getParcelableExtra(BluetoothDevice.EXTRA_SDP_RECORD);
                     if (record == null) {
                         Log.w(TAG, " Invalid SDP , ignoring !!");
-                        ContentProfileErrorReportUtils.report(
-                                BluetoothProfile.OPP,
-                                BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                                5);
                         markConnectionFailed(null);
                         return;
                     }
@@ -338,12 +294,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                         markBatchFailed(info2.mStatus);
                         tickShareStatus(mCurrentShare);
                     } catch (Exception e) {
-                        ContentProfileErrorReportUtils.report(
-                                BluetoothProfile.OPP,
-                                BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                                6);
                         Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
                     }
                 }
@@ -358,12 +308,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                                 mTransport.close();
                             }
                         } catch (IOException e) {
-                            ContentProfileErrorReportUtils.report(
-                                    BluetoothProfile.OPP,
-                                    BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                                    BluetoothStatsLog
-                                            .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                                    7);
                             Log.e(TAG, "failed to close mTransport");
                         }
                         Log.v(TAG, "mTransport closed ");
@@ -389,12 +333,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                                 mTransport.close();
                             }
                         } catch (IOException e) {
-                            ContentProfileErrorReportUtils.report(
-                                    BluetoothProfile.OPP,
-                                    BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                                    BluetoothStatsLog
-                                            .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                                    8);
                             Log.e(TAG, "failed to close mTransport");
                         }
                         Log.v(TAG, "mTransport closed ");
@@ -436,11 +374,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
             try {
                 wait(1000);
             } catch (InterruptedException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.OPP,
-                        BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        9);
                 Log.v(TAG, "Interrupted waiting for markBatchFailed");
             }
         }
@@ -556,12 +489,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                     Log.v(TAG, "waiting for connect thread to terminate");
                     mConnectThread.join();
                 } catch (InterruptedException e) {
-                    ContentProfileErrorReportUtils.report(
-                            BluetoothProfile.OPP,
-                            BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                            11);
                     Log.v(TAG, "Interrupted waiting for connect thread to join");
                 }
                 mConnectThread = null;
@@ -578,7 +505,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
     }
 
     private void startObexSession() {
-
         mBatch.mStatus = Constants.BATCH_STATUS_RUNNING;
 
         mCurrentShare = mBatch.getPendingShare();
@@ -587,11 +513,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
              * TODO catch this error
              */
             Log.e(TAG, "Unexpected error happened !");
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.OPP,
-                    BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
-                    12);
             return;
         }
         Log.v(TAG, "Start session for info " + mCurrentShare.mId + " for batch " + mBatch.mId);
@@ -608,11 +529,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
             if (mSession == null) {
                 /* set current share as error */
                 Log.e(TAG, "Unexpected error happened !");
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.OPP,
-                        BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
-                        13);
                 markBatchFailed(BluetoothShare.STATUS_UNKNOWN_ERROR);
                 mBatch.mStatus = Constants.BATCH_STATUS_FAILED;
                 return;
@@ -641,11 +557,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                     Log.v(TAG, "Registered mBluetoothReceiver");
                 }
             } catch (IllegalArgumentException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.OPP,
-                        BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        14);
                 Log.e(TAG, "mBluetoothReceiver Registered already ", e);
             }
         }
@@ -732,12 +643,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                 try {
                     mBtSocket.close();
                 } catch (IOException e) {
-                    ContentProfileErrorReportUtils.report(
-                            BluetoothProfile.OPP,
-                            BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                            15);
                     Log.v(TAG, "Error when close socket");
                 }
             }
@@ -755,11 +660,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                         mDevice.createInsecureRfcommSocketToServiceRecord(
                                 BluetoothUuid.OBEX_OBJECT_PUSH.getUuid());
             } catch (IOException e1) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.OPP,
-                        BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        16);
                 Log.e(TAG, "Rfcomm socket create error", e1);
                 markConnectionFailed(mBtSocket);
                 return;
@@ -779,11 +679,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                 Log.v(TAG, "Send transport message " + transport.toString());
                 mSessionHandler.obtainMessage(TRANSPORT_CONNECTED, transport).sendToTarget();
             } catch (IOException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.OPP,
-                        BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        17);
                 Log.e(TAG, "Rfcomm socket connect exception", e);
                 // If the devices were paired before, but unpaired on the
                 // remote end, it will return an error for the auth request
@@ -821,11 +716,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
             /* Use BluetoothSocket to connect */
             if (mIsInterrupted) {
                 Log.e(TAG, "btSocket connect interrupted ");
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.OPP,
-                        BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
-                        18);
                 markConnectionFailed(mBtSocket);
                 return;
             } else {
@@ -845,25 +735,13 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                 Log.v(TAG, "Send transport message " + transport.toString());
                 mSessionHandler.obtainMessage(TRANSPORT_CONNECTED, transport).sendToTarget();
             } catch (IOException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.OPP,
-                        BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        20);
                 Log.e(TAG, "L2cap socket connect exception", e);
                 try {
                     mBtSocket.close();
                 } catch (IOException e3) {
-                    ContentProfileErrorReportUtils.report(
-                            BluetoothProfile.OPP,
-                            BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                            21);
                     Log.e(TAG, "Bluetooth socket close error ", e3);
                 }
                 connectRfcommSocket();
-                return;
             }
         }
     }
@@ -875,11 +753,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                 s.close();
             }
         } catch (IOException e) {
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.OPP,
-                    BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                    22);
             Log.e(TAG, "Error when close socket");
         }
         BluetoothMethodProxy.getInstance()
@@ -963,11 +836,6 @@ public class BluetoothOppTransfer implements BluetoothOppBatch.BluetoothOppBatch
                     mBluetoothReceiver = null;
                 }
             } catch (Exception e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.OPP,
-                        BluetoothProtoEnums.BLUETOOTH_OPP_TRANSFER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        23);
                 Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
             }
         }

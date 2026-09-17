@@ -37,13 +37,11 @@
 #include "os/alarm.h"
 #include "os/queue.h"
 #include "os/system_properties.h"
-#include "osi/include/stack_power_telemetry.h"
 #include "packet/raw_builder.h"
 #include "storage/storage_module.h"
 
 namespace bluetooth {
 namespace hci {
-using bluetooth::common::BindOn;
 using bluetooth::common::BindOnce;
 using bluetooth::common::ContextualCallback;
 using bluetooth::common::ContextualOnceCallback;
@@ -158,6 +156,7 @@ struct HciLayer::impl {
   }
 
   ~impl() {
+    handler_ = nullptr;
     incoming_acl_buffer_.Clear();
     incoming_sco_buffer_.Clear();
     incoming_iso_buffer_.Clear();
@@ -234,6 +233,12 @@ struct HciLayer::impl {
     log::assert_that(response_view.IsValid(), "assert failed: response_view.IsValid()");
     command_credits_ = response_view.GetNumHciCommandPackets();
     OpCode op_code = response_view.GetCommandOpCode();
+    if (handler_ == nullptr) {
+      log::warn("Ignoring command response {} for opcode {} because stack has been shutdown",
+                EventCodeText(event.GetEventCode()), OpCodeText(op_code));
+      return;
+    }
+
     if (op_code == OpCode::NONE) {
       send_next_command();
       return;
@@ -317,9 +322,13 @@ struct HciLayer::impl {
 
     log::error("Flushing #{} waiting commands", command_queue_.size());
     for (auto& command : command_queue_) {
-      log::debug("Flushing command: opcode:{}, waiting for: {}",
-                 command.command_view ? OpCodeText(command.command_view->GetOpCode()) : "??",
-                 static_cast<int>(command.waiting_for_));
+      auto* cmd_view = command.command_view.get();
+      if (cmd_view && cmd_view->IsValid()) {
+        log::debug("Flushing command: opcode:{}, waiting for: {}",
+                   OpCodeText(cmd_view->GetOpCode()), static_cast<int>(command.waiting_for_));
+      } else {
+        log::debug("Flushing command: Invalid command_view packet");
+      }
     }
 
     // Clear any waiting commands (there is an abort coming anyway)
@@ -363,7 +372,6 @@ struct HciLayer::impl {
     auto cmd_view = CommandView::Create(PacketView<kLittleEndian>(bytes));
     log::assert_that(cmd_view.IsValid(), "assert failed: cmd_view.IsValid()");
     OpCode op_code = cmd_view.GetOpCode();
-    power_telemetry::GetInstance().LogHciCmdDetail();
     command_queue_.front().command_view = std::make_unique<CommandView>(std::move(cmd_view));
     log_link_layer_connection_command(command_queue_.front().command_view);
     log_classic_pairing_command_status(command_queue_.front().command_view,
@@ -407,6 +415,24 @@ struct HciLayer::impl {
       return;
     }
     le_event_handlers_.erase(it);
+  }
+
+  void register_development_event(DevelopmentSubeventCode event,
+                                  ContextualCallback<void(DevelopmentEventView)> handler) {
+    log::assert_that(development_event_handlers_.count(event) == 0,
+                     "Can not register a second handler for {}",
+                     DevelopmentSubeventCodeText(event));
+    development_event_handlers_[event] = handler;
+  }
+
+  void unregister_development_event(DevelopmentSubeventCode event) {
+    auto it = development_event_handlers_.find(event);
+    if (it == development_event_handlers_.end()) {
+      log::warn("Can not unregister a non-existent handler for {}",
+                DevelopmentSubeventCodeText(event));
+      return;
+    }
+    development_event_handlers_.erase(it);
   }
 
   void register_vs_event(VseSubeventCode event,
@@ -483,7 +509,6 @@ struct HciLayer::impl {
     } else {
       log_hci_event(command_queue_.front().command_view, event, storage_);
     }
-    power_telemetry::GetInstance().LogHciEvtDetail();
     EventCode event_code = event.GetEventCode();
     // Root Inflammation is a special case, since it aborts here
     if (event_code == EventCode::VENDOR_SPECIFIC) {
@@ -510,6 +535,9 @@ struct HciLayer::impl {
         break;
       case EventCode::HARDWARE_ERROR:
         on_hardware_error(event);
+        break;
+      case EventCode::DEVELOPMENT:
+        on_development_event(event);
         break;
       case EventCode::VENDOR_SPECIFIC:
         on_vs_event(event);
@@ -549,6 +577,19 @@ struct HciLayer::impl {
     le_event_handlers_[subevent_code](meta_event_view);
   }
 
+  void on_development_event(EventView event) {
+    DevelopmentEventView development_event_view = DevelopmentEventView::Create(event);
+    log::assert_that(development_event_view.IsValid(),
+                     "assert failed: development_event_view.IsValid()");
+    DevelopmentSubeventCode subevent_code = development_event_view.GetSubeventCode();
+    if (development_event_handlers_.find(subevent_code) == development_event_handlers_.end()) {
+      log::warn("Unhandled development event of type {}",
+                DevelopmentSubeventCodeText(subevent_code));
+      return;
+    }
+    development_event_handlers_[subevent_code](development_event_view);
+  }
+
   void on_vs_event(EventView event) {
     VendorSpecificEventView vs_event_view = VendorSpecificEventView::Create(event);
     log::assert_that(vs_event_view.IsValid(), "assert failed: vs_event_view.IsValid()");
@@ -572,6 +613,8 @@ struct HciLayer::impl {
 
   std::map<EventCode, ContextualCallback<void(EventView)>> event_handlers_;
   std::map<SubeventCode, ContextualCallback<void(LeMetaEventView)>> le_event_handlers_;
+  std::map<DevelopmentSubeventCode, ContextualCallback<void(DevelopmentEventView)>>
+          development_event_handlers_;
   std::map<VseSubeventCode, ContextualCallback<void(VendorSpecificEventView)>> vs_event_handlers_;
   std::optional<ContextualCallback<void(VendorSpecificEventView)>> vs_event_default_handler_;
 
@@ -593,6 +636,9 @@ struct HciLayer::impl {
   os::EnqueueBuffer<IsoView> incoming_iso_buffer_{iso_queue_.GetDownEnd()};
 
   HciDataRouter router_;
+  uint16_t vendor_connection_handle_min_{0};
+  uint16_t vendor_connection_handle_max_{0};
+  ContextualCallback<void(uint16_t, std::vector<uint8_t>)> vendor_specific_acl_handler_{};
 };
 
 // All functions here are running on the HAL thread
@@ -617,7 +663,32 @@ struct HciLayer::hal_callbacks : public hal::HciHalCallbacks {
     }
     auto packet = packet::PacketView<packet::kLittleEndian>(
             std::make_shared<std::vector<uint8_t>>(std::move(data_bytes)));
-    auto acl = std::make_unique<AclView>(AclView::Create(packet));
+    auto acl_view = AclView::Create(packet);
+
+    if (com_android_bluetooth_flags_report_vendor_events_from_acl() &&
+        module_.impl_->vendor_connection_handle_min_ > 0) {
+      log::assert_that(acl_view.IsValid(), "invalid acl packet");
+      uint16_t handle = acl_view.GetHandle();
+      if (handle >= module_.impl_->vendor_connection_handle_min_ &&
+          handle <= module_.impl_->vendor_connection_handle_max_) {
+        if (module_.impl_->vendor_specific_acl_handler_) {
+          // The payload is copied into a vector because the callback expects a vector.
+          auto payload = acl_view.GetPayload();
+          std::vector<uint8_t> data(payload.begin(), payload.end());
+          // Post the task to the handler thread.
+          module_.impl_->handler_->Post(common::BindOnce(
+                  [](ContextualCallback<void(uint16_t, std::vector<uint8_t>)> handler,
+                     uint16_t handle,
+                     std::vector<uint8_t> data) { handler(handle, std::move(data)); },
+                  module_.impl_->vendor_specific_acl_handler_, handle, std::move(data)));
+        } else {
+          log::warn("Dropping vendor specific ACL packet since no handler is registered");
+        }
+        return;
+      }
+    }
+
+    auto acl = std::make_unique<AclView>(std::move(acl_view));
     module_.impl_->incoming_acl_buffer_.Enqueue(std::move(acl), module_.impl_->handler_);
   }
 
@@ -726,6 +797,23 @@ void HciLayer::UnregisterLeEventHandler(SubeventCode event) {
   impl_->handler_->CallOn(impl_, &impl::unregister_le_event, event);
 }
 
+void HciLayer::RegisterDevelopmentEventHandler(
+        DevelopmentSubeventCode event, ContextualCallback<void(DevelopmentEventView)> handler) {
+  std::unique_lock<std::recursive_mutex> lock(life_cycle_guard);
+  if (life_cycle_stopped) {
+    return;
+  }
+  impl_->handler_->CallOn(impl_, &impl::register_development_event, event, handler);
+}
+
+void HciLayer::UnregisterDevelopmentEventHandler(DevelopmentSubeventCode event) {
+  std::unique_lock<std::recursive_mutex> lock(life_cycle_guard);
+  if (life_cycle_stopped) {
+    return;
+  }
+  impl_->handler_->CallOn(impl_, &impl::unregister_development_event, event);
+}
+
 void HciLayer::RegisterVendorSpecificEventHandler(
         VseSubeventCode event, ContextualCallback<void(VendorSpecificEventView)> handler) {
   std::unique_lock<std::recursive_mutex> lock(life_cycle_guard);
@@ -750,6 +838,29 @@ void HciLayer::RegisterDefaultVendorSpecificEventHandler(
 
 void HciLayer::UnregisterDefaultVendorSpecificEventHandler() {
   impl_->handler_->CallOn(impl_, &impl::unregister_vs_event_default);
+}
+
+void HciLayer::SetVendorAclHandleRange(uint16_t min, uint16_t max) {
+  impl_->handler_->Post(common::BindOnce(
+          [](impl* p_impl, uint16_t min, uint16_t max) {
+            p_impl->vendor_connection_handle_min_ = min;
+            p_impl->vendor_connection_handle_max_ = max;
+          },
+          impl_, min, max));
+}
+
+void HciLayer::RegisterVendorSpecificAclHandler(
+        ContextualCallback<void(uint16_t, std::vector<uint8_t>)> handler) {
+  impl_->handler_->Post(common::BindOnce(
+          [](impl* p_impl, ContextualCallback<void(uint16_t, std::vector<uint8_t>)> handler) {
+            p_impl->vendor_specific_acl_handler_ = handler;
+          },
+          impl_, handler));
+}
+
+void HciLayer::UnregisterVendorSpecificAclHandler() {
+  impl_->handler_->Post(
+          common::BindOnce([](impl* p_impl) { p_impl->vendor_specific_acl_handler_ = {}; }, impl_));
 }
 
 void HciLayer::on_disconnection_complete(EventView event_view) {
@@ -979,12 +1090,12 @@ HciLayer::HciLayer(Handler* handler, hal::HciHal* hal, storage::StorageModule* s
   hal_callbacks_ = new hal_callbacks(*this);
   life_cycle_stopped = false;
 
-  impl_->acl_queue_.GetDownEnd()->RegisterDequeue(handler,
-                                                  BindOn(impl_, &impl::on_outbound_acl_ready));
-  impl_->sco_queue_.GetDownEnd()->RegisterDequeue(handler,
-                                                  BindOn(impl_, &impl::on_outbound_sco_ready));
-  impl_->iso_queue_.GetDownEnd()->RegisterDequeue(handler,
-                                                  BindOn(impl_, &impl::on_outbound_iso_ready));
+  impl_->acl_queue_.GetDownEnd()->RegisterDequeue(
+          handler, base::Bind(&impl::on_outbound_acl_ready, base::Unretained(impl_)));
+  impl_->sco_queue_.GetDownEnd()->RegisterDequeue(
+          handler, base::Bind(&impl::on_outbound_sco_ready, base::Unretained(impl_)));
+  impl_->iso_queue_.GetDownEnd()->RegisterDequeue(
+          handler, base::Bind(&impl::on_outbound_iso_ready, base::Unretained(impl_)));
   StartWithNoHalDependencies(handler);
   hal->registerIncomingPacketCallback(hal_callbacks_);
   EnqueueCommand(ResetBuilder::Create(), handler->BindOnce(&fail_if_reset_complete_not_success));
@@ -1026,9 +1137,7 @@ HciLayer::~HciLayer() {
   impl_->hal_->unregisterIncomingPacketCallback();
   delete hal_callbacks_;
 
-  if (com_android_bluetooth_flags_fix_event_handler_reg_and_dereg()) {
-    StopWithNoHalDependencies();
-  }
+  StopWithNoHalDependencies();
 
   impl_->acl_queue_.GetDownEnd()->UnregisterDequeue();
   impl_->sco_queue_.GetDownEnd()->UnregisterDequeue();

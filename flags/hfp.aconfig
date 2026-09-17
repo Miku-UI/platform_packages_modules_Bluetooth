@@ -2,33 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "sco_managed_by_audio_remove_hfp_hal"
-    namespace: "bluetooth"
-    description: "Deprecate the btm_sco_hfp_hal and migrate to IBluetoothAudio"
-    bug: "417621867"
-}
-
-flag {
-    name: "fix_hfp_qual_1_9"
-    namespace: "bluetooth"
-    description: "Fix multiple issues in CVSD fallback logics, which are blocking PTS HFP Qualification 1.9"
-    bug: "332650199"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "maintain_call_index_after_conference"
-    namespace: "bluetooth"
-    description: "Avoid change of clcc call index after call disconnects from conference"
-    bug: "345380335"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "sco_state_machine_cleanup"
     namespace: "bluetooth"
     description: "Cleanup SCO SM if headset disconnected during opening."
@@ -49,88 +22,10 @@ flag {
 }
 
 flag {
-    name: "check_peer_hf_indicator"
-    namespace: "bluetooth"
-    description: "Flag to check the peer HF indicator before setting feature mask"
-    bug: "383933502"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "enable_battery_level_update_only_through_hf_indicator"
     namespace: "bluetooth"
     description: "Flag to ignore vendor specific battery level update when HF indicator support is enabled."
     bug: "385870861"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "qc_prioritize_lc3_codec"
-    namespace: "bluetooth"
-    description: "QC patch to prioritize lc3 codec over aptx"
-    bug: "409604300"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "qc_send_error_at_bcc_ibr_disabled"
-    namespace: "bluetooth"
-    description: "QC patch to send an error when HF sends AT+BCC when IBR is disabled"
-    bug: "409845355"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "fix_hfp_rfcomm_collision_state_machine_error"
-    namespace: "bluetooth"
-    description: "fix hfp state machine error when both side initiate rfcomm connection"
-    bug: "409798631"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "qc_aptx_codec_negotiation"
-    namespace: "bluetooth"
-    description: "QC patch to not do codec negotiation with aptx"
-    bug: "410921017"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "voice_recognition_fixes"
-    namespace: "bluetooth"
-    description: "Fix issues with starting/stopping voice recognition"
-    bug: "415376528"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "support_zoomed_in_icon_metadata"
-    namespace: "bluetooth"
-    is_exported: true
-    description: "Add api support for a zoomed in icon metadata"
-    bug: "417245933"
-}
-
-flag {
-    name: "send_ok_clcc_before_slc"
-    namespace: "bluetooth"
-    description: "Send clcc response ok before slc is completed to avoid remote issues"
-    bug: "421323693"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -157,70 +52,116 @@ flag {
 }
 
 flag {
-    name: "send_ok_on_no_action_on_chld"
+    name: "sco_state_machine_update_revision"
     namespace: "bluetooth"
-    description: "Send OK on no action perfomed on CHLD instead of ERROR"
-    bug: "424860125"
+    description: "Flag check correction for ag/33454932"
+    bug: "459353324"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "hfp_sco_state_reset_when_profile_restart"
+    name: "call_end_codec_negotiation"
     namespace: "bluetooth"
-    description: "Reset sco state when BT profile restart without BT stack shutdown"
-    bug: "424125580"
+    description: "Close SCO when end call during codec negotiation"
+    bug: "461739981"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "microphone_mute_status_sync"
+    name: "deprecate_connect_audio"
     namespace: "bluetooth"
-    description: "Synchronize microphone Mute status of phone with peripheral"
-    bug: "391258154"
+    is_exported: true
+    description: "Deprecate methods that will not be used for Audio managed by Sco"
+    bug: "456541678"
+}
+
+flag {
+    name: "hangup_callstate_simulated_ringing"
+    namespace: "bluetooth"
+    description: "Reject to hang up call that is STATE_SIMULATED_RINGING state"
+    bug: "460640390"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "sco_state_machine_update_in_codec_state"
+    name: "fix_sco_type_mask_check"
     namespace: "bluetooth"
-    description: "sco state machine update when other HFP device disconnected during codec negotiation"
-    bug: "416436313"
+    description: "Masking for excepting sco packets correctly"
+    bug: "467252341"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "mode_change_before_sco_unpark"
+    name: "hfp_avoid_deadlock"
     namespace: "bluetooth"
-    description: "Do mode change before SCO unpark"
-    bug: "419189913"
+    description: "do the task outside synchronized to avoid deadlock with Audio Fwk"
+    bug: "462377292"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "end_outgoing_call_on_chld"
+    name: "hfp_get_codec_api"
     namespace: "bluetooth"
-    description: "End outgoing call on CHLD"
-    bug: "426374659"
+    is_exported: true
+    description: "Add api support for get hfp connection codec type"
+    bug: "464401354"
+}
+
+flag {
+    name: "microphone_mute_gain_retain"
+    namespace: "bluetooth"
+    description: "Retain the mic gain value between MUTE and UNMUTE"
+    bug: "468985625"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "check_call_state_atd"
+    name: "hfp_ag_rfc_race_condition_random_timer"
     namespace: "bluetooth"
-    description: "End outgoing call on CHLD"
-    bug: "441983109"
+    description: "Resolve HFP RFCOMM race condition in bta_ag_rfc_acp_open using random timer"
+    bug: "473274758"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "release_pending_sco_after_role_switch"
+    namespace: "bluetooth"
+    description: "Trigger a check for pending SCO connections once link re-encryption follows a role switch to avoid missing simultaneous SCO requests"
+    bug: "475076252"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "disconnect_sco_if_not_allowed"
+    namespace: "bluetooth"
+    description: "Disconnect SCO if not allowed during connection"
+    bug: "475315385"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "sco_close_after_rfcomm_disconnect"
+    namespace: "bluetooth"
+    description: "Inform to BTA_AV about SCO closed after rfcomm disconnected"
+    bug: "476898825"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

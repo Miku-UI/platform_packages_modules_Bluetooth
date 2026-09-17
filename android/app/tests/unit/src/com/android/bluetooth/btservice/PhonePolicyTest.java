@@ -31,73 +31,80 @@ import static com.android.bluetooth.btservice.PhonePolicy.BYPASS_LE_AUDIO_ALLOWL
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothCsipSetCoordinator;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
+import android.bluetooth.State;
+import android.content.pm.ApplicationInfo;
 import android.os.ParcelUuid;
 import android.os.SystemProperties;
 import android.platform.test.flag.junit.SetFlagsRule;
 
-import androidx.room.Room;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
-import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.bluetooth.TestLooper;
-import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.a2dp.A2dpService;
-import com.android.bluetooth.btservice.storage.DatabaseManager;
-import com.android.bluetooth.btservice.storage.MetadataDatabase;
 import com.android.bluetooth.csip.CsipSetCoordinatorService;
 import com.android.bluetooth.hap.HapClientService;
 import com.android.bluetooth.hearingaid.HearingAidService;
 import com.android.bluetooth.hfp.HeadsetService;
 import com.android.bluetooth.le_audio.LeAudioService;
+import com.android.bluetooth.mcp.McpClientService;
+import com.android.bluetooth.storage.BluetoothStorageManager;
+import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.tests.bluetooth.StaticMockitoRule;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 
-import java.nio.charset.StandardCharsets;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /** Test cases for {@link PhonePolicy}. */
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class PhonePolicyTest {
     @Rule
-    public final StaticMockitoRule mMockitoRule = new StaticMockitoRule(SystemProperties.class);
+    public final StaticMockitoRule mMockitoRule =
+            new StaticMockitoRule(SystemProperties.class, McpClientService.class);
 
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Rule public final TemporaryFolder mTempFolder = new TemporaryFolder();
 
     @Mock private AdapterService mAdapterService;
     @Mock private HeadsetService mHeadsetService;
     @Mock private A2dpService mA2dpService;
     @Mock private LeAudioService mLeAudioService;
-    @Mock private DatabaseManager mDatabaseManager;
     @Mock private CsipSetCoordinatorService mCsipSetCoordinatorService;
     @Mock private HearingAidService mHearingAidService;
+    @Mock private ApplicationInfo mMockApplicationInfo;
     @Mock private HapClientService mHapClientService;
+    @Mock private McpClientService mMcpClientService;
 
     private static final int MAX_CONNECTED_AUDIO_DEVICES = 5;
 
@@ -107,6 +114,7 @@ public class PhonePolicyTest {
     private final BluetoothDevice mDevice4 = getTestDevice(3);
 
     private PhonePolicy mPhonePolicy;
+    private BluetoothStorageManager mStorage;
     private boolean mOriginalDualModeState;
     private TestLooper mLooper;
 
@@ -121,9 +129,16 @@ public class PhonePolicyTest {
         doReturn(true).when(mHeadsetService).connect(any());
         doReturn(true).when(mA2dpService).connect(any());
 
-        doReturn(BluetoothAdapter.STATE_ON).when(mAdapterService).getState();
+        doReturn(mMockApplicationInfo).when(mAdapterService).getApplicationInfo();
+        doReturn(mTempFolder.getRoot()).when(mAdapterService).getFilesDir();
+        doAnswer(it -> new File(mTempFolder.getRoot(), it.getArgument(0)))
+                .when(mAdapterService)
+                .getDatabasePath(anyString());
+
+        doReturn(Collections.emptySet()).when(mAdapterService).getBondedDevices();
+        doReturn(mAdapterService).when(mAdapterService).createDeviceProtectedStorageContext();
+        doReturn(State.ON).when(mAdapterService).getState();
         doReturn(MAX_CONNECTED_AUDIO_DEVICES).when(mAdapterService).getMaxConnectedAudioDevices();
-        doReturn(mDatabaseManager).when(mAdapterService).getDatabaseManager();
         doReturn(Optional.of(mA2dpService)).when(mAdapterService).getA2dpService();
         doReturn(Optional.of(mCsipSetCoordinatorService))
                 .when(mAdapterService)
@@ -132,11 +147,14 @@ public class PhonePolicyTest {
         doReturn(Optional.of(mHearingAidService)).when(mAdapterService).getHearingAidService();
         doReturn(Optional.of(mHapClientService)).when(mAdapterService).getHapClientService();
         doReturn(Optional.of(mLeAudioService)).when(mAdapterService).getLeAudioService();
+        doReturn(Optional.of(mMcpClientService)).when(mAdapterService).getMcpClientService();
 
         // Most common default
         doReturn(CONNECTION_POLICY_UNKNOWN).when(mHeadsetService).getConnectionPolicy(any());
         doReturn(CONNECTION_POLICY_UNKNOWN).when(mA2dpService).getConnectionPolicy(any());
         doReturn(CONNECTION_POLICY_UNKNOWN).when(mLeAudioService).getConnectionPolicy(any());
+        doReturn(CONNECTION_POLICY_UNKNOWN).when(mMcpClientService).getConnectionPolicy(any());
+        ExtendedMockito.doReturn(true).when(() -> McpClientService.isEnabled());
         doReturn(STATE_DISCONNECTED).when(mA2dpService).getConnectionState(any());
         doReturn(STATE_DISCONNECTED).when(mHeadsetService).getConnectionState(any());
         doReturn(Collections.emptyList()).when(mA2dpService).getConnectedDevices();
@@ -144,7 +162,9 @@ public class PhonePolicyTest {
 
         mockGetRemoteDevice(mAdapterService, mDevice1, mDevice2, mDevice3, mDevice4);
 
-        mPhonePolicy = new PhonePolicy(mAdapterService, mLooper.getLooper());
+        mStorage = spy(new BluetoothStorageManager(mAdapterService));
+
+        mPhonePolicy = new PhonePolicy(mAdapterService, mLooper.getLooper(), mStorage);
         mOriginalDualModeState = Utils.isDualModeAudioEnabled();
     }
 
@@ -182,6 +202,16 @@ public class PhonePolicyTest {
         verify(mAdapterService)
                 .setProfileConnectionPolicy(
                         mDevice1, BluetoothProfile.A2DP, CONNECTION_POLICY_ALLOWED);
+    }
+
+    @Test
+    public void testProcessInitProfilePriorities_McpClient() {
+        mPhonePolicy.mAutoConnectProfilesSupported = true;
+
+        ParcelUuid[] uuids = {BluetoothUuid.GENERIC_MEDIA_CONTROL};
+        mPhonePolicy.onUuidsDiscovered(mDevice1, uuids);
+
+        verify(mMcpClientService).setConnectionPolicy(mDevice1, CONNECTION_POLICY_ALLOWED);
     }
 
     private void processInitProfilePriorities_LeAudioOnlyHelper(
@@ -238,17 +268,19 @@ public class PhonePolicyTest {
                 .getGroupDevicesOrdered(csipGroupId);
 
         for (BluetoothDevice dev : allConnectedDevices) {
-            when(mAdapterService.getBondState(dev)).thenReturn(BluetoothDevice.BOND_BONDED);
-            when(mLeAudioService.setConnectionPolicy(dev, CONNECTION_POLICY_ALLOWED))
-                    .thenAnswer(
+            doReturn(BluetoothDevice.BOND_BONDED).when(mAdapterService).getBondState(dev);
+            doAnswer(
                             invocation -> {
                                 return setLeAudioAllowedConnectionPolicy(dev);
-                            });
-            when(mLeAudioService.getConnectionPolicy(dev))
-                    .thenAnswer(
+                            })
+                    .when(mLeAudioService)
+                    .setConnectionPolicy(dev, CONNECTION_POLICY_ALLOWED);
+            doAnswer(
                             invocation -> {
                                 return getLeAudioConnectionPolicy(dev);
-                            });
+                            })
+                    .when(mLeAudioService)
+                    .getConnectionPolicy(dev);
 
             /* First device is always LE only second depends on dualMode */
             if (groupSize == 1 || connectedDevices.size() >= 1) {
@@ -321,7 +353,7 @@ public class PhonePolicyTest {
 
     @Test
     public void testProcessInitProfilePriorities_LeAudioDisabledByDefault() {
-        when(mAdapterService.isLeAudioAllowed(mDevice1)).thenReturn(true);
+        doReturn(true).when(mAdapterService).isLeAudioAllowed(mDevice1);
 
         // Auto connect to LE audio, HFP, A2DP
         processInitProfilePriorities_LeAudioHelper(true, true, false, false);
@@ -364,7 +396,7 @@ public class PhonePolicyTest {
 
     @Test
     public void testProcessInitProfilePriorities_LeAudioEnabledByDefault() {
-        when(mAdapterService.isLeAudioAllowed(mDevice1)).thenReturn(true);
+        doReturn(true).when(mAdapterService).isLeAudioAllowed(mDevice1);
 
         // Auto connect to LE audio, HFP, A2DP
         processInitProfilePriorities_LeAudioHelper(true, true, true, false);
@@ -441,11 +473,12 @@ public class PhonePolicyTest {
         int groupSize = 2;
 
         List<BluetoothDevice> connectedDevices = new ArrayList<>();
-        when(mCsipSetCoordinatorService.getDesiredGroupSize(csipGroupId)).thenReturn(groupSize);
-        when(mCsipSetCoordinatorService.getGroupId(any(), any())).thenReturn(csipGroupId);
-        when(mLeAudioService.getGroupId(any())).thenReturn(csipGroupId);
-        when(mCsipSetCoordinatorService.getGroupDevicesOrdered(csipGroupId))
-                .thenReturn(connectedDevices);
+        doReturn(groupSize).when(mCsipSetCoordinatorService).getDesiredGroupSize(csipGroupId);
+        doReturn(csipGroupId).when(mCsipSetCoordinatorService).getGroupId(any(), any());
+        doReturn(csipGroupId).when(mLeAudioService).getGroupId(any());
+        doReturn(connectedDevices)
+                .when(mCsipSetCoordinatorService)
+                .getGroupDevicesOrdered(csipGroupId);
 
         // Connect first set member
         connectedDevices.add(mDevice1);
@@ -461,32 +494,34 @@ public class PhonePolicyTest {
         doReturn(CONNECTION_POLICY_ALLOWED).when(mHeadsetService).getConnectionPolicy(any());
         doReturn(CONNECTION_POLICY_ALLOWED).when(mA2dpService).getConnectionPolicy(any());
 
-        when(mLeAudioService.setConnectionPolicy(
-                        any(BluetoothDevice.class), eq(CONNECTION_POLICY_ALLOWED)))
-                .thenAnswer(
+        doAnswer(
                         invocation -> {
                             return setLeAudioAllowedConnectionPolicy(invocation.getArgument(0));
-                        });
-        when(mLeAudioService.getConnectionPolicy(any(BluetoothDevice.class)))
-                .thenAnswer(
+                        })
+                .when(mLeAudioService)
+                .setConnectionPolicy(any(BluetoothDevice.class), eq(CONNECTION_POLICY_ALLOWED));
+        doAnswer(
                         invocation -> {
                             return getLeAudioConnectionPolicy(invocation.getArgument(0));
-                        });
-        when(mLeAudioService.getGroupDevices(csipGroupId)).thenReturn(connectedDevices);
+                        })
+                .when(mLeAudioService)
+                .getConnectionPolicy(any(BluetoothDevice.class));
+        doReturn(connectedDevices).when(mLeAudioService).getGroupDevices(csipGroupId);
 
-        when(mAdapterService.getRemoteUuids(any(BluetoothDevice.class))).thenReturn(uuids);
-        when(mAdapterService.isProfileSupported(
-                        any(BluetoothDevice.class), eq(BluetoothProfile.HEARING_AID)))
-                .thenReturn(false);
-        when(mAdapterService.isProfileSupported(
-                        any(BluetoothDevice.class), eq(BluetoothProfile.LE_AUDIO)))
-                .thenReturn(true);
+        doReturn(uuids).when(mAdapterService).getRemoteUuids(any(BluetoothDevice.class));
+        doReturn(false)
+                .when(mAdapterService)
+                .isProfileSupported(any(BluetoothDevice.class), eq(BluetoothProfile.HEARING_AID));
+        doReturn(true)
+                .when(mAdapterService)
+                .isProfileSupported(any(BluetoothDevice.class), eq(BluetoothProfile.LE_AUDIO));
 
         /* Always DualMode for test purpose */
-        when(mAdapterService.getRemoteType(any(BluetoothDevice.class)))
-                .thenReturn(BluetoothDevice.DEVICE_TYPE_DUAL);
+        doReturn(BluetoothDevice.DEVICE_TYPE_DUAL)
+                .when(mAdapterService)
+                .getRemoteType(any(BluetoothDevice.class));
 
-        when(mAdapterService.getBondState(mDevice1)).thenReturn(BluetoothDevice.BOND_BONDED);
+        doReturn(BluetoothDevice.BOND_BONDED).when(mAdapterService).getBondState(mDevice1);
 
         // Inject first devices
         mPhonePolicy.onUuidsDiscovered(mDevice1, uuids);
@@ -508,7 +543,7 @@ public class PhonePolicyTest {
 
         mockSystemPropertyGet(BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY, false);
 
-        when(mAdapterService.getBondState(mDevice2)).thenReturn(BluetoothDevice.BOND_BONDED);
+        doReturn(BluetoothDevice.BOND_BONDED).when(mAdapterService).getBondState(mDevice2);
 
         // Now connect second device and make sure
         // Connect first set member
@@ -545,11 +580,12 @@ public class PhonePolicyTest {
         int groupSize = 2;
 
         List<BluetoothDevice> connectedDevices = new ArrayList<>();
-        when(mCsipSetCoordinatorService.getDesiredGroupSize(csipGroupId)).thenReturn(groupSize);
-        when(mCsipSetCoordinatorService.getGroupId(any(), any())).thenReturn(csipGroupId);
-        when(mLeAudioService.getGroupId(any())).thenReturn(csipGroupId);
-        when(mCsipSetCoordinatorService.getGroupDevicesOrdered(csipGroupId))
-                .thenReturn(connectedDevices);
+        doReturn(groupSize).when(mCsipSetCoordinatorService).getDesiredGroupSize(csipGroupId);
+        doReturn(csipGroupId).when(mCsipSetCoordinatorService).getGroupId(any(), any());
+        doReturn(csipGroupId).when(mLeAudioService).getGroupId(any());
+        doReturn(connectedDevices)
+                .when(mCsipSetCoordinatorService)
+                .getGroupDevicesOrdered(csipGroupId);
 
         // Connect first set member
         connectedDevices.add(mDevice1);
@@ -564,31 +600,33 @@ public class PhonePolicyTest {
         // Prepare common handlers
         doReturn(CONNECTION_POLICY_ALLOWED).when(mHearingAidService).getConnectionPolicy(any());
 
-        when(mLeAudioService.setConnectionPolicy(
-                        any(BluetoothDevice.class), eq(CONNECTION_POLICY_ALLOWED)))
-                .thenAnswer(
+        doAnswer(
                         invocation -> {
                             return setLeAudioAllowedConnectionPolicy(invocation.getArgument(0));
-                        });
-        when(mLeAudioService.getConnectionPolicy(any(BluetoothDevice.class)))
-                .thenAnswer(
+                        })
+                .when(mLeAudioService)
+                .setConnectionPolicy(any(BluetoothDevice.class), eq(CONNECTION_POLICY_ALLOWED));
+        doAnswer(
                         invocation -> {
                             return getLeAudioConnectionPolicy(invocation.getArgument(0));
-                        });
-        when(mLeAudioService.getGroupDevices(csipGroupId)).thenReturn(connectedDevices);
+                        })
+                .when(mLeAudioService)
+                .getConnectionPolicy(any(BluetoothDevice.class));
+        doReturn(connectedDevices).when(mLeAudioService).getGroupDevices(csipGroupId);
 
-        when(mAdapterService.getRemoteUuids(any(BluetoothDevice.class))).thenReturn(uuids);
-        when(mAdapterService.isProfileSupported(
-                        any(BluetoothDevice.class), eq(BluetoothProfile.HEARING_AID)))
-                .thenReturn(false);
-        when(mAdapterService.isProfileSupported(
-                        any(BluetoothDevice.class), eq(BluetoothProfile.LE_AUDIO)))
-                .thenReturn(true);
+        doReturn(uuids).when(mAdapterService).getRemoteUuids(any(BluetoothDevice.class));
+        doReturn(false)
+                .when(mAdapterService)
+                .isProfileSupported(any(BluetoothDevice.class), eq(BluetoothProfile.HEARING_AID));
+        doReturn(true)
+                .when(mAdapterService)
+                .isProfileSupported(any(BluetoothDevice.class), eq(BluetoothProfile.LE_AUDIO));
 
         /* Always DualMode for test purpose */
-        when(mAdapterService.getRemoteType(any(BluetoothDevice.class)))
-                .thenReturn(BluetoothDevice.DEVICE_TYPE_LE);
-        when(mAdapterService.getBondState(mDevice1)).thenReturn(BluetoothDevice.BOND_BONDED);
+        doReturn(BluetoothDevice.DEVICE_TYPE_LE)
+                .when(mAdapterService)
+                .getRemoteType(any(BluetoothDevice.class));
+        doReturn(BluetoothDevice.BOND_BONDED).when(mAdapterService).getBondState(mDevice1);
 
         // Inject first devices
         mPhonePolicy.onUuidsDiscovered(mDevice1, uuids);
@@ -610,7 +648,7 @@ public class PhonePolicyTest {
 
         mockSystemPropertyGet(BYPASS_LE_AUDIO_ALLOWLIST_PROPERTY, false);
 
-        when(mAdapterService.getBondState(mDevice2)).thenReturn(BluetoothDevice.BOND_BONDED);
+        doReturn(BluetoothDevice.BOND_BONDED).when(mAdapterService).getBondState(mDevice2);
 
         // Now connect second device and make sure
         // Connect first set member
@@ -644,17 +682,17 @@ public class PhonePolicyTest {
     @Test
     public void testAdapterOnAutoConnect() {
         // Return desired values from the mocked object(s)
-        when(mAdapterService.isQuietModeEnabled()).thenReturn(false);
+        doReturn(false).when(mAdapterService).isQuietModeEnabled();
 
         // Return a list of connection order
-        when(mDatabaseManager.getMostRecentlyConnectedA2dpDevice()).thenReturn(mDevice1);
-        when(mAdapterService.getBondState(mDevice1)).thenReturn(BluetoothDevice.BOND_BONDED);
+        doReturn(mDevice1).when(mStorage).getMostRecentlyActiveA2dpDevice();
+        doReturn(BluetoothDevice.BOND_BONDED).when(mAdapterService).getBondState(mDevice1);
 
         doReturn(CONNECTION_POLICY_ALLOWED).when(mHeadsetService).getConnectionPolicy(any());
         doReturn(CONNECTION_POLICY_ALLOWED).when(mA2dpService).getConnectionPolicy(any());
 
         // Inject an event that the adapter is turned on.
-        mPhonePolicy.onBluetoothStateChange(BluetoothAdapter.STATE_OFF, BluetoothAdapter.STATE_ON);
+        mPhonePolicy.onBluetoothStateChange(State.OFF, State.ON);
 
         // Check that we got a request to connect over HFP and A2DP
         verify(mA2dpService).connect(eq(mDevice1));
@@ -664,8 +702,9 @@ public class PhonePolicyTest {
     /** Test that when an active device is disconnected, we will not auto connect it */
     @Test
     public void testDisconnectNoAutoConnect() {
+        InOrder order = inOrder(mStorage);
         // Return desired values from the mocked object(s)
-        when(mAdapterService.isQuietModeEnabled()).thenReturn(false);
+        doReturn(false).when(mAdapterService).isQuietModeEnabled();
 
         // Return a list of connection order
         List<BluetoothDevice> connectionOrder = new ArrayList<>();
@@ -674,7 +713,7 @@ public class PhonePolicyTest {
         connectionOrder.add(mDevice3);
         connectionOrder.add(mDevice4);
 
-        doReturn(mDevice1).when(mDatabaseManager).getMostRecentlyConnectedA2dpDevice();
+        doReturn(mDevice1).when(mStorage).getMostRecentlyActiveA2dpDevice();
 
         // Make all devices auto connect
         doReturn(CONNECTION_POLICY_ALLOWED).when(mHeadsetService).getConnectionPolicy(any());
@@ -687,36 +726,30 @@ public class PhonePolicyTest {
         mLooper.dispatchAll();
 
         // Only calls setConnection on device connectionOrder.get(0) with STATE_CONNECTED
-        verify(mDatabaseManager).setConnection(mDevice1, BluetoothProfile.A2DP);
-        verify(mDatabaseManager, never()).setConnection(eq(connectionOrder.get(1)), anyInt());
-        verify(mDatabaseManager, never()).setConnection(eq(connectionOrder.get(2)), anyInt());
-        verify(mDatabaseManager, never()).setConnection(eq(connectionOrder.get(3)), anyInt());
+        order.verify(mStorage).onDeviceConnected(mDevice1, BluetoothProfile.A2DP);
+        order.verify(mStorage, never()).onDeviceConnected(any(), anyInt());
 
         // Make another device active
-        when(mHeadsetService.getConnectionState(connectionOrder.get(1)))
-                .thenReturn(STATE_CONNECTED);
+        doReturn(STATE_CONNECTED).when(mHeadsetService).getConnectionState(connectionOrder.get(1));
         mPhonePolicy.profileActiveDeviceChanged(BluetoothProfile.A2DP, connectionOrder.get(1));
         mLooper.dispatchAll();
 
         // Only calls setConnection on device connectionOrder.get(1) with STATE_CONNECTED
-        verify(mDatabaseManager).setConnection(connectionOrder.get(0), BluetoothProfile.A2DP);
-        verify(mDatabaseManager).setConnection(connectionOrder.get(1), BluetoothProfile.A2DP);
-        verify(mDatabaseManager, never()).setConnection(eq(connectionOrder.get(2)), anyInt());
-        verify(mDatabaseManager, never()).setConnection(eq(connectionOrder.get(3)), anyInt());
+        order.verify(mStorage).onDeviceConnected(mDevice2, BluetoothProfile.A2DP);
+        order.verify(mStorage, never()).onDeviceConnected(any(), anyInt());
 
         // Disconnect a2dp for the device from previous STATE_CONNECTED
-        when(mHeadsetService.getConnectionState(connectionOrder.get(1)))
-                .thenReturn(STATE_DISCONNECTED);
+        doReturn(STATE_DISCONNECTED)
+                .when(mHeadsetService)
+                .getConnectionState(connectionOrder.get(1));
         mPhonePolicy.profileConnectionStateChanged(
                 BluetoothProfile.A2DP, connectionOrder.get(1), STATE_CONNECTED, STATE_DISCONNECTED);
         mLooper.dispatchAll();
 
         // Verify that we do not call setConnection, nor setDisconnection on disconnect
         // from previous STATE_CONNECTED
-        verify(mDatabaseManager)
-                .setConnection(eq(connectionOrder.get(1)), eq(BluetoothProfile.A2DP));
-        verify(mDatabaseManager, never())
-                .setDisconnection(eq(connectionOrder.get(1)), eq(BluetoothProfile.A2DP));
+        order.verify(mStorage, never()).onDeviceConnected(any(), anyInt());
+        order.verify(mStorage, never()).onDeviceDisconnected(any(), anyInt());
 
         // Disconnect a2dp for the device from previous STATE_DISCONNECTING
         mPhonePolicy.profileConnectionStateChanged(
@@ -727,14 +760,11 @@ public class PhonePolicyTest {
         mLooper.dispatchAll();
 
         // Verify that we do not call setConnection, but instead setDisconnection on disconnect
-        verify(mDatabaseManager)
-                .setConnection(eq(connectionOrder.get(1)), eq(BluetoothProfile.A2DP));
-        verify(mDatabaseManager)
-                .setDisconnection(eq(connectionOrder.get(1)), eq(BluetoothProfile.A2DP));
+        order.verify(mStorage, never()).onDeviceConnected(any(), anyInt());
+        order.verify(mStorage).onDeviceDisconnected(mDevice2, BluetoothProfile.A2DP);
 
         // Make the current active device fail to connect
-        when(mA2dpService.getConnectionState(connectionOrder.get(1)))
-                .thenReturn(STATE_DISCONNECTED);
+        doReturn(STATE_DISCONNECTED).when(mA2dpService).getConnectionState(connectionOrder.get(1));
         updateProfileConnectionStateHelper(
                 connectionOrder.get(1),
                 BluetoothProfile.HEADSET,
@@ -743,13 +773,11 @@ public class PhonePolicyTest {
         mLooper.dispatchAll();
 
         // Verify we don't call deleteConnection as that only happens when we disconnect a2dp
-        verify(mDatabaseManager)
-                .setDisconnection(eq(connectionOrder.get(1)), eq(BluetoothProfile.A2DP));
+        order.verify(mStorage, never()).onDeviceConnected(any(), anyInt());
+        order.verify(mStorage).onDeviceDisconnected(any(), eq(BluetoothProfile.HEADSET));
 
         // Verify we didn't have any unexpected calls to setConnection or deleteConnection
-        verify(mDatabaseManager, times(2)).setConnection(any(BluetoothDevice.class), anyInt());
-        verify(mDatabaseManager)
-                .setDisconnection(eq(connectionOrder.get(1)), eq(BluetoothProfile.HEADSET));
+        verifyNoMoreInteractions(mStorage);
     }
 
     /**
@@ -758,8 +786,7 @@ public class PhonePolicyTest {
      */
     @Test
     public void testReconnectOnPartialConnect() {
-        BluetoothDevice[] bondedDevices = {mDevice1};
-        doReturn(bondedDevices).when(mAdapterService).getBondedDevices();
+        doReturn(Set.of(mDevice1)).when(mAdapterService).getBondedDevices();
 
         doReturn(CONNECTION_POLICY_ALLOWED).when(mHeadsetService).getConnectionPolicy(any());
         doReturn(CONNECTION_POLICY_ALLOWED).when(mA2dpService).getConnectionPolicy(any());
@@ -769,13 +796,14 @@ public class PhonePolicyTest {
         // connected devices
         ArrayList<BluetoothDevice> hsConnectedDevices = new ArrayList<>();
         hsConnectedDevices.add(mDevice1);
-        when(mHeadsetService.getConnectedDevices()).thenReturn(hsConnectedDevices);
+        doReturn(hsConnectedDevices).when(mHeadsetService).getConnectedDevices();
         // Also the A2DP should say that its not connected for same device
-        when(mA2dpService.getConnectionState(mDevice1)).thenReturn(STATE_DISCONNECTED);
+        doReturn(STATE_DISCONNECTED).when(mA2dpService).getConnectionState(mDevice1);
 
         // ACL is connected, lets simulate this.
-        when(mAdapterService.getConnectionState(mDevice1))
-                .thenReturn(BluetoothDevice.CONNECTION_STATE_ENCRYPTED_BREDR);
+        doReturn(BluetoothDevice.CONNECTION_STATE_ENCRYPTED_BREDR)
+                .when(mAdapterService)
+                .getConnectionState(mDevice1);
 
         // We send a connection successful for one profile since the re-connect *only* works if we
         // have already connected successfully over one of the profiles
@@ -792,8 +820,7 @@ public class PhonePolicyTest {
      */
     @Test
     public void testConnectOtherProfileWhileDeviceIsDisconnected() {
-        BluetoothDevice[] bondedDevices = {mDevice1};
-        doReturn(bondedDevices).when(mAdapterService).getBondedDevices();
+        doReturn(Set.of(mDevice1)).when(mAdapterService).getBondedDevices();
 
         doReturn(CONNECTION_POLICY_ALLOWED).when(mHeadsetService).getConnectionPolicy(any());
         doReturn(CONNECTION_POLICY_ALLOWED).when(mA2dpService).getConnectionPolicy(any());
@@ -805,8 +832,9 @@ public class PhonePolicyTest {
 
         // ACL is disconnected just after HEADSET profile got connected and connectOtherProfile
         // was scheduled. Lets simulate this.
-        when(mAdapterService.getConnectionState(mDevice1))
-                .thenReturn(BluetoothDevice.CONNECTION_STATE_DISCONNECTED);
+        doReturn(BluetoothDevice.CONNECTION_STATE_DISCONNECTED)
+                .when(mAdapterService)
+                .getConnectionState(mDevice1);
 
         // We send a connection successful for one profile since the re-connect *only* works if we
         // have already connected successfully over one of the profiles
@@ -827,7 +855,7 @@ public class PhonePolicyTest {
         InOrder mInOrder = inOrder(mA2dpService);
         // ACL is connected, lets simulate this.
         doReturn(STATE_CONNECTED).when(mAdapterService).getConnectionState(mDevice1);
-        doReturn(mDevice1).when(mDatabaseManager).getMostRecentlyConnectedA2dpDevice();
+        doReturn(mDevice1).when(mStorage).getMostRecentlyActiveA2dpDevice();
         doReturn(CONNECTION_POLICY_ALLOWED).when(mHeadsetService).getConnectionPolicy(any());
         doReturn(CONNECTION_POLICY_ALLOWED).when(mA2dpService).getConnectionPolicy(any());
 
@@ -881,30 +909,10 @@ public class PhonePolicyTest {
      */
     @Test
     public void testAutoConnectHfpOnly() {
-
-        // Return desired values from the mocked object(s)
-        doReturn(false).when(mAdapterService).isQuietModeEnabled();
-
-        MetadataDatabase mDatabase =
-                Room.inMemoryDatabaseBuilder(
-                                InstrumentationRegistry.getInstrumentation().getContext(),
-                                MetadataDatabase.class)
-                        .build();
-        DatabaseManager db = new DatabaseManager(mAdapterService);
-        doReturn(db).when(mAdapterService).getDatabaseManager();
-        PhonePolicy phonePolicy = new PhonePolicy(mAdapterService, mLooper.getLooper());
-
-        db.start(mDatabase);
-        TestUtils.waitForLooperToFinishScheduledTask(db.getHandlerLooper());
-
-        // Return a device that is HFP only
-        db.setConnection(mDevice1, BluetoothProfile.HEADSET);
+        mStorage.onDeviceConnected(mDevice1, BluetoothProfile.HEADSET);
         doReturn(CONNECTION_POLICY_ALLOWED).when(mHeadsetService).getConnectionPolicy(eq(mDevice1));
 
-        // wait for all MSG_UPDATE_DATABASE
-        TestUtils.waitForLooperToFinishScheduledTask(db.getHandlerLooper());
-
-        phonePolicy.autoConnect();
+        mPhonePolicy.autoConnect();
 
         // Check that we got a request to connect over HFP for each device
         verify(mHeadsetService).connect(eq(mDevice1));
@@ -912,32 +920,15 @@ public class PhonePolicyTest {
 
     @Test
     public void autoConnect_whenMultiHfp_startConnection() {
-        // Return desired values from the mocked object(s)
-        doReturn(false).when(mAdapterService).isQuietModeEnabled();
-
-        MetadataDatabase mDatabase =
-                Room.inMemoryDatabaseBuilder(
-                                InstrumentationRegistry.getInstrumentation().getContext(),
-                                MetadataDatabase.class)
-                        .build();
-        DatabaseManager db = new DatabaseManager(mAdapterService);
-        doReturn(db).when(mAdapterService).getDatabaseManager();
-        PhonePolicy phonePolicy = new PhonePolicy(mAdapterService, mLooper.getLooper());
-
-        db.start(mDatabase);
-        TestUtils.waitForLooperToFinishScheduledTask(db.getHandlerLooper());
-
         List<BluetoothDevice> devices = List.of(mDevice1, mDevice2, mDevice3);
         for (BluetoothDevice device : devices) {
-            db.setConnection(device, BluetoothProfile.HEADSET);
+            mStorage.onDeviceConnected(device, BluetoothProfile.HEADSET);
             doReturn(CONNECTION_POLICY_ALLOWED)
                     .when(mHeadsetService)
                     .getConnectionPolicy(eq(device));
         }
-        // wait for all MSG_UPDATE_DATABASE
-        TestUtils.waitForLooperToFinishScheduledTask(db.getHandlerLooper());
 
-        phonePolicy.autoConnect();
+        mPhonePolicy.autoConnect();
 
         // Check that we got a request to connect over HFP for each device
         for (BluetoothDevice device : devices) {
@@ -947,41 +938,23 @@ public class PhonePolicyTest {
 
     @Test
     public void autoConnect_whenMultiHfpAndDisconnection_startConnection() {
-        // Return desired values from the mocked object(s)
-        doReturn(false).when(mAdapterService).isQuietModeEnabled();
-
-        MetadataDatabase mDatabase =
-                Room.inMemoryDatabaseBuilder(
-                                InstrumentationRegistry.getInstrumentation().getContext(),
-                                MetadataDatabase.class)
-                        .build();
-        DatabaseManager db = new DatabaseManager(mAdapterService);
-        doReturn(db).when(mAdapterService).getDatabaseManager();
-        PhonePolicy phonePolicy = new PhonePolicy(mAdapterService, mLooper.getLooper());
-
-        db.start(mDatabase);
-        TestUtils.waitForLooperToFinishScheduledTask(db.getHandlerLooper());
-
         BluetoothDevice deviceToDisconnect = mDevice1;
-        db.setConnection(deviceToDisconnect, BluetoothProfile.HEADSET);
+        mStorage.onDeviceConnected(deviceToDisconnect, BluetoothProfile.HEADSET);
         doReturn(CONNECTION_POLICY_ALLOWED)
                 .when(mHeadsetService)
                 .getConnectionPolicy(eq(deviceToDisconnect));
 
         List<BluetoothDevice> devices = List.of(mDevice2, mDevice3, mDevice4);
         for (BluetoothDevice device : devices) {
-            db.setConnection(device, BluetoothProfile.HEADSET);
+            mStorage.onDeviceConnected(device, BluetoothProfile.HEADSET);
             doReturn(CONNECTION_POLICY_ALLOWED)
                     .when(mHeadsetService)
                     .getConnectionPolicy(eq(device));
         }
 
-        db.setDisconnection(deviceToDisconnect, BluetoothProfile.HEADSET);
+        mStorage.onDeviceDisconnected(deviceToDisconnect, BluetoothProfile.HEADSET);
 
-        // wait for all MSG_UPDATE_DATABASE
-        TestUtils.waitForLooperToFinishScheduledTask(db.getHandlerLooper());
-
-        phonePolicy.autoConnect();
+        mPhonePolicy.autoConnect();
 
         // Check that we got a request to connect over HFP for each device
         for (BluetoothDevice device : devices) {
@@ -1010,14 +983,14 @@ public class PhonePolicyTest {
             testDevices[i] = testDevice;
 
             // ACL is connected, lets simulate this.
-            when(mAdapterService.getConnectionState(testDevice)).thenReturn(STATE_CONNECTED);
+            doReturn(STATE_CONNECTED).when(mAdapterService).getConnectionState(testDevice);
 
             // Return PRIORITY_AUTO_CONNECT over HFP and A2DP. This would imply that the profiles
             // are auto-connectable.
-            when(mHeadsetService.getConnectionPolicy(testDevice))
-                    .thenReturn(CONNECTION_POLICY_ALLOWED);
-            when(mA2dpService.getConnectionPolicy(testDevice))
-                    .thenReturn(CONNECTION_POLICY_ALLOWED);
+            doReturn(CONNECTION_POLICY_ALLOWED)
+                    .when(mHeadsetService)
+                    .getConnectionPolicy(testDevice);
+            doReturn(CONNECTION_POLICY_ALLOWED).when(mA2dpService).getConnectionPolicy(testDevice);
             // We want to trigger (in CONNECT_OTHER_PROFILES_TIMEOUT) a call to connect A2DP
             // To enable that we need to make sure that HeadsetService returns the device as list
             // of connected devices.
@@ -1030,14 +1003,12 @@ public class PhonePolicyTest {
         BluetoothDevice a2dpNotConnectedDevice1 = hsConnectedDevices.get(kMaxTestDevices - 1);
         BluetoothDevice a2dpNotConnectedDevice2 = hsConnectedDevices.get(kMaxTestDevices - 2);
 
-        when(mAdapterService.getBondedDevices()).thenReturn(testDevices);
-        when(mHeadsetService.getConnectedDevices()).thenReturn(hsConnectedDevices);
-        when(mA2dpService.getConnectedDevices()).thenReturn(a2dpConnectedDevices);
+        doReturn(Set.of(testDevices)).when(mAdapterService).getBondedDevices();
+        doReturn(hsConnectedDevices).when(mHeadsetService).getConnectedDevices();
+        doReturn(a2dpConnectedDevices).when(mA2dpService).getConnectedDevices();
         // Two of the A2DP devices are not connected
-        when(mA2dpService.getConnectionState(a2dpNotConnectedDevice1))
-                .thenReturn(STATE_DISCONNECTED);
-        when(mA2dpService.getConnectionState(a2dpNotConnectedDevice2))
-                .thenReturn(STATE_DISCONNECTED);
+        doReturn(STATE_DISCONNECTED).when(mA2dpService).getConnectionState(a2dpNotConnectedDevice1);
+        doReturn(STATE_DISCONNECTED).when(mA2dpService).getConnectionState(a2dpNotConnectedDevice2);
 
         // We send a connection successful for one profile since the re-connect *only* works if we
         // have already connected successfully over one of the profiles
@@ -1082,56 +1053,64 @@ public class PhonePolicyTest {
             testDevices[i] = testDevice;
 
             // ACL is connected, lets simulate this.
-            when(mAdapterService.getConnectionState(testDevices[i])).thenReturn(STATE_CONNECTED);
+            doReturn(STATE_CONNECTED).when(mAdapterService).getConnectionState(testDevices[i]);
 
             // Connect HFP and A2DP for each device as appropriate.
             // Return PRIORITY_AUTO_CONNECT only for testDevices[0]
             if (i == 0) {
                 hsConnectedDevices.add(testDevice);
                 a2dpConnectedDevices.add(testDevice);
-                when(mHeadsetService.getConnectionPolicy(testDevice))
-                        .thenReturn(CONNECTION_POLICY_ALLOWED);
-                when(mA2dpService.getConnectionPolicy(testDevice))
-                        .thenReturn(CONNECTION_POLICY_ALLOWED);
+                doReturn(CONNECTION_POLICY_ALLOWED)
+                        .when(mHeadsetService)
+                        .getConnectionPolicy(testDevice);
+                doReturn(CONNECTION_POLICY_ALLOWED)
+                        .when(mA2dpService)
+                        .getConnectionPolicy(testDevice);
             }
             if (i == 1) {
                 hsConnectedDevices.add(testDevice);
-                when(mHeadsetService.getConnectionPolicy(testDevice))
-                        .thenReturn(CONNECTION_POLICY_ALLOWED);
-                when(mA2dpService.getConnectionPolicy(testDevice))
-                        .thenReturn(CONNECTION_POLICY_ALLOWED);
+                doReturn(CONNECTION_POLICY_ALLOWED)
+                        .when(mHeadsetService)
+                        .getConnectionPolicy(testDevice);
+                doReturn(CONNECTION_POLICY_ALLOWED)
+                        .when(mA2dpService)
+                        .getConnectionPolicy(testDevice);
             }
             if (i == 2) {
                 a2dpConnectedDevices.add(testDevice);
-                when(mHeadsetService.getConnectionPolicy(testDevice))
-                        .thenReturn(CONNECTION_POLICY_ALLOWED);
-                when(mA2dpService.getConnectionPolicy(testDevice))
-                        .thenReturn(CONNECTION_POLICY_ALLOWED);
+                doReturn(CONNECTION_POLICY_ALLOWED)
+                        .when(mHeadsetService)
+                        .getConnectionPolicy(testDevice);
+                doReturn(CONNECTION_POLICY_ALLOWED)
+                        .when(mA2dpService)
+                        .getConnectionPolicy(testDevice);
             }
             if (i == 3) {
                 // Device not connected
-                when(mHeadsetService.getConnectionPolicy(testDevice))
-                        .thenReturn(CONNECTION_POLICY_ALLOWED);
-                when(mA2dpService.getConnectionPolicy(testDevice))
-                        .thenReturn(CONNECTION_POLICY_ALLOWED);
+                doReturn(CONNECTION_POLICY_ALLOWED)
+                        .when(mHeadsetService)
+                        .getConnectionPolicy(testDevice);
+                doReturn(CONNECTION_POLICY_ALLOWED)
+                        .when(mA2dpService)
+                        .getConnectionPolicy(testDevice);
             }
         }
-        when(mAdapterService.getBondedDevices()).thenReturn(testDevices);
-        when(mHeadsetService.getConnectedDevices()).thenReturn(hsConnectedDevices);
-        when(mA2dpService.getConnectedDevices()).thenReturn(a2dpConnectedDevices);
+        doReturn(Set.of(testDevices)).when(mAdapterService).getBondedDevices();
+        doReturn(hsConnectedDevices).when(mHeadsetService).getConnectedDevices();
+        doReturn(a2dpConnectedDevices).when(mA2dpService).getConnectedDevices();
         // Some of the devices are not connected
         // testDevices[0] - connected for both HFP and A2DP
-        when(mHeadsetService.getConnectionState(testDevices[0])).thenReturn(STATE_CONNECTED);
-        when(mA2dpService.getConnectionState(testDevices[0])).thenReturn(STATE_CONNECTED);
+        doReturn(STATE_CONNECTED).when(mHeadsetService).getConnectionState(testDevices[0]);
+        doReturn(STATE_CONNECTED).when(mA2dpService).getConnectionState(testDevices[0]);
         // testDevices[1] - connected only for HFP - will auto-connect for A2DP
-        when(mHeadsetService.getConnectionState(testDevices[1])).thenReturn(STATE_CONNECTED);
-        when(mA2dpService.getConnectionState(testDevices[1])).thenReturn(STATE_DISCONNECTED);
+        doReturn(STATE_CONNECTED).when(mHeadsetService).getConnectionState(testDevices[1]);
+        doReturn(STATE_DISCONNECTED).when(mA2dpService).getConnectionState(testDevices[1]);
         // testDevices[2] - connected only for A2DP - will auto-connect for HFP
-        when(mHeadsetService.getConnectionState(testDevices[2])).thenReturn(STATE_DISCONNECTED);
-        when(mA2dpService.getConnectionState(testDevices[2])).thenReturn(STATE_CONNECTED);
+        doReturn(STATE_DISCONNECTED).when(mHeadsetService).getConnectionState(testDevices[2]);
+        doReturn(STATE_CONNECTED).when(mA2dpService).getConnectionState(testDevices[2]);
         // testDevices[3] - not connected
-        when(mHeadsetService.getConnectionState(testDevices[3])).thenReturn(STATE_DISCONNECTED);
-        when(mA2dpService.getConnectionState(testDevices[3])).thenReturn(STATE_DISCONNECTED);
+        doReturn(STATE_DISCONNECTED).when(mHeadsetService).getConnectionState(testDevices[3]);
+        doReturn(STATE_DISCONNECTED).when(mA2dpService).getConnectionState(testDevices[3]);
 
         // Generate connection state changed for HFP for testDevices[1] and trigger
         // auto-connect for A2DP.
@@ -1143,8 +1122,8 @@ public class PhonePolicyTest {
 
         // testDevices[1] auto-connect completed for A2DP
         a2dpConnectedDevices.add(testDevices[1]);
-        when(mA2dpService.getConnectedDevices()).thenReturn(a2dpConnectedDevices);
-        when(mA2dpService.getConnectionState(testDevices[1])).thenReturn(STATE_CONNECTED);
+        doReturn(a2dpConnectedDevices).when(mA2dpService).getConnectedDevices();
+        doReturn(STATE_CONNECTED).when(mA2dpService).getConnectionState(testDevices[1]);
 
         // Check the connect priorities for all devices
         // - testDevices[0] - connected for HFP and A2DP: setConnectionPolicy() should not be called
@@ -1176,8 +1155,8 @@ public class PhonePolicyTest {
 
         // testDevices[2] auto-connect completed for HFP
         hsConnectedDevices.add(testDevices[2]);
-        when(mHeadsetService.getConnectedDevices()).thenReturn(hsConnectedDevices);
-        when(mHeadsetService.getConnectionState(testDevices[2])).thenReturn(STATE_CONNECTED);
+        doReturn(hsConnectedDevices).when(mHeadsetService).getConnectedDevices();
+        doReturn(STATE_CONNECTED).when(mHeadsetService).getConnectionState(testDevices[2]);
 
         // Check the connect priorities for all devices
         // - testDevices[0] - connected for HFP and A2DP: setConnectionPolicy() should not be called
@@ -1203,13 +1182,11 @@ public class PhonePolicyTest {
     /** Test that we will not try to reconnect on a profile if all the connections failed */
     @Test
     public void testNoReconnectOnNoConnect() {
-        BluetoothDevice[] bondedDevices = {mDevice1};
-        doReturn(bondedDevices).when(mAdapterService).getBondedDevices();
+        doReturn(Set.of(mDevice1)).when(mAdapterService).getBondedDevices();
 
         doReturn(CONNECTION_POLICY_ALLOWED).when(mHeadsetService).getConnectionPolicy(any());
         doReturn(CONNECTION_POLICY_ALLOWED).when(mA2dpService).getConnectionPolicy(any());
 
-        mPhonePolicy.handleAclConnected(mDevice1);
         mLooper.dispatchAll();
 
         // Check that we don't get any calls to reconnect
@@ -1223,8 +1200,7 @@ public class PhonePolicyTest {
      */
     @Test
     public void testNoReconnectOnNoConnect_MultiDevice() {
-        BluetoothDevice[] bondedDevices = {mDevice1, mDevice2};
-        doReturn(bondedDevices).when(mAdapterService).getBondedDevices();
+        doReturn(Set.of(mDevice1, mDevice2)).when(mAdapterService).getBondedDevices();
 
         doReturn(CONNECTION_POLICY_ALLOWED).when(mHeadsetService).getConnectionPolicy(any());
         doReturn(CONNECTION_POLICY_ALLOWED).when(mA2dpService).getConnectionPolicy(any());
@@ -1239,7 +1215,6 @@ public class PhonePolicyTest {
 
         // We send a connection successful for one profile since the re-connect *only* works if we
         // have already connected successfully over one of the profiles
-        mPhonePolicy.handleAclConnected(mDevice1);
         mLooper.dispatchAll();
 
         // Check that we don't get any calls to reconnect
@@ -1252,8 +1227,7 @@ public class PhonePolicyTest {
      */
     @Test
     public void testReconnectOnPartialConnect_MultiDevice() {
-        BluetoothDevice[] bondedDevices = {mDevice1, mDevice2};
-        doReturn(bondedDevices).when(mAdapterService).getBondedDevices();
+        doReturn(Set.of(mDevice1, mDevice2)).when(mAdapterService).getBondedDevices();
 
         doReturn(List.of(mDevice2)).when(mHeadsetService).getConnectedDevices();
 
@@ -1295,36 +1269,27 @@ public class PhonePolicyTest {
     private void setupCsipGroup(BluetoothDevice leader, List<BluetoothDevice> members) {
         int csipGroupId = 1;
         // Mock getGroupId to return a test group ID for the leader device
-        when(mCsipSetCoordinatorService.getGroupId(eq(leader), eq(BluetoothUuid.CAP)))
-                .thenReturn(csipGroupId);
+        doReturn(csipGroupId)
+                .when(mCsipSetCoordinatorService)
+                .getGroupId(eq(leader), eq(BluetoothUuid.CAP));
 
         // Mock getGroupDevicesOrdered to return the member list for the test group ID
-        when(mCsipSetCoordinatorService.getGroupDevicesOrdered(eq(csipGroupId)))
-                .thenReturn(members);
-    }
-
-    private void setDeviceType(BluetoothDevice device, int type) {
-        when(mDatabaseManager.getCustomMeta(device, BluetoothDevice.METADATA_DEVICE_TYPE))
-                .thenReturn(String.valueOf(type).getBytes(StandardCharsets.UTF_8));
+        doReturn(members).when(mCsipSetCoordinatorService).getGroupDevicesOrdered(eq(csipGroupId));
     }
 
     @Test
     public void handleConnectionPolicyAfterCsipConnect_leOnlyMemberRemoved_policyForbidden() {
         // Test Case: LE Audio only member removed from CSIP set
 
-        // 1. Setup devices as LE Audio Only
-        setDeviceType(mDevice1, BluetoothDevice.DEVICE_TYPE_LE);
-        setDeviceType(mDevice2, BluetoothDevice.DEVICE_TYPE_LE);
-
         // 2. Setup CSIP group with device1 and device2
         setupCsipGroup(mDevice1, List.of(mDevice1, mDevice2));
 
         // 3. Initial bond states: Both bonded
-        when(mAdapterService.getBondState(mDevice1)).thenReturn(BluetoothDevice.BOND_BONDED);
-        when(mAdapterService.getBondState(mDevice2)).thenReturn(BluetoothDevice.BOND_BONDED);
+        doReturn(BluetoothDevice.BOND_BONDED).when(mAdapterService).getBondState(mDevice1);
+        doReturn(BluetoothDevice.BOND_BONDED).when(mAdapterService).getBondState(mDevice2);
 
         // 4. Simulate device2 removal (unbonded)
-        when(mAdapterService.getBondState(mDevice2)).thenReturn(BluetoothDevice.BOND_NONE);
+        doReturn(BluetoothDevice.BOND_NONE).when(mAdapterService).getBondState(mDevice2);
 
         // 5. Trigger the method under test, simulating a reconnect of device1
         mPhonePolicy.handleConnectionPolicyAfterCsipConnect(mDevice1);
@@ -1337,19 +1302,15 @@ public class PhonePolicyTest {
     public void handleConnectionPolicyAfterCsipConnect_dualModeMemberRemoved_noPolicyChange() {
         // Test Case: Dual mode member removed from CSIP set
 
-        // 1. Setup device1 as LE Audio Only, device2 as Dual Mode
-        setDeviceType(mDevice1, BluetoothDevice.DEVICE_TYPE_LE);
-        setDeviceType(mDevice2, BluetoothDevice.DEVICE_TYPE_DUAL);
-
         // 2. Setup CSIP group
         setupCsipGroup(mDevice1, List.of(mDevice1, mDevice2));
 
         // 3. Initial bond states: Both bonded
-        when(mAdapterService.getBondState(mDevice1)).thenReturn(BluetoothDevice.BOND_BONDED);
-        when(mAdapterService.getBondState(mDevice2)).thenReturn(BluetoothDevice.BOND_BONDED);
+        doReturn(BluetoothDevice.BOND_BONDED).when(mAdapterService).getBondState(mDevice1);
+        doReturn(BluetoothDevice.BOND_BONDED).when(mAdapterService).getBondState(mDevice2);
 
         // 4. Simulate device2 removal (unbonded)
-        when(mAdapterService.getBondState(mDevice2)).thenReturn(BluetoothDevice.BOND_NONE);
+        doReturn(BluetoothDevice.BOND_NONE).when(mAdapterService).getBondState(mDevice2);
 
         // 5. Trigger the method under test
         mPhonePolicy.handleConnectionPolicyAfterCsipConnect(mDevice1);

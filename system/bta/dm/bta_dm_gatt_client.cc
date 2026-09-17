@@ -19,6 +19,7 @@
 #include <base/functional/bind.h>
 #include <base/functional/callback.h>
 #include <bluetooth/types/address.h>
+#include <bluetooth/types/string_helpers.h>
 #include <bluetooth/types/uuid.h>
 
 #include <cstdint>
@@ -26,7 +27,6 @@
 #include <vector>
 
 #include "bta/include/bta_gatt_api.h"
-#include "common/strings.h"
 #include "main/shim/dumpsys.h"
 #include "stack/btm/btm_int_types.h"
 
@@ -53,10 +53,10 @@ static gatt_interface_t default_gatt_interface = {
                   BTA_GATTC_CancelOpen(client_if, remote_bda, is_direct);
                 },
         .BTA_GATTC_Refresh =
-                [](const RawAddress& remote_bda) {
-                  gatt_history_.Push(
-                          std::format("{:<32s} bd_addr:{}", "GATTC_Refresh", remote_bda));
-                  BTA_GATTC_Refresh(remote_bda);
+                [](tGATT_IF client_if, const RawAddress& remote_bda) {
+                  gatt_history_.Push(std::format("{:<32s} bd_addr:{} client_if:{}", "GATTC_Refresh",
+                                                 remote_bda, client_if));
+                  BTA_GATTC_Refresh(client_if, remote_bda);
                 },
         .BTA_GATTC_GetGattDb =
                 [](tCONN_ID conn_id, uint16_t start_handle, uint16_t end_handle,
@@ -71,7 +71,7 @@ static gatt_interface_t default_gatt_interface = {
                    BtaAppRegisterCallback cb, bool eatt_support) {
                   gatt_history_.Push(std::format("{:<32s} eatt_support:{:c}", "GATTC_AppRegister",
                                                  eatt_support ? 'T' : 'F'));
-                  BTA_GATTC_AppRegister(name, p_client_cb, cb, eatt_support);
+                  BTA_GATTC_AppRegister(name, p_client_cb, std::move(cb), eatt_support);
                 },
         .BTA_GATTC_Close =
                 [](tCONN_ID conn_id) {
@@ -79,26 +79,20 @@ static gatt_interface_t default_gatt_interface = {
                   BTA_GATTC_Close(conn_id);
                 },
         .BTA_GATTC_ServiceSearchRequest =
-                [](tCONN_ID conn_id, const bluetooth::Uuid* p_srvc_uuid) {
+                [](tCONN_ID conn_id) {
                   gatt_history_.Push(
                           std::format("{:<32s} conn_id:{}", "GATTC_ServiceSearchRequest", conn_id));
-                  if (p_srvc_uuid) {
-                    BTA_GATTC_ServiceSearchRequest(conn_id, *p_srvc_uuid);
-                  } else {
-                    BTA_GATTC_ServiceSearchAllRequest(conn_id);
-                  }
+                  BTA_GATTC_ServiceSearchRequest(conn_id);
                 },
         .BTA_GATTC_Open =
                 [](tGATT_IF client_if, const RawAddress& remote_bda,
-                   tBTM_BLE_CONN_TYPE connection_type, bool opportunistic, uint16_t preferred_mtu,
+                   tBTM_BLE_CONN_TYPE connection_type, uint16_t preferred_mtu,
                    bool prefer_relax_mode) {
-                  gatt_history_.Push(std::format(
-                          "{:<32s} bd_addr:{} client_if:{} type:0x{:x} opportunistic:{:c}",
-                          "GATTC_Open", remote_bda, client_if, connection_type,
-                          opportunistic ? 'T' : 'F'));
+                  gatt_history_.Push(std::format("{:<32s} bd_addr:{} client_if:{} type:0x{:x}",
+                                                 "GATTC_Open", remote_bda, client_if,
+                                                 connection_type));
                   BTA_GATTC_Open(client_if, remote_bda, BLE_ADDR_PUBLIC, connection_type,
-                                 BT_TRANSPORT_LE, opportunistic, LE_PHY_1M, preferred_mtu,
-                                 prefer_relax_mode);
+                                 BT_TRANSPORT_LE, preferred_mtu, prefer_relax_mode);
                 },
 };
 

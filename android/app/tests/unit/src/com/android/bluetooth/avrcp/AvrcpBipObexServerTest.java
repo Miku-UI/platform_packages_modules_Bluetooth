@@ -18,10 +18,10 @@ package com.android.bluetooth.avrcp;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -103,15 +103,13 @@ public class AvrcpBipObexServerTest {
     private static final String IMAGE_HANDLE_INVALID = "abc1234"; // no non-numeric characters
 
     private final Resources mTestResources = TestUtils.getTestApplicationResources();
+
     private CoverArt mCoverArt;
-
-    private AvrcpCoverArtService mAvrcpCoverArtService = null;
-    private AvrcpBipObexServer.Callback mCallback = null;
-
-    private HeaderSet mRequest = null;
-    private HeaderSet mReply = null;
-    private ByteArrayOutputStream mOutputStream = null;
-
+    private AvrcpCoverArtService mAvrcpCoverArtService;
+    private AvrcpBipObexServer.Callback mCallback;
+    private HeaderSet mRequest;
+    private HeaderSet mReply;
+    private ByteArrayOutputStream mOutputStream;
     private AvrcpBipObexServer mAvrcpBipObexServer;
 
     @Before
@@ -148,7 +146,7 @@ public class AvrcpBipObexServerTest {
 
     private void setCoverArtAvailableAtHandle(String handle, CoverArt art) {
         art.setImageHandle(handle);
-        when(mAvrcpCoverArtService.getImage(handle)).thenReturn(art);
+        doReturn(art).when(mAvrcpCoverArtService).getImage(handle);
     }
 
     /**
@@ -160,9 +158,9 @@ public class AvrcpBipObexServerTest {
     private static Operation makeOperation(HeaderSet requestHeaders, OutputStream os)
             throws Exception {
         Operation op = mock(Operation.class);
-        when(op.getReceivedHeader()).thenReturn(requestHeaders);
-        when(op.getMaxPacketSize()).thenReturn(256);
-        when(op.openOutputStream()).thenReturn(os);
+        doReturn(requestHeaders).when(op).getReceivedHeader();
+        doReturn(256).when(op).getMaxPacketSize();
+        doReturn(os).when(op).openOutputStream();
         return op;
     }
 

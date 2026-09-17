@@ -17,6 +17,7 @@
 
 #include <base/functional/bind.h>
 #include <base/functional/callback.h>
+#include <base/memory/weak_ptr.h>
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
@@ -47,14 +48,7 @@
 #include "bta_has_api.h"
 #include "bta_le_audio_uuids.h"
 #include "btif/include/btif_profile_storage.h"
-#include "btm_ble_api_types.h"
-#include "btm_sec.h"
-#include "btm_sec_api_types.h"
-#include "btm_status.h"
-#include "gap_api.h"
 #include "gatt/database.h"
-#include "gatt_api.h"
-#include "gattdefs.h"
 #include "has_ctp.h"
 #include "has_journal.h"
 #include "has_preset.h"
@@ -63,8 +57,14 @@
 #include "osi/include/properties.h"
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/btm_ble_api_types.h"
+#include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_sec_api_types.h"
+#include "stack/include/btm_status.h"
+#include "stack/include/gap_api.h"
+#include "stack/include/gatt_api.h"
+#include "stack/include/gattdefs.h"
 
-using base::Closure;
 using bluetooth::Uuid;
 using bluetooth::csis::CsisClient;
 using bluetooth::has::ConnectionState;
@@ -122,7 +122,7 @@ std::mutex instance_mutex;
  */
 class HasClientImpl : public HasClient {
 public:
-  HasClientImpl(bluetooth::has::HasClientCallbacks* callbacks, base::Closure initCb)
+  HasClientImpl(bluetooth::has::HasClientCallbacks* callbacks, base::OnceClosure initCb)
       : gatt_if_(0), callbacks_(callbacks) {
     BTA_GATTC_AppRegister(
             "has",
@@ -131,8 +131,8 @@ public:
                 instance->GattcCallback(event, p_data);
               }
             },
-            base::Bind(
-                    [](base::Closure initCb, uint8_t client_id, uint8_t status) {
+            base::BindOnce(
+                    [](base::OnceClosure initCb, uint8_t client_id, uint8_t status) {
                       if (status != GATT_SUCCESS) {
                         log::error(
                                 "Can't start Hearing Aid Service client profile - no gatt "
@@ -140,9 +140,9 @@ public:
                         return;
                       }
                       instance->gatt_if_ = client_id;
-                      initCb.Run();
+                      std::move(initCb).Run();
                     },
-                    initCb),
+                    std::move(initCb)),
             true);
   }
 
@@ -151,7 +151,7 @@ public:
   void Connect(const RawAddress& address) override {
     log::info("{}", address);
 
-    if (!BTM_IsBonded(address, BT_TRANSPORT_LE)) {
+    if (!get_security_client_interface().BTM_IsBonded(address, BT_TRANSPORT_LE)) {
       log::error("Connecting  {} when not bonded", address);
       callbacks_->OnConnectionState(ConnectionState::DISCONNECTED, address);
       return;
@@ -160,12 +160,11 @@ public:
     auto device = std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(address));
     if (device == devices_.end()) {
       devices_.emplace_back(address, true);
-      BTA_GATTC_Open(gatt_if_, address, BTM_BLE_DIRECT_CONNECTION, false);
-
+      BTA_GATTC_Open(gatt_if_, address, BTM_BLE_DIRECT_CONNECTION);
     } else {
       device->is_connecting_actively = true;
       if (!device->IsConnected()) {
-        BTA_GATTC_Open(gatt_if_, address, BTM_BLE_DIRECT_CONNECTION, false);
+        BTA_GATTC_Open(gatt_if_, address, BTM_BLE_DIRECT_CONNECTION);
       }
     }
   }
@@ -183,7 +182,7 @@ public:
       }
 
       /* Connect in background */
-      BTA_GATTC_Open(gatt_if_, address, BTM_BLE_BKG_CONNECT_ALLOW_LIST, false);
+      BTA_GATTC_Open(gatt_if_, address, BTM_BLE_BKG_CONNECT_ALLOW_LIST);
     }
   }
 
@@ -200,7 +199,9 @@ public:
     auto is_connecting_actively = device->is_connecting_actively;
 
     DoDisconnectCleanUp(*device);
-    devices_.erase(device);
+    if (!com_android_bluetooth_flags_hap_keep_bonded_dev_in_ram()) {
+      devices_.erase(device);
+    }
 
     if (conn_id != GATT_INVALID_CONN_ID) {
       BTA_GATTC_Close(conn_id);
@@ -215,6 +216,21 @@ public:
         BTA_GATTC_CancelOpen(gatt_if_, address, false);
       }
     }
+  }
+
+  void RemoveDevice(const RawAddress& address) override {
+    log::debug("{}", address);
+    if (!com_android_bluetooth_flags_hap_keep_bonded_dev_in_ram()) {
+      return;
+    }
+    auto device = std::find_if(devices_.begin(), devices_.end(), HasDevice::MatchAddress(address));
+    if (device == devices_.end()) {
+      log::warn("Device not connected to profile{}", address);
+      return;
+    }
+
+    Disconnect(address);
+    devices_.erase(device);
   }
 
   void UpdateJournalOpEntryStatus(HasDevice& device, HasGattOpContext context,
@@ -957,7 +973,7 @@ public:
 
   void Dump(int fd) const {
     std::stringstream stream;
-    stream << " APP ID: " << +gatt_if_ << " \n";
+    stream << " APP ID: " << +gatt_if_ << "\n";
     if (devices_.size()) {
       stream << "  {\"Known HAS devices\": [";
       for (const auto& device : devices_) {
@@ -975,11 +991,8 @@ public:
   void OnGroupOpCoordinatorTimeout(void* /*p*/) {
     log::error("Not all the devices notified their state change on time.");
 
-    if (com_android_bluetooth_flags_synchronize_preset_can_timeout()) {
-      for (auto op : pending_group_operation_timeouts_) {
-        callbacks_->OnActivePresetSelectError(op.second.operation.addr_or_group,
-                                              ErrorCode::TIMEOUT);
-      }
+    for (auto op : pending_group_operation_timeouts_) {
+      callbacks_->OnActivePresetSelectError(op.second.operation.addr_or_group, ErrorCode::TIMEOUT);
     }
     pending_group_operation_timeouts_.clear();
     HasCtpGroupOpCoordinator::Cleanup();
@@ -1024,7 +1037,7 @@ private:
       callbacks_->OnActivePresetSelected(device.addr, device.currently_active_preset);
       WriteAllNeededCcc(device);
     } else {
-      BTA_GATTC_ServiceSearchRequest(device.conn_id, kUuidHearingAccessService);
+      BTA_GATTC_ServiceSearchRequest(device.conn_id);
     }
   }
 
@@ -1594,55 +1607,13 @@ private:
     }
     // Always report the current active preset to upper layer to reflect the remote state.
     // Android may not always be aware of the origin of the changes and shouldn't delay the event
-    if (com_android_bluetooth_flags_synchronize_preset_can_timeout()) {
-      callbacks_->OnActivePresetSelected(device->addr, device->currently_active_preset);
-    }
+    callbacks_->OnActivePresetSelected(device->addr, device->currently_active_preset);
     if (pending_group_operation_timeouts_.empty()) {
-      if (!com_android_bluetooth_flags_synchronize_preset_can_timeout()) {
-        callbacks_->OnActivePresetSelected(device->addr, device->currently_active_preset);
-      }
       return;
     }
 
-    if (com_android_bluetooth_flags_hap_safely_erase_pending_operation_timeout()) {
-      for (auto it = pending_group_operation_timeouts_.rbegin();
-           it != pending_group_operation_timeouts_.rend();) {
-        auto& group_op_coordinator = it->second;
-
-        bool matches = false;
-        switch (group_op_coordinator.operation.opcode) {
-          case PresetCtpOpcode::SET_ACTIVE_PRESET:
-          case PresetCtpOpcode::SET_NEXT_PRESET:
-          case PresetCtpOpcode::SET_PREV_PRESET:
-          case PresetCtpOpcode::SET_ACTIVE_PRESET_SYNC:
-          case PresetCtpOpcode::SET_NEXT_PRESET_SYNC:
-          case PresetCtpOpcode::SET_PREV_PRESET_SYNC: {
-            if (group_op_coordinator.SetCompleted(device->addr)) {
-              matches = true;
-              break;
-            }
-          } break;
-          default:
-            /* Ignore */
-            break;
-        }
-        if (group_op_coordinator.IsFullyCompleted()) {
-          if (!com_android_bluetooth_flags_synchronize_preset_can_timeout()) {
-            callbacks_->OnActivePresetSelectedForGroup(group_op_coordinator.operation.GetGroupId(),
-                                                       device->currently_active_preset);
-          }
-          it = decltype(it)(pending_group_operation_timeouts_.erase(std::next(it).base()));
-        } else {
-          ++it;
-        }
-        if (matches) {
-          break;
-        }
-      }
-      return;
-    }
     for (auto it = pending_group_operation_timeouts_.rbegin();
-         it != pending_group_operation_timeouts_.rend(); ++it) {
+         it != pending_group_operation_timeouts_.rend();) {
       auto& group_op_coordinator = it->second;
 
       bool matches = false;
@@ -1663,11 +1634,9 @@ private:
           break;
       }
       if (group_op_coordinator.IsFullyCompleted()) {
-        if (!com_android_bluetooth_flags_synchronize_preset_can_timeout()) {
-          callbacks_->OnActivePresetSelectedForGroup(group_op_coordinator.operation.GetGroupId(),
-                                                     device->currently_active_preset);
-        }
-        pending_group_operation_timeouts_.erase(it->first);
+        it = decltype(it)(pending_group_operation_timeouts_.erase(std::next(it).base()));
+      } else {
+        ++it;
       }
       if (matches) {
         break;
@@ -1919,9 +1888,6 @@ private:
     log::debug("event = {}", static_cast<int>(event));
 
     switch (event) {
-      case BTA_GATTC_DEREG_EVT:
-        break;
-
       case BTA_GATTC_OPEN_EVT:
         OnGattConnected(p_data->open);
         break;
@@ -1940,7 +1906,8 @@ private:
 
       case BTA_GATTC_ENC_CMPL_CB_EVT:
         OnLeEncryptionComplete(p_data->enc_cmpl.remote_bda,
-                               BTM_IsEncrypted(p_data->enc_cmpl.remote_bda, BT_TRANSPORT_LE));
+                               get_security_client_interface().BTM_IsEncrypted(
+                                       p_data->enc_cmpl.remote_bda, BT_TRANSPORT_LE));
         break;
 
       case BTA_GATTC_SRVC_CHG_EVT:
@@ -1989,7 +1956,7 @@ private:
 
     device->conn_id = evt.conn_id;
     BtaGattQueue::Clean(evt.conn_id);
-    if (BTM_SecIsLeSecurityPending(device->addr)) {
+    if (get_security_client_interface().BTM_SecIsLeSecurityPending(device->addr)) {
       /* if security collision happened, wait for encryption done
        * (BTA_GATTC_ENC_CMPL_CB_EVT)
        */
@@ -1997,14 +1964,14 @@ private:
     }
 
     /* verify bond */
-    if (BTM_IsEncrypted(device->addr, BT_TRANSPORT_LE)) {
+    if (get_security_client_interface().BTM_IsEncrypted(device->addr, BT_TRANSPORT_LE)) {
       /* if link has been encrypted */
       OnEncrypted(*device);
       return;
     }
 
-    tBTM_STATUS result =
-            BTM_SetEncryption(device->addr, BT_TRANSPORT_LE, nullptr, nullptr, BTM_BLE_SEC_ENCRYPT);
+    tBTM_STATUS result = get_security_client_interface().BTM_SetEncryption(
+            device->addr, BT_TRANSPORT_LE, nullptr, nullptr, BTM_BLE_SEC_ENCRYPT);
 
     log::info("Encryption required for {}. Request result: 0x{:02x}", device->addr, result);
 
@@ -2034,7 +2001,7 @@ private:
 
     /* Connect in background - is this ok? */
     if (peer_disconnected) {
-      BTA_GATTC_Open(gatt_if_, device->addr, BTM_BLE_BKG_CONNECT_ALLOW_LIST, false);
+      BTA_GATTC_Open(gatt_if_, device->addr, BTM_BLE_BKG_CONNECT_ALLOW_LIST);
     }
   }
 
@@ -2048,7 +2015,7 @@ private:
     log::debug("");
 
     /* verify link is encrypted */
-    if (!BTM_IsEncrypted(device->addr, BT_TRANSPORT_LE)) {
+    if (!get_security_client_interface().BTM_IsEncrypted(device->addr, BT_TRANSPORT_LE)) {
       log::warn("Device not yet bonded - waiting for encryption");
       return;
     }
@@ -2115,7 +2082,7 @@ private:
     if (device->isGattServiceValid()) {
       instance->OnEncrypted(*device);
     } else {
-      BTA_GATTC_ServiceSearchRequest(device->conn_id, kUuidHearingAccessService);
+      BTA_GATTC_ServiceSearchRequest(device->conn_id);
     }
   }
 
@@ -2139,7 +2106,7 @@ private:
     btif_storage_remove_leaudio_has(device->addr);
 
     if (search_request) {
-      BTA_GATTC_ServiceSearchRequest(device->conn_id, kUuidHearingAccessService);
+      BTA_GATTC_ServiceSearchRequest(device->conn_id);
     }
   }
 
@@ -2163,7 +2130,7 @@ private:
     log::debug("address={}", address);
 
     if (!device->isGattServiceValid()) {
-      BTA_GATTC_ServiceSearchRequest(device->conn_id, kUuidHearingAccessService);
+      BTA_GATTC_ServiceSearchRequest(device->conn_id);
     }
   }
 
@@ -2217,6 +2184,9 @@ private:
   std::list<HasCtpOp> pending_operations_;
 
   std::map<decltype(HasCtpOp::op_id), HasCtpGroupOpCoordinator> pending_group_operation_timeouts_;
+
+public:
+  base::WeakPtrFactory<HasClientImpl> weak_ptr_factory_{this};
 };
 
 }  // namespace
@@ -2225,7 +2195,8 @@ alarm_t* HasCtpGroupOpCoordinator::operation_timeout_timer = nullptr;
 size_t HasCtpGroupOpCoordinator::ref_cnt = 0u;
 alarm_callback_t HasCtpGroupOpCoordinator::cb = [](void*) {};
 
-void HasClient::Initialize(bluetooth::has::HasClientCallbacks* callbacks, base::Closure initCb) {
+void HasClient::Initialize(bluetooth::has::HasClientCallbacks* callbacks,
+                           base::OnceClosure initCb) {
   std::scoped_lock<std::mutex> lock(instance_mutex);
   if (instance) {
     log::error("Already initialized!");
@@ -2237,7 +2208,7 @@ void HasClient::Initialize(bluetooth::has::HasClientCallbacks* callbacks, base::
       instance->OnGroupOpCoordinatorTimeout(p);
     }
   });
-  instance = new HasClientImpl(callbacks, initCb);
+  instance = new HasClientImpl(callbacks, std::move(initCb));
 }
 
 bool HasClient::IsHasClientRunning() { return instance; }
@@ -2276,4 +2247,8 @@ void HasClient::DebugDump(int fd) {
   } else {
     dprintf(fd, "  no instance\n\n");
   }
+}
+
+base::WeakPtr<HasClient> HasClient::GetWeakPtr() {
+  return instance->weak_ptr_factory_.GetWeakPtr();
 }

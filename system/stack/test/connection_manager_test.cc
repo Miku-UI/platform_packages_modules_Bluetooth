@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "stack/connection_manager/connection_manager.h"
 
 #include <base/bind_helpers.h>
@@ -29,8 +44,8 @@ using bluetooth::hci::AddressWithType;
 using connection_manager::tAPP_ID;
 namespace test = bluetooth::hci::testing;
 
-const RawAddress address1{{0x01, 0x01, 0x01, 0x01, 0x01, 0x07}};
-const RawAddress address2{{0x22, 0x22, 0x02, 0x22, 0x33, 0x22}};
+const RawAddress address1("01:01:01:01:01:07");
+const RawAddress address2("22:22:02:22:33:22");
 
 const AddressWithType address1_hci{{0x07, 0x01, 0x01, 0x01, 0x01, 0x01},
                                    bluetooth::hci::AddressType::PUBLIC_DEVICE_ADDRESS};
@@ -166,13 +181,8 @@ TEST_F(BleConnectionManager, test_direct_connection_client) {
   EXPECT_CALL(*AlarmMock::Get(), AlarmSetOnMloop(_, _, _, _)).Times(1);
   EXPECT_TRUE(direct_connect_add(CLIENT1, address1, /* prefer_relax_mode */ false));
 
-  if (com_android_bluetooth_flags_idempotent_direct_connect_add()) {
-    // App already doing a direct connection, do nothing
-    EXPECT_TRUE(direct_connect_add(CLIENT1, address1, /* prefer_relax_mode */ false));
-  } else {
-    // App already doing a direct connection, attempt to re-add result in failure
-    EXPECT_FALSE(direct_connect_add(CLIENT1, address1, /* prefer_relax_mode */ false));
-  }
+  // App already doing a direct connection, do nothing
+  EXPECT_TRUE(direct_connect_add(CLIENT1, address1, /* prefer_relax_mode */ false));
 
   // Client that don't do direct connection should fail attempt to stop it
   EXPECT_FALSE(direct_connect_remove(CLIENT2, address1));
@@ -228,10 +238,12 @@ TEST_F(BleConnectionManager, test_direct_connection_success) {
 
   Mock::VerifyAndClearExpectations(test::mock_acl_manager_.get());
 
-  EXPECT_CALL(*test::mock_acl_manager_, CancelLeConnect(address1_hci)).Times(1);
   EXPECT_CALL(*AlarmMock::Get(), AlarmFree(_)).Times(1);
   // simulate event from lower layers - connections was established
   // successfully.
+  on_connection_maybe(address1);
+
+  EXPECT_CALL(*test::mock_acl_manager_, CancelLeConnect(address1_hci)).Times(1);
   on_connection_complete(address1);
 
   Mock::VerifyAndClearExpectations(test::mock_acl_manager_.get());
@@ -309,11 +321,21 @@ TEST_F(BleConnectionManager, test_direct_and_background_connect__direct_timeouts
 
   Mock::VerifyAndClearExpectations(test::mock_acl_manager_.get());
 
-  EXPECT_CALL(*test::mock_acl_manager_, CancelLeConnect(_)).Times(0);
+  if (!com_android_bluetooth_flags_gd_conn_mgr_one_timeout()) {
+    EXPECT_CALL(*test::mock_acl_manager_, CancelLeConnect(_)).Times(0);
+  }
   EXPECT_CALL(*localConnTimeoutMock, OnConnectionTimedOut(CLIENT1, address1)).Times(1);
   EXPECT_CALL(*AlarmMock::Get(), AlarmFree(_)).Times(1);
-  EXPECT_CALL(*test::mock_acl_manager_, CreateLeConnection(address1_hci, false, false)).Times(1);
 
+  if (!com_android_bluetooth_flags_gd_conn_mgr_one_timeout()) {
+    EXPECT_CALL(*test::mock_acl_manager_, CreateLeConnection(address1_hci, false, false)).Times(1);
+  } else {
+    /* it's a timeout - background connect should stay, we should NOT cancel it or have to
+     * send it again to lower layers */
+    EXPECT_CALL(*test::mock_acl_manager_, CancelLeConnect(_)).Times(0);
+    EXPECT_CALL(*test::mock_acl_manager_, CreateLeConnection(address1_hci, false, false)).Times(0);
+    EXPECT_CALL(*test::mock_acl_manager_, CancelDirectConnect(address1_hci)).Times(1);
+  }
   // simulate timeout on direct connect
   alarm_callback(alarm_data);
 
@@ -402,11 +424,148 @@ TEST_F(BleConnectionManager, test_re_add_to_allow_list_after_timeout_with_multip
   // simulate timeout seconds passed, alarm executing
   EXPECT_CALL(*localConnTimeoutMock, OnConnectionTimedOut(CLIENT2, address1)).Times(1);
   EXPECT_CALL(*test::mock_acl_manager_, CancelLeConnect(_)).Times(0);
-  EXPECT_CALL(*test::mock_acl_manager_, CreateLeConnection(address1_hci, false, false)).Times(1);
+  if (com_android_bluetooth_flags_gd_conn_mgr_one_timeout()) {
+    EXPECT_CALL(*test::mock_acl_manager_, CancelDirectConnect(address1_hci)).Times(1);
+  } else {
+    EXPECT_CALL(*test::mock_acl_manager_, CreateLeConnection(address1_hci, false, false)).Times(1);
+  }
   EXPECT_CALL(*AlarmMock::Get(), AlarmFree(_)).Times(1);
+
   alarm_callback(alarm_data);
 
   Mock::VerifyAndClearExpectations(test::mock_acl_manager_.get());
 }
 
+TEST_F(BleConnectionManager, test_direct_connection_add_remove_from_multiple_clients) {
+  alarm_callback_t alarm_callback1 = nullptr;
+  void* alarm_data1 = nullptr;
+  alarm_callback_t alarm_callback2 = nullptr;
+  void* alarm_data2 = nullptr;
+
+  EXPECT_CALL(*test::mock_acl_manager_, CreateLeConnection(address1_hci, true, false)).Times(1);
+  EXPECT_CALL(*test::mock_acl_manager_, CancelLeConnect(_)).Times(0);
+
+  EXPECT_CALL(*AlarmMock::Get(), AlarmNew(_)).Times(1);
+  EXPECT_CALL(*AlarmMock::Get(), AlarmSetOnMloop(_, _, _, _))
+          .WillOnce(DoAll(SaveArg<2>(&alarm_callback1), SaveArg<3>(&alarm_data1)));
+
+  // Client 1 connects
+  EXPECT_TRUE(direct_connect_add(CLIENT1, address1, /* prefer_relax_mode */ false));
+
+  Mock::VerifyAndClearExpectations(test::mock_acl_manager_.get());
+  Mock::VerifyAndClearExpectations(AlarmMock::Get());
+
+  if (com_android_bluetooth_flags_cancel_pending_le_conn_on_socket_close()) {
+    EXPECT_CALL(*AlarmMock::Get(), AlarmNew(_)).Times(1);
+    EXPECT_CALL(*AlarmMock::Get(), AlarmSetOnMloop(_, _, _, _))
+            .WillOnce(DoAll(SaveArg<2>(&alarm_callback2), SaveArg<3>(&alarm_data2)));
+  }
+
+  // Expect NO CreateLeConnection call as one is already pending to same address
+  // This is same expectation without the flag as it was merging the 2nd req with first one
+  EXPECT_CALL(*test::mock_acl_manager_, CreateLeConnection(address1_hci, true, false)).Times(0);
+
+  // Client 2 connects to same address
+  // Should NOT call CreateLeConnection again
+  EXPECT_TRUE(direct_connect_add(CLIENT2, address1, /* prefer_relax_mode */ false));
+
+  Mock::VerifyAndClearExpectations(test::mock_acl_manager_.get());
+  Mock::VerifyAndClearExpectations(AlarmMock::Get());
+
+  if (com_android_bluetooth_flags_cancel_pending_le_conn_on_socket_close()) {
+    // Crucial check: Should NOT cancel connection because Client 2 is still waiting
+    EXPECT_CALL(*test::mock_acl_manager_, CancelLeConnect(_)).Times(0);
+  } else {
+    // with previous implementation, cancelLeConnect was called on remove from 1st client
+    EXPECT_CALL(*test::mock_acl_manager_, CancelLeConnect(_)).Times(1);
+  }
+
+  // Now remove client1 & ensure no LE cancel connection called
+  EXPECT_TRUE(direct_connect_remove(CLIENT1, address1));
+
+  // try to remove the same client again & expect FALSE
+  EXPECT_FALSE(direct_connect_remove(CLIENT1, address1));
+
+  if (com_android_bluetooth_flags_cancel_pending_le_conn_on_socket_close()) {
+    // Now remove conn req from client2 & expect the LE cancel connection
+    Mock::VerifyAndClearExpectations(test::mock_acl_manager_.get());
+    EXPECT_CALL(*test::mock_acl_manager_, CancelLeConnect(_)).Times(1);
+    EXPECT_TRUE(direct_connect_remove(CLIENT2, address1));
+  } else {
+    // with previous implementation there was nothing added to queue
+    // and hence no pending thing to remove
+    EXPECT_FALSE(direct_connect_remove(CLIENT2, address1));
+  }
+
+  Mock::VerifyAndClearExpectations(test::mock_acl_manager_.get());
+}
+
+TEST_F(BleConnectionManager, test_direct_connection_multiple_clients_timeout) {
+  alarm_callback_t alarm_callback1 = nullptr;
+  void* alarm_data1 = nullptr;
+  alarm_callback_t alarm_callback2 = nullptr;
+  void* alarm_data2 = nullptr;
+
+  EXPECT_CALL(*test::mock_acl_manager_, CreateLeConnection(address1_hci, true, false)).Times(1);
+  EXPECT_CALL(*test::mock_acl_manager_, CancelLeConnect(_)).Times(0);
+
+  EXPECT_CALL(*AlarmMock::Get(), AlarmNew(_)).Times(1);
+  EXPECT_CALL(*AlarmMock::Get(), AlarmSetOnMloop(_, _, _, _))
+          .WillOnce(DoAll(SaveArg<2>(&alarm_callback1), SaveArg<3>(&alarm_data1)));
+
+  // Client 1 connects
+  EXPECT_TRUE(direct_connect_add(CLIENT1, address1, /* prefer_relax_mode */ false));
+
+  Mock::VerifyAndClearExpectations(test::mock_acl_manager_.get());
+  Mock::VerifyAndClearExpectations(AlarmMock::Get());
+
+  if (com_android_bluetooth_flags_cancel_pending_le_conn_on_socket_close()) {
+    EXPECT_CALL(*AlarmMock::Get(), AlarmNew(_)).Times(1);
+    EXPECT_CALL(*AlarmMock::Get(), AlarmSetOnMloop(_, _, _, _))
+            .WillOnce(DoAll(SaveArg<2>(&alarm_callback2), SaveArg<3>(&alarm_data2)));
+  }
+
+  // Expect NO CreateLeConnection call as one is already pending to same address
+  // This is same expectation without the flag as it was merging the 2nd req with first one
+  EXPECT_CALL(*test::mock_acl_manager_, CreateLeConnection(address1_hci, true, false)).Times(0);
+
+  // Client 2 connects to same address
+  // Should NOT call CreateLeConnection again
+  EXPECT_TRUE(direct_connect_add(CLIENT2, address1, /* prefer_relax_mode */ false));
+
+  Mock::VerifyAndClearExpectations(test::mock_acl_manager_.get());
+  Mock::VerifyAndClearExpectations(AlarmMock::Get());
+
+  // Client 1 times out
+  EXPECT_CALL(*localConnTimeoutMock, OnConnectionTimedOut(CLIENT1, address1)).Times(1);
+  EXPECT_CALL(*AlarmMock::Get(), AlarmFree(_)).Times(1);
+
+  if (com_android_bluetooth_flags_cancel_pending_le_conn_on_socket_close()) {
+    // Crucial check: Should NOT cancel connection because Client 2 is still waiting
+    EXPECT_CALL(*test::mock_acl_manager_, CancelLeConnect(_)).Times(0);
+  } else {
+    // with previous implementation, connection was released after the 1st client cancels it
+    EXPECT_CALL(*test::mock_acl_manager_, CancelLeConnect(_)).Times(1);
+  }
+
+  alarm_callback1(alarm_data1);
+
+  Mock::VerifyAndClearExpectations(test::mock_acl_manager_.get());
+  Mock::VerifyAndClearExpectations(localConnTimeoutMock.get());
+  Mock::VerifyAndClearExpectations(AlarmMock::Get());
+
+  if (com_android_bluetooth_flags_cancel_pending_le_conn_on_socket_close()) {
+    // Client 2 times out
+    EXPECT_CALL(*localConnTimeoutMock, OnConnectionTimedOut(CLIENT2, address1)).Times(1);
+    EXPECT_CALL(*AlarmMock::Get(), AlarmFree(_)).Times(1);
+    EXPECT_CALL(*test::mock_acl_manager_, CancelLeConnect(_)).Times(1);
+
+    alarm_callback2(alarm_data2);
+
+    Mock::VerifyAndClearExpectations(test::mock_acl_manager_.get());
+  } else {
+    // with previous implementation, connection was released after the 1st client cancels it
+    // and there was no entry penging in the queue
+  }
+}
 }  // namespace connection_manager

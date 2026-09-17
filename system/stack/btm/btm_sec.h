@@ -25,15 +25,15 @@
 #pragma once
 #include <bluetooth/types/address.h>
 #include <bluetooth/types/ble_address_with_type.h>
+#include <bluetooth/types/bt_octets.h>
 #include <bluetooth/types/bt_transport.h>
 #include <bluetooth/types/hci_role.h>
 
 #include <cstdint>
 #include <string>
 
-#include "stack/btm/security_device_record.h"
+#include "stack/btm/btm_device_record.h"
 #include "stack/include/bt_device_type.h"
-#include "stack/include/bt_octets.h"
 #include "stack/include/btm_sec_api.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/btm_status.h"
@@ -43,9 +43,13 @@
 
 #define BTM_SEC_MAX_COLLISION_DELAY (5000)
 
+constexpr int MIN_KEY_SIZE = 7;
+constexpr int MIN_KEY_SIZE_DEFAULT = MIN_KEY_SIZE;
+constexpr int MAX_KEY_SIZE = 16;
+
 /*******************************************************************************
  *
- * Function         BTM_SecRegister
+ * Function         btm_sec_register
  *
  * Description      Application manager calls this function to register for
  *                  security services.  There can be one and only one
@@ -55,30 +59,31 @@
  * Returns          true if registered OK, else false
  *
  ******************************************************************************/
-bool BTM_SecRegister(const tBTM_APPL_INFO* p_cb_info);
+bool btm_sec_register(const BtmAppReg& app_reg);
 
-bool BTM_IsEncrypted(const RawAddress& bd_addr, tBT_TRANSPORT transport);
-bool BTM_IsLinkKeyAuthed(const RawAddress& bd_addr, tBT_TRANSPORT transport);
-bool BTM_IsAuthenticated(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+bool btm_is_encrypted(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+bool btm_is_link_key_authed(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+bool btm_is_authenticated(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 
 /*******************************************************************************
  *
- * Function         BTM_SetPinType
+ * Function         btm_set_pin_type
  *
  * Description      Set PIN type for the device.
  *
  * Returns          void
  *
  ******************************************************************************/
-void BTM_SetPinType(uint8_t pin_type, PIN_CODE pin_code, uint8_t pin_code_len);
+// TODO : Remove when the flag local_pin_key_type is shipped
+void btm_set_pin_type(uint8_t pin_type, PinCode pin_code, uint8_t pin_code_len);
 
 /*******************************************************************************
  *
- * Function         BTM_SetSecurityLevel
+ * Function         btm_set_security_level
  *
  * Description      Register service security level with Security Manager
  *
- * Parameters:      is_originator - true if originating the connection
+ * Parameters:      outgoing    - true if originating the connection
  *                  p_name      - Name of the service relevant only if
  *                                authorization will show this name to user.
  *                                Ignored if BT_MAX_SERVICE_NAME_LEN is 0.
@@ -92,13 +97,13 @@ void BTM_SetPinType(uint8_t pin_type, PIN_CODE pin_code, uint8_t pin_code_len);
  * Returns          true if registered OK, else false
  *
  ******************************************************************************/
-bool BTM_SetSecurityLevel(bool is_originator, const char* p_name, uint8_t service_id,
-                          uint16_t sec_level, uint16_t psm, uint32_t mx_proto_id,
-                          uint32_t mx_chan_id);
+bool btm_set_security_level(bool outgoing, const char* p_name, uint8_t service_id,
+                            uint16_t sec_level, uint16_t psm, uint32_t mx_proto_id,
+                            uint32_t mx_chan_id);
 
 /*******************************************************************************
  *
- * Function         BTM_SecClrService
+ * Function         btm_sec_clr_service
  *
  * Description      Removes specified service record(s) from the security
  *                  database. All service records with the specified name are
@@ -114,11 +119,11 @@ bool BTM_SetSecurityLevel(bool is_originator, const char* p_name, uint8_t servic
  * Returns          Number of records that were freed.
  *
  ******************************************************************************/
-uint8_t BTM_SecClrService(uint8_t service_id);
+uint8_t btm_sec_clr_service(uint8_t service_id);
 
 /*******************************************************************************
  *
- * Function         BTM_SecClrServiceByPsm
+ * Function         btm_sec_clr_service_by_psm
  *
  * Description      Removes specified service record from the security database.
  *                  All service records with the specified psm are removed.
@@ -132,11 +137,11 @@ uint8_t BTM_SecClrService(uint8_t service_id);
  * Returns          Number of records that were freed.
  *
  ******************************************************************************/
-uint8_t BTM_SecClrServiceByPsm(uint16_t psm);
+uint8_t btm_sec_clr_service_by_psm(uint16_t psm);
 
 /*******************************************************************************
  *
- * Function         BTM_PINCodeReply
+ * Function         btm_pin_code_reply
  *
  * Description      This function is called after Security Manager submitted
  *                  PIN code request to the UI.
@@ -149,7 +154,8 @@ uint8_t BTM_SecClrServiceByPsm(uint16_t psm);
  *                  p_pin        - pointer to array with the PIN Code
  *
  ******************************************************************************/
-void BTM_PINCodeReply(const RawAddress& bd_addr, tBTM_STATUS res, uint8_t pin_len, uint8_t* p_pin);
+void btm_pin_code_reply(const RawAddress& bd_addr, tBTM_STATUS res, uint8_t pin_len,
+                        PinCode pin_code);
 
 /*******************************************************************************
  *
@@ -168,23 +174,22 @@ tBTM_STATUS btm_sec_bond_by_transport(const RawAddress& bd_addr, tBLE_ADDR_TYPE 
 
 /*******************************************************************************
  *
- * Function         BTM_SecBond
+ * Function         btm_sec_bond
  *
  * Description      This function is called to perform bonding with peer device.
  *                  If the connection is already up, but not secure, pairing
  *                  is attempted.  If already paired tBTM_STATUS::BTM_SUCCESS is returned.
  *
  * Parameters:      bd_addr      - Address of the device to bond
+ *                  addr_type    - Address type of the device to bond
  *                  transport    - doing SSP over BR/EDR or SMP over LE
- *
- *  Note: After 2.1 parameters are not used and preserved here not to change API
  ******************************************************************************/
-tBTM_STATUS BTM_SecBond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
-                        tBT_TRANSPORT transport, tBT_DEVICE_TYPE device_type);
+tBTM_STATUS btm_sec_bond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
+                         tBT_TRANSPORT transport);
 
 /*******************************************************************************
  *
- * Function         BTM_SecBondCancel
+ * Function         btm_sec_bond_cancel
  *
  * Description      This function is called to cancel ongoing bonding process
  *                  with peer device.
@@ -193,11 +198,11 @@ tBTM_STATUS BTM_SecBond(const RawAddress& bd_addr, tBLE_ADDR_TYPE addr_type,
  *                  transport    - false for BR/EDR link; true for LE link
  *
  ******************************************************************************/
-tBTM_STATUS BTM_SecBondCancel(const RawAddress& bd_addr);
+tBTM_STATUS btm_sec_bond_cancel(const RawAddress& bd_addr);
 
 /*******************************************************************************
  *
- * Function         BTM_SecGetDeviceLinkKeyType
+ * Function         btm_sec_get_device_link_key_type
  *
  * Description      This function is called to obtain link key type for the
  *                  device.
@@ -209,11 +214,11 @@ tBTM_STATUS BTM_SecBondCancel(const RawAddress& bd_addr);
  *                  otherwise.
  *
  ******************************************************************************/
-tBTM_LINK_KEY_TYPE BTM_SecGetDeviceLinkKeyType(const RawAddress& bd_addr);
+tBTM_LINK_KEY_TYPE btm_sec_get_device_link_key_type(const RawAddress& bd_addr);
 
 /*******************************************************************************
  *
- * Function         BTM_SetEncryption
+ * Function         btm_set_encryption
  *
  * Description      This function is called to ensure that connection is
  *                  encrypted.  Should be called only on an open connection.
@@ -239,15 +244,15 @@ tBTM_LINK_KEY_TYPE BTM_SecGetDeviceLinkKeyType(const RawAddress& bd_addr);
  *                  tBTM_STATUS::BTM_MODE_UNSUPPORTED - if security manager not linked in.
  *
  ******************************************************************************/
-tBTM_STATUS BTM_SetEncryption(const RawAddress& bd_addr, tBT_TRANSPORT transport,
-                              tBTM_SEC_CALLBACK* p_callback, void* p_ref_data,
-                              tBTM_BLE_SEC_ACT sec_act);
+tBTM_STATUS btm_set_encryption(const RawAddress& bd_addr, tBT_TRANSPORT transport,
+                               tBTM_SEC_CALLBACK* p_callback, void* p_ref_data,
+                               tBTM_BLE_SEC_ACT sec_act);
 
-bool BTM_SecIsLeSecurityPending(const RawAddress& bd_addr);
+bool btm_sec_is_le_security_pending(const RawAddress& bd_addr);
 
 /*******************************************************************************
  *
- * Function         BTM_ConfirmReqReply
+ * Function         btm_confirm_req_reply
  *
  * Description      This function is called to confirm the numeric value for
  *                  Simple Pairing in response to BTM_SP_CFM_REQ_EVT
@@ -257,11 +262,11 @@ bool BTM_SecIsLeSecurityPending(const RawAddress& bd_addr);
  *                  bd_addr       - Address of the peer device
  *
  ******************************************************************************/
-void BTM_ConfirmReqReply(tBTM_STATUS res, const RawAddress& bd_addr);
+void btm_confirm_req_reply(tBTM_STATUS res, const RawAddress& bd_addr);
 
 /*******************************************************************************
  *
- * Function         BTM_PasskeyReqReply
+ * Function         btm_passkey_req_reply
  *
  * Description      This function is called to provide the passkey for
  *                  Simple Pairing in response to BTM_SP_KEY_REQ_EVT
@@ -273,21 +278,21 @@ void BTM_ConfirmReqReply(tBTM_STATUS res, const RawAddress& bd_addr);
  *                  BTM_MAX_PASSKEY_VAL(999999(0xF423F)).
  *
  ******************************************************************************/
-void BTM_PasskeyReqReply(tBTM_STATUS res, const RawAddress& bd_addr, uint32_t passkey);
+void btm_passkey_req_reply(tBTM_STATUS res, const RawAddress& bd_addr, uint32_t passkey);
 
 /*******************************************************************************
  *
- * Function         BTM_ReadLocalOobData
+ * Function         btm_read_local_oob_data
  *
  * Description      This function is called to read the local OOB data from
  *                  LM
  *
  ******************************************************************************/
-void BTM_ReadLocalOobData(void);
+void btm_read_local_oob_data(void);
 
 /*******************************************************************************
  *
- * Function         BTM_RemoteOobDataReply
+ * Function         btm_remote_oob_data_reply
  *
  * Description      This function is called to provide the remote OOB data for
  *                  Simple Pairing in response to BTM_SP_RMT_OOB_EVT
@@ -297,12 +302,12 @@ void BTM_ReadLocalOobData(void);
  *                  r           - simple pairing Randomizer  C.
  *
  ******************************************************************************/
-void BTM_RemoteOobDataReply(tBTM_STATUS res, const RawAddress& bd_addr, const Octet16& c,
-                            const Octet16& r);
+void btm_remote_oob_data_reply(tBTM_STATUS res, const RawAddress& bd_addr, const Octet16& c,
+                               const Octet16& r);
 
 /*******************************************************************************
  *
- * Function         BTM_PeerSupportsSecureConnections
+ * Function         btm_peer_supports_secure_connections
  *
  * Description      This function is called to check if the peer supports
  *                  BR/EDR Secure Connections.
@@ -313,7 +318,7 @@ void BTM_RemoteOobDataReply(tBTM_STATUS res, const RawAddress& bd_addr, const Oc
  *                  else false.
  *
  ******************************************************************************/
-bool BTM_PeerSupportsSecureConnections(const RawAddress& bd_addr);
+bool btm_peer_supports_secure_connections(const RawAddress& bd_addr);
 
 /*******************************************************************************
  *
@@ -323,16 +328,16 @@ bool BTM_PeerSupportsSecureConnections(const RawAddress& bd_addr);
  *                  security mode.
  *
  ******************************************************************************/
-uint8_t BTM_GetSecurityMode();
+uint8_t btm_get_security_mode();
 
 /*******************************************************************************
  *
- * Function         BTM_SecReportBondLoss
+ * Function         btm_sec_report_bond_loss
  *
  * Description      This function is called to report remote bond loss.
  *
  ******************************************************************************/
-tBTM_STATUS BTM_SecReportBondLoss(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+tBTM_STATUS btm_sec_report_bond_loss(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 
 /*******************************************************************************
  *
@@ -414,7 +419,7 @@ void btm_sec_conn_req(const RawAddress& bda, const DEV_CLASS dc);
  * Returns          void
  *
  ******************************************************************************/
-void btm_create_conn_cancel_complete(uint8_t status, const RawAddress bd_addr);
+void btm_create_conn_cancel_complete(uint8_t status, const RawAddress& bd_addr);
 
 /*******************************************************************************
  *
@@ -464,7 +469,7 @@ void btm_sec_rmt_name_request_complete(const RawAddress* p_bd_addr, const uint8_
  * Returns          void
  *
  ******************************************************************************/
-void btm_sec_rmt_host_support_feat_evt(const RawAddress bd_addr, uint8_t features_0);
+void btm_sec_rmt_host_support_feat_evt(const RawAddress& bd_addr, uint8_t features_0);
 
 /*******************************************************************************
  *
@@ -477,7 +482,7 @@ void btm_sec_rmt_host_support_feat_evt(const RawAddress bd_addr, uint8_t feature
  * Returns          void
  *
  ******************************************************************************/
-void btm_io_capabilities_req(RawAddress p);
+void btm_io_capabilities_req(const RawAddress& bda);
 
 /*******************************************************************************
  *
@@ -503,7 +508,7 @@ void btm_io_capabilities_rsp(const tBTM_SP_IO_RSP evt_data);
  * Returns          void
  *
  ******************************************************************************/
-void btm_proc_sp_req_evt(tBTM_SP_EVT event, const RawAddress bda, uint32_t value);
+void btm_proc_sp_req_evt(tBTM_SP_EVT event, const RawAddress& bda, uint32_t value);
 
 /*******************************************************************************
  *
@@ -515,7 +520,7 @@ void btm_proc_sp_req_evt(tBTM_SP_EVT event, const RawAddress bda, uint32_t value
  * Returns          void
  *
  ******************************************************************************/
-void btm_simple_pair_complete(const RawAddress bd_addr, uint8_t status);
+void btm_simple_pair_complete(const RawAddress& bd_addr, uint8_t status);
 
 /*******************************************************************************
  *
@@ -527,7 +532,7 @@ void btm_simple_pair_complete(const RawAddress bd_addr, uint8_t status);
  * Returns          void
  *
  ******************************************************************************/
-void btm_rem_oob_req(const RawAddress bd_addr);
+void btm_rem_oob_req(const RawAddress& bd_addr);
 
 /*******************************************************************************
  *
@@ -589,7 +594,7 @@ void btm_sec_encrypt_change(uint16_t handle, tHCI_STATUS status, uint8_t encr_en
  *
  ******************************************************************************/
 void btm_sec_connected(const RawAddress& bda, uint16_t handle, tHCI_STATUS status, uint8_t enc_mode,
-                       tHCI_ROLE assigned_role = HCI_ROLE_PERIPHERAL);
+                       bool locally_initiated, tHCI_ROLE assigned_role = HCI_ROLE_PERIPHERAL);
 
 /*******************************************************************************
  *
@@ -642,7 +647,7 @@ void btm_sec_encryption_key_refresh_complete(uint16_t handle, tHCI_STATUS status
  * Returns          Pointer to the record or NULL
  *
  ******************************************************************************/
-void btm_sec_link_key_request(const RawAddress bda);
+void btm_sec_link_key_request(const RawAddress& bda);
 
 /*******************************************************************************
  *
@@ -653,7 +658,7 @@ void btm_sec_link_key_request(const RawAddress bda);
  * Returns          Pointer to the record or NULL
  *
  ******************************************************************************/
-void btm_sec_pin_code_request(const RawAddress bda);
+void btm_sec_pin_code_request(const RawAddress& bda);
 
 /*******************************************************************************
  *
@@ -676,21 +681,20 @@ void btm_sec_update_clock_offset(uint16_t handle, uint16_t clock_offset);
  * Parameters:      void
  *
  ******************************************************************************/
-void btm_sec_dev_rec_cback_event(tBTM_SEC_DEV_REC* p_dev_rec, tBTM_STATUS res,
-                                 bool is_le_transport);
+void btm_sec_dev_rec_cback_event(BtmDevice* p_device, tBTM_STATUS res, bool is_le_transport);
 
 /*******************************************************************************
  *
  * Function         btm_sec_clear_ble_keys
  *
  * Description      This function is called to clear out the BLE keys.
- *                  Typically when devices are removed in BTM_SecDeleteDevice,
+ *                  Typically when devices are removed in btm_sec_delete_device,
  *                  or when a new BT Link key is generated.
  *
  * Returns          void
  *
  ******************************************************************************/
-void btm_sec_clear_ble_keys(tBTM_SEC_DEV_REC* p_dev_rec);
+void btm_sec_clear_ble_keys(BtmDevice* p_device);
 
 /*******************************************************************************
  *
@@ -716,3 +720,58 @@ void btm_sec_set_peer_sec_caps(uint16_t hci_handle, bool ssp_supported, bool hos
  *
  ******************************************************************************/
 void btm_sec_cr_loc_oob_data_cback_event(const RawAddress& address, tSMP_LOC_OOB_DATA loc_oob_data);
+
+/*******************************************************************************
+ *
+ * Function         btm_is_bond_lost
+ *
+ * Description      This function is called to check if the bond is lost
+ *
+ * Returns          bool
+ *
+ ******************************************************************************/
+bool btm_is_bond_lost(const RawAddress& bd_addr);
+
+/*******************************************************************************
+ *
+ * Function         btm_update_bond_lost
+ *
+ * Description      This function is called to set the bond lost status.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void btm_update_bond_lost(const RawAddress& bd_addr, bool bond_lost);
+
+/*******************************************************************************
+ *
+ * Function         btm_is_bonded
+ *
+ * Description      Is the specified device is a bonded device.
+ *
+ * Returns          bool
+ *
+ ******************************************************************************/
+bool btm_is_bonded(const RawAddress& bd_addr, tBT_TRANSPORT transport);
+
+/*******************************************************************************
+ *
+ * Function         btm_sec_hci_delete_stored_link_key
+ *
+ * Description      Delete stored link key.
+ *
+ * Returns          bool
+ *
+ ******************************************************************************/
+void btm_sec_hci_delete_stored_link_key(const RawAddress& bd_addr);
+
+/*******************************************************************************
+ *
+ * Function         btm_sec_get_min_enc_key_size
+ *
+ * Description      Get the minimum encryption key size allowed by the system.
+ *
+ * Returns          The minimum encryption key size.
+ *
+ ******************************************************************************/
+uint8_t btm_sec_get_min_enc_key_size();

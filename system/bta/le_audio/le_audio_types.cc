@@ -24,6 +24,7 @@
 
 #include <base/strings/string_number_conversions.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/string_helpers.h>
 
 #include <algorithm>
 #include <cstddef>
@@ -42,7 +43,6 @@
 #include <vector>
 
 #include "audio_hal_client/audio_hal_client.h"
-#include "common/strings.h"
 #include "hardware/bt_le_audio.h"
 #include "internal_include/bt_trace.h"
 #include "le_audio_utils.h"
@@ -519,7 +519,7 @@ LeAudioLtvMap LeAudioLtvMap::GetIntersection(const LeAudioLtvMap& other) const {
   LeAudioLtvMap result;
   for (auto const& [key, value] : values) {
     auto entry = other.Find(key);
-    if (entry->size() != value.size()) {
+    if (!entry || entry->size() != value.size()) {
       continue;
     }
     if (memcmp(entry->data(), value.data(), value.size()) == 0) {
@@ -619,11 +619,22 @@ std::ostream& operator<<(std::ostream& os, const LeAudioCodecId& codec_id) {
 }
 
 std::ostream& operator<<(std::ostream& os, const types::LeAudioCoreCodecConfig& config) {
-  os << "LeAudioCoreCodecConfig{SamplFreq: " << loghex(*config.sampling_frequency)
-     << ", FrameDur: " << loghex(*config.frame_duration)
-     << ", OctetsPerFrame: " << int(*config.octets_per_codec_frame)
-     << ", CodecFramesBlocksPerSDU: " << int(*config.codec_frames_blocks_per_sdu)
-     << ", AudioChanLoc: " << loghex(*config.audio_channel_allocation) << "}";
+  std::string sampling_frequency =
+          config.sampling_frequency ? loghex(*config.sampling_frequency) : "none";
+  std::string frame_duration = config.frame_duration ? loghex(*config.frame_duration) : "none";
+  std::string octets_per_codec_frame =
+          config.octets_per_codec_frame ? std::to_string(*config.octets_per_codec_frame) : "none";
+  std::string codec_frames_blocks_per_sdu =
+          config.codec_frames_blocks_per_sdu ? std::to_string(*config.codec_frames_blocks_per_sdu)
+                                             : "none";
+  std::string audio_chan_loc =
+          config.audio_channel_allocation ? loghex(*config.audio_channel_allocation) : "none";
+
+  os << "LeAudioCoreCodecConfig{SamplFreq: " << sampling_frequency
+     << ", FrameDur: " << frame_duration << ", OctetsPerFrame: " << octets_per_codec_frame
+     << ", CodecFramesBlocksPerSDU: " << codec_frames_blocks_per_sdu
+     << ", AudioChanLoc: " << audio_chan_loc << "}";
+
   return os;
 }
 

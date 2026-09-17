@@ -32,8 +32,8 @@ import android.bluetooth.le.ScanFilter;
 import android.content.AttributionSource;
 import android.util.Log;
 
-import com.android.bluetooth.Utils;
-import com.android.bluetooth.btservice.ProfileService.IProfileServiceBinder;
+import com.android.bluetooth.Util;
+import com.android.bluetooth.profile.ProfileService.IProfileServiceBinder;
 
 import java.util.Collections;
 import java.util.List;
@@ -57,13 +57,13 @@ class BassClientServiceBinder extends IBluetoothLeBroadcastAssistant.Stub
     private BassClientService getServiceAndEnforceConnect(AttributionSource source) {
         BassClientService service = mService;
 
-        if (Utils.isInstrumentationTestMode()) {
+        if (Util.isInstrumentationTestMode()) {
             return service;
         }
 
-        if (!Utils.checkServiceAvailable(service, TAG)
-                || !Utils.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
-                || !Utils.checkConnectPermissionForDataDelivery(service, source, TAG)) {
+        if (!Util.checkProfileAvailable(service, TAG)
+                || !Util.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
+                || !Util.enforceConnectPermissionForDataDelivery(service, source, TAG)) {
             return null;
         }
 
@@ -76,13 +76,13 @@ class BassClientServiceBinder extends IBluetoothLeBroadcastAssistant.Stub
     private BassClientService getServiceAndEnforceScan(AttributionSource source) {
         BassClientService service = mService;
 
-        if (Utils.isInstrumentationTestMode()) {
+        if (Util.isInstrumentationTestMode()) {
             return service;
         }
 
-        if (!Utils.checkServiceAvailable(service, TAG)
-                || !Utils.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
-                || !Utils.checkScanPermissionForDataDelivery(
+        if (!Util.checkProfileAvailable(service, TAG)
+                || !Util.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
+                || !Util.enforceScanPermissionForDataDelivery(
                         service, source, TAG, "getServiceAndEnforceScan")) {
             return null;
         }

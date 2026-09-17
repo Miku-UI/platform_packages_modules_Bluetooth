@@ -19,6 +19,7 @@
 #include <bluetooth/log.h>
 #include <bluetooth/metrics/os_metrics.h>
 #include <bluetooth/types/address.h>
+#include <bluetooth/types/string_helpers.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 #include <stdio.h>
 
@@ -28,7 +29,6 @@
 #include <vector>
 
 #include "bta/include/bta_groups.h"
-#include "common/strings.h"
 #include "device_groups.h"
 #include "devices.h"
 #include "hardware/bt_le_audio.h"
@@ -185,11 +185,11 @@ public:
   }
 
   void Dump(int fd) {
-    dprintf(fd, "  LeAudioHealthStats: \n    groups:");
+    dprintf(fd, "  LeAudioHealthStats:\n    groups:");
     for (const auto& g : group_stats_) {
       dumpsys_group(fd, g);
     }
-    dprintf(fd, "\n    devices: ");
+    dprintf(fd, "\n    devices:");
     for (const auto& dev : devices_stats_) {
       dumpsys_dev(fd, dev);
     }

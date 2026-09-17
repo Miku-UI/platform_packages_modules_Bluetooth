@@ -19,7 +19,6 @@ package android.bluetooth;
 import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.Manifest.permission.MODIFY_PHONE_STATE;
-import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothUtils.isValidDevice;
@@ -27,6 +26,7 @@ import static android.bluetooth.BluetoothUtils.isValidDevice;
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.FlaggedApi;
+import android.annotation.Hide;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -125,9 +125,8 @@ public final class BluetoothHeadset implements BluetoothProfile {
      *   <li>{@link BluetoothDevice#EXTRA_DEVICE} - The remote device. It can be null if no device
      *       is active.
      * </ul>
-     *
-     * @hide
      */
+    @Hide
     @SystemApi
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
@@ -233,76 +232,40 @@ public final class BluetoothHeadset implements BluetoothProfile {
     /** A vendor-specific command for unsolicited result code. */
     public static final String VENDOR_RESULT_CODE_COMMAND_ANDROID = "+ANDROID";
 
-    /**
-     * A vendor-specific command for unsolicited result code.
-     *
-     * @hide
-     */
-    public static final String VENDOR_RESULT_CODE_COMMAND_MOTOROLA = "+MOTOROLA";
+    /** A vendor-specific command for unsolicited result code. */
+    @Hide public static final String VENDOR_RESULT_CODE_COMMAND_MOTOROLA = "+MOTOROLA";
 
-    /**
-     * A vendor-specific AT command
-     *
-     * @hide
-     */
-    public static final String VENDOR_SPECIFIC_HEADSET_EVENT_XAPL = "+XAPL";
+    /** A vendor-specific AT command */
+    @Hide public static final String VENDOR_SPECIFIC_HEADSET_EVENT_XAPL = "+XAPL";
 
-    /**
-     * A vendor-specific AT command
-     *
-     * @hide
-     */
-    public static final String VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV = "+IPHONEACCEV";
+    /** A vendor-specific AT command */
+    @Hide public static final String VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV = "+IPHONEACCEV";
 
     /**
      * Battery level indicator associated with {@link #VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV}
-     *
-     * @hide
      */
-    public static final int VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL = 1;
+    @Hide public static final int VENDOR_SPECIFIC_HEADSET_EVENT_IPHONEACCEV_BATTERY_LEVEL = 1;
 
-    /**
-     * A vendor-specific AT command
-     *
-     * @hide
-     */
-    public static final String VENDOR_SPECIFIC_HEADSET_EVENT_XEVENT = "+XEVENT";
+    /** A vendor-specific AT command */
+    @Hide public static final String VENDOR_SPECIFIC_HEADSET_EVENT_XEVENT = "+XEVENT";
 
-    /**
-     * Battery level indicator associated with {@link #VENDOR_SPECIFIC_HEADSET_EVENT_XEVENT}
-     *
-     * @hide
-     */
-    public static final String VENDOR_SPECIFIC_HEADSET_EVENT_XEVENT_BATTERY_LEVEL = "BATTERY";
+    /** Battery level indicator associated with {@link #VENDOR_SPECIFIC_HEADSET_EVENT_XEVENT} */
+    @Hide public static final String VENDOR_SPECIFIC_HEADSET_EVENT_XEVENT_BATTERY_LEVEL = "BATTERY";
 
-    /**
-     * A vendor-specific AT command that asks for the information about device manufacturer.
-     *
-     * @hide
-     */
-    public static final String VENDOR_SPECIFIC_HEADSET_EVENT_CGMI = "+CGMI";
+    /** A vendor-specific AT command that asks for the information about device manufacturer. */
+    @Hide public static final String VENDOR_SPECIFIC_HEADSET_EVENT_CGMI = "+CGMI";
 
-    /**
-     * A vendor-specific AT command that asks for the information about the model of the device.
-     *
-     * @hide
-     */
-    public static final String VENDOR_SPECIFIC_HEADSET_EVENT_CGMM = "+CGMM";
+    /** A vendor-specific AT command that asks for the information about the model of the device. */
+    @Hide public static final String VENDOR_SPECIFIC_HEADSET_EVENT_CGMM = "+CGMM";
 
     /**
      * A vendor-specific AT command that asks for the revision information, for Android we will
      * return the OS version and build number.
-     *
-     * @hide
      */
-    public static final String VENDOR_SPECIFIC_HEADSET_EVENT_CGMR = "+CGMR";
+    @Hide public static final String VENDOR_SPECIFIC_HEADSET_EVENT_CGMR = "+CGMR";
 
-    /**
-     * A vendor-specific AT command that asks for the device's serial number.
-     *
-     * @hide
-     */
-    public static final String VENDOR_SPECIFIC_HEADSET_EVENT_CGSN = "+CGSN";
+    /** A vendor-specific AT command that asks for the device's serial number. */
+    @Hide public static final String VENDOR_SPECIFIC_HEADSET_EVENT_CGSN = "+CGSN";
 
     /**
      * Headset state when SCO audio is not connected. This state can be one of {@link #EXTRA_STATE}
@@ -359,9 +322,8 @@ public final class BluetoothHeadset implements BluetoothProfile {
      * are given an assigned number. Below shows the assigned number of Indicator added so far -
      * Enhanced Safety - 1, Valid Values: 0 - Disabled, 1 - Enabled - Battery Level - 2, Valid
      * Values: 0~100 - Remaining level of Battery
-     *
-     * @hide
      */
+    @Hide
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
     @RequiresPermission(BLUETOOTH_CONNECT)
@@ -373,20 +335,51 @@ public final class BluetoothHeadset implements BluetoothProfile {
      * A int extra field in {@link #ACTION_HF_INDICATORS_VALUE_CHANGED} intents that contains the
      * assigned number of the headset indicator as defined by Bluetooth SIG that is being sent.
      * Value range is 0-65535 as defined in HFP 1.7
-     *
-     * @hide
      */
+    @Hide
     public static final String EXTRA_HF_INDICATORS_IND_ID =
             "android.bluetooth.headset.extra.HF_INDICATORS_IND_ID";
 
     /**
      * A int extra field in {@link #ACTION_HF_INDICATORS_VALUE_CHANGED} intents that contains the
      * value of the Headset indicator that is being sent.
-     *
-     * @hide
      */
+    @Hide
     public static final String EXTRA_HF_INDICATORS_IND_VALUE =
             "android.bluetooth.headset.extra.HF_INDICATORS_IND_VALUE";
+
+    @Hide
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef(
+            prefix = {"CODEC_TYPE_"},
+            value = {
+                CODEC_TYPE_LC3_SWB,
+                CODEC_TYPE_MSBC,
+                CODEC_TYPE_CVSD,
+                CODEC_TYPE_VENDOR_SPECIFIC,
+                CODEC_TYPE_UNSUPPORTED
+            })
+    public @interface CodecType {}
+
+    /** HFP codec type is not supported or cannot be determined */
+    @FlaggedApi(Flags.FLAG_HFP_GET_CODEC_API)
+    public static final int CODEC_TYPE_UNSUPPORTED = -1;
+
+    /** HFP vendor specific codec Type */
+    @FlaggedApi(Flags.FLAG_HFP_GET_CODEC_API)
+    public static final int CODEC_TYPE_VENDOR_SPECIFIC = 0;
+
+    /** HFP codec type CVSD */
+    @FlaggedApi(Flags.FLAG_HFP_GET_CODEC_API)
+    public static final int CODEC_TYPE_CVSD = 1;
+
+    /** HFP codec type mSBC */
+    @FlaggedApi(Flags.FLAG_HFP_GET_CODEC_API)
+    public static final int CODEC_TYPE_MSBC = 2;
+
+    /** HFP codec type LC3 SWB */
+    @FlaggedApi(Flags.FLAG_HFP_GET_CODEC_API)
+    public static final int CODEC_TYPE_LC3_SWB = 3;
 
     private final BluetoothAdapter mAdapter;
     private final AttributionSource mAttributionSource;
@@ -404,22 +397,21 @@ public final class BluetoothHeadset implements BluetoothProfile {
      * Close the connection to the backing service. Other public functions of BluetoothHeadset will
      * return default error results once close() has been called. Multiple invocations of close()
      * are ok.
-     *
-     * @hide
      */
+    @Hide
     @UnsupportedAppUsage
     public void close() {
         mAdapter.closeProfileProxy(this);
     }
 
-    /** @hide */
+    @Hide
     @Override
     @RequiresNoPermission
     public void onServiceConnected(IBinder service) {
         mService = IBluetoothHeadset.Stub.asInterface(service);
     }
 
-    /** @hide */
+    @Hide
     @Override
     @RequiresNoPermission
     public void onServiceDisconnected() {
@@ -430,14 +422,14 @@ public final class BluetoothHeadset implements BluetoothProfile {
         return mService;
     }
 
-    /** @hide */
+    @Hide
     @Override
     @RequiresNoPermission
     public BluetoothAdapter getAdapter() {
         return mAdapter;
     }
 
-    /** @hide */
+    @Hide
     @Override
     @SuppressWarnings("Finalize") // empty finalize for api signature
     protected void finalize() throws Throwable {
@@ -458,8 +450,8 @@ public final class BluetoothHeadset implements BluetoothProfile {
      *
      * @param device Remote Bluetooth Device
      * @return false on immediate error, true otherwise
-     * @hide
      */
+    @Hide
     @SystemApi
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothConnectPermission
@@ -500,8 +492,8 @@ public final class BluetoothHeadset implements BluetoothProfile {
      *
      * @param device Remote Bluetooth Device
      * @return false on immediate error, true otherwise
-     * @hide
      */
+    @Hide
     @SystemApi
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothConnectPermission
@@ -570,7 +562,6 @@ public final class BluetoothHeadset implements BluetoothProfile {
     @RequiresBluetoothConnectPermission
     @RequiresPermission(BLUETOOTH_CONNECT)
     public int getConnectionState(BluetoothDevice device) {
-        if (VDBG) log("getConnectionState(" + device + ")");
         final IBluetoothHeadset service = getService();
         if (service == null) {
             Log.w(TAG, "Proxy not attached to service");
@@ -595,8 +586,8 @@ public final class BluetoothHeadset implements BluetoothProfile {
      * @param device Paired bluetooth device
      * @param connectionPolicy is the connection policy to set to for this profile
      * @return true if connectionPolicy is set, false on error
-     * @hide
      */
+    @Hide
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
@@ -614,8 +605,7 @@ public final class BluetoothHeadset implements BluetoothProfile {
             if (DBG) log(Log.getStackTraceString(new Throwable()));
         } else if (isEnabled()
                 && isValidDevice(device)
-                && (connectionPolicy == CONNECTION_POLICY_FORBIDDEN
-                        || connectionPolicy == CONNECTION_POLICY_ALLOWED)) {
+                && BluetoothProfile.isValidConnectionPolicy(connectionPolicy)) {
             try {
                 return service.setConnectionPolicy(device, connectionPolicy, mAttributionSource);
             } catch (RemoteException e) {
@@ -633,8 +623,8 @@ public final class BluetoothHeadset implements BluetoothProfile {
      *
      * @param device Bluetooth device
      * @return connection policy of the device
-     * @hide
      */
+    @Hide
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED})
@@ -795,7 +785,7 @@ public final class BluetoothHeadset implements BluetoothProfile {
         return false;
     }
 
-    /** @hide */
+    @Hide
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(
             value = {
@@ -812,8 +802,8 @@ public final class BluetoothHeadset implements BluetoothProfile {
      * @param device is the Bluetooth device for which the audio state is being queried
      * @return the audio state of the device or an error code
      * @throws NullPointerException if the device is null
-     * @hide
      */
+    @Hide
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
@@ -838,7 +828,7 @@ public final class BluetoothHeadset implements BluetoothProfile {
         return BluetoothHeadset.STATE_AUDIO_DISCONNECTED;
     }
 
-    /** @hide */
+    @Hide
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(
             value = {
@@ -849,7 +839,7 @@ public final class BluetoothHeadset implements BluetoothProfile {
             })
     public @interface SetAudioRouteAllowedReturnValues {}
 
-    /** @hide */
+    @Hide
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(
             value = {
@@ -869,8 +859,8 @@ public final class BluetoothHeadset implements BluetoothProfile {
      * @param allowed {@code true} if the profile can reroute audio, {@code false} otherwise.
      * @return {@link BluetoothStatusCodes#SUCCESS} upon successful setting, otherwise an error
      *     code.
-     * @hide
      */
+    @Hide
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
@@ -902,8 +892,8 @@ public final class BluetoothHeadset implements BluetoothProfile {
      * @return {@link BluetoothStatusCodes#ALLOWED} if audio routing is allowed, {@link
      *     BluetoothStatusCodes#NOT_ALLOWED} if audio routing is not allowed, or an error code if an
      *     error occurs. see {@link #setAudioRouteAllowed(boolean)}.
-     * @hide
      */
+    @Hide
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
@@ -932,31 +922,7 @@ public final class BluetoothHeadset implements BluetoothProfile {
         return BluetoothStatusCodes.ERROR_UNKNOWN;
     }
 
-    /**
-     * Force SCO audio to be opened regardless any other restrictions
-     *
-     * @param forced Whether or not SCO audio connection should be forced: True to force SCO audio
-     *     False to use SCO audio in normal manner
-     * @hide
-     */
-    @RequiresBluetoothConnectPermission
-    @RequiresPermission(BLUETOOTH_CONNECT)
-    public void setForceScoAudio(boolean forced) {
-        if (VDBG) log("setForceScoAudio " + String.valueOf(forced));
-        final IBluetoothHeadset service = getService();
-        if (service == null) {
-            Log.w(TAG, "Proxy not attached to service");
-            if (DBG) log(Log.getStackTraceString(new Throwable()));
-        } else if (isEnabled()) {
-            try {
-                service.setForceScoAudio(forced, mAttributionSource);
-            } catch (RemoteException e) {
-                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
-            }
-        }
-    }
-
-    /** @hide */
+    @Hide
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(
             value = {
@@ -985,8 +951,12 @@ public final class BluetoothHeadset implements BluetoothProfile {
      * audio connection.
      *
      * @return whether the connection was successfully initiated or an error code on failure
-     * @hide
+     * @deprecated Starting with {@link android.os.Build.VERSION_CODES#CINNAMON_BUN}, applications
+     *     should use {@link android.telecom.InCallService#requestBluetoothAudio(BluetoothDevice)}
      */
+    @Hide
+    @FlaggedApi(Flags.FLAG_DEPRECATE_CONNECT_AUDIO)
+    @Deprecated
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
@@ -1013,7 +983,7 @@ public final class BluetoothHeadset implements BluetoothProfile {
         return BluetoothStatusCodes.ERROR_UNKNOWN;
     }
 
-    /** @hide */
+    @Hide
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(
             value = {
@@ -1035,8 +1005,12 @@ public final class BluetoothHeadset implements BluetoothProfile {
      * #STATE_AUDIO_DISCONNECTED}.
      *
      * @return whether the disconnection was initiated successfully or an error code on failure
-     * @hide
+     * @deprecated Starting with {@link android.os.Build.VERSION_CODES#CINNAMON_BUN}, applications
+     *     should use {@link android.telecom.InCallService#requestBluetoothAudio(BluetoothDevice)}
      */
+    @Hide
+    @FlaggedApi(Flags.FLAG_DEPRECATE_CONNECT_AUDIO)
+    @Deprecated
     @SystemApi
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
@@ -1079,8 +1053,12 @@ public final class BluetoothHeadset implements BluetoothProfile {
      *     idle (connecting or connected) - virtual call has already started - there is no active
      *     device - a Telecom managed call is going on - binder is dead or Bluetooth is disabled or
      *     other error
-     * @hide
+     * @deprecated This method is not intended for use by external callers. Use {@link
+     *     android.media.AudioManager#setCommunicationDevice(android.media.AudioDeviceInfo)} instead
      */
+    @Hide
+    @FlaggedApi(Flags.FLAG_DEPRECATE_CONNECT_AUDIO)
+    @Deprecated
     @SystemApi
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothConnectPermission
@@ -1115,8 +1093,12 @@ public final class BluetoothHeadset implements BluetoothProfile {
      *
      * @return true if successful, false if one of the following case applies - virtual voice call
      *     is not started or has ended - binder is dead or Bluetooth is disabled or other error
-     * @hide
+     * @deprecated This method is not intended for use by external callers. Use {@link
+     *     android.media.AudioManager#setCommunicationDevice(android.media.AudioDeviceInfo)} instead
      */
+    @Hide
+    @FlaggedApi(Flags.FLAG_DEPRECATE_CONNECT_AUDIO)
+    @Deprecated
     @SystemApi
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothConnectPermission
@@ -1198,8 +1180,11 @@ public final class BluetoothHeadset implements BluetoothProfile {
      * @param device Remote Bluetooth Device, could be null if phone call audio should not be
      *     streamed to a headset
      * @return false on immediate error, true otherwise
-     * @hide
+     * @deprecated this method should not be utilized for audio routing. System components can use
+     *     {@link BluetoothAdapter#setActiveDevice(BluetoothDevice, int)}
      */
+    @Hide
+    @Deprecated
     @RequiresLegacyBluetoothAdminPermission
     @RequiresBluetoothConnectPermission
     @RequiresPermission(
@@ -1230,8 +1215,11 @@ public final class BluetoothHeadset implements BluetoothProfile {
      * Get the connected device that is active.
      *
      * @return the connected device that is active or null if no device is active.
-     * @hide
+     * @deprecated this method should not be utilized for audio routing. System components can use
+     *     {@link BluetoothAdapter#getActiveDevices(int)}
      */
+    @Hide
+    @Deprecated
     @UnsupportedAppUsage(trackingBug = 171933273)
     @Nullable
     @RequiresLegacyBluetoothPermission
@@ -1259,8 +1247,8 @@ public final class BluetoothHeadset implements BluetoothProfile {
      * active connection.
      *
      * @return true if in-band ringing is enabled, false if in-band ringing is disabled
-     * @hide
      */
+    @Hide
     @SystemApi
     @RequiresLegacyBluetoothPermission
     @RequiresBluetoothConnectPermission
@@ -1283,6 +1271,39 @@ public final class BluetoothHeadset implements BluetoothProfile {
             }
         }
         return false;
+    }
+
+    /**
+     * Get the codec type of the given HFP connected device.
+     *
+     * <p>This method returns the codec type that has been negotiated between the AG and HF which is
+     * available once the HFP SLC is established and the codec negotiation process is completed. The
+     * negotiated codec can be retrieved regardless of whether a SCO audio connection is currently
+     * active or not.
+     *
+     * @param device The remote Bluetooth device. Must not be null.
+     * @return The codec type of the given HFP connected device. Returns {@link
+     *     #CODEC_TYPE_UNSUPPORTED} if Bluetooth is off, the profile is not connected, the device is
+     *     not connected, the codec negotiation is not completed, or an error occurs.
+     */
+    @FlaggedApi(Flags.FLAG_HFP_GET_CODEC_API)
+    @RequiresBluetoothConnectPermission
+    @RequiresPermission(BLUETOOTH_CONNECT)
+    public @CodecType int getCodecType(@NonNull BluetoothDevice device) {
+        if (DBG) log("getCodecType()");
+        requireNonNull(device);
+        final IBluetoothHeadset service = getService();
+        if (service == null) {
+            Log.w(TAG, "Proxy not attached to service");
+            if (DBG) log(Log.getStackTraceString(new Throwable()));
+        } else if (isEnabled()) {
+            try {
+                return service.getCodecType(device, mAttributionSource);
+            } catch (RemoteException e) {
+                Log.e(TAG, e.toString() + "\n" + Log.getStackTraceString(new Throwable()));
+            }
+        }
+        return CODEC_TYPE_UNSUPPORTED;
     }
 
     @UnsupportedAppUsage

@@ -2,10 +2,10 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "vcp_handle_group_id_internally"
+    name: "vcp_notify_volume_on_each_device_connection"
     namespace: "bluetooth"
-    description: "Handle group id internally"
-    bug: "409519938"
+    description: "On each device connection, notify its volume to registered clients"
+    bug: "461421538"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

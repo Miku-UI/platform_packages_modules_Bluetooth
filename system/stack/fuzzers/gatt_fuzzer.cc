@@ -22,28 +22,32 @@
 #include <cstdint>
 #include <string>
 
+#include "bt_status.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/gatt_api.h"
+#include "stack/include/stack_app.h"
+#include "stack/include/stack_le_connection.h"
+#include "stack/mock/mock_stack_acl.h"
+#include "stack/mock/mock_stack_btm_dev.h"
+#include "stack/mock/mock_stack_l2cap_ble.h"
+#include "stack/mock/mock_stack_l2cap_interface.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_btif_config.h"
-#include "test/mock/mock_stack_acl.h"
-#include "test/mock/mock_stack_btm_dev.h"
-#include "test/mock/mock_stack_l2cap_api.h"
-#include "test/mock/mock_stack_l2cap_ble.h"
-#include "test/mock/mock_stack_l2cap_interface.h"
 
 using bluetooth::Uuid;
 using ::testing::NiceMock;
 using ::testing::Unused;
 
-bt_status_t do_in_main_thread(base::OnceCallback<void()>) {
+using namespace bluetooth;
+
+BtStatus do_in_main_thread(base::OnceCallback<void()>) {
   // this is not properly mocked, so we use abort to catch if this is used in
   // any test cases
   abort();
 }
-bt_status_t do_in_main_thread_delayed(base::OnceCallback<void()>, std::chrono::microseconds) {
+BtStatus do_in_main_thread_delayed(base::OnceCallback<void()>, std::chrono::microseconds) {
   // this is not properly mocked, so we use abort to catch if this is used in
   // any test cases
   abort();
@@ -60,22 +64,26 @@ uint32_t GetSystemPropertyUint32(const std::string& property, uint32_t default_v
 }  // namespace os
 }  // namespace bluetooth
 
-constexpr RawAddress kDummyAddr({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+constexpr RawAddress kDummyAddr("11:22:33:44:55:66");
 constexpr uint16_t kMaxPacketSize = 1024;
 namespace {
 
-tL2CAP_FIXED_CHNL_REG fixed_chnl_reg;
+// Set up default callback structure
+tL2CAP_FIXED_CHNL_REG fixed_chnl_reg = {
+        .pL2CA_FixedConn_Cb = [](uint16_t, const RawAddress&, bool, uint16_t, tBT_TRANSPORT) {},
+        .pL2CA_FixedData_Cb = [](uint16_t, const RawAddress&, BT_HDR*) {},
+};
+
 tL2CAP_APPL_INFO appl_info;
-tBTM_SEC_DEV_REC btm_sec_dev_rec;
+BtmDevice btm_device;
 
 class FakeBtStack {
   NiceMock<bluetooth::testing::stack::l2cap::Mock> mock_l2cap_interface;
 
 public:
   FakeBtStack() {
-    test::mock::stack_btm_dev::btm_find_dev.body = [](const RawAddress&) {
-      return &btm_sec_dev_rec;
-    };
+    test::mock::stack_btm_dev::btm_find_dev.body = [](const RawAddress&) { return &btm_device; };
+    test::mock::stack_btm_dev::btm_get_dev.body = [](const RawAddress&) { return &btm_device; };
 
     test::mock::stack_l2cap_ble::L2CA_GetBleConnRole.body = [](const RawAddress&) {
       return HCI_ROLE_CENTRAL;
@@ -124,6 +132,7 @@ public:
 
   ~FakeBtStack() {
     test::mock::stack_btm_dev::btm_find_dev = {};
+    test::mock::stack_btm_dev::btm_get_dev = {};
 
     test::mock::stack_l2cap_ble::L2CA_GetBleConnRole = {};
 
@@ -153,14 +162,13 @@ static void GattInit() {
   tmp.fill(0x82);
   Uuid app_uuid = Uuid::From128BitBE(tmp);
 
-  tGATT_CBACK gap_cback = {
+  stack::tGATT_CBACK gap_cback = {
           .p_conn_cb = [](tGATT_IF, const RawAddress&, uint16_t conn_id, bool connected,
                           tGATT_DISCONN_REASON, tBT_TRANSPORT) { s_ConnId = conn_id; },
           .p_cmpl_cb = [](uint16_t, tGATTC_OPTYPE, tGATT_STATUS, tGATT_CL_COMPLETE*) {},
           .p_disc_res_cb = nullptr,
           .p_disc_cmpl_cb = nullptr,
-          .p_req_cb = [](uint16_t conn_id, uint32_t trans_id, tGATTS_REQ_TYPE type,
-                         tGATTS_DATA* p_data) {},
+          .p_req_cb = nullptr,
           .p_enc_cmpl_cb = nullptr,
           .p_congestion_cb = nullptr,
           .p_phy_update_cb = nullptr,
@@ -168,8 +176,8 @@ static void GattInit() {
           .p_subrate_chg_cb = nullptr,
   };
 
-  s_AppIf = GATT_Register(app_uuid, "Gap", &gap_cback, false);
-  GATT_StartIf(s_AppIf);
+  s_AppIf = stack::appRegister(app_uuid, "Gap", &gap_cback, false);
+  stack::appStartIf(s_AppIf);
 }
 
 static void ServerInit() {
@@ -209,7 +217,7 @@ static void ServerInit() {
 }
 
 static void ServerCleanup() {
-  GATT_Deregister(s_AppIf);
+  stack::appDeregister(s_AppIf);
   gatt_free();
 }
 
@@ -231,12 +239,12 @@ static void FuzzAsServer(FuzzedDataProvider& fdp) {
 
 static void ClientInit() {
   GattInit();
-  (void)GATT_Connect(s_AppIf, kDummyAddr, BTM_BLE_DIRECT_CONNECTION, BT_TRANSPORT_LE, false);
+  (void)stack::leConnectionConnect(s_AppIf, kDummyAddr, BTM_BLE_DIRECT_CONNECTION);
 }
 
 static void ClientCleanup() {
-  (void)GATT_CancelConnect(s_AppIf, kDummyAddr, true);
-  GATT_Deregister(s_AppIf);
+  (void)stack::leConnectionCancelConnect(s_AppIf, kDummyAddr, true);
+  stack::appDeregister(s_AppIf);
   gatt_free();
 }
 

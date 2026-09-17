@@ -18,7 +18,6 @@ package com.android.bluetooth.mapclient;
 
 import static java.util.Objects.requireNonNull;
 
-import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.bluetooth.SdpMasRecord;
@@ -28,9 +27,9 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
-import com.android.bluetooth.BluetoothObexTransport;
-import com.android.bluetooth.ObexAppParameters;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.obex.BluetoothObexTransport;
+import com.android.bluetooth.obex.ObexAppParameters;
 import com.android.internal.util.StateMachine;
 import com.android.obex.ClientSession;
 import com.android.obex.HeaderSet;
@@ -74,12 +73,14 @@ public class MasClient {
     private static final int MAP_FEATURE_BROWSING = 0x00000004;
     private static final int MAP_FEATURE_UPLOADING = 0x00000008;
     private static final int MAP_FEATURE_EXTENDED_EVENT_REPORT_1_1 = 0x00000040;
+    private static final int MAP_FEATURE_MESSAGE_LISTING_FORMAT_1_1 = 0x00000200;
     static final int MAP_SUPPORTED_FEATURES =
             MAP_FEATURE_NOTIFICATION_REGISTRATION
                     | MAP_FEATURE_NOTIFICATION
                     | MAP_FEATURE_BROWSING
                     | MAP_FEATURE_UPLOADING
-                    | MAP_FEATURE_EXTENDED_EVENT_REPORT_1_1;
+                    | MAP_FEATURE_EXTENDED_EVENT_REPORT_1_1
+                    | MAP_FEATURE_MESSAGE_LISTING_FORMAT_1_1;
 
     private final StateMachine mCallback;
     private final Handler mHandler;
@@ -113,7 +114,6 @@ public class MasClient {
         mHandler.obtainMessage(CONNECT).sendToTarget();
     }
 
-    @SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
     private void connect() {
         try {
             int l2capSocket = mSdpMasRecord.getL2capPsm();
@@ -218,7 +218,7 @@ public class MasClient {
 
     public enum CharsetType {
         NATIVE,
-        UTF_8;
+        UTF_8
     }
 
     SdpMasRecord getSdpMasRecord() {

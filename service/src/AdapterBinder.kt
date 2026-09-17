@@ -23,6 +23,7 @@ import android.os.RemoteException
 
 private const val TAG = "AdapterBinder"
 
+@Suppress("IncorrectRequiresPermissionPropagation") // SystemServer has all the permissions
 class AdapterBinder(rawBinder: IBinder) {
     val adapterBinder: IAdapter = IAdapter.Stub.asInterface(rawBinder)
     var adapterServiceBinder: IBinder? = null
@@ -66,8 +67,8 @@ class AdapterBinder(rawBinder: IBinder) {
     }
 
     @Throws(RemoteException::class)
-    fun unregAllGattClient() {
-        adapterBinder.unregAllGattClient()
+    fun setName(name: String) {
+        adapterBinder.setName(name)
     }
 
     @Throws(RemoteException::class)

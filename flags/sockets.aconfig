@@ -2,98 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "unix_file_socket_creation_failure"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "New socket exception code for better logging and error handling"
-    bug: "318886332"
-}
-
-flag {
-    name: "bt_socket_api_l2cap_cid"
-    namespace: "bluetooth"
-    description: "New socket API to get L2CAP channel ID"
-    bug: "326351678"
-    is_exported: true
-}
-
-flag {
-    name: "bt_offload_socket_api"
-    namespace: "bluetooth"
-    description: "New socket API to create offload socket"
-    bug: "367419086"
-    is_exported: true
-}
-
-flag {
-    name: "set_max_data_length_for_lecoc"
-    namespace: "bluetooth"
-    description: "set le data length to max on le coc connection to achieve better data rate"
-    bug: "373726267"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "socket_settings_api"
-    namespace: "bluetooth"
-    description: "Adds new socket settings interface which allows creation of encryption only socket"
-    bug: "374358112"
-    is_exported: true
-}
-
-flag {
-    name: "avoid_l2c_processing_while_stack_shutdown"
-    namespace: "bluetooth"
-    description: "Avoid l2cap processing while stack is shutdown"
-    bug: "379731768"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "fix_buf_len_check_for_first_k_frame"
-    namespace: "bluetooth"
-    description: "Fix L2cap buffer length check against MPS for the first k-frame"
-    bug: "386382446"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "invalidate_hci_handle_on_acl_removal"
-    namespace: "bluetooth"
-    description: "invalidate hci handle associated with lcb on acl removal"
-    bug: "394329150"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "disconnect_acls_by_bredr_disabled"
-    namespace: "bluetooth"
-    description: "Fix ACL Link still connected even BREDR is disabled"
-    bug: "391263869"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "fix_lecoc_socket_available"
-    namespace: "bluetooth"
-    description: "Fix Bluetooth Socket available API for LECOC socket"
-    bug: "402536099"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "make_socket_read_behavior_consistent"
     namespace: "bluetooth"
     description: "Ensure both RFCOMM & LECOC sockets return value is consistent on EOF"
@@ -104,70 +12,107 @@ flag {
 }
 
 flag {
-    name: "flag_handle_hci_error_controller_busy"
-    namespace: "bluetooth"
-    description: "Handle HCI_ERR_CONTROLLER_BUSY error code in L2cap layer"
-    bug: "413065608"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "downgrade_to_basic_mode_on_no_info_resp"
-    namespace: "bluetooth"
-    description: "Downgrade L2cap mode to basic on info response timeout"
-    bug: "416031394"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "donot_pm_classic_on_le_traffic"
-    namespace: "bluetooth"
-    description: "Donot exit the sniff on classic link if on LE only traffic"
-    bug: "416266693"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "monitor_read_flag_on_offloaded_socket"
-    namespace: "bluetooth"
-    description: "Monitor read flag on the offloaded socket to catch close signal"
-    bug: "419864098"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "fix_socket_connection_failed_no_callback"
-    namespace: "bluetooth"
-    description: "Fix Rfcomm Socket connection failed but callback not called"
-    bug: "419814062"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "check_l2c_conn_status_before_param_validation"
-    namespace: "bluetooth"
-    description: "Check the L2CAP connection status before parameter validation"
-    bug: "423056492"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "consider_l2c_header_bytes_for_mps_selection"
     namespace: "bluetooth"
     description: "while selecting the local MPS, consider the L2cap header bytes"
     bug: "427819296"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "lecoc_with_fixed_psm"
+    namespace: "bluetooth"
+    description: "Support LE CoC with fixed PSM"
+    bug: "443347109"
+}
+
+flag {
+    name: "flush_socket_accept_signal"
+    namespace: "bluetooth"
+    description: "Flush the socket accept signal to minimize the latency"
+    bug: "461807788"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "add_address_mapping_for_lecoc"
+    namespace: "bluetooth"
+    description: "Derive the pseudo address from the identity address for LE CoC"
+    bug: "465859619"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_flow_control_logic_at_l2cap"
+    namespace: "bluetooth"
+    description: "Fix the flow control logic at l2cap layer"
+    bug: "467155293"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "donot_reuse_lecoc_ccbs"
+    namespace: "bluetooth"
+    description: "Release LECOC ccbs on link disconnection"
+    bug: "475235720"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fixed_psm_for_offload_socket"
+    namespace: "bluetooth"
+    description: "Support LE CoC with fixed PSM for offload sockets"
+    bug: "478274484"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "close_conn_socket_on_failure"
+    namespace: "bluetooth"
+    description: "Close the connection socket on failure from OBEX server session"
+    bug: "481154811"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "donot_release_wakelock_if_tx_queue_is_not_empty"
+    namespace: "bluetooth"
+    description: "Donot stop the timer & release wakelock if data to be sent"
+    bug: "486032534"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "cancel_pending_le_conn_on_socket_close"
+    namespace: "bluetooth"
+    description: "Cancel pending LE connection on socket close"
+    bug: "489426053"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "reject_invalid_eatt_channels_in_response"
+    namespace: "bluetooth"
+    description: "Reject the invalid EATT channels in connection response"
+    bug: "491136966"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

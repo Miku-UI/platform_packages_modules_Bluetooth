@@ -16,23 +16,19 @@
 
 package com.android.bluetooth.mapclient;
 
-import com.android.bluetooth.ObexAppParameters;
+import com.android.bluetooth.obex.ObexAppParameters;
 import com.android.obex.ClientSession;
 import com.android.obex.HeaderSet;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
 
 /* Get a listing of subdirectories. */
 final class RequestGetFolderListing extends Request {
 
     private static final String TYPE = "x-obex/folder-listing";
 
-    private FolderListing mResponse = null;
-
     RequestGetFolderListing(int maxListCount, int listStartOffset) {
-
         if (maxListCount < 0 || maxListCount > 65535) {
             throw new IllegalArgumentException("maxListCount should be [0..65535]");
         }
@@ -57,17 +53,7 @@ final class RequestGetFolderListing extends Request {
     }
 
     @Override
-    protected void readResponse(InputStream stream) {
-        mResponse = new FolderListing(stream);
-    }
-
-    public List<String> getList() {
-        if (mResponse == null) {
-            return null;
-        }
-
-        return mResponse.getList();
-    }
+    protected void readResponse(InputStream stream) {}
 
     @Override
     public void execute(ClientSession session) throws IOException {

@@ -32,23 +32,18 @@ import android.app.PendingIntent;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothPbap;
 import android.bluetooth.BluetoothProfile;
-import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.os.UserHandle;
 import android.util.Log;
 
-import com.android.bluetooth.BluetoothObexTransport;
-import com.android.bluetooth.BluetoothStatsLog;
-import com.android.bluetooth.ObexRejectServer;
 import com.android.bluetooth.R;
-import com.android.bluetooth.Utils;
+import com.android.bluetooth.Util;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
-import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.obex.BluetoothObexTransport;
+import com.android.bluetooth.obex.ObexRejectServer;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.annotations.VisibleForTesting.Visibility;
 import com.android.internal.util.State;
@@ -69,7 +64,6 @@ import java.io.IOException;
 //                     v     v
 //          CONNECTED   ----->  FINISHED
 //                (OBEX Server done)
-// Next tag value for ContentProfileErrorReportUtils.report(): 3
 @VisibleForTesting(visibility = Visibility.PACKAGE)
 public class PbapStateMachine extends StateMachine {
     private static final String TAG = PbapStateMachine.class.getSimpleName();
@@ -163,8 +157,18 @@ public class PbapStateMachine extends StateMachine {
             mPrevState = this;
         }
 
-        // Should not be called from enter() method
-        private void broadcastConnectionState(BluetoothDevice device, int fromState, int toState) {
+        /** Broadcast connection state change for this state machine */
+        void broadcastStateTransitions() {
+            int prevStateInt = STATE_DISCONNECTED;
+            if (mPrevState != null) {
+                prevStateInt = mPrevState.getConnectionStateInt();
+            }
+            if (getConnectionStateInt() == prevStateInt) {
+                return;
+            }
+            BluetoothDevice device = mRemoteDevice;
+            int fromState = prevStateInt;
+            int toState = getConnectionStateInt();
             stateLogD("broadcastConnectionState " + device + ": " + fromState + "->" + toState);
             mAdapterService.updateProfileConnectionAdapterProperties(
                     device, BluetoothProfile.PBAP, toState, fromState);
@@ -174,30 +178,7 @@ public class PbapStateMachine extends StateMachine {
             intent.putExtra(BluetoothProfile.EXTRA_STATE, toState);
             intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
             intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
-            if (Flags.onlyBroadcastToLocalUser()) {
-                mService.sendBroadcast(intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastBundle());
-            } else {
-                mService.sendBroadcastAsUser(
-                        intent, UserHandle.ALL, BLUETOOTH_CONNECT, Utils.getTempBroadcastBundle());
-            }
-        }
-
-        /** Broadcast connection state change for this state machine */
-        void broadcastStateTransitions() {
-            int prevStateInt = STATE_DISCONNECTED;
-            if (mPrevState != null) {
-                prevStateInt = mPrevState.getConnectionStateInt();
-            }
-            if (getConnectionStateInt() != prevStateInt) {
-                stateLogD(
-                        "connection state changed: "
-                                + mRemoteDevice
-                                + ": "
-                                + mPrevState
-                                + " -> "
-                                + this);
-                broadcastConnectionState(mRemoteDevice, prevStateInt, getConnectionStateInt());
-            }
+            mService.sendBroadcast(intent, BLUETOOTH_CONNECT, Util.getTempBroadcastBundle());
         }
 
         /**
@@ -281,11 +262,6 @@ public class PbapStateMachine extends StateMachine {
             try {
                 mServerSession = new ServerSession(transport, server, null);
             } catch (IOException ex) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.PBAP,
-                        BluetoothProtoEnums.BLUETOOTH_PBAP_STATE_MACHINE,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        0);
                 Log.e(TAG, "Caught exception starting OBEX reject server session" + ex.toString());
             }
         }
@@ -311,11 +287,6 @@ public class PbapStateMachine extends StateMachine {
                 mConnSocket.close();
                 mConnSocket = null;
             } catch (IOException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.PBAP,
-                        BluetoothProtoEnums.BLUETOOTH_PBAP_STATE_MACHINE,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        1);
                 Log.e(TAG, "Close Connection Socket error: " + e.toString());
             }
 
@@ -338,11 +309,6 @@ public class PbapStateMachine extends StateMachine {
             try {
                 startObexServerSession();
             } catch (IOException ex) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.PBAP,
-                        BluetoothProtoEnums.BLUETOOTH_PBAP_STATE_MACHINE,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        2);
                 Log.e(TAG, "Caught exception starting OBEX server session" + ex.toString());
             }
             broadcastStateTransitions();

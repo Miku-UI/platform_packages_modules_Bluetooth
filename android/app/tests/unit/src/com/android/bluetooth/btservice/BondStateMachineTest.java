@@ -38,13 +38,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.companion.CompanionDeviceManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.ParcelUuid;
-import android.os.UserHandle;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.MediumTest;
@@ -125,7 +126,7 @@ public class BondStateMachineTest {
 
     @Parameters(name = "{0}")
     public static List<FlagsWrapper> getParams() {
-        return FlagsWrapper.progressionOf(Flags.FLAG_WATCH_DEVICE_OVERRIDE_AIRPLANE_MODE);
+        return FlagsWrapper.progressionOf();
     }
 
     public BondStateMachineTest(FlagsWrapper flags) {
@@ -171,22 +172,36 @@ public class BondStateMachineTest {
                 .createBond(any(byte[].class), eq(BluetoothDevice.ADDRESS_TYPE_PUBLIC), anyInt());
 
         // The removeBond() request for a bonded device should invoke the removeBondNative() call.
-        sendAndDispatchMessage(BondStateMachine.REMOVE_BOND, device1);
-        sendAndDispatchMessage(BondStateMachine.REMOVE_BOND, device2);
+        sendAndDispatchMessage(BondStateMachine.MESSAGE_REMOVE_BOND, device1);
+        sendAndDispatchMessage(BondStateMachine.MESSAGE_REMOVE_BOND, device2);
 
         verify(mNativeInterface).removeBond(eq(TEST_BT_ADDR_BYTES));
         verify(mNativeInterface).removeBond(eq(TEST_BT_ADDR_BYTES_2));
 
         mStateMachine.bondStateChangeCallback(
-                AbstractionLayer.BT_STATUS_SUCCESS, TEST_BT_ADDR_BYTES, BOND_NONE, 0);
-        syncHandler(BondStateMachine.BONDING_STATE_CHANGE);
+                AbstractionLayer.BT_STATUS_SUCCESS,
+                TEST_BT_ADDR_BYTES,
+                BluetoothDevice.TRANSPORT_BREDR,
+                BOND_NONE,
+                0,
+                0,
+                AbstractionLayer.BT_PAIRING_INITIATOR_APP,
+                0);
+        syncHandler(BondStateMachine.MESSAGE_BOND_STATE_CHANGE);
         mStateMachine.bondStateChangeCallback(
-                AbstractionLayer.BT_STATUS_SUCCESS, TEST_BT_ADDR_BYTES_2, BOND_NONE, 0);
-        syncHandler(BondStateMachine.BONDING_STATE_CHANGE);
+                AbstractionLayer.BT_STATUS_SUCCESS,
+                TEST_BT_ADDR_BYTES_2,
+                BluetoothDevice.TRANSPORT_BREDR,
+                BOND_NONE,
+                0,
+                0,
+                AbstractionLayer.BT_PAIRING_INITIATOR_APP,
+                0);
+        syncHandler(BondStateMachine.MESSAGE_BOND_STATE_CHANGE);
 
         // Try to pair these two devices again, createBondNative() should be invoked.
-        sendAndDispatchMessage(BondStateMachine.CREATE_BOND, device1);
-        sendAndDispatchMessage(BondStateMachine.CREATE_BOND, device2);
+        sendAndDispatchMessage(BondStateMachine.MESSAGE_CREATE_BOND, device1);
+        sendAndDispatchMessage(BondStateMachine.MESSAGE_CREATE_BOND, device2);
 
         verify(mNativeInterface)
                 .createBond(
@@ -200,7 +215,7 @@ public class BondStateMachineTest {
 
     @Test
     public void testCreateBondWithLeDevice() {
-        mStateMachine.mPendingBondedDevices.clear();
+        mStateMachine.mDevicesWaitingForUuids.clear();
 
         BluetoothDevice device1 =
                 getRealDevice(
@@ -212,8 +227,8 @@ public class BondStateMachineTest {
                         BluetoothDevice.ADDRESS_TYPE_RANDOM);
 
         // The createBond() request for two devices with different address types.
-        sendAndDispatchMessage(BondStateMachine.CREATE_BOND, device1);
-        sendAndDispatchMessage(BondStateMachine.CREATE_BOND, device2);
+        sendAndDispatchMessage(BondStateMachine.MESSAGE_CREATE_BOND, device1);
+        sendAndDispatchMessage(BondStateMachine.MESSAGE_CREATE_BOND, device2);
 
         verify(mNativeInterface)
                 .createBond(
@@ -228,13 +243,21 @@ public class BondStateMachineTest {
     @Test
     public void testUuidUpdateWithPendingDevice() {
         mRemoteDevices.reset();
-        mStateMachine.mPendingBondedDevices.clear();
+        mStateMachine.mDevicesWaitingForUuids.clear();
 
         RemoteDevices.DeviceProperties pendingDeviceProperties =
                 mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES_2);
         BluetoothDevice pendingDevice = pendingDeviceProperties.getDevice();
         assertThat(pendingDevice).isNotNull();
-        mStateMachine.sendIntent(pendingDevice, BOND_BONDED, TEST_BOND_REASON, false);
+        mStateMachine.handleBondStateChanged(
+                pendingDevice,
+                BluetoothDevice.TRANSPORT_BREDR,
+                BOND_BONDED,
+                null,
+                null,
+                AbstractionLayer.BT_PAIRING_INITIATOR_APP,
+                TEST_BOND_REASON,
+                0);
 
         RemoteDevices.DeviceProperties testDeviceProperties =
                 mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
@@ -243,25 +266,25 @@ public class BondStateMachineTest {
         assertThat(testDevice).isNotNull();
 
         sendAndDispatchMessage(
-                BondStateMachine.BONDING_STATE_CHANGE,
+                BondStateMachine.MESSAGE_BOND_STATE_CHANGE,
                 BOND_BONDING,
                 AbstractionLayer.BT_STATUS_RMT_DEV_DOWN,
                 testDevice);
 
         pendingDeviceProperties.mUuidsBrEdr = TEST_UUIDS;
-        syncHandler(BondStateMachine.BONDING_STATE_CHANGE); // message was deferred
+        syncHandler(BondStateMachine.MESSAGE_BOND_STATE_CHANGE); // message was deferred
 
-        sendAndDispatchMessage(BondStateMachine.UUID_UPDATE, pendingDevice);
+        sendAndDispatchMessage(BondStateMachine.MESSAGE_UUID_UPDATE, pendingDevice);
         sendAndDispatchMessage(
-                BondStateMachine.BONDING_STATE_CHANGE,
+                BondStateMachine.MESSAGE_BOND_STATE_CHANGE,
                 BOND_BONDED,
                 AbstractionLayer.BT_STATUS_SUCCESS,
                 testDevice);
 
-        syncHandler(BondStateMachine.UUID_UPDATE); // message was deferred
+        syncHandler(BondStateMachine.MESSAGE_UUID_UPDATE); // message was deferred
 
         assertThat(mLooper.nextMessage()).isNull();
-        assertThat(mStateMachine.mPendingBondedDevices).isEmpty();
+        assertThat(mStateMachine.mDevicesWaitingForUuids).isEmpty();
     }
 
     private void resetRemoteDevice(int deviceType) {
@@ -271,7 +294,7 @@ public class BondStateMachineTest {
         mDevice = mDeviceProperties.getDevice();
         assertThat(mDevice).isNotNull();
         mDeviceProperties.mDeviceType = deviceType;
-        mStateMachine.mPendingBondedDevices.clear();
+        mStateMachine.mDevicesWaitingForUuids.clear();
     }
 
     @Test
@@ -391,7 +414,6 @@ public class BondStateMachineTest {
                 BOND_BONDED, BOND_BONDED, false, BOND_BONDED, false, BOND_NONE, BOND_NONE, true);
         testSendIntentPendingDevice(
                 BOND_BONDED, badBondState, false, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
-
         testSendIntentPendingDevice(
                 BOND_NONE, BOND_NONE, true, BOND_NONE, false, BOND_NONE, BOND_NONE, false);
         testSendIntentPendingDevice(
@@ -409,10 +431,6 @@ public class BondStateMachineTest {
         testSendIntentPendingDevice(
                 BOND_BONDING, badBondState, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
         testSendIntentPendingDevice(
-                BOND_BONDED, BOND_NONE, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(
-                BOND_BONDED, BOND_BONDING, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDevice(
                 BOND_BONDED,
                 BOND_BONDED,
                 true,
@@ -421,8 +439,6 @@ public class BondStateMachineTest {
                 BOND_BONDING,
                 BOND_BONDED,
                 false);
-        testSendIntentPendingDevice(
-                BOND_BONDED, badBondState, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
 
         // Uuid available, mPendingBondedDevice is empty.
         testSendIntentNoPendingDeviceWithUuid(
@@ -567,10 +583,6 @@ public class BondStateMachineTest {
         testSendIntentPendingDeviceWithUuid(
                 BOND_BONDING, badBondState, true, BOND_BONDING, false, BOND_NONE, BOND_NONE, false);
         testSendIntentPendingDeviceWithUuid(
-                BOND_BONDED, BOND_NONE, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(
-                BOND_BONDED, BOND_BONDING, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
-        testSendIntentPendingDeviceWithUuid(
                 BOND_BONDED,
                 BOND_BONDED,
                 true,
@@ -579,8 +591,30 @@ public class BondStateMachineTest {
                 BOND_BONDING,
                 BOND_BONDED,
                 false);
-        testSendIntentPendingDeviceWithUuid(
-                BOND_BONDED, badBondState, true, BOND_BONDED, false, BOND_NONE, BOND_NONE, false);
+    }
+
+    @Test
+    public void handleBondStateChanged_fromBondingToNone_resetsKeyMissingCount() {
+        // Set up a device and set its initial state to BONDING
+        mDeviceProperties = mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
+        mDevice = mDeviceProperties.getDevice();
+        mDeviceProperties.mBondState = BOND_BONDING;
+
+        // Trigger the state change from BONDING to NONE
+        mStateMachine.handleBondStateChanged(
+                mDevice,
+                BluetoothDevice.TRANSPORT_BREDR,
+                BOND_NONE,
+                null, // pairingAlgorithm
+                null, // pairingVariant
+                AbstractionLayer.BT_PAIRING_INITIATOR_APP, // pairingInitiator
+                TEST_BOND_REASON,
+                0); // hciReason
+
+        // Verify that the key missing count is reset. This is crucial for scenarios like
+        // autonomous repair, where a failed pairing attempt (BONDING -> NONE) should clear
+        // the bond-loss state.
+        verify(mAdapterService).updateKeyMissingCount(eq(mDevice), eq(false));
     }
 
     @Test
@@ -605,7 +639,7 @@ public class BondStateMachineTest {
         // Random profile intentionally left out to test empty case
         doReturn(Optional.empty()).when(mAdapterService).getHapClientService();
 
-        mStateMachine.clearProfilePriority(mDevice);
+        mStateMachine.clearPermissionsAndPolicies(mDevice);
 
         InOrder inOrder =
                 inOrder(
@@ -640,7 +674,7 @@ public class BondStateMachineTest {
     private void testSendIntentCase(
             int oldState,
             int newState,
-            boolean isTriggerFromDelayMessage,
+            boolean uuidUpdate,
             int expectedNewState,
             boolean shouldBroadcast,
             int broadcastOldState,
@@ -652,8 +686,19 @@ public class BondStateMachineTest {
         mDeviceProperties.mBondState = oldState;
 
         try {
-            mStateMachine.sendIntent(
-                    mDevice, newState, TEST_BOND_REASON, isTriggerFromDelayMessage);
+            if (uuidUpdate) {
+                mStateMachine.handlePendingUuids(mDevice);
+            } else {
+                mStateMachine.handleBondStateChanged(
+                        mDevice,
+                        BluetoothDevice.TRANSPORT_BREDR,
+                        newState,
+                        null,
+                        null,
+                        AbstractionLayer.BT_PAIRING_INITIATOR_APP,
+                        TEST_BOND_REASON,
+                        0);
+            }
         } catch (IllegalArgumentException e) {
             // Do nothing.
         }
@@ -665,44 +710,30 @@ public class BondStateMachineTest {
 
         // Check for bond state Intent status.
         if (shouldBroadcast) {
-            if (Flags.onlyBroadcastToLocalUser()) {
-                verify(mAdapterService, times(++mVerifyCount))
-                        .sendBroadcast(
-                                intentArgument.capture(), eq(BLUETOOTH_CONNECT), any(Bundle.class));
-            } else {
-                verify(mAdapterService, times(++mVerifyCount))
-                        .sendBroadcastAsUser(
-                                intentArgument.capture(), eq(UserHandle.ALL),
-                                eq(BLUETOOTH_CONNECT), any(Bundle.class));
-            }
+            verify(mAdapterService, times(++mVerifyCount))
+                    .sendBroadcast(
+                            intentArgument.capture(), eq(BLUETOOTH_CONNECT), any(Bundle.class));
             verifyBondStateChangeIntent(
                     broadcastOldState, broadcastNewState, intentArgument.getValue());
         } else {
-            if (Flags.onlyBroadcastToLocalUser()) {
-                verify(mAdapterService, times(mVerifyCount))
-                        .sendBroadcast(any(Intent.class), anyString(), any(Bundle.class));
-            } else {
-                verify(mAdapterService, times(mVerifyCount))
-                        .sendBroadcastAsUser(
-                                any(Intent.class),
-                                any(UserHandle.class),
-                                anyString(),
-                                any(Bundle.class));
-            }
+            verify(mAdapterService, times(mVerifyCount))
+                    .sendBroadcast(any(Intent.class), anyString(), any(Bundle.class));
         }
 
         if (shouldDelayMessageExist) {
-            assertThat(mStateMachine.hasMessage(mStateMachine.BONDED_INTENT_DELAY)).isTrue();
-            mStateMachine.removeMessage(mStateMachine.BONDED_INTENT_DELAY);
+            assertThat(mStateMachine.hasMessage(mStateMachine.MESSAGE_SERVICE_DISCOVERY_TIMEOUT))
+                    .isTrue();
+            mStateMachine.removeMessage(mStateMachine.MESSAGE_SERVICE_DISCOVERY_TIMEOUT);
         } else {
-            assertThat(mStateMachine.hasMessage(mStateMachine.BONDED_INTENT_DELAY)).isFalse();
+            assertThat(mStateMachine.hasMessage(mStateMachine.MESSAGE_SERVICE_DISCOVERY_TIMEOUT))
+                    .isFalse();
         }
     }
 
     private void testSendIntentForAllDeviceTypes(
             int oldState,
             int newState,
-            boolean isTriggerFromDelayMessage,
+            boolean uuidUpdate,
             int expectedNewState,
             boolean shouldBroadcast,
             int broadcastOldState,
@@ -712,8 +743,12 @@ public class BondStateMachineTest {
             ParcelUuid[] uuids) {
         for (int deviceType : DEVICE_TYPES) {
             resetRemoteDevice(deviceType);
+            if (deviceType == BluetoothDevice.DEVICE_TYPE_LE) {
+                // Add audio support to validate tests.
+                mDeviceProperties.setBluetoothClass(BluetoothClass.Service.LE_AUDIO);
+            }
             if (pendingBondedDevice != null) {
-                mStateMachine.mPendingBondedDevices.add(mDevice);
+                mStateMachine.mDevicesWaitingForUuids.add(mDevice);
             }
             if (uuids != null) {
                 // Add dummy UUID for the device.
@@ -722,7 +757,7 @@ public class BondStateMachineTest {
             testSendIntentCase(
                     oldState,
                     newState,
-                    isTriggerFromDelayMessage,
+                    uuidUpdate,
                     expectedNewState,
                     shouldBroadcast,
                     broadcastOldState,
@@ -734,7 +769,7 @@ public class BondStateMachineTest {
     private void testSendIntentNoPendingDeviceWithUuid(
             int oldState,
             int newState,
-            boolean isTriggerFromDelayMessage,
+            boolean uuidUpdate,
             int expectedNewState,
             boolean shouldBroadcast,
             int broadcastOldState,
@@ -743,7 +778,7 @@ public class BondStateMachineTest {
         testSendIntentForAllDeviceTypes(
                 oldState,
                 newState,
-                isTriggerFromDelayMessage,
+                uuidUpdate,
                 expectedNewState,
                 shouldBroadcast,
                 broadcastOldState,
@@ -756,7 +791,7 @@ public class BondStateMachineTest {
     private void testSendIntentPendingDeviceWithUuid(
             int oldState,
             int newState,
-            boolean isTriggerFromDelayMessage,
+            boolean uuidUpdate,
             int expectedNewState,
             boolean shouldBroadcast,
             int broadcastOldState,
@@ -765,7 +800,7 @@ public class BondStateMachineTest {
         testSendIntentForAllDeviceTypes(
                 oldState,
                 newState,
-                isTriggerFromDelayMessage,
+                uuidUpdate,
                 expectedNewState,
                 shouldBroadcast,
                 broadcastOldState,
@@ -778,7 +813,7 @@ public class BondStateMachineTest {
     private void testSendIntentPendingDevice(
             int oldState,
             int newState,
-            boolean isTriggerFromDelayMessage,
+            boolean uuidUpdate,
             int expectedNewState,
             boolean shouldBroadcast,
             int broadcastOldState,
@@ -787,7 +822,7 @@ public class BondStateMachineTest {
         testSendIntentForAllDeviceTypes(
                 oldState,
                 newState,
-                isTriggerFromDelayMessage,
+                uuidUpdate,
                 expectedNewState,
                 shouldBroadcast,
                 broadcastOldState,
@@ -800,7 +835,7 @@ public class BondStateMachineTest {
     private void testSendIntentNoPendingDevice(
             int oldState,
             int newState,
-            boolean isTriggerFromDelayMessage,
+            boolean uuidUpdate,
             int expectedNewState,
             boolean shouldBroadcast,
             int broadcastOldState,
@@ -809,7 +844,7 @@ public class BondStateMachineTest {
         testSendIntentForAllDeviceTypes(
                 oldState,
                 newState,
-                isTriggerFromDelayMessage,
+                uuidUpdate,
                 expectedNewState,
                 shouldBroadcast,
                 broadcastOldState,
@@ -846,5 +881,167 @@ public class BondStateMachineTest {
     private void sendAndDispatchMessage(int what, int arg1, int arg2, Object obj) {
         mStateMachine.sendMessage(what, arg1, arg2, obj);
         syncHandler(what);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REMOVE_BOND_IN_IDLE_STATE)
+    public void testRemoveBondInIdleState_concurrentRequests() {
+        // Set up two devices that are bonded
+        RemoteDevices.DeviceProperties deviceProperties1 =
+                mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
+        BluetoothDevice device1 = mRemoteDevices.getDevice(TEST_BT_ADDR_BYTES);
+        deviceProperties1.mBondState = BOND_BONDED;
+
+        RemoteDevices.DeviceProperties deviceProperties2 =
+                mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES_2);
+        BluetoothDevice device2 = mRemoteDevices.getDevice(TEST_BT_ADDR_BYTES_2);
+        deviceProperties2.mBondState = BOND_BONDED;
+
+        doReturn(true).when(mNativeInterface).removeBond(any(byte[].class));
+
+        // Send remove bond message for device 1
+        sendAndDispatchMessage(BondStateMachine.MESSAGE_REMOVE_BOND, device1);
+
+        // Verify native removeBond called for device 1
+        verify(mNativeInterface).removeBond(eq(TEST_BT_ADDR_BYTES));
+
+        // Verify we are still in StateIdle
+        assertThat(mStateMachine.getCurrentState().getName()).isEqualTo("StateIdle");
+
+        // Send remove bond message for device 2 BEFORE callback for device 1
+        sendAndDispatchMessage(BondStateMachine.MESSAGE_REMOVE_BOND, device2);
+
+        // Verify native removeBond called for device 2
+        verify(mNativeInterface).removeBond(eq(TEST_BT_ADDR_BYTES_2));
+        assertThat(mStateMachine.getCurrentState().getName()).isEqualTo("StateIdle");
+
+        // Now simulate callbacks
+        // Callback for device 1
+        mStateMachine.bondStateChangeCallback(
+                AbstractionLayer.BT_STATUS_SUCCESS,
+                TEST_BT_ADDR_BYTES,
+                BluetoothDevice.TRANSPORT_BREDR,
+                BOND_NONE,
+                0,
+                0,
+                AbstractionLayer.BT_PAIRING_INITIATOR_APP,
+                0);
+        syncHandler(BondStateMachine.MESSAGE_BOND_STATE_CHANGE);
+
+        // Callback for device 2
+        mStateMachine.bondStateChangeCallback(
+                AbstractionLayer.BT_STATUS_SUCCESS,
+                TEST_BT_ADDR_BYTES_2,
+                BluetoothDevice.TRANSPORT_BREDR,
+                BOND_NONE,
+                0,
+                0,
+                AbstractionLayer.BT_PAIRING_INITIATOR_APP,
+                0);
+        syncHandler(BondStateMachine.MESSAGE_BOND_STATE_CHANGE);
+
+        // Verify state remains idle
+        assertThat(mStateMachine.getCurrentState().getName()).isEqualTo("StateIdle");
+        assertThat(mRemoteDevices.getBondState(device1)).isEqualTo(BOND_NONE);
+        assertThat(mRemoteDevices.getBondState(device2)).isEqualTo(BOND_NONE);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REMOVE_BOND_IN_IDLE_STATE)
+    public void testBondStateChangeInIdleState_clearsPermissionsAndSetsReason() {
+        // Set up a device that is bonded
+        RemoteDevices.DeviceProperties deviceProperties =
+                mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
+        BluetoothDevice device = mRemoteDevices.getDevice(TEST_BT_ADDR_BYTES);
+        deviceProperties.mBondState = BOND_BONDED;
+
+        // Mock profile services to be present
+        doReturn(Optional.of(mHidHostService)).when(mAdapterService).getHidHostService();
+        doReturn(Optional.of(mA2dpService)).when(mAdapterService).getA2dpService();
+        doReturn(Optional.of(mHeadsetService)).when(mAdapterService).getHeadsetService();
+        doReturn(Optional.of(mHeadsetClientService))
+                .when(mAdapterService)
+                .getHeadsetClientService();
+        doReturn(Optional.of(mA2dpSinkService)).when(mAdapterService).getA2dpSinkService();
+        doReturn(Optional.of(mPbapClientService)).when(mAdapterService).getPbapClientService();
+        doReturn(Optional.of(mLeAudioService)).when(mAdapterService).getLeAudioService();
+        doReturn(Optional.of(mCsipSetCoordinatorService))
+                .when(mAdapterService)
+                .getCsipSetCoordinatorService();
+        doReturn(Optional.of(mVolumeControlService))
+                .when(mAdapterService)
+                .getVolumeControlService();
+        doReturn(Optional.of(mHapClientService)).when(mAdapterService).getHapClientService();
+
+        // Simulate native callback for bond removal success
+        mStateMachine.bondStateChangeCallback(
+                AbstractionLayer.BT_STATUS_SUCCESS,
+                TEST_BT_ADDR_BYTES,
+                BluetoothDevice.TRANSPORT_BREDR,
+                BOND_NONE,
+                0,
+                0,
+                AbstractionLayer.BT_PAIRING_INITIATOR_APP,
+                0);
+        syncHandler(BondStateMachine.MESSAGE_BOND_STATE_CHANGE);
+
+        // Verify permissions are cleared
+        verify(mAdapterService)
+                .setPhonebookAccessPermission(eq(device), eq(BluetoothDevice.ACCESS_UNKNOWN));
+        verify(mAdapterService)
+                .setMessageAccessPermission(eq(device), eq(BluetoothDevice.ACCESS_UNKNOWN));
+        verify(mAdapterService)
+                .setSimAccessPermission(eq(device), eq(BluetoothDevice.ACCESS_UNKNOWN));
+
+        // Verify profile policies are cleared
+        verify(mHidHostService).setConnectionPolicy(eq(device), eq(CONNECTION_POLICY_UNKNOWN));
+        verify(mA2dpService).setConnectionPolicy(eq(device), eq(CONNECTION_POLICY_UNKNOWN));
+
+        // Verify Intent was broadcast with correct reason
+        ArgumentCaptor<Intent> intentArgument = ArgumentCaptor.forClass(Intent.class);
+        verify(mAdapterService, times(1))
+                .sendBroadcast(intentArgument.capture(), anyString(), any(Bundle.class));
+
+        Intent intent = intentArgument.getValue();
+        assertThat(intent.getAction()).isEqualTo(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+        assertThat(intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1)).isEqualTo(BOND_NONE);
+        assertThat(intent.getIntExtra(BluetoothDevice.EXTRA_UNBOND_REASON, -1))
+                .isEqualTo(BluetoothDevice.UNBOND_REASON_REMOVED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REMOVE_BOND_IN_IDLE_STATE)
+    public void testDuplicateRemoveBondRequests_doesNotBlockCreateBond() {
+        // Set up a device that is bonded
+        RemoteDevices.DeviceProperties deviceProperties =
+                mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES);
+        BluetoothDevice device = mRemoteDevices.getDevice(TEST_BT_ADDR_BYTES);
+        deviceProperties.mBondState = BOND_BONDED;
+
+        doReturn(true).when(mNativeInterface).removeBond(any(byte[].class));
+        doReturn(true).when(mNativeInterface).createBond(any(byte[].class), anyInt(), anyInt());
+
+        // Send first remove bond message
+        sendAndDispatchMessage(BondStateMachine.MESSAGE_REMOVE_BOND, device);
+        verify(mNativeInterface).removeBond(eq(TEST_BT_ADDR_BYTES));
+
+        // Send second remove bond message (duplicate)
+        sendAndDispatchMessage(BondStateMachine.MESSAGE_REMOVE_BOND, device);
+        verify(mNativeInterface, times(2)).removeBond(eq(TEST_BT_ADDR_BYTES));
+
+        // Verify state is still Idle
+        assertThat(mStateMachine.getCurrentState().getName()).isEqualTo("StateIdle");
+
+        // Now send create bond for another device.
+        // We do NOT simulate a bond state change callback for the remove operations.
+        // This simulates the "native stack does not respond" scenario.
+        RemoteDevices.DeviceProperties deviceProperties2 =
+                mRemoteDevices.addDeviceProperties(TEST_BT_ADDR_BYTES_2);
+        BluetoothDevice device2 = deviceProperties2.getDevice();
+
+        sendAndDispatchMessage(BondStateMachine.MESSAGE_CREATE_BOND, device2);
+
+        // Verify createBond is called immediately
+        verify(mNativeInterface).createBond(eq(TEST_BT_ADDR_BYTES_2), anyInt(), anyInt());
     }
 }

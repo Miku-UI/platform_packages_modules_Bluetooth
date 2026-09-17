@@ -29,6 +29,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothLeAudioCodecConfig;
 import android.util.Log;
 
+import com.android.bluetooth.Util;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.internal.annotations.VisibleForTesting;
@@ -49,9 +50,9 @@ public class LeAudioNativeInterface {
 
     private static byte[] getByteAddress(BluetoothDevice device) {
         if (device == null) {
-            return Utils.getBytesFromAddress("00:00:00:00:00:00");
+            return Util.getBytesFromAddress("00:00:00:00:00:00");
         }
-        return Utils.getBytesFromAddress(device.getAddress());
+        return Util.getBytesFromAddress(device.getAddress());
     }
 
     private BluetoothDevice getDevice(byte[] address) {
@@ -337,6 +338,16 @@ public class LeAudioNativeInterface {
     }
 
     /**
+     * Set allowlist flag
+     *
+     * @param device the remote device to check
+     */
+    void setAllowlistFlag(BluetoothDevice device, boolean allowed) {
+        Log.d(TAG, "setAllowlistFlag: " + allowed + " for " + device);
+        setAllowlistFlagNative(getByteAddress(device), allowed);
+    }
+
+    /**
      * Set unicast monitor mode flag.
      *
      * @param direction direction for which monitor mode should be used
@@ -401,6 +412,17 @@ public class LeAudioNativeInterface {
         groupConfirmActiveNative(groupId);
     }
 
+    /**
+     * Sets the in game flag. *
+     *
+     * @param inGame A boolean value indicating whether the game is playing ({@code true}) or not
+     *     ({@code false}).
+     */
+    void setInGame(boolean inGame) {
+        Log.d(TAG, "setInGame inGame=" + inGame);
+        setInGameNative(inGame);
+    }
+
     // Native methods that call into the JNI interface
     private native void initNative(BluetoothLeAudioCodecConfig[] codecConfigOffloading);
 
@@ -427,6 +449,8 @@ public class LeAudioNativeInterface {
 
     private native void setInCallNative(boolean inCall);
 
+    private native void setAllowlistFlagNative(byte[] address, boolean allowed);
+
     private native void setUnicastMonitorModeNative(int direction, boolean enable);
 
     private native void confirmUnicastStreamRequestNative();
@@ -439,4 +463,6 @@ public class LeAudioNativeInterface {
             int groupId, int sinkContextTypes, int sourceContextTypes);
 
     private native void groupConfirmActiveNative(int groupId);
+
+    private native void setInGameNative(boolean inGame);
 }

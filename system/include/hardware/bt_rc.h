@@ -18,6 +18,9 @@
 #define ANDROID_INCLUDE_BT_RC_H
 
 #include <bluetooth/types/address.h>
+
+#include "bt_status.h"
+
 __BEGIN_DECLS
 
 /* Change this macro to use multiple RC */
@@ -248,8 +251,9 @@ typedef void (*btrc_passthrough_rsp_callback)(const RawAddress& bd_addr, int id,
 
 typedef void (*btrc_groupnavigation_rsp_callback)(int id, int key_state);
 
-typedef void (*btrc_connection_state_callback)(bool rc_connect, bool bt_connect,
-                                               const RawAddress& bd_addr);
+typedef void (*btrc_connection_state_callback)(const RawAddress& bd_addr,
+                                               btrc_connection_state_t rc_state,
+                                               btrc_connection_state_t br_state);
 
 typedef void (*btrc_ctrl_getrcfeatures_callback)(const RawAddress& bd_addr, int features);
 
@@ -328,54 +332,53 @@ typedef struct {
   /**
    * Register the BtRc callbacks
    */
-  bt_status_t (*init)(btrc_ctrl_callbacks_t* callbacks);
+  BtStatus (*init)(btrc_ctrl_callbacks_t* callbacks);
 
   /** send pass through command to target */
-  bt_status_t (*send_pass_through_cmd)(const RawAddress& bd_addr, uint8_t key_code,
-                                       uint8_t key_state);
+  BtStatus (*send_pass_through_cmd)(const RawAddress& bd_addr, uint8_t key_code, uint8_t key_state);
 
   /** send group navigation command to target */
-  bt_status_t (*send_group_navigation_cmd)(const RawAddress& bd_addr, uint8_t key_code,
-                                           uint8_t key_state);
+  BtStatus (*send_group_navigation_cmd)(const RawAddress& bd_addr, uint8_t key_code,
+                                        uint8_t key_state);
 
   /** send command to set player application setting attributes to target */
-  bt_status_t (*set_player_app_setting_cmd)(const RawAddress& bd_addr, uint8_t num_attrib,
-                                            uint8_t* attrib_ids, uint8_t* attrib_vals);
+  BtStatus (*set_player_app_setting_cmd)(const RawAddress& bd_addr, uint8_t num_attrib,
+                                         uint8_t* attrib_ids, uint8_t* attrib_vals);
 
   /** send command to play a particular item */
-  bt_status_t (*play_item_cmd)(const RawAddress& bd_addr, uint8_t scope, uint8_t* uid,
-                               uint16_t uid_counter);
+  BtStatus (*play_item_cmd)(const RawAddress& bd_addr, uint8_t scope, uint8_t* uid,
+                            uint16_t uid_counter);
 
   /** get the current track's media metadata */
-  bt_status_t (*get_current_metadata_cmd)(const RawAddress& bd_addr);
+  BtStatus (*get_current_metadata_cmd)(const RawAddress& bd_addr);
 
   /** get the playback state */
-  bt_status_t (*get_playback_state_cmd)(const RawAddress& bd_addr);
+  BtStatus (*get_playback_state_cmd)(const RawAddress& bd_addr);
 
   /** get the now playing list */
-  bt_status_t (*get_now_playing_list_cmd)(const RawAddress& bd_addr, uint32_t start, uint32_t end);
+  BtStatus (*get_now_playing_list_cmd)(const RawAddress& bd_addr, uint32_t start, uint32_t end);
 
   /** get the folder list */
-  bt_status_t (*get_folder_list_cmd)(const RawAddress& bd_addr, uint32_t start, uint32_t end);
+  BtStatus (*get_folder_list_cmd)(const RawAddress& bd_addr, uint32_t start, uint32_t end);
 
   /** get the player list */
-  bt_status_t (*get_player_list_cmd)(const RawAddress& bd_addr, uint32_t start, uint32_t end);
+  BtStatus (*get_player_list_cmd)(const RawAddress& bd_addr, uint32_t start, uint32_t end);
 
   /** change the folder path */
-  bt_status_t (*change_folder_path_cmd)(const RawAddress& bd_addr, uint8_t direction, uint8_t* uid);
+  BtStatus (*change_folder_path_cmd)(const RawAddress& bd_addr, uint8_t direction, uint8_t* uid);
 
   /** set browsed player */
-  bt_status_t (*set_browsed_player_cmd)(const RawAddress& bd_addr, uint16_t player_id);
+  BtStatus (*set_browsed_player_cmd)(const RawAddress& bd_addr, uint16_t player_id);
 
   /** set addressed player */
-  bt_status_t (*set_addressed_player_cmd)(const RawAddress& bd_addr, uint16_t player_id);
+  BtStatus (*set_addressed_player_cmd)(const RawAddress& bd_addr, uint16_t player_id);
 
   /** send rsp to set_abs_vol received from target */
-  bt_status_t (*set_volume_rsp)(const RawAddress& bd_addr, uint8_t abs_vol, uint8_t label);
+  BtStatus (*set_volume_rsp)(const RawAddress& bd_addr, uint8_t abs_vol, uint8_t label);
 
-  /** send notificaiton rsp for abs vol to target */
-  bt_status_t (*register_abs_vol_rsp)(const RawAddress& bd_addr, btrc_notification_type_t rsp_type,
-                                      uint8_t abs_vol, uint8_t label);
+  /** send notification rsp for abs vol to target */
+  BtStatus (*register_abs_vol_rsp)(const RawAddress& bd_addr, btrc_notification_type_t rsp_type,
+                                   uint8_t abs_vol, uint8_t label);
 
   /** Closes the interface. */
   void (*cleanup)(void);
@@ -387,6 +390,8 @@ __END_DECLS
 #include <bluetooth/log.h>
 
 namespace std {
+template <>
+struct formatter<btrc_connection_state_t> : enum_formatter<btrc_connection_state_t> {};
 template <>
 struct formatter<btrc_status_t> : enum_formatter<btrc_status_t> {};
 template <>

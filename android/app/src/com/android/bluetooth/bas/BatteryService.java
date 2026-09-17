@@ -32,9 +32,9 @@ import android.os.ParcelUuid;
 import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
-import com.android.bluetooth.Utils;
+import com.android.bluetooth.Util;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.ConnectableProfile;
+import com.android.bluetooth.profile.ConnectableProfile;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -59,7 +59,7 @@ public class BatteryService extends ConnectableProfile {
 
     @VisibleForTesting
     BatteryService(AdapterService adapterService, Looper looper) {
-        super(BluetoothProfile.BATTERY, requireNonNull(adapterService));
+        super(BluetoothProfile.BATTERY, adapterService);
         mHandler = new Handler(requireNonNull(looper));
         mLooper = looper;
     }
@@ -102,8 +102,8 @@ public class BatteryService extends ConnectableProfile {
             Log.w(TAG, "Cannot connect to " + device + " : policy forbidden");
             return false;
         }
-        final ParcelUuid[] featureUuids = mAdapterService.getRemoteUuids(device);
-        if (!Utils.arrayContains(featureUuids, BluetoothUuid.BATTERY)) {
+        final ParcelUuid[] featureUuids = getAdapterService().getRemoteUuids(device);
+        if (!Util.arrayContains(featureUuids, BluetoothUuid.BATTERY)) {
             Log.e(TAG, "Cannot connect to " + device + " : Remote does not have Battery UUID");
             return false;
         }
@@ -127,8 +127,8 @@ public class BatteryService extends ConnectableProfile {
     public boolean connectIfPossible(BluetoothDevice device) {
         if (device == null
                 || getConnectionPolicy(device) == CONNECTION_POLICY_FORBIDDEN
-                || !Utils.arrayContains(
-                        mAdapterService.getRemoteUuids(device), BluetoothUuid.BATTERY)) {
+                || !Util.arrayContains(
+                        getAdapterService().getRemoteUuids(device), BluetoothUuid.BATTERY)) {
             return false;
         }
         return connect(device);
@@ -172,7 +172,7 @@ public class BatteryService extends ConnectableProfile {
     boolean canConnect(BluetoothDevice device) {
         // Check connectionPolicy and accept or reject the connection.
         int connectionPolicy = getConnectionPolicy(device);
-        int bondState = mAdapterService.getBondState(device);
+        int bondState = getAdapterService().getBondState(device);
         // Allow this connection only if the device is bonded. Any attempt to connect while
         // bonding would potentially lead to an unauthorized connection.
         if (bondState != BluetoothDevice.BOND_BONDED) {
@@ -203,7 +203,7 @@ public class BatteryService extends ConnectableProfile {
 
         // Check if the device is disconnected - if unbonded, remove the state machine
         if (toState == STATE_DISCONNECTED) {
-            int bondState = mAdapterService.getBondState(device);
+            int bondState = getAdapterService().getBondState(device);
             if (bondState == BluetoothDevice.BOND_NONE) {
                 Log.d(TAG, device + " is unbonded. Remove state machine");
                 removeStateMachine(device);
@@ -216,10 +216,7 @@ public class BatteryService extends ConnectableProfile {
         if (states == null) {
             return devices;
         }
-        final BluetoothDevice[] bondedDevices = mAdapterService.getBondedDevices();
-        if (bondedDevices == null) {
-            return devices;
-        }
+        final var bondedDevices = getAdapterService().getBondedDevices();
         synchronized (mStateMachines) {
             for (BluetoothDevice device : bondedDevices) {
                 int connectionState = STATE_DISCONNECTED;
@@ -283,7 +280,7 @@ public class BatteryService extends ConnectableProfile {
     @Override
     public boolean setConnectionPolicy(BluetoothDevice device, int connectionPolicy) {
         Log.d(TAG, "Saved connectionPolicy " + device + " = " + connectionPolicy);
-        mAdapterService.setProfileConnectionPolicy(device, mProfileId, connectionPolicy);
+        getAdapterService().setProfileConnectionPolicy(device, getProfileId(), connectionPolicy);
         if (connectionPolicy == CONNECTION_POLICY_ALLOWED) {
             connect(device);
         } else if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
@@ -294,7 +291,7 @@ public class BatteryService extends ConnectableProfile {
 
     /** Called when the battery level of the device is notified. */
     void handleBatteryChanged(BluetoothDevice device, int batteryLevel) {
-        mAdapterService.setBatteryLevel(device, batteryLevel, /* isBas= */ true);
+        getAdapterService().setBatteryLevel(device, batteryLevel, /* isBas= */ true);
     }
 
     private BatteryStateMachine getOrCreateStateMachine(BluetoothDevice device) {

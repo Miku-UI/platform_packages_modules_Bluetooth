@@ -15,6 +15,7 @@
  */
 
 #include <bluetooth/types/address.h>
+#include <bluetooth/types/string_helpers.h>
 #include <bluetooth/types/uuid.h>
 #include <com_android_bluetooth_flags.h>
 #include <flag_macros.h>
@@ -23,20 +24,22 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <format>
 #include <memory>
 #include <string>
 
-#include "common/strings.h"
 #include "gd/os/rand.h"
 #include "osi/include/allocator.h"
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/gatt_api.h"
 #include "stack/include/l2cap_types.h"
-#include "stack/sdp/internal/sdp_api.h"
-#include "test/mock/mock_stack_sdp_legacy_api.h"
+#include "stack/include/stack_app.h"
+#include "stack/mock/mock_stack_sdp_legacy_api.h"
 
 #define TEST_BT com::android::bluetooth::flags
+
+using namespace bluetooth;
 
 namespace bluetooth {
 namespace legacy {
@@ -50,23 +53,26 @@ BT_HDR* attp_build_value_cmd(uint16_t payload_size, uint8_t op_code, uint16_t ha
 class StackGattTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    test::mock::stack_sdp_legacy::api_.handle.SDP_CreateRecord = ::SDP_CreateRecord;
-    test::mock::stack_sdp_legacy::api_.handle.SDP_AddServiceClassIdList =
-            ::SDP_AddServiceClassIdList;
-    test::mock::stack_sdp_legacy::api_.handle.SDP_AddAttribute = ::SDP_AddAttribute;
-    test::mock::stack_sdp_legacy::api_.handle.SDP_AddProtocolList = ::SDP_AddProtocolList;
-    test::mock::stack_sdp_legacy::api_.handle.SDP_AddUuidSequence = ::SDP_AddUuidSequence;
+    test::mock::stack_sdp_legacy::api_.SDP_CreateRecord = []() { return uint32_t(0x10000); };
+    test::mock::stack_sdp_legacy::api_.SDP_AddServiceClassIdList =
+            [](uint32_t /*handle*/, uint16_t /*num_services*/, uint16_t* /*p_service_uuids*/) {
+              return true;
+            };
+    test::mock::stack_sdp_legacy::api_.SDP_AddAttribute =
+            [](uint32_t /*handle*/, uint16_t /*attr_id*/, uint8_t /*attr_type*/,
+               uint32_t /*attr_len*/, uint8_t* /*p_val*/) { return true; };
+    test::mock::stack_sdp_legacy::api_.SDP_AddProtocolList =
+            [](uint32_t /*handle*/, uint16_t /*num_elem*/, tSDP_PROTOCOL_ELEM* /*p_elem_list*/) {
+              return true;
+            };
+    test::mock::stack_sdp_legacy::api_.SDP_AddUuidSequence =
+            [](uint32_t /*handle*/, uint16_t /*attr_id*/, uint16_t /*num_uuids*/,
+               uint16_t* /*p_uuids*/) { return true; };
   }
-  void TearDown() override { test::mock::stack_sdp_legacy::api_.handle = {}; }
+  void TearDown() override { test::mock::stack_sdp_legacy::api_ = {}; }
 };
 
 namespace {
-
-// Actual size of structure without compiler padding
-size_t actual_sizeof_tGATT_REG() {
-  return sizeof(bluetooth::Uuid) + sizeof(tGATT_CBACK) + sizeof(tGATT_IF) + sizeof(bool) +
-         sizeof(uint8_t) + sizeof(bool);
-}
 
 void tGATT_DISC_RES_CB(uint16_t /*conn_id*/, tGATT_DISC_TYPE /*disc_type*/,
                        tGATT_DISC_RES* /*p_data*/) {}
@@ -77,8 +83,6 @@ void tGATT_CMPL_CBACK(uint16_t /*conn_id*/, tGATTC_OPTYPE /*op*/, tGATT_STATUS /
 void tGATT_CONN_CBACK(tGATT_IF /*gatt_if*/, const RawAddress& /*bda*/, uint16_t /*conn_id*/,
                       bool /*connected*/, tGATT_DISCONN_REASON /*reason*/,
                       tBT_TRANSPORT /*transport*/) {}
-void tGATT_REQ_CBACK(uint16_t /*conn_id*/, uint32_t /*trans_id*/, tGATTS_REQ_TYPE /*type*/,
-                     tGATTS_DATA* /*p_data*/) {}
 void tGATT_CONGESTION_CBACK(uint16_t /*conn_id*/, bool /*congested*/) {}
 void tGATT_ENC_CMPL_CB(tGATT_IF /*gatt_if*/, const RawAddress& /*bda*/) {}
 void tGATT_PHY_UPDATE_CB(tGATT_IF /*gatt_if*/, uint16_t /*conn_id*/, uint8_t /*tx_phy*/,
@@ -86,12 +90,12 @@ void tGATT_PHY_UPDATE_CB(tGATT_IF /*gatt_if*/, uint16_t /*conn_id*/, uint8_t /*t
 void tGATT_CONN_UPDATE_CB(tGATT_IF /*gatt_if*/, uint16_t /*conn_id*/, uint16_t /*interval*/,
                           uint16_t /*latency*/, uint16_t /*timeout*/, tGATT_STATUS /*status*/) {}
 
-tGATT_CBACK gatt_callbacks = {
+stack::tGATT_CBACK gatt_callbacks = {
         .p_conn_cb = tGATT_CONN_CBACK,
         .p_cmpl_cb = tGATT_CMPL_CBACK,
         .p_disc_res_cb = tGATT_DISC_RES_CB,
         .p_disc_cmpl_cb = tGATT_DISC_CMPL_CB,
-        .p_req_cb = tGATT_REQ_CBACK,
+        .p_req_cb = nullptr,
         .p_enc_cmpl_cb = tGATT_ENC_CMPL_CB,
         .p_congestion_cb = tGATT_CONGESTION_CBACK,
         .p_phy_update_cb = tGATT_PHY_UPDATE_CB,
@@ -100,68 +104,27 @@ tGATT_CBACK gatt_callbacks = {
 
 }  // namespace
 
-TEST_F(StackGattTest, lifecycle_tGATT_REG) {
-  {
-    std::unique_ptr<tGATT_REG> reg0 = std::make_unique<tGATT_REG>();
-    std::unique_ptr<tGATT_REG> reg1 = std::make_unique<tGATT_REG>();
-    memset(reg0.get(), 0xff, sizeof(tGATT_REG));
-    memset(reg1.get(), 0xff, sizeof(tGATT_REG));
-    ASSERT_EQ(0, memcmp(reg0.get(), reg1.get(), sizeof(tGATT_REG)));
-
-    memset(reg0.get(), 0x0, sizeof(tGATT_REG));
-    memset(reg1.get(), 0x0, sizeof(tGATT_REG));
-    ASSERT_EQ(0, memcmp(reg0.get(), reg1.get(), sizeof(tGATT_REG)));
-  }
-
-  {
-    std::unique_ptr<tGATT_REG> reg0 = std::make_unique<tGATT_REG>();
-    memset(reg0.get(), 0xff, sizeof(tGATT_REG));
-
-    tGATT_REG reg1;
-    memset(&reg1, 0xff, sizeof(tGATT_REG));
-
-    // Clear the structures
-    memset(reg0.get(), 0, sizeof(tGATT_REG));
-    // Restore the complex structure after memset
-    memset(&reg1.name, 0, sizeof(std::string));
-    memset(&reg1.mtu_prefs, 0, sizeof(std::map<RawAddress, uint16_t>));
-    reg1 = {};
-    ASSERT_EQ(0, memcmp(reg0.get(), &reg1, actual_sizeof_tGATT_REG()));
-  }
-
-  {
-    tGATT_REG* reg0 = new tGATT_REG();
-    tGATT_REG* reg1 = new tGATT_REG();
-    memset(reg0, 0, sizeof(tGATT_REG));
-    *reg1 = {};
-    reg0->in_use = true;
-    ASSERT_NE(0, memcmp(reg0, reg1, sizeof(tGATT_REG)));
-    delete reg1;
-    delete reg0;
-  }
-}
-
 TEST_F(StackGattTest, gatt_init_free) {
   gatt_init();
   gatt_free();
 }
 
-TEST_F(StackGattTest, GATT_Register_Deregister) {
+TEST_F(StackGattTest, stack_AppRegister_Deregister) {
   gatt_init();
 
   // Gatt db profile always takes the first slot
   tGATT_IF apps[GATT_MAX_APPS - 1];
 
   for (int i = 0; i < GATT_MAX_APPS - 1; i++) {
-    std::string name = bluetooth::common::StringFormat("name%02d", i);
+    std::string name = std::format("name{:02}", i);
 
     bluetooth::Uuid uuid = bluetooth::Uuid::From128BitBE(
             bluetooth::os::GenerateRandom<bluetooth::Uuid::kNumBytes128>());
-    apps[i] = GATT_Register(uuid, name, &gatt_callbacks, false);
+    apps[i] = stack::appRegister(uuid, name, &gatt_callbacks, false);
   }
 
   for (int i = 0; i < GATT_MAX_APPS - 1; i++) {
-    GATT_Deregister(apps[i]);
+    stack::appDeregister(apps[i]);
   }
 
   gatt_free();

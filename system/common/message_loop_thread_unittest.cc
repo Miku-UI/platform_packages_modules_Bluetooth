@@ -83,7 +83,7 @@ protected:
 };
 
 TEST_F(MessageLoopThreadTest, get_weak_ptr) {
-  if (com::android::bluetooth::flags::replace_message_loop_thread_with_gd_handler()) {
+  if (com_android_bluetooth_flags_replace_message_loop_thread_with_gd_handler()) {
     GTEST_SKIP()
             << "Skipping this test, flag replace_message_loop_thread_with_gd_handler is enabled.";
   }
@@ -99,7 +99,7 @@ TEST_F(MessageLoopThreadTest, get_weak_ptr) {
 TEST_F(MessageLoopThreadTest, test_running_thread) {
   MessageLoopThread message_loop_thread("test_thread");
   message_loop_thread.StartUp();
-  if (!com::android::bluetooth::flags::replace_message_loop_thread_with_gd_handler()) {
+  if (!com_android_bluetooth_flags_replace_message_loop_thread_with_gd_handler()) {
     ASSERT_GE(message_loop_thread.GetThreadId(), 0);
     ASSERT_TRUE(message_loop_thread.IsRunning());
     message_loop_thread.ShutDown();
@@ -114,7 +114,7 @@ TEST_F(MessageLoopThreadTest, test_running_thread) {
 }
 
 TEST_F(MessageLoopThreadTest, test_not_self) {
-  if (com::android::bluetooth::flags::replace_message_loop_thread_with_gd_handler()) {
+  if (com_android_bluetooth_flags_replace_message_loop_thread_with_gd_handler()) {
     GTEST_SKIP()
             << "Skipping this test, flag replace_message_loop_thread_with_gd_handler is enabled.";
   }
@@ -126,7 +126,7 @@ TEST_F(MessageLoopThreadTest, test_not_self) {
 }
 
 TEST_F(MessageLoopThreadTest, test_shutdown_without_start) {
-  if (com::android::bluetooth::flags::replace_message_loop_thread_with_gd_handler()) {
+  if (com_android_bluetooth_flags_replace_message_loop_thread_with_gd_handler()) {
     GTEST_SKIP()
             << "Skipping this test, flag replace_message_loop_thread_with_gd_handler is enabled.";
   }
@@ -156,7 +156,7 @@ TEST_F(MessageLoopThreadTest, test_name) {
   std::string name = "test_thread";
   MessageLoopThread message_loop_thread(name);
   message_loop_thread.StartUp();
-  if (!com::android::bluetooth::flags::replace_message_loop_thread_with_gd_handler()) {
+  if (!com_android_bluetooth_flags_replace_message_loop_thread_with_gd_handler()) {
     ASSERT_GE(message_loop_thread.GetThreadId(), 0);
   }
   std::promise<std::string> name_promise;
@@ -169,7 +169,7 @@ TEST_F(MessageLoopThreadTest, test_name) {
 }
 
 TEST_F(MessageLoopThreadTest, test_thread_id) {
-  if (com::android::bluetooth::flags::replace_message_loop_thread_with_gd_handler()) {
+  if (com_android_bluetooth_flags_replace_message_loop_thread_with_gd_handler()) {
     GTEST_SKIP()
             << "Skipping this test, flag replace_message_loop_thread_with_gd_handler is enabled.";
   }
@@ -310,7 +310,7 @@ TEST_F(MessageLoopThreadTest, shut_down_while_in_callback) {
 
 // Verify the message loop thread will shutdown after callback finishes
 TEST_F(MessageLoopThreadTest, shut_down_while_in_callback_check_lock) {
-  if (com::android::bluetooth::flags::replace_message_loop_thread_with_gd_handler()) {
+  if (com_android_bluetooth_flags_replace_message_loop_thread_with_gd_handler()) {
     GTEST_SKIP()
             << "Skipping this test, flag replace_message_loop_thread_with_gd_handler is enabled.";
   }
@@ -375,4 +375,197 @@ TEST_F(MessageLoopThreadTest, test_post_twice) {
           &message_loop_thread, &counter));
   message_loop_thread.ShutDown();
   ASSERT_EQ(counter, 2);
+}
+
+// Verifies that the caller thread waits for the callback to finish.
+TEST_F(MessageLoopThreadTest, test_do_in_thread_synchronously_success_no_return) {
+  std::string name1 = "test_thread1";
+  MessageLoopThread message_loop_thread1(name1);
+
+  message_loop_thread1.StartUp();
+
+  std::string sequence = "";
+  message_loop_thread1.DoInThreadSynchronously([](std::string* sequence) { (*sequence) += "1"; },
+                                               &sequence);
+  sequence += "2";
+
+  // Verify that the callback is executed synchronously
+  ASSERT_EQ(sequence, "12");  // should be "12" (not "21")
+  message_loop_thread1.ShutDown();
+}
+
+// Verifies that the caller thread waits for the callback to finish, and the
+// callback returns the correct value.
+TEST_F(MessageLoopThreadTest, test_do_in_thread_synchronously_success_with_return_value) {
+  std::string name1 = "test_thread1";
+  MessageLoopThread message_loop_thread1(name1);
+
+  message_loop_thread1.StartUp();
+
+  int result = 0;
+  std::string sequence = "";
+  result = message_loop_thread1.DoInThreadSynchronously(
+          [](std::string* sequence) {
+            (*sequence) += "1";
+            return 100;
+          },
+          &sequence);
+  sequence += "2";
+
+  // Verify that the callback is executed synchronously
+  ASSERT_EQ(sequence, "12");
+  ASSERT_EQ(result, 100);  // should not be 0 (default)
+
+  message_loop_thread1.ShutDown();
+}
+
+// Verifies that the caller thread waits for the callback to finish, and because of a circular
+// dependency, the task is executed on the caller thread itself.
+TEST_F(MessageLoopThreadTest, test_do_in_thread_synchronously_deadlock) {
+  std::string name1 = "test_thread1";
+  std::string name2 = "test_thread2";
+  int value = 1;
+  MessageLoopThread message_loop_thread1(name1);
+  MessageLoopThread message_loop_thread2(name2);
+  std::promise<void>
+          promise_t2_blocked;  // indicates that T2 is now executing something and is blocked.
+  std::future<void> future_t2_blocked = promise_t2_blocked.get_future();
+
+  message_loop_thread1.StartUp();
+  message_loop_thread2.StartUp();
+
+  // First, post a task asynchronously on T2, which will block on T1.
+  // This task on T2, will notify "this" current test thread that T2 is now blocked. This will help
+  // the test thread "this" to proceed with using blocking call on test_thread -> T1 -> T2
+  // eventually.
+  message_loop_thread2.DoInThread(base::BindOnce(
+          [](MessageLoopThread* thread1, MessageLoopThread* thread2, int* value,
+             std::promise<void> promise_t2_blocked) {
+            promise_t2_blocked.set_value();  // Indicates that T2 is now blocked, we can now ask T1
+                                             // to block on T2.
+            std::this_thread::sleep_for(std::chrono::milliseconds(
+                    10));  // wait for some time, so that T1 blocks on T2 (refer to next
+                           // task after future_t2_blocked.wait()).
+
+            // Now the attempt for T2 to block on T1 will fail, and T2 will execute this lambda on
+            // T2 itself.
+            thread1->DoInThreadSynchronously(
+                    [](MessageLoopThread* thread2, int* value) {
+                      // Just check whether this is executed first (value == 1), && this is executed
+                      // on T2.
+                      log::assert_that(thread2->IsRunningOnSameThread(),
+                                       "assert failed: task should be executed on {} thread",
+                                       thread2->GetName());
+                      if (*value == 1) {
+                        *value = 2;
+                      }
+                    },
+                    std::move(thread2), std::move(value));
+          },
+          &message_loop_thread1, &message_loop_thread2, &value, std::move(promise_t2_blocked)));
+
+  // Just waiting for T2 to start executing above lambda, so that we can proceed to block T1 on T2.
+  future_t2_blocked.wait();
+
+  // Test thread will block on T1, and T1 will block on T2.
+  // Both of these lambdas below will be posted successfully on T1 and T2 respectively.
+  message_loop_thread1.DoInThreadSynchronously(
+          [](MessageLoopThread* thread2, int* value) {
+            // Remember, that above lambda is waiting on "future_t2_blocked", but after that it
+            // sleeps for 10ms. In that time, we instantly create a dependency from T1 to T2, so now
+            // when the call in previous lambda "thread1->DoInThreadSynchronously" is called, it
+            // will fail, and execute the lambda on T2 itself there.
+            thread2->DoInThreadSynchronously(
+                    [](int* value) {
+                      // This sleep is just to make sure that T1 -> T2 dependency does not vanish
+                      // before "thread1->DoInThreadSynchronously()" call starts.
+                      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+                      // If *value == 1, it means the test failed, this internal lambda should not
+                      // be executed first.
+                      if (*value == 1) {
+                        *value = 3;  // this will fail the test, if executed.
+                      }
+                    },
+                    std::move(value));
+          },
+          &message_loop_thread2, &value);
+
+  // We will reach here only when above "message_loop_thread1.DoInThreadSynchronously" call
+  // succeeds. Then, if value == 2, it means our deadlock detection works.
+  ASSERT_EQ(value, 2);
+
+  message_loop_thread1.ShutDown();
+  message_loop_thread2.ShutDown();
+}
+
+// Verifies that the linux thread ids are extracted correctly in all scenarios as complete
+// DoInThreadSynchronously logic depends on it.
+TEST_F(MessageLoopThreadTest, test_linux_tid_success) {
+  std::string name1 = "test_thread1";
+  MessageLoopThread message_loop_thread1(name1);
+
+  message_loop_thread1.StartUp();
+
+  std::promise<pid_t> tid_promise;
+  std::future<pid_t> tid_future = tid_promise.get_future();
+  message_loop_thread1.DoInThread(base::BindOnce(
+          [](std::promise<pid_t> tid_promise) {
+            tid_promise.set_value(MessageLoopThread::GetLinuxThreadId());
+          },
+          std::move(tid_promise)));
+  auto thread1_tid = tid_future.get();  // getting thread1 tid as current thread id
+  auto thread1_tid_from_t2 = MessageLoopThread::GetLinuxThreadId(
+          &message_loop_thread1);  // getting thread1 tid through context argument passed.
+
+  ASSERT_EQ(thread1_tid, thread1_tid_from_t2);
+  // Verify that the callback is executed synchronously
+  message_loop_thread1.ShutDown();
+}
+
+TEST_F(MessageLoopThreadTest, test_do_in_thread_else_return_with_move_only_argument) {
+  std::string name = "test_thread";
+  MessageLoopThread message_loop_thread(name);
+  // Note: We are not starting the thread, so DoInThreadElseReturn will return the task.
+
+  std::promise<int> p;
+  std::future<int> f = p.get_future();
+  int value_set = 42;
+
+  auto task = base::BindOnce(
+          [](std::promise<int> promise, int value_set) { promise.set_value(value_set); },
+          std::move(p), value_set);
+
+  auto returned_task = message_loop_thread.DoInThreadElseReturn(std::move(task));
+
+  // The task should be returned since the thread is not running
+  ASSERT_TRUE(returned_task.has_value());
+
+  // Now, run the returned task and check the future
+  std::move(returned_task.value()).Run();
+  ASSERT_EQ(f.get(), value_set);
+}
+
+TEST_F(MessageLoopThreadTest, test_do_in_thread_delayed_else_return_with_move_only_argument) {
+  std::string name = "test_thread";
+  MessageLoopThread message_loop_thread(name);
+  // Note: We are not starting the thread, so DoInThreadDelayedElseReturn will return the task.
+
+  std::promise<int> p;
+  std::future<int> f = p.get_future();
+  int value_set = 42;
+
+  auto task = base::BindOnce(
+          [](std::promise<int> promise, int value_set) { promise.set_value(value_set); },
+          std::move(p), value_set);
+
+  auto returned_task = message_loop_thread.DoInThreadDelayedElseReturn(
+          std::move(task), std::chrono::milliseconds(1));
+
+  // The task should be returned since the thread is not running
+  ASSERT_TRUE(returned_task.has_value());
+
+  // Now, run the returned task and check the future
+  std::move(returned_task.value()).Run();
+  ASSERT_EQ(f.get(), value_set);
 }

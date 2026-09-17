@@ -53,6 +53,10 @@ public:
   MOCK_METHOD((void), RegisterLeEventHandler,
               (SubeventCode, common::ContextualCallback<void(LeMetaEventView)>), (override));
   MOCK_METHOD((void), UnregisterLeEventHandler, (SubeventCode), (override));
+  MOCK_METHOD((void), RegisterDevelopmentEventHandler,
+              (DevelopmentSubeventCode, common::ContextualCallback<void(DevelopmentEventView)>),
+              (override));
+  MOCK_METHOD((void), UnregisterDevelopmentEventHandler, (DevelopmentSubeventCode), (override));
   MOCK_METHOD((void), RegisterVendorSpecificEventHandler,
               (VseSubeventCode, common::ContextualCallback<void(VendorSpecificEventView)>),
               (override));
@@ -60,6 +64,16 @@ public:
   MOCK_METHOD((void), RegisterDefaultVendorSpecificEventHandler,
               (common::ContextualCallback<void(VendorSpecificEventView)>), (override));
   MOCK_METHOD((void), UnregisterDefaultVendorSpecificEventHandler, (), (override));
+  MOCK_METHOD(void, SetVendorAclHandleRange, (uint16_t min, uint16_t max), (override));
+  MOCK_METHOD(void, RegisterVendorSpecificAclHandler,
+              (common::ContextualCallback<
+                   void(uint16_t, std::vector<uint8_t>)>
+                   handler),
+              (override));
+
+  MOCK_METHOD(void, UnregisterVendorSpecificAclHandler, (), (override));
+
+
   MOCK_METHOD((SecurityInterface*), GetSecurityInterface,
               (common::ContextualCallback<void(EventView)> event_handler), (override));
 

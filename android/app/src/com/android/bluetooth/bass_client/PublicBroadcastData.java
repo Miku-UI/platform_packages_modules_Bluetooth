@@ -16,8 +16,11 @@
 
 package com.android.bluetooth.bass_client;
 
+import android.bluetooth.BluetoothLeAudioContentMetadata;
 import android.bluetooth.BluetoothLeBroadcastMetadata;
 import android.util.Log;
+
+import com.android.bluetooth.flags.Flags;
 
 import java.util.Arrays;
 
@@ -35,16 +38,16 @@ class PublicBroadcastData {
     private final PublicBroadcastInfo mPublicBroadcastInfo;
 
     public static class PublicBroadcastInfo {
-        public int metaDataLength;
         public byte[] metaData;
         public boolean isEncrypted;
         public int audioConfigQuality;
+        public LtvData ltvData;
 
         PublicBroadcastInfo() {
-            metaDataLength = 0;
             metaData = new byte[0];
             isEncrypted = false;
             audioConfigQuality = BluetoothLeBroadcastMetadata.AUDIO_CONFIG_QUALITY_NONE;
+            ltvData = LtvData.parse(null);
             log("PublicBroadcastInfo is Initialized");
         }
 
@@ -52,9 +55,14 @@ class PublicBroadcastData {
             log("**BEGIN: Public Broadcast Information**");
             log("encrypted: " + isEncrypted);
             log("audio config quality: " + audioConfigQuality);
-            log("metaDataLength: " + metaDataLength);
-            if (metaDataLength != 0) {
+            log("metaDataLength: " + metaData.length);
+            if (metaData.length != 0) {
                 log("metaData: " + Arrays.toString(metaData));
+            }
+            if (Flags.leaudioBroadcastExtendAudioActiveState()) {
+                if (ltvData != null) {
+                    log(ltvData.toString());
+                }
             }
             log("**END: Public Broadcast Information****");
         }
@@ -62,6 +70,27 @@ class PublicBroadcastData {
 
     PublicBroadcastData(PublicBroadcastInfo publicBroadcastInfo) {
         mPublicBroadcastInfo = publicBroadcastInfo;
+    }
+
+    static PublicBroadcastData buildPublicBroadcastData(BluetoothLeBroadcastMetadata metadata) {
+        if (metadata == null || !metadata.isPublicBroadcast()) {
+            return null;
+        }
+
+        PublicBroadcastInfo publicBroadcastInfo = new PublicBroadcastInfo();
+        publicBroadcastInfo.audioConfigQuality = metadata.getAudioConfigQuality();
+        publicBroadcastInfo.isEncrypted = metadata.isEncrypted();
+        BluetoothLeAudioContentMetadata publicBroadcastMetadata =
+                metadata.getPublicBroadcastMetadata();
+        if (publicBroadcastMetadata != null) {
+            publicBroadcastInfo.metaData = publicBroadcastMetadata.getRawMetadata();
+            if (Flags.leaudioBroadcastExtendAudioActiveState()) {
+                publicBroadcastInfo.ltvData = LtvData.parse(publicBroadcastInfo.metaData);
+            }
+        }
+
+        publicBroadcastInfo.print();
+        return new PublicBroadcastData(publicBroadcastInfo);
     }
 
     static PublicBroadcastData parsePublicBroadcastData(byte[] serviceData) {
@@ -90,21 +119,17 @@ class PublicBroadcastData {
         }
 
         // Parse Public broadcast announcement metadata
-        publicBroadcastInfo.metaDataLength = serviceData[offset++] & 0xff;
-        if (serviceData.length
-                != (publicBroadcastInfo.metaDataLength + PUBLIC_BROADCAST_SERVICE_DATA_LEN_MIN)) {
+        int metaDataLength = serviceData[offset++] & 0xff;
+        if (serviceData.length != (metaDataLength + PUBLIC_BROADCAST_SERVICE_DATA_LEN_MIN)) {
             Log.w(TAG, "Invalid meta data length for PublicBroadcastData construction");
             return null;
         }
-        if (publicBroadcastInfo.metaDataLength != 0) {
-            publicBroadcastInfo.metaData = new byte[publicBroadcastInfo.metaDataLength];
-            System.arraycopy(
-                    serviceData,
-                    offset,
-                    publicBroadcastInfo.metaData,
-                    0,
-                    publicBroadcastInfo.metaDataLength);
-            offset += publicBroadcastInfo.metaDataLength;
+        if (metaDataLength != 0) {
+            publicBroadcastInfo.metaData = new byte[metaDataLength];
+            System.arraycopy(serviceData, offset, publicBroadcastInfo.metaData, 0, metaDataLength);
+            if (Flags.leaudioBroadcastExtendAudioActiveState()) {
+                publicBroadcastInfo.ltvData = LtvData.parse(publicBroadcastInfo.metaData);
+            }
         }
         publicBroadcastInfo.print();
         return new PublicBroadcastData(publicBroadcastInfo);
@@ -119,11 +144,15 @@ class PublicBroadcastData {
     }
 
     int getMetadataLength() {
-        return mPublicBroadcastInfo.metaDataLength;
+        return mPublicBroadcastInfo.metaData.length;
     }
 
     byte[] getMetadata() {
         return mPublicBroadcastInfo.metaData;
+    }
+
+    LtvData getLtvData() {
+        return mPublicBroadcastInfo.ltvData;
     }
 
     void print() {

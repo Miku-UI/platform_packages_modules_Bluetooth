@@ -32,8 +32,8 @@
 #include "stack/include/avct_api.h"
 #include "stack/include/avrc_defs.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/sdp_discovery_db.h"
 #include "stack/include/sdp_status.h"
-#include "stack/sdp/sdp_discovery_db.h"
 
 /*****************************************************************************
  *  constants
@@ -143,8 +143,6 @@
 #define AVRC_SUPF_CT_CAT2 0x0002         /* Category 2 */
 #define AVRC_SUPF_CT_CAT3 0x0004         /* Category 3 */
 #define AVRC_SUPF_CT_CAT4 0x0008         /* Category 4 */
-#define AVRC_SUPF_CT_APP_SETTINGS 0x0010 /* Player Application Settings */
-#define AVRC_SUPF_CT_GROUP_NAVI 0x0020   /* Group Navigation */
 #define AVRC_SUPF_CT_BROWSE 0x0040       /* Browsing */
 
 /* Cover Art, get image property */
@@ -159,15 +157,9 @@
 #define AVRC_SUPF_TG_CAT3 0x0004             /* Category 3 */
 #define AVRC_SUPF_TG_CAT4 0x0008             /* Category 4 */
 #define AVRC_SUPF_TG_APP_SETTINGS 0x0010     /* Player Application Settings */
-#define AVRC_SUPF_TG_GROUP_NAVI 0x0020       /* Group Navigation */
 #define AVRC_SUPF_TG_BROWSE 0x0040           /* Browsing */
 #define AVRC_SUPF_TG_MULTI_PLAYER 0x0080     /* Muliple Media Player */
 #define AVRC_SUPF_TG_PLAYER_COVER_ART 0x0100 /* Cover Art */
-
-#define AVRC_META_SUCCESS AVRC_SUCCESS
-#define AVRC_META_FAIL AVRC_FAIL
-#define AVRC_METADATA_CMD 0x0000
-#define AVRC_METADATA_RESP 0x0001
 
 #define AVRCP_SUPPORTED_FEATURES_POSITION 1
 #define AVRCP_BROWSE_SUPPORT_BITMASK 0x40
@@ -246,6 +238,28 @@ bool avrcp_absolute_volume_is_enabled();
 
 /******************************************************************************
  *
+ * Function         avrcp_controller_cover_art_enabled
+ *
+ * Description      Check if Cover Art is enabled in config
+ *
+ * Returns          return true if Cover Art is enabled
+ *
+ *****************************************************************************/
+bool avrcp_controller_cover_art_enabled();
+
+/******************************************************************************
+ *
+ * Function         avrcp_controller_browsing_enabled
+ *
+ * Description      Check if Browsing is enabled in config
+ *
+ * Returns          return true if Browsing is enabled
+ *
+ *****************************************************************************/
+bool avrcp_controller_browsing_enabled();
+
+/******************************************************************************
+ *
  * Function         AVRC_GetControlProfileVersion
  *
  * Description      Get the overlaid AVRCP control profile version
@@ -257,7 +271,7 @@ uint16_t AVRC_GetControlProfileVersion();
 
 /******************************************************************************
  *
- * Function         ARVC_GetProfileVersion
+ * Function         AVRC_GetProfileVersion
  *
  * Description      Get the user assigned AVRCP profile version
  *
@@ -512,56 +526,6 @@ void AVRC_SaveControllerVersion(const RawAddress& bdaddr, uint16_t new_version);
 
 /******************************************************************************
  *
- * Function         AVRC_UnitCmd
- *
- * Description      Send a UNIT INFO command to the peer device.  This
- *                  function can only be called for controller role connections.
- *                  Any response message from the peer is passed back through
- *                  the tAVRC_MSG_CBACK callback function.
- *
- *                  Input Parameters:
- *                      handle: Handle of this connection.
- *
- *                      label: Transaction label.
- *
- *                  Output Parameters:
- *                      None.
- *
- * Returns          AVRC_SUCCESS if successful.
- *                  AVRC_BAD_HANDLE if handle is invalid.
- *
- *****************************************************************************/
-uint16_t AVRC_UnitCmd(uint8_t handle, uint8_t label);
-
-/******************************************************************************
- *
- * Function         AVRC_SubCmd
- *
- * Description      Send a SUBUNIT INFO command to the peer device.  This
- *                  function can only be called for controller role connections.
- *                  Any response message from the peer is passed back through
- *                  the tAVRC_MSG_CBACK callback function.
- *
- *                  Input Parameters:
- *                      handle: Handle of this connection.
- *
- *                      label: Transaction label.
- *
- *                      page: Specifies which part of the subunit type table
- *                      is requested.  For AVRCP it is typically zero.
- *                      Value range is 0-7.
- *
- *                  Output Parameters:
- *                      None.
- *
- * Returns          AVRC_SUCCESS if successful.
- *                  AVRC_BAD_HANDLE if handle is invalid.
- *
- *****************************************************************************/
-uint16_t AVRC_SubCmd(uint8_t handle, uint8_t label, uint8_t page);
-
-/******************************************************************************
- *
  * Function         AVRC_PassCmd
  *
  * Description      Send a PASS THROUGH command to the peer device.  This
@@ -786,7 +750,7 @@ bool AVRC_IsValidAvcType(uint8_t pdu_id, uint8_t avc_type);
  ******************************************************************************/
 bool AVRC_IsValidPlayerAttr(uint8_t attr);
 
-void AVRC_UpdateCcb(RawAddress* addr, uint32_t company_id);
+void AVRC_UpdateCcb(RawAddress addr, uint32_t company_id);
 
 void AVRC_ResetServiceUuid();
 #endif /* AVRC_API_H */

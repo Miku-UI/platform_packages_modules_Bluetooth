@@ -21,6 +21,8 @@
     <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"Permite aplicațiilor să acceseze managerul Distribuire prin Bluetooth și să-l utilizeze la transferul fișierelor."</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"Acceptă accesul la dispozitivul Bluetooth."</string>
     <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"Permite aplicației să accepte temporar un dispozitiv Bluetooth, permițându-i să trimită fișiere pe acest dispozitiv fără confirmare din partea utilizatorului."</string>
+    <string name="permlab_bluetoothBackup" msgid="49451988877877942">"Permite difuzările de backup prin Bluetooth."</string>
+    <string name="permdesc_bluetoothBackup" msgid="2871500153259509669">"Permite aplicației Bluetooth să accepte difuzări ca să declanșeze backupul datelor din setări."</string>
     <string name="bt_share_picker_label" msgid="7464438494743777696">"Bluetooth"</string>
     <string name="unknown_device" msgid="2317679521750821654">"Dispozitiv necunoscut"</string>
     <string name="unknownNumber" msgid="1245183329830158661">"Necunoscut"</string>
@@ -112,10 +114,10 @@
     <string name="transfer_menu_open" msgid="5193344638774400131">"Deschide"</string>
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Șterge din listă"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Șterge"</string>
-    <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Now Playing"</string>
+    <string name="bluetooth_media_audio_app_name" msgid="2389937877819723460">"Audio prin Bluetooth"</string>
+    <string name="bluetooth_media_audio_queue_name" msgid="2327164681598379428">"Now Playing"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Pictograma aplicației"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Audio prin Bluetooth deconectat"</string>
-    <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Audio prin Bluetooth"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"Fișierele mai mari de 4 GB nu pot fi transferate"</string>
     <string name="bluetooth_connect_action" msgid="2319449093046720209">"Conectează-te la Bluetooth"</string>
     <string name="bluetooth_enabled_apm_title" msgid="6914461147844949044">"Bluetooth activat în modul Avion"</string>
@@ -130,4 +132,13 @@
     <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"S-a reactivat Bluetooth"</string>
     <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"Poți modifica oricând opțiunea din Setări"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"Schimbare automată de stare Bluetooth"</string>
+    <string name="auracast_notification_channel" msgid="5159181425358316696">"Auracast"</string>
+    <string name="auracast_notification_title" msgid="3101708313009368939">"Este disponibil un stream audio <xliff:g id="STREAM_NAME">%1$s</xliff:g>"</string>
+    <string name="auracast_notification_subtext" msgid="4696155233480316395">"LE Audio"</string>
+    <string name="auracast_connect_device_message" msgid="4461776363082532493">"Conectează un dispozitiv LE Audio pentru a începe să asculți"</string>
+    <string name="auracast_listen_on_device_message" msgid="3719491065367993094">"Ascultă streamul audio <xliff:g id="STREAM_NAME">%1$s</xliff:g> pe <xliff:g id="DEVICE_NAME">%2$s</xliff:g>"</string>
+    <string name="auracast_connect_action" msgid="7157544449029291355">"Conectează"</string>
+    <string name="auracast_connection_failed_message" msgid="6490085541428198952">"Nu s-a putut conecta la streamul audio <xliff:g id="STREAM_NAME">%1$s</xliff:g> pe <xliff:g id="DEVICE_NAME">%2$s</xliff:g>."</string>
+    <string name="auracast_default_stream_name" msgid="2824625871526576239">"Stream din apropiere"</string>
+    <string name="auracast_default_device_name" msgid="15748131701036354">"dispozitive"</string>
 </resources>

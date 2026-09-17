@@ -16,15 +16,13 @@
 
 package com.android.bluetooth.bass_client;
 
-import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.le.BluetoothLeScanner;
-import android.bluetooth.le.PeriodicAdvertisingManager;
 import android.os.Looper;
 import android.util.Log;
 
-import com.android.bluetooth.Utils;
+import com.android.bluetooth.Util;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.le_scan.ScanController;
 import com.android.internal.annotations.VisibleForTesting;
 
 /** Factory class for object initialization to help with unit testing */
@@ -57,7 +55,7 @@ public class BassObjectsFactory {
      */
     @VisibleForTesting
     public static void setInstanceForTesting(BassObjectsFactory objectsFactory) {
-        Utils.enforceInstrumentationTestMode();
+        Util.enforceInstrumentationTestMode();
         synchronized (INSTANCE_LOCK) {
             Log.d(TAG, "setInstanceForTesting(), set to " + objectsFactory);
             sInstance = objectsFactory;
@@ -70,7 +68,6 @@ public class BassObjectsFactory {
      * @param device the remote device associated with this state machine
      * @param service the bass client service
      * @param adapterService the {@link AdapterService}
-     * @param periodicAdvertisingManager the {@link PeriodicAdvertisingManager}
      * @param looper the thread that the state machine is supposed to run on
      * @return a state machine that is initialized and started, ready to go
      */
@@ -78,10 +75,14 @@ public class BassObjectsFactory {
             BluetoothDevice device,
             BassClientService service,
             AdapterService adapterService,
-            PeriodicAdvertisingManager periodicAdvertisingManager,
+            ScanController scanController,
             Looper looper) {
         return new BassClientStateMachine(
-                device, service, adapterService, periodicAdvertisingManager, looper);
+                device,
+                service,
+                adapterService,
+                scanController,
+                looper);
     }
 
     /**
@@ -91,20 +92,5 @@ public class BassObjectsFactory {
      */
     public void destroyStateMachine(BassClientStateMachine stateMachine) {
         BassClientStateMachine.destroy(stateMachine);
-    }
-
-    /**
-     * Get a {@link BluetoothLeScannerWrapper} object
-     *
-     * @param adapter bluetooth adapter
-     * @return a bluetooth LE scanner
-     */
-    public BluetoothLeScannerWrapper getBluetoothLeScannerWrapper(BluetoothAdapter adapter) {
-        BluetoothLeScanner bluetoothLeScanner = adapter.getBluetoothLeScanner();
-        if (bluetoothLeScanner == null) {
-            return null;
-        } else {
-            return new BluetoothLeScannerWrapper(bluetoothLeScanner);
-        }
     }
 }

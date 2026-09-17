@@ -32,7 +32,6 @@ import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import android.app.NotificationManager;
 import android.bluetooth.BluetoothDevice;
@@ -50,7 +49,6 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.TestUtils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
 import com.android.tests.bluetooth.MockitoRule;
 
@@ -70,7 +68,6 @@ public class BluetoothPbapServiceTest {
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
 
     @Mock private AdapterService mAdapterService;
-    @Mock private DatabaseManager mDatabaseManager;
     @Mock private NotificationManager mNotificationManager;
     @Mock private SharedPreferences mSharedPreferences;
 
@@ -95,7 +92,6 @@ public class BluetoothPbapServiceTest {
         doReturn(List.of()).when(manager).getAllProfiles();
 
         mLooper = new TestLooper();
-        doReturn(mDatabaseManager).when(mAdapterService).getDatabaseManager();
         mockGetBluetoothManager(mAdapterService);
         mService =
                 new BluetoothPbapService(
@@ -135,7 +131,7 @@ public class BluetoothPbapServiceTest {
     public void getDevicesMatchingConnectionStates() {
         PbapStateMachine sm = mock(PbapStateMachine.class);
         mService.mPbapStateMachineMap.put(mRemoteDevice, sm);
-        when(sm.getConnectionState()).thenReturn(STATE_CONNECTED);
+        doReturn(STATE_CONNECTED).when(sm).getConnectionState();
 
         int[] states = new int[] {STATE_CONNECTED};
         assertThat(mService.getDevicesMatchingConnectionStates(states)).contains(mRemoteDevice);

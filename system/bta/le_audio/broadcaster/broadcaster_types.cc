@@ -28,10 +28,10 @@
 #include <vector>
 
 #include "bta/le_audio/audio_hal_client/audio_hal_client.h"
-#include "btm_ble_api_types.h"
 #include "hardware/bt_le_audio.h"
 #include "le_audio/le_audio_types.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/btm_ble_api_types.h"
 
 using bluetooth::le_audio::BasicAudioAnnouncementBisConfig;
 using bluetooth::le_audio::BasicAudioAnnouncementCodecConfig;
@@ -303,9 +303,9 @@ std::ostream& operator<<(std::ostream& os,
   os << config.data_path << std::endl;
   os << ", sduIntervalUs=" << config.sduIntervalUs;
   os << ", maxSduOctets=" << config.maxSduOctets;
-  os << ", phy=" << config.phy;
-  os << ", packing=" << config.packing;
-  os << ", framing=" << config.framing;
+  os << ", phy=" << static_cast<int>(config.phy);
+  os << ", packing=" << static_cast<int>(config.packing);
+  os << ", framing=" << static_cast<int>(config.framing);
   os << "}" << std::endl;
 
   return os;

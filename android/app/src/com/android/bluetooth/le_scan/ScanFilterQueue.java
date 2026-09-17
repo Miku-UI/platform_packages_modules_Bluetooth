@@ -31,7 +31,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /** Helper class used to manage advertisement package filters. */
-/* package */ class ScanFilterQueue {
+public class ScanFilterQueue {
     @VisibleForTesting static final int TYPE_DEVICE_ADDRESS = 0;
     @VisibleForTesting static final int TYPE_SERVICE_DATA_CHANGED = 1;
     @VisibleForTesting static final int TYPE_SERVICE_UUID = 2;
@@ -48,7 +48,7 @@ import java.util.UUID;
     // Max length is 31 - 3(flags) - 2 (one byte for length and one byte for type).
     private static final int MAX_LEN_PER_FIELD = 26;
 
-    static class Entry {
+    public static class Entry {
         public byte type;
         public String address;
         public byte addr_type;
@@ -209,9 +209,10 @@ import java.util.UUID;
         }
         if (filter.getDeviceAddress() != null) {
             /*
-             * Pass the address type here. This address type will be used for the resolving
-             * address, however, the host stack will force the type to 0x02 for the APCF filter
-             * in btm_ble_adv_filter.cc#BTM_LE_PF_addr_filter(...)
+             * Pass the address type here. This address type will only be used for resolving
+             * addresses, and the host stack will force the type to 0x02 for the APCF filter
+             * in le_scanning_manager_impl.cc#update_address_filter(...). This is to obtain
+             * advertising reports with identity address types as well as public and random types.
              */
             addDeviceAddress(
                     filter.getDeviceAddress(), (byte) filter.getAddressType(), filter.getIrk());

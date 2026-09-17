@@ -90,6 +90,12 @@ void LogBluetoothEvent(const hci::Address& address, EventType event_type, State 
   }
 }
 
+void LogBluetoothEvent(const hci::Address& address, EventType event_type, State state, int uid) {
+  if (metricsInstance) {
+    metricsInstance->LogBluetoothEvent(address, event_type, state, uid);
+  }
+}
+
 void LogMetricLinkLayerConnectionEvent(const hci::Address& address, uint32_t connection_handle,
                                        android::bluetooth::DirectionEnum direction,
                                        uint16_t link_type, uint32_t hci_cmd, uint16_t hci_event,
@@ -269,13 +275,30 @@ void LogMetricLeAudioConnectionSessionReported(
         const std::vector<RawAddress>& device_address,
         const std::vector<int64_t>& streaming_offset_nanos,
         const std::vector<int64_t>& streaming_duration_nanos,
-        const std::vector<int32_t>& streaming_context_type) {
+        const std::vector<int32_t>& streaming_context_type,
+        const std::vector<int32_t>& codec_format,
+        const std::vector<int32_t>& vendor_company_id,
+        const std::vector<int32_t>& vendor_codec_id,
+        const std::vector<int32_t>& sink_sampling_frequency_hz,
+        const std::vector<int32_t>& source_sampling_frequency_hz,
+        const std::vector<bool>& is_dsa_active,
+        const std::vector<bool>& is_gmap_active) {
   if (metricsInstance) {
+    LeAudioMetricsCodecInfoVector codec_info = {
+        .codec_format = codec_format,
+        .vendor_company_id = vendor_company_id,
+        .vendor_codec_id = vendor_codec_id,
+        .sink_sampling_frequency_hz = sink_sampling_frequency_hz,
+        .source_sampling_frequency_hz = source_sampling_frequency_hz,
+        .is_dsa_active = is_dsa_active,
+        .is_gmap_active = is_gmap_active,
+    };
     metricsInstance->LogMetricLeAudioConnectionSessionReported(
             group_size, group_metric_id, connection_duration_nanos, device_connecting_offset_nanos,
             device_connected_offset_nanos, device_connection_duration_nanos,
             device_connection_status, device_disconnection_status, device_address,
-            streaming_offset_nanos, streaming_duration_nanos, streaming_context_type);
+            streaming_offset_nanos, streaming_duration_nanos, streaming_context_type,
+            codec_info);
   }
 }
 
@@ -308,8 +331,8 @@ void LogMetricsChannelSoundingRequesterSessionReported(
   }
 }
 
-void LogMetricBluetoothEnergyMonitorReported(uint16_t bqr_version,
-                                             const bqr::BqrEnergyMonitorEvent& event) {
+void LogMetricBluetoothEnergyMonitorReported(
+        uint16_t bqr_version, const bqr::BqrEnergyMonitoringEventV7& event) {
   if (metricsInstance) {
     metricsInstance->LogMetricBluetoothEnergyMonitorReported(bqr_version, event);
   }
@@ -318,6 +341,20 @@ void LogMetricBluetoothEnergyMonitorReported(uint16_t bqr_version,
 void LogMetricBluetoothRFStatsReported(uint16_t bqr_version, const bqr::BqrRFStatsEvent& event) {
   if (metricsInstance) {
     metricsInstance->LogMetricBluetoothRFStatsReported(bqr_version, event);
+  }
+}
+
+void LogGattOffloadSessionStateChanged(const hci::Address& address, int32_t session_id,
+                                       android::bluetooth::gatt::GattRoleEnum gatt_role,
+                                       android::bluetooth::gatt::GattOffloadSessionStateEnum state,
+                                       int32_t gatt_characteristic_properties_bitmask,
+                                       int64_t session_duration_ms,
+                                       android::bluetooth::gatt::GattOffloadErrorEnum error_code,
+                                       int32_t uid, const std::string& attribution_tag) {
+  if (metricsInstance) {
+    metricsInstance->LogGattOffloadSessionStateChanged(
+            address, session_id, gatt_role, state, gatt_characteristic_properties_bitmask,
+            session_duration_ms, error_code, uid, attribution_tag);
   }
 }
 

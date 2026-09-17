@@ -36,7 +36,6 @@ cc_defaults {
         "latest_android_media_audio_common_types_ndk_static",
     ],
     shared_libs: [
-        "libPlatformProperties",
         "libaaudio",
         "libaconfig_storage_read_api_cc",
         "libbinder_ndk",
@@ -58,12 +57,13 @@ cc_defaults {
         "android.system.suspend.control-V1-ndk",
         "bluetooth_flags_c_lib_for_test",
         "libFraunhoferAAC",
+        "libPlatformProperties",
         "libbase",
-        "libbluetooth_core_rs",
         "libbluetooth_crypto_toolbox",
         "libbluetooth_gd",
         "libbluetooth_log",
         "libbluetooth_metrics_mock",
+        "libbluetooth_private_gatt_rs",
         "libbluetooth_types",
         "libbt-audio-hal-interface",
         "libbt-bta",
@@ -102,7 +102,6 @@ cc_defaults {
         "packages/modules/Bluetooth/system/bta/include",
         "packages/modules/Bluetooth/system/btif",
         "packages/modules/Bluetooth/system/gd",
-        "packages/modules/Bluetooth/system/stack/include",
     ],
     target: {
         android: {

@@ -29,14 +29,17 @@
 #include <bluetooth/types/address.h>
 #include <bluetooth/types/bt_transport.h>
 #include <bluetooth/types/uuid.h>
+#include <com_android_bluetooth_flags.h>
+#include <frameworks/proto_logging/stats/enums/bluetooth/gatt/enums.pb.h>
 
 #include <ios>
 #include <list>
 #include <vector>
 
+#include "bluetooth/metrics/os_metrics.h"
 #include "bta/gatt/bta_gattc_int.h"
-#include "gd/hci/uuid.h"
 #include "gd/os/rand.h"
+#include "hci/address.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/main_thread.h"
@@ -90,7 +93,7 @@ void BTA_GATTC_AppRegister(const std::string& name, tBTA_GATTC_CBACK* p_client_c
                                    eatt_support));
 }
 
-static void app_deregister_impl(tGATT_IF client_if) {
+void BTA_GATTC_AppDeregister(tGATT_IF client_if) {
   tBTA_GATTC_RCB* p_clreg = bta_gattc_cl_get_regcb(client_if);
 
   if (p_clreg != nullptr) {
@@ -98,116 +101,6 @@ static void app_deregister_impl(tGATT_IF client_if) {
   } else {
     log::error("Unknown GATT ID: {}, state: {}", client_if, bta_gattc_cb.state);
   }
-}
-/*******************************************************************************
- *
- * Function         BTA_GATTC_AppDeregister
- *
- * Description      This function is called to deregister an application
- *                  from BTA GATTC module.
- *
- * Parameters       client_if - client interface identifier.
- *
- * Returns          None
- *
- ******************************************************************************/
-void BTA_GATTC_AppDeregister(tGATT_IF client_if) {
-  do_in_main_thread(base::BindOnce(&app_deregister_impl, client_if));
-}
-
-/*******************************************************************************
- *
- * Function         BTA_GATTC_Open
- *
- * Description      Open a direct connection or add a background auto connection
- *                  bd address
- *
- * Parameters       client_if: server interface.
- *                  remote_bda: remote device BD address.
- *                  connection_type: connection type used for the peer device
- *                  transport: Transport to be used for GATT connection
- *                             (BREDR/LE)
- *                  initiating_phys: LE PHY to use, optional
- *                  opportunistic: whether the connection shall be
- *                  opportunistic, and don't impact the disconnection timer
- *
- ******************************************************************************/
-void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda, tBLE_ADDR_TYPE addr_type,
-                    tBTM_BLE_CONN_TYPE connection_type, tBT_TRANSPORT transport, bool opportunistic,
-                    uint8_t initiating_phys, uint16_t preferred_mtu, bool prefer_relax_mode) {
-  tBTA_GATTC_DATA data = {
-          .api_conn =
-                  {
-                          .hdr =
-                                  {
-                                          .event = BTA_GATTC_API_OPEN_EVT,
-                                  },
-                          .remote_bda = remote_bda,
-                          .client_if = client_if,
-                          .connection_type = connection_type,
-                          .transport = transport,
-                          .initiating_phys = initiating_phys,
-                          .opportunistic = opportunistic,
-                          .remote_addr_type = addr_type,
-                          .preferred_mtu = preferred_mtu,
-                          .prefer_relax_mode = prefer_relax_mode,
-                  },
-  };
-
-  post_on_bt_main([data]() { bta_gattc_process_api_open(&data); });
-}
-
-void BTA_GATTC_Open(tGATT_IF client_if, const RawAddress& remote_bda,
-                    tBTM_BLE_CONN_TYPE connection_type, bool opportunistic) {
-  BTA_GATTC_Open(client_if, remote_bda, BLE_ADDR_PUBLIC, connection_type, BT_TRANSPORT_LE,
-                 opportunistic, LE_PHY_1M, 0, false);
-}
-
-/*******************************************************************************
- *
- * Function         BTA_GATTC_CancelOpen
- *
- * Description      Cancel a direct open connection or remove a background auto
- *                  connection
- *                  bd address
- *
- * Parameters       client_if: server interface.
- *                  remote_bda: remote device BD address.
- *                  is_direct: direct connection or background auto connection
- *
- * Returns          void
- *
- ******************************************************************************/
-void BTA_GATTC_CancelOpen(tGATT_IF client_if, const RawAddress& remote_bda, bool is_direct) {
-  tBTA_GATTC_API_CANCEL_OPEN* p_buf =
-          (tBTA_GATTC_API_CANCEL_OPEN*)osi_malloc(sizeof(tBTA_GATTC_API_CANCEL_OPEN));
-
-  p_buf->hdr.event = BTA_GATTC_API_CANCEL_OPEN_EVT;
-  p_buf->client_if = client_if;
-  p_buf->is_direct = is_direct;
-  p_buf->remote_bda = remote_bda;
-
-  bta_sys_sendmsg(p_buf);
-}
-
-/*******************************************************************************
- *
- * Function         BTA_GATTC_Close
- *
- * Description      Close a connection to a GATT server.
- *
- * Parameters       conn_id: connection ID to be closed.
- *
- * Returns          void
- *
- ******************************************************************************/
-void BTA_GATTC_Close(tCONN_ID conn_id) {
-  BT_HDR_RIGID* p_buf = (BT_HDR_RIGID*)osi_malloc(sizeof(BT_HDR_RIGID));
-
-  p_buf->event = BTA_GATTC_API_CLOSE_EVT;
-  p_buf->layer_specific = static_cast<uint16_t>(conn_id);
-
-  bta_sys_sendmsg(p_buf);
 }
 
 /*******************************************************************************
@@ -242,25 +135,12 @@ void BTA_GATTC_ConfigureMTU(tCONN_ID conn_id, uint16_t mtu, GATT_CONFIGURE_MTU_O
   bta_sys_sendmsg(p_buf);
 }
 
-void BTA_GATTC_ServiceSearchAllRequest(tCONN_ID conn_id) {
+void BTA_GATTC_ServiceSearchRequest(tCONN_ID conn_id) {
   const size_t len = sizeof(tBTA_GATTC_API_SEARCH);
   tBTA_GATTC_API_SEARCH* p_buf = (tBTA_GATTC_API_SEARCH*)osi_calloc(len);
 
   p_buf->hdr.event = BTA_GATTC_API_SEARCH_EVT;
   p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
-  p_buf->p_srvc_uuid = NULL;
-
-  bta_sys_sendmsg(p_buf);
-}
-
-void BTA_GATTC_ServiceSearchRequest(tCONN_ID conn_id, Uuid p_srvc_uuid) {
-  const size_t len = sizeof(tBTA_GATTC_API_SEARCH) + sizeof(Uuid);
-  tBTA_GATTC_API_SEARCH* p_buf = (tBTA_GATTC_API_SEARCH*)osi_calloc(len);
-
-  p_buf->hdr.event = BTA_GATTC_API_SEARCH_EVT;
-  p_buf->hdr.layer_specific = static_cast<uint16_t>(conn_id);
-  p_buf->p_srvc_uuid = (Uuid*)(p_buf + 1);
-  *p_buf->p_srvc_uuid = p_srvc_uuid;
 
   bta_sys_sendmsg(p_buf);
 }
@@ -677,6 +557,9 @@ tGATT_STATUS BTA_GATTC_RegisterForNotifications(tGATT_IF client_if, const RawAdd
   } else {
     log::error("client_if={} Not Registered", client_if);
   }
+  if (com_android_bluetooth_flags_gatt_offload_api() && status == GATT_SUCCESS) {
+    GATTC_InformNotificationHandle(bda, handle);
+  }
 
   return status;
 }
@@ -732,6 +615,78 @@ tGATT_STATUS BTA_GATTC_DeregisterForNotifications(tGATT_IF client_if, const RawA
  * Returns          void
  *
  ******************************************************************************/
-void BTA_GATTC_Refresh(const RawAddress& remote_bda) {
-  do_in_main_thread(base::Bind(&bta_gattc_process_api_refresh, remote_bda));
+void BTA_GATTC_Refresh(tGATT_IF clientIf, const RawAddress& remote_bda) {
+  do_in_main_thread(base::BindOnce(&bta_gattc_process_api_refresh, clientIf, remote_bda));
+}
+
+/*******************************************************************************
+ *
+ * Function         BTA_GATTC_OffloadCharacteristics
+ *
+ * Description      This function is called to offload characteristics.
+ *
+ * Parameters       conn_id - connection ID.
+ *                  service - vector describing service.
+ *                  endpoint_id - ID of the hub end point.
+ *                  hub_id - ID of the hub to which the end point belongs.
+ *                  uid - The UID of the application.
+ *                  attribution_tag - The attribution tag.
+ *                  promise - object used to signal the completion status.
+ *
+ ******************************************************************************/
+void BTA_GATTC_OffloadCharacteristics(tCONN_ID conn_id, std::vector<btgatt_db_element_t> service,
+                                      uint64_t endpoint_id, uint64_t hub_id, int uid,
+                                      std::string attribution_tag,
+                                      std::promise<btgatt_offload_result_t> promise) {
+  log::verbose("conn_id: {}, endpoint_id: {}, hub_id: {}, uid: {}, attribution_tag: {}", conn_id,
+               endpoint_id, hub_id, uid, attribution_tag);
+
+  RawAddress remote_bda;
+  tGATT_IF gatt_if;
+  tBT_TRANSPORT transport;
+
+  if (!GATT_GetConnectionInfor(conn_id, &gatt_if, remote_bda, &transport)) {
+    log::error("Invalid conn_id: {}", conn_id);
+    promise.set_value(btgatt_offload_result_t{BTGATT_OFFLOAD_SESSION_ID_UNKNOWN,
+                                              tGATT_STATUS::GATT_INVALID_HANDLE});
+    return;
+  }
+  int32_t characteristic_properties_bitmask = 0;
+  for (auto const& element : service) {
+    if (element.type != BTGATT_DB_CHARACTERISTIC) {
+      continue;
+    }
+    characteristic_properties_bitmask |= element.properties;
+    if (bta_gattc_get_regcb_by_notification_handle(element.attribute_handle, remote_bda)) {
+      log::error("Handle 0x{:x} was already registered for notification", element.attribute_handle);
+      bluetooth::metrics::LogGattOffloadSessionStateChanged(
+              bluetooth::hci::Address{remote_bda.address}, conn_id,
+              android::bluetooth::gatt::GattRoleEnum::GATT_ROLE_CLIENT,
+              android::bluetooth::gatt::GattOffloadSessionStateEnum::
+                      GATT_OFFLOAD_SESSION_STATE_FAILED,
+              characteristic_properties_bitmask, /*session_duration_ms=*/0,
+              android::bluetooth::gatt::GattOffloadErrorEnum::
+                      GATT_OFFLOAD_ERROR_CONCURRENT_NOTIFICATION_INDICATION,
+              uid, attribution_tag);
+      promise.set_value(
+              btgatt_offload_result_t{BTGATT_OFFLOAD_SESSION_ID_UNKNOWN, tGATT_STATUS::GATT_BUSY});
+      return;
+    }
+  }
+  GATTC_OffloadCharacteristics(conn_id, service.data(), service.size(), endpoint_id, hub_id, uid,
+                               std::move(attribution_tag), std::move(promise));
+}
+
+/*******************************************************************************
+ *
+ * Function         BTA_GATTC_UnoffloadCharacteristics
+ *
+ * Description      This function is called to unoffload characteristics.
+ *
+ * Parameters       conn_id - connection ID.
+ *                  session_id - session ID.
+ *
+ ******************************************************************************/
+void BTA_GATTC_UnoffloadCharacteristics(tCONN_ID conn_id, int session_id) {
+  do_in_main_thread(base::BindOnce(&GATTC_UnoffloadCharacteristics, conn_id, session_id));
 }

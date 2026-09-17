@@ -22,15 +22,15 @@
 #include "bta/dm/bta_dm_sec_int.h"
 #include "bta/test/bta_test_fixtures.h"
 #include "stack/include/btm_status.h"
-#include "test/mock/mock_stack_btm_interface.h"
-#include "test/mock/mock_stack_rnr_interface.h"
+#include "stack/mock/mock_stack_btm_interface.h"
+#include "stack/mock/mock_stack_rnr_interface.h"
 
 using ::testing::_;
 using ::testing::ElementsAre;
 using ::testing::Return;
 
 namespace {
-const RawAddress kRawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+const RawAddress kRawAddress("11:22:33:44:55:66");
 const DEV_CLASS kDeviceClass = {0x11, 0x22, 0x33};
 
 constexpr char kRemoteName[] = "TheRemoteName";
@@ -73,8 +73,8 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithName) {
                           .just_works = false,
                           .loc_auth_req = BTM_AUTH_SP_YES,
                           .rmt_auth_req = BTM_AUTH_SP_YES,
-                          .loc_io_caps = BTM_IO_CAP_NONE,
-                          .rmt_io_caps = BTM_IO_CAP_NONE,
+                          .loc_io_caps = BtIoCap::NO_INPUT_NO_OUTPUT,
+                          .rmt_io_caps = BtIoCap::NO_INPUT_NO_OUTPUT,
                   },
   };
   data.cfm_req.dev_class = kDeviceClass;
@@ -93,8 +93,8 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithName) {
   ASSERT_EQ(false, cfm_req.just_works);
   ASSERT_EQ(BTM_AUTH_SP_YES, cfm_req.loc_auth_req);
   ASSERT_EQ(BTM_AUTH_SP_YES, cfm_req.rmt_auth_req);
-  ASSERT_EQ(BTM_IO_CAP_NONE, cfm_req.loc_io_caps);
-  ASSERT_EQ(BTM_IO_CAP_NONE, cfm_req.rmt_io_caps);
+  ASSERT_EQ(BtIoCap::NO_INPUT_NO_OUTPUT, cfm_req.loc_io_caps);
+  ASSERT_EQ(BtIoCap::NO_INPUT_NO_OUTPUT, cfm_req.rmt_io_caps);
 }
 
 TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithoutName_RNRSuccess) {
@@ -122,8 +122,8 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithoutName_RNRSuccess) {
                           .just_works = false,
                           .loc_auth_req = BTM_AUTH_SP_YES,
                           .rmt_auth_req = BTM_AUTH_SP_YES,
-                          .loc_io_caps = BTM_IO_CAP_NONE,
-                          .rmt_io_caps = BTM_IO_CAP_NONE,
+                          .loc_io_caps = BtIoCap::NO_INPUT_NO_OUTPUT,
+                          .rmt_io_caps = BtIoCap::NO_INPUT_NO_OUTPUT,
                   },
   };
   data.cfm_req.dev_class = kDeviceClass;
@@ -159,8 +159,8 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithoutName_RNRFail) {
                           .just_works = false,
                           .loc_auth_req = BTM_AUTH_SP_YES,
                           .rmt_auth_req = BTM_AUTH_SP_YES,
-                          .loc_io_caps = BTM_IO_CAP_NONE,
-                          .rmt_io_caps = BTM_IO_CAP_NONE,
+                          .loc_io_caps = BtIoCap::NO_INPUT_NO_OUTPUT,
+                          .rmt_io_caps = BtIoCap::NO_INPUT_NO_OUTPUT,
                   },
   };
   data.cfm_req.dev_class = kDeviceClass;
@@ -177,8 +177,8 @@ TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_CFM_REQ_EVT_WithoutName_RNRFail) {
   ASSERT_EQ(false, cfm_req.just_works);
   ASSERT_EQ(BTM_AUTH_SP_YES, cfm_req.loc_auth_req);
   ASSERT_EQ(BTM_AUTH_SP_YES, cfm_req.rmt_auth_req);
-  ASSERT_EQ(BTM_IO_CAP_NONE, cfm_req.loc_io_caps);
-  ASSERT_EQ(BTM_IO_CAP_NONE, cfm_req.rmt_io_caps);
+  ASSERT_EQ(BtIoCap::NO_INPUT_NO_OUTPUT, cfm_req.loc_io_caps);
+  ASSERT_EQ(BtIoCap::NO_INPUT_NO_OUTPUT, cfm_req.rmt_io_caps);
 }
 
 TEST_F(BtaSecTest, bta_dm_sp_cback__BTM_SP_KEY_NOTIF_EVT) {

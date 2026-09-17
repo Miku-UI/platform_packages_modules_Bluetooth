@@ -41,6 +41,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothLeCall;
+import android.bluetooth.State;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.ContextWrapper;
@@ -1029,7 +1031,6 @@ public class BluetoothInCallServiceTest {
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_MERGE_CALL_WITH_HELD_CONFERENCE)
     public void mergeActiveCallWithConferenceCall() {
-
         List<BluetoothCall> calls = new ArrayList<>();
         // Call 1 active call is added
         BluetoothCall activeCall_1 = createActiveCall(UUID.randomUUID());
@@ -1073,7 +1074,6 @@ public class BluetoothInCallServiceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_MAINTAIN_CALL_INDEX_AFTER_CONFERENCE)
     public void conferenceLastCallIndexIsMaintained() throws Exception {
         doReturn("").when(mTelephonyManager).getNetworkCountryIso();
 
@@ -1248,6 +1248,15 @@ public class BluetoothInCallServiceTest {
     }
 
     @Test
+    public void processChldTypeReleaseHeld_noRingingOrHeldCall_returnsTrue() {
+        boolean didProcess =
+                mBluetoothInCallService.processChld(mHeadsetService, CHLD_TYPE_RELEASEHELD);
+
+        // The method should return true even if no action was taken.
+        assertThat(didProcess).isTrue();
+    }
+
+    @Test
     public void processChldReleaseActiveRinging() {
         BluetoothCall activeCall = createActiveCall(UUID.randomUUID());
         BluetoothCall ringingCall = createRingingCall(UUID.randomUUID());
@@ -1313,9 +1322,18 @@ public class BluetoothInCallServiceTest {
     }
 
     @Test
+    public void processChldHoldActiveAcceptHeld_noActionableCall_returnsTrue() {
+        boolean didProcess =
+                mBluetoothInCallService.processChld(
+                        mHeadsetService, CHLD_TYPE_HOLDACTIVE_ACCEPTHELD);
+
+        // The method should return true even if no action was taken.
+        assertThat(didProcess).isTrue();
+    }
+
+    @Test
     @RequiresFlagsEnabled(Flags.FLAG_HOLD_CONFERENCE_CALL_FROM_REMOTE)
     public void processChldHoldActiveConfCall() {
-
         BluetoothCall parentCall = createActiveCall(UUID.randomUUID());
         BluetoothCall childCall = createActiveCall(UUID.randomUUID());
         doReturn(List.of(parentCall, childCall)).when(mCallInfo).getBluetoothCalls();
@@ -1376,6 +1394,15 @@ public class BluetoothInCallServiceTest {
                 mBluetoothInCallService.processChld(mHeadsetService, CHLD_TYPE_ADDHELDTOCONF);
 
         verify(activeCall).conference(conferenceableCall);
+        assertThat(didProcess).isTrue();
+    }
+
+    @Test
+    public void processChldAddHeldToConf_noActiveCall_returnsTrue() {
+        boolean didProcess =
+                mBluetoothInCallService.processChld(mHeadsetService, CHLD_TYPE_ADDHELDTOCONF);
+
+        // The method should return true even if no action was taken.
         assertThat(didProcess).isTrue();
     }
 
@@ -1813,7 +1840,7 @@ public class BluetoothInCallServiceTest {
         doReturn(Uri.parse("tel:5550000")).when(ringingCall).getHandle();
 
         Intent intent = new Intent(BluetoothAdapter.ACTION_STATE_CHANGED);
-        intent.putExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.STATE_ON);
+        intent.putExtra(BluetoothAdapter.EXTRA_STATE, State.ON);
         mBluetoothInCallService.mBluetoothAdapterReceiver =
                 mBluetoothInCallService.new BluetoothAdapterReceiver();
         mBluetoothInCallService.mBluetoothAdapterReceiver.onReceive(
@@ -2067,6 +2094,23 @@ public class BluetoothInCallServiceTest {
         mBluetoothInCallService.mLeCallControlClient.onJoinCalls(requestId, uuids);
         verify(mTbsService).requestResult(anyInt(), eq(requestId), eq(Result.SUCCESS));
         verify(firstCall).conference(any(BluetoothCall.class));
+    }
+
+    @Test
+    public void toLeCallDecodesEncodedPlusSign() {
+        UUID callId = UUID.randomUUID();
+        BluetoothCall activeCall = createActiveCall(callId);
+
+        Uri handle = Uri.parse("tel:%2B12345");
+
+        doReturn(handle).when(activeCall).getHandle();
+        doReturn(Call.STATE_ACTIVE).when(activeCall).getState();
+        doReturn(true).when(activeCall).isIncoming();
+        doReturn(null).when(activeCall).getGatewayInfo();
+        doReturn(null).when(activeCall).getParentId();
+
+        BluetoothLeCall leCall = mBluetoothInCallService.toLeCall(activeCall);
+        assertThat(leCall.getUri()).isEqualTo("tel:+12345");
     }
 
     private static void addCallCapability(BluetoothCall call, int capability) {

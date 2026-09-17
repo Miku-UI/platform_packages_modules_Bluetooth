@@ -18,6 +18,7 @@ package com.android.bluetooth.avrcpcontroller;
 
 import static java.util.Objects.requireNonNull;
 
+import android.annotation.Nullable;
 import android.bluetooth.BluetoothDevice;
 import android.net.Uri;
 import android.support.v4.media.MediaBrowserCompat.MediaItem;
@@ -135,7 +136,7 @@ public class BrowseTree {
     }
 
     // Each node of the tree is represented by Folder ID, Folder Name and the children.
-    class BrowseNode {
+    public class BrowseNode {
         // AvrcpItem to store the media related details.
         AvrcpItem mItem;
 
@@ -270,11 +271,22 @@ public class BrowseTree {
             mItem.setCoverArtLocation(uri);
         }
 
-        synchronized List<MediaItem> getContents() {
+        public synchronized @Nullable List<MediaItem> getContents() {
             if (mChildren.size() > 0 || mCached) {
                 List<MediaItem> contents = new ArrayList<MediaItem>(mChildren.size());
                 for (BrowseNode child : mChildren) {
                     contents.add(child.getMediaItem());
+                }
+                return contents;
+            }
+            return null;
+        }
+
+        synchronized @Nullable List<AvrcpItem> getContentsAsAvrcpItems() {
+            if (mChildren.size() > 0 || mCached) {
+                List<AvrcpItem> contents = new ArrayList<>(mChildren.size());
+                for (BrowseNode child : mChildren) {
+                    contents.add(child.getAvrcpItem());
                 }
                 return contents;
             }
@@ -307,7 +319,7 @@ public class BrowseTree {
         }
 
         // Fetch the Unique UID for this item, this is unique across all elements in the tree.
-        synchronized String getID() {
+        public synchronized String getID() {
             return mItem.getUuid();
         }
 
@@ -316,7 +328,7 @@ public class BrowseTree {
             return Integer.parseInt(getID().replace(PLAYER_PREFIX, ""));
         }
 
-        synchronized byte getScope() {
+        public synchronized byte getScope() {
             return mBrowseScope;
         }
 
@@ -333,6 +345,10 @@ public class BrowseTree {
 
         synchronized MediaItem getMediaItem() {
             return mItem.toMediaItem();
+        }
+
+        synchronized AvrcpItem getAvrcpItem() {
+            return mItem;
         }
 
         synchronized boolean isPlayer() {

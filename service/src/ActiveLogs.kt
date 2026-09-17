@@ -36,13 +36,16 @@ import com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_ENABLED_STATE_CHANGED
 import com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_ENABLED_STATE_CHANGED__STATE__DISABLED
 import com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_ENABLED_STATE_CHANGED__STATE__ENABLED
 import com.android.bluetooth.BluetoothStatsLog.BLUETOOTH_ENABLED_STATE_CHANGED__STATE__UNKNOWN
+import com.android.bluetooth.util.Column
+import com.android.bluetooth.util.indent
+import com.android.bluetooth.util.toTable
 import java.io.PrintWriter
 
 private const val TAG = "ActiveLogs"
 private const val DEFAULT_PACKAGE = "BluetoothSystemServer"
 
 class ActiveLogs {
-    internal val activeLogs: ArrayDeque<ActiveLog> = ArrayDeque(MAX_ENTRIES_STORED)
+    private val activeLogs = ArrayDeque<ActiveLog>(MAX_ENTRIES_STORED)
 
     @JvmOverloads
     fun add(reason: Int, enable: Boolean, name: String = DEFAULT_PACKAGE, isBle: Boolean = false) {
@@ -50,7 +53,7 @@ class ActiveLogs {
         if (activeLogs.size == MAX_ENTRIES_STORED) {
             activeLogs.removeFirst()
         }
-        val log = ActiveLog(reason, name, enable, isBle)
+        val log = ActiveLog(Reason(reason), name, enable, isBle)
         Log.d(TAG, "$log")
         activeLogs.addLast(log)
         val state =
@@ -83,10 +86,20 @@ class ActiveLogs {
     fun dump(writer: PrintWriter) {
         if (activeLogs.isEmpty()) {
             writer.println("Bluetooth never enabled!")
-        } else {
-            writer.println("Enable log:")
-            activeLogs.forEach { writer.println("  $it") }
+            return
         }
+
+        writer.println("Enable log:")
+        writer.println(
+            activeLogs
+                .toTable(
+                    Column("TIMESTAMP", width = 18) { Log.timeToStringWithZone(it.timestamp) },
+                    Column("ACTION", width = 10) { it.action },
+                    Column("REASON", width = 20) { it.reason },
+                    Column("PACKAGE") { it.packageName },
+                )
+                .indent("  ")
+        )
     }
 
     companion object {
@@ -96,36 +109,37 @@ class ActiveLogs {
 
 @VisibleForTesting
 internal class ActiveLog(
-    private val reason: Int,
-    private val packageName: String,
-    val enable: Boolean,
+    internal val reason: Reason,
+    internal val packageName: String,
+    internal val enable: Boolean,
     private val isBle: Boolean,
 ) {
     val timestamp = System.currentTimeMillis()
+    val action: String
+        get() = (if (enable) "Enable" else "Disable") + (if (isBle) "Ble" else "")
 
     override fun toString() =
         Log.timeToStringWithZone(timestamp) +
-            " \tPackage [$packageName] requested to [" +
-            (if (enable) "Enable" else "Disable") +
-            (if (isBle) "Ble" else "") +
-            "]. \tReason is ${getEnableDisableReasonString(reason)}"
+            " \tPackage [$packageName] requested to [$action]. \tReason is $reason"
 }
 
-private fun getEnableDisableReasonString(reason: Int): String {
-    return when (reason) {
-        ENABLE_DISABLE_REASON_AIRPLANE_MODE -> "AIRPLANE_MODE"
-        ENABLE_DISABLE_REASON_APPLICATION_DIED -> "APPLICATION_DIED"
-        ENABLE_DISABLE_REASON_APPLICATION_REQUEST -> "APPLICATION_REQUEST"
-        ENABLE_DISABLE_REASON_AUTO_ON -> "AUTO_ON"
-        ENABLE_DISABLE_REASON_CRASH -> "CRASH"
-        ENABLE_DISABLE_REASON_DISALLOWED -> "DISALLOWED"
-        ENABLE_DISABLE_REASON_FACTORY_RESET -> "FACTORY_RESET"
-        ENABLE_DISABLE_REASON_RESTARTED -> "RESTARTED"
-        ENABLE_DISABLE_REASON_RESTORE_USER_SETTING -> "RESTORE_USER_SETTING"
-        ENABLE_DISABLE_REASON_SATELLITE_MODE -> "SATELLITE MODE"
-        ENABLE_DISABLE_REASON_START_ERROR -> "START_ERROR"
-        ENABLE_DISABLE_REASON_SYSTEM_BOOT -> "SYSTEM_BOOT"
-        ENABLE_DISABLE_REASON_USER_SWITCH -> "USER_SWITCH"
-        else -> "UNKNOWN[$reason]"
-    }
+@JvmInline
+internal value class Reason(val code: Int) {
+    override fun toString() =
+        when (code) {
+            ENABLE_DISABLE_REASON_AIRPLANE_MODE -> "AIRPLANE_MODE"
+            ENABLE_DISABLE_REASON_APPLICATION_DIED -> "APPLICATION_DIED"
+            ENABLE_DISABLE_REASON_APPLICATION_REQUEST -> "APPLICATION_REQUEST"
+            ENABLE_DISABLE_REASON_AUTO_ON -> "AUTO_ON"
+            ENABLE_DISABLE_REASON_CRASH -> "CRASH"
+            ENABLE_DISABLE_REASON_DISALLOWED -> "DISALLOWED"
+            ENABLE_DISABLE_REASON_FACTORY_RESET -> "FACTORY_RESET"
+            ENABLE_DISABLE_REASON_RESTARTED -> "RESTARTED"
+            ENABLE_DISABLE_REASON_RESTORE_USER_SETTING -> "RESTORE_USER_SETTING"
+            ENABLE_DISABLE_REASON_SATELLITE_MODE -> "SATELLITE MODE"
+            ENABLE_DISABLE_REASON_START_ERROR -> "START_ERROR"
+            ENABLE_DISABLE_REASON_SYSTEM_BOOT -> "SYSTEM_BOOT"
+            ENABLE_DISABLE_REASON_USER_SWITCH -> "USER_SWITCH"
+            else -> "UNKNOWN[$code]"
+        }
 }

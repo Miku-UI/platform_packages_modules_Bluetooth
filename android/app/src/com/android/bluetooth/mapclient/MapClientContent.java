@@ -40,9 +40,7 @@ import android.telephony.TelephonyManager;
 import android.util.ArraySet;
 import android.util.Log;
 
-import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.map.BluetoothMapbMessageMime;
 import com.android.bluetooth.map.BluetoothMapbMessageMime.MimePart;
 import com.android.vcard.VCardConstants;
@@ -80,9 +78,16 @@ class MapClientContent {
     }
 
     private enum Folder {
-        UNKNOWN,
-        INBOX,
-        SENT
+        INBOX(Sms.Inbox.CONTENT_URI, Mms.Inbox.CONTENT_URI),
+        SENT(Sms.Sent.CONTENT_URI, Mms.Sent.CONTENT_URI);
+
+        private final Uri mSmsUri;
+        private final Uri mMmsUri;
+
+        Folder(Uri smsUri, Uri mmsUri) {
+            mSmsUri = smsUri;
+            mMmsUri = mmsUri;
+        }
     }
 
     private final HashMap<String, Uri> mHandleToUriMap = new HashMap<>();
@@ -235,13 +240,11 @@ class MapClientContent {
                         + ", folder="
                         + message.getFolder());
 
-        if (Flags.ignoreMessageSmsDisallowed()) {
-            UserManager userManager = mContext.getSystemService(UserManager.class);
-            if (userManager != null
-                    && userManager.getUserRestrictions().getBoolean(UserManager.DISALLOW_SMS)) {
-                warn("SMS is disallowed for the user, skip storing message");
-                return;
-            }
+        UserManager userManager = mContext.getSystemService(UserManager.class);
+        if (userManager != null
+                && userManager.getUserRestrictions().getBoolean(UserManager.DISALLOW_SMS)) {
+            warn("SMS is disallowed for the user, skip storing message");
+            return;
         }
 
         switch (message.getType()) {
@@ -378,7 +381,6 @@ class MapClientContent {
             values.put(Mms.MMS_VERSION, PduHeaders.CURRENT_MMS_VERSION);
             values.put(Mms.PRIORITY, PduHeaders.PRIORITY_NORMAL);
             values.put(Mms.READ_REPORT, PduHeaders.VALUE_NO);
-            values.put(Mms.TRANSACTION_ID, "T" + Long.toHexString(System.currentTimeMillis()));
             values.put(Mms.DELIVERY_REPORT, PduHeaders.VALUE_NO);
             values.put(Mms.LOCKED, 0);
             values.put(Mms.CONTENT_TYPE, "application/vnd.wap.multipart.related");
@@ -460,11 +462,7 @@ class MapClientContent {
 
     /** cleanUp clear the subscription info and content on shutdown */
     void cleanUp() {
-        debug(
-                "cleanUp(device="
-                        + Utils.getLoggableAddress(mDevice)
-                        + "subscriptionId="
-                        + mSubscriptionId);
+        debug("cleanUp(device=" + mDevice + ", subscriptionId=" + mSubscriptionId);
         mResolver.unregisterContentObserver(mContentObserver);
         clearMessages(mContext, mSubscriptionId);
         try {
@@ -478,7 +476,7 @@ class MapClientContent {
 
     /** clearMessages clean up the content provider on startup */
     private static void clearMessages(Context context, int subscriptionId) {
-        Log.d(TAG, "[AllDevices] clearMessages(subscriptionId=" + subscriptionId);
+        Log.d(TAG, "[AllDevices] clearMessages(subscriptionId=" + subscriptionId + ")");
 
         ContentResolver resolver = context.getContentResolver();
         StringBuilder threadsBuilder = new StringBuilder();
@@ -584,7 +582,6 @@ class MapClientContent {
                         null,
                         null,
                         null)) {
-
             if (cursor.moveToNext()) {
                 debug("Columns" + Arrays.toString(cursor.getColumnNames()));
                 verbose(
@@ -672,26 +669,8 @@ class MapClientContent {
     }
 
     private List<MessageDumpElement> getRecentMessagesFromFolder(Folder folder) {
-        final Uri smsUri;
-        final Uri mmsUri;
-
-        switch (folder) {
-            case Folder.INBOX -> {
-                smsUri = Sms.Inbox.CONTENT_URI;
-                mmsUri = Mms.Inbox.CONTENT_URI;
-            }
-            case Folder.SENT -> {
-                smsUri = Sms.Sent.CONTENT_URI;
-                mmsUri = Mms.Sent.CONTENT_URI;
-            }
-            default -> { // Folder.UNKNOWN
-                warn("getRecentMessagesFromFolder: Failed, unsupported folder=" + folder);
-                return null;
-            }
-        }
-
         List<MessageDumpElement> messages = new ArrayList<>();
-        for (Uri uri : new Uri[] {smsUri, mmsUri}) {
+        for (Uri uri : new Uri[] {folder.mSmsUri, folder.mMmsUri}) {
             messages.addAll(getMessagesFromUri(uri));
         }
         verbose(

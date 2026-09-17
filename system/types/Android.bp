@@ -17,6 +17,7 @@ cc_library_static {
     ],
     srcs: [
         "src/address.cc",
+        "src/string_helpers.cc",
         "src/uuid.cc",
     ],
     export_include_dirs: [
@@ -34,6 +35,8 @@ cc_test {
         "libbluetooth_log",
         "libbluetooth_types",
         "libcom.android.sysprop.bluetooth.wrapped",
+        "libgmock",
+        "libgtest",
         "libosi", // strlcpy
     ],
     test_suites: ["general-tests"],
@@ -47,9 +50,11 @@ cc_test {
     ],
     host_supported: true,
     srcs: [
+        "test/acl_link_spec_unittest.cc",
         "test/address_unittest.cc",
         "test/ble_address_with_type_unittest.cc",
         "test/bt_name_test.cc",
+        "test/string_helpers_test.cc",
         "test/uuid_unittest.cc",
     ],
     shared_libs: ["liblog"],

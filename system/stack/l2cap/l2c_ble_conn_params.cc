@@ -37,7 +37,6 @@
 #include "internal_include/stack_config.h"
 #include "main/shim/acl_api.h"
 #include "main/shim/entry.h"
-#include "osi/include/properties.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/btm_ble_api_types.h"
@@ -51,6 +50,11 @@ using namespace bluetooth;
 
 void l2cble_start_conn_update(tL2C_LCB* p_lcb);
 static void l2cble_start_subrate_change(tL2C_LCB* p_lcb);
+
+static uint16_t calculate_subrate_timeout_bond(uint16_t latency, uint16_t subrate_factor,
+                                               uint16_t max_int) {
+  return (1 + latency) * subrate_factor * max_int * 1.25 * 2;
+}
 
 /*******************************************************************************
  *
@@ -83,14 +87,40 @@ bool L2CA_UpdateBleConnParams(const RawAddress& rem_bda, uint16_t min_int, uint1
   log::verbose("BD_ADDR={}, min_int={}, max_int={}, min_ce_len={}, max_ce_len={}", rem_bda, min_int,
                max_int, min_ce_len, max_ce_len);
 
+  if (p_lcb->SubrateFactor() > 1) {
+    uint16_t timeout_bond =
+            calculate_subrate_timeout_bond(latency, p_lcb->SubrateFactor(), max_int);
+    log::info("timeout: {}, timeout_bond: {}", timeout, timeout_bond);
+    if (timeout < timeout_bond) {
+      // Only requesting subrate side could update subrate to 1 and update subrate factor again.
+      // when connection update with same interval as current
+      if (p_lcb->ConnInterval() >= min_int && p_lcb->ConnInterval() <= max_int) {
+        if (p_lcb->subrate_min == 0 || p_lcb->subrate_max == 0) {
+          log::verbose("Subrate parameters not set for {}", rem_bda);
+          log::error(
+                  "Reject to do connection update to same interval with invalid parameters in "
+                  "subrating mode set by remote");
+          return false;
+        }
+        if (p_lcb->SubrateFactor() < p_lcb->subrate_min ||
+            p_lcb->SubrateFactor() > p_lcb->subrate_max) {
+          log::verbose("Subrate factor {} out of range [{}, {}] for {}", p_lcb->SubrateFactor(),
+                       p_lcb->subrate_min, p_lcb->subrate_max, rem_bda);
+          log::error(
+                  "Reject to do connection update to same interval with invalid parameters in "
+                  "subrating mode set by remote");
+          return false;
+        }
+      }
+    }
+  }
+
   p_lcb->min_interval = min_int;
   p_lcb->max_interval = max_int;
   p_lcb->latency = latency;
   p_lcb->timeout = timeout;
   p_lcb->conn_update_mask |= L2C_BLE_NEW_CONN_PARAM;
-  if (com_android_bluetooth_flags_initial_conn_params_p1()) {
-    p_lcb->conn_update_mask &= ~L2C_BLE_AGGRESSIVE_INITIAL_PARAM;
-  }
+  p_lcb->conn_update_mask &= ~L2C_BLE_AGGRESSIVE_INITIAL_PARAM;
 
   p_lcb->min_ce_len = min_ce_len;
   p_lcb->max_ce_len = max_ce_len;
@@ -125,8 +155,7 @@ void L2CA_LockBleConnParamsForServiceDiscovery(const RawAddress& rem_bda, bool l
   if (lock == p_lcb->conn_update_blocked_by_service_discovery) {
     log::warn("{} service discovery already locked/unlocked conn params: {}", rem_bda, lock);
 
-    if (!lock && com_android_bluetooth_flags_initial_conn_params_p1() &&
-        (p_lcb->conn_update_mask & L2C_BLE_AGGRESSIVE_INITIAL_PARAM)) {
+    if (!lock && (p_lcb->conn_update_mask & L2C_BLE_AGGRESSIVE_INITIAL_PARAM)) {
       p_lcb->conn_update_mask &= ~L2C_BLE_NOT_DEFAULT_PARAM;
       p_lcb->conn_update_mask |= L2C_BLE_NEW_CONN_PARAM;
       log::info("Service discovery is skipped. Relaxing connection parameters.");
@@ -277,7 +306,8 @@ void l2cble_start_conn_update(tL2C_LCB* p_lcb) {
   btm_find_or_alloc_dev(p_lcb->remote_bd_addr);
 
   if ((p_lcb->conn_update_mask & L2C_BLE_UPDATE_PENDING) ||
-      (p_lcb->subrate_req_mask & L2C_BLE_SUBRATE_REQ_PENDING)) {
+      (p_lcb->subrate_req_mask & L2C_BLE_SUBRATE_REQ_PENDING) ||
+      (p_lcb->conn_update_mask & L2C_BLE_UPDATE_FOR_SUBRATE_RESET_PENDING)) {
     return;
   }
 
@@ -287,39 +317,29 @@ void l2cble_start_conn_update(tL2C_LCB* p_lcb) {
        If parameters are already updated, lets set them
        up to what has been requested during connection establishement */
     if (p_lcb->conn_update_mask & L2C_BLE_NOT_DEFAULT_PARAM) {
-      if (com_android_bluetooth_flags_initial_conn_params_p1()) {
-        min_conn_int = LeConnectionParameters::GetMinConnIntervalAggressive();
-        max_conn_int = LeConnectionParameters::GetMaxConnIntervalAggressive();
-        log::info("min_conn_int={}, max_conn_int={}", min_conn_int, max_conn_int);
+      min_conn_int = LeConnectionParameters::GetMinConnIntervalAggressive();
+      max_conn_int = LeConnectionParameters::GetMaxConnIntervalAggressive();
+      log::info("min_conn_int={}, max_conn_int={}", min_conn_int, max_conn_int);
 
-        if (p_lcb->conn_update_mask & L2C_BLE_AGGRESSIVE_INITIAL_PARAM) {
-          // Usually, we can use the same aggressive connection parameters for service discovery.
-          // However when hearing aid is being used, the connection intervals may need to be
-          // adjusted.
-          uint16_t adjusted_min_conn_int = min_conn_int;
-          uint16_t adjusted_max_conn_int = max_conn_int;
+      if (p_lcb->conn_update_mask & L2C_BLE_AGGRESSIVE_INITIAL_PARAM) {
+        // Usually, we can use the same aggressive connection parameters for service discovery.
+        // However when hearing aid is being used, the connection intervals may need to be
+        // adjusted.
+        uint16_t adjusted_min_conn_int = min_conn_int;
+        uint16_t adjusted_max_conn_int = max_conn_int;
 
-          stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(
-                  &adjusted_min_conn_int, &adjusted_max_conn_int, BTM_BLE_CONN_INT_MIN);
+        stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(
+                &adjusted_min_conn_int, &adjusted_max_conn_int, BTM_BLE_CONN_INT_MIN);
 
-          log::info("adjusted_min_conn_int={}, adjusted_max_conn_int={}", adjusted_min_conn_int,
-                    adjusted_max_conn_int);
+        log::info("adjusted_min_conn_int={}, adjusted_max_conn_int={}", adjusted_min_conn_int,
+                  adjusted_max_conn_int);
 
-          if ((adjusted_min_conn_int == min_conn_int) && (adjusted_max_conn_int == max_conn_int)) {
-            log::info("No need to update connection parameters.");
-            p_lcb->conn_update_mask &= ~L2C_BLE_NOT_DEFAULT_PARAM;
-            p_lcb->conn_update_mask |= L2C_BLE_NEW_CONN_PARAM;
-            return;
-          }
-        }
-      } else {
-        if (p_lcb->min_interval <= BTM_BLE_CONN_INT_MIN) {
-          // Skip updating connection parameters for service discovery if we are already
-          // using default minimum interval.
+        if ((adjusted_min_conn_int == min_conn_int) && (adjusted_max_conn_int == max_conn_int)) {
+          log::info("No need to update connection parameters.");
+          p_lcb->conn_update_mask &= ~L2C_BLE_NOT_DEFAULT_PARAM;
+          p_lcb->conn_update_mask |= L2C_BLE_NEW_CONN_PARAM;
           return;
         }
-        /* use 7.5 ms as fast connection parameter, 0 peripheral latency */
-        min_conn_int = max_conn_int = BTM_BLE_CONN_INT_MIN;
       }
 
       stack::l2cap::get_interface().L2CA_AdjustConnectionIntervals(&min_conn_int, &max_conn_int,
@@ -328,7 +348,7 @@ void l2cble_start_conn_update(tL2C_LCB* p_lcb) {
       peripheral_latency = BTM_BLE_CONN_PERIPHERAL_LATENCY_DEF;
       supervision_tout = BTM_BLE_CONN_TIMEOUT_DEF;
 
-      /* if both side 4.1, or we are central device, send HCI command */
+      // If both side 4.1, or we are central device, send HCI command
       if (p_lcb->IsLinkRoleCentral() ||
           (bluetooth::shim::GetController()->SupportsBleConnectionParametersRequest() &&
            acl_peer_supports_ble_connection_parameters_request(p_lcb->remote_bd_addr))) {
@@ -343,14 +363,42 @@ void l2cble_start_conn_update(tL2C_LCB* p_lcb) {
       p_lcb->conn_update_mask |= L2C_BLE_NEW_CONN_PARAM;
     }
   } else {
-    /* application allows to do update, if we were delaying one do it now */
+    // Application allows to do update, if we were delaying one do it now
     if (p_lcb->conn_update_mask & L2C_BLE_NEW_CONN_PARAM) {
-      /* if both side 4.1, or we are central device, send HCI command */
+      // If we find timeout for connection update config smaller than lower bound because of current
+      // subrate factor, reset the subrate first
+      if (com_android_bluetooth_flags_le_subrate_manager()) {
+        if (p_lcb->SubrateFactor() > 1) {
+          uint16_t timeout_bond = calculate_subrate_timeout_bond(
+                  p_lcb->latency, p_lcb->SubrateFactor(), p_lcb->max_interval);
+          log::info("timeout: {}, timeout_bond: {}", p_lcb->timeout, timeout_bond);
+          if (p_lcb->timeout < timeout_bond) {
+            if (p_lcb->ConnInterval() >= p_lcb->min_interval &&
+                p_lcb->ConnInterval() <= p_lcb->max_interval) {
+              log::verbose("Sending HCI cmd for subrate req to reset first");
+              bluetooth::shim::ACL_LeSubrateRequest(
+                  p_lcb->Handle(), 1, 1, p_lcb->PeriphLatency(), 0, p_lcb->timeout);
+              p_lcb->subrate_req_mask |= L2C_BLE_SUBRATE_REQ_PENDING;
+              p_lcb->conn_update_mask |= L2C_BLE_NOT_DEFAULT_PARAM;
+              return;
+            } else {
+              log::verbose("Sending HCI cmd for conn req to reset subrate first");
+              acl_ble_connection_parameters_request(p_lcb->Handle(), p_lcb->min_interval,
+                                                    p_lcb->max_interval, 0, p_lcb->timeout,
+                                                    p_lcb->min_ce_len, p_lcb->max_ce_len);
+              p_lcb->conn_update_mask |= L2C_BLE_UPDATE_FOR_SUBRATE_RESET_PENDING;
+              p_lcb->conn_update_mask |= L2C_BLE_NOT_DEFAULT_PARAM;
+              return;
+            }
+          }
+        }
+      }
+
+      // If both side 4.1, or we are central device, send HCI command
       if (p_lcb->IsLinkRoleCentral() ||
           (bluetooth::shim::GetController()->SupportsBleConnectionParametersRequest() &&
            acl_peer_supports_ble_connection_parameters_request(p_lcb->remote_bd_addr))) {
-        if (com_android_bluetooth_flags_initial_conn_params_p1() &&
-            (p_lcb->conn_update_mask & L2C_BLE_AGGRESSIVE_INITIAL_PARAM)) {
+        if (p_lcb->conn_update_mask & L2C_BLE_AGGRESSIVE_INITIAL_PARAM) {
           log::info("Relaxing aggressive initial connection parameters. addr={}",
                     p_lcb->remote_bd_addr);
           p_lcb->min_interval = LeConnectionParameters::GetMinConnIntervalRelaxed();
@@ -395,7 +443,7 @@ void l2cble_start_conn_update(tL2C_LCB* p_lcb) {
  *
  ******************************************************************************/
 void l2cble_process_conn_update_evt(uint16_t handle, uint8_t status, uint16_t interval,
-                                    uint16_t /* latency */, uint16_t /* timeout */) {
+                                    uint16_t latency, uint16_t timeout) {
   log::verbose("");
 
   /* See if we have a link control block for the remote device */
@@ -405,10 +453,21 @@ void l2cble_process_conn_update_evt(uint16_t handle, uint8_t status, uint16_t in
     return;
   }
   p_lcb->SetConnInterval(interval);
+  p_lcb->SetPeriphLatency(latency);
+  p_lcb->SetSupervisionTimeout(timeout);
   p_lcb->conn_update_mask &= ~L2C_BLE_UPDATE_PENDING;
+
+  if ((p_lcb->conn_update_mask & L2C_BLE_UPDATE_FOR_SUBRATE_RESET_PENDING) &&
+      (p_lcb->conn_update_mask & L2C_BLE_NEW_CONN_PARAM)) {
+    log::info("Connection update for subrating reset finished with status: {}", status);
+    p_lcb->conn_update_mask &= ~L2C_BLE_UPDATE_FOR_SUBRATE_RESET_PENDING;
+  }
 
   if (status != HCI_SUCCESS) {
     log::warn("Error status: {}", status);
+  } else {
+    p_lcb->SetSubrateFactor(1);
+    p_lcb->SetContNumber(0);
   }
 
   l2cble_start_conn_update(p_lcb);
@@ -440,9 +499,7 @@ void l2cble_process_rc_param_request_evt(uint16_t handle, uint16_t int_min, uint
   p_lcb->max_interval = int_max;
   p_lcb->latency = latency;
   p_lcb->timeout = timeout;
-  if (com_android_bluetooth_flags_initial_conn_params_p1()) {
-    p_lcb->conn_update_mask &= ~L2C_BLE_AGGRESSIVE_INITIAL_PARAM;
-  }
+  p_lcb->conn_update_mask &= ~L2C_BLE_AGGRESSIVE_INITIAL_PARAM;
 
   /* if update is enabled, always accept connection parameter update */
   if ((p_lcb->conn_update_mask & L2C_BLE_CONN_UPDATE_DISABLE) == 0) {
@@ -465,37 +522,33 @@ void l2cble_process_rc_param_request_evt(uint16_t handle, uint16_t int_min, uint
 
 void l2cble_use_preferred_conn_params(const RawAddress& bda) {
   tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(bda, BT_TRANSPORT_LE);
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_or_alloc_dev(bda);
+  BtmDevice* p_device = btm_find_or_alloc_dev(bda);
 
   /* If there are any preferred connection parameters, set them now */
-  if ((p_lcb != NULL) && (p_dev_rec != NULL) &&
-      (p_dev_rec->conn_params.min_conn_int >= BTM_BLE_CONN_INT_MIN) &&
-      (p_dev_rec->conn_params.min_conn_int <= BTM_BLE_CONN_INT_MAX) &&
-      (p_dev_rec->conn_params.max_conn_int >= BTM_BLE_CONN_INT_MIN) &&
-      (p_dev_rec->conn_params.max_conn_int <= BTM_BLE_CONN_INT_MAX) &&
-      (p_dev_rec->conn_params.peripheral_latency <= BTM_BLE_CONN_LATENCY_MAX) &&
-      (p_dev_rec->conn_params.supervision_tout >= BTM_BLE_CONN_SUP_TOUT_MIN) &&
-      (p_dev_rec->conn_params.supervision_tout <= BTM_BLE_CONN_SUP_TOUT_MAX) &&
-      ((p_lcb->min_interval < p_dev_rec->conn_params.min_conn_int &&
-        p_dev_rec->conn_params.min_conn_int != BTM_BLE_CONN_PARAM_UNDEF) ||
-       (p_lcb->min_interval > p_dev_rec->conn_params.max_conn_int) ||
-       (p_lcb->latency > p_dev_rec->conn_params.peripheral_latency) ||
-       (p_lcb->timeout > p_dev_rec->conn_params.supervision_tout))) {
+  if ((p_lcb != NULL) && (p_device != NULL) &&
+      (p_device->conn_params.min_conn_int >= BTM_BLE_CONN_INT_MIN) &&
+      (p_device->conn_params.min_conn_int <= BTM_BLE_CONN_INT_MAX) &&
+      (p_device->conn_params.max_conn_int >= BTM_BLE_CONN_INT_MIN) &&
+      (p_device->conn_params.max_conn_int <= BTM_BLE_CONN_INT_MAX) &&
+      (p_device->conn_params.peripheral_latency <= BTM_BLE_CONN_LATENCY_MAX) &&
+      (p_device->conn_params.supervision_tout >= BTM_BLE_CONN_SUP_TOUT_MIN) &&
+      (p_device->conn_params.supervision_tout <= BTM_BLE_CONN_SUP_TOUT_MAX) &&
+      ((p_lcb->min_interval < p_device->conn_params.min_conn_int &&
+        p_device->conn_params.min_conn_int != BTM_BLE_CONN_PARAM_UNDEF) ||
+       (p_lcb->min_interval > p_device->conn_params.max_conn_int) ||
+       (p_lcb->latency > p_device->conn_params.peripheral_latency) ||
+       (p_lcb->timeout > p_device->conn_params.supervision_tout))) {
     log::verbose(
             "HANDLE={} min_conn_int={} max_conn_int={} peripheral_latency={} "
             "supervision_tout={}",
-            p_lcb->Handle(), p_dev_rec->conn_params.min_conn_int,
-            p_dev_rec->conn_params.max_conn_int, p_dev_rec->conn_params.peripheral_latency,
-            p_dev_rec->conn_params.supervision_tout);
+            p_lcb->Handle(), p_device->conn_params.min_conn_int, p_device->conn_params.max_conn_int,
+            p_device->conn_params.peripheral_latency, p_device->conn_params.supervision_tout);
 
-    p_lcb->min_interval = p_dev_rec->conn_params.min_conn_int;
-    p_lcb->max_interval = p_dev_rec->conn_params.max_conn_int;
-    p_lcb->timeout = p_dev_rec->conn_params.supervision_tout;
-    p_lcb->latency = p_dev_rec->conn_params.peripheral_latency;
-    if (com_android_bluetooth_flags_initial_conn_params_p1()) {
-      p_lcb->conn_update_mask &= ~L2C_BLE_AGGRESSIVE_INITIAL_PARAM;
-    }
-
+    p_lcb->min_interval = p_device->conn_params.min_conn_int;
+    p_lcb->max_interval = p_device->conn_params.max_conn_int;
+    p_lcb->timeout = p_device->conn_params.supervision_tout;
+    p_lcb->latency = p_device->conn_params.peripheral_latency;
+    p_lcb->conn_update_mask &= ~L2C_BLE_AGGRESSIVE_INITIAL_PARAM;
     p_lcb->conn_update_mask |= L2C_BLE_NEW_CONN_PARAM;
     l2cble_start_conn_update(p_lcb);
   }
@@ -636,8 +689,8 @@ bool L2CA_SubrateRequest(const RawAddress& rem_bda, uint16_t subrate_min, uint16
  *
  ******************************************************************************/
 void l2cble_process_subrate_change_evt(uint16_t handle, uint8_t status,
-                                       uint16_t /* subrate_factor */,
-                                       uint16_t /* peripheral_latency */, uint16_t /* cont_num */,
+                                       uint16_t subrate_factor,
+                                       uint16_t /* peripheral_latency */, uint16_t cont_num,
                                        uint16_t /* timeout */) {
   log::verbose("");
 
@@ -652,6 +705,11 @@ void l2cble_process_subrate_change_evt(uint16_t handle, uint8_t status,
 
   if (status != HCI_SUCCESS) {
     log::warn("Error status: {}", status);
+  }
+
+  if (status == HCI_SUCCESS) {
+    p_lcb->SetSubrateFactor(subrate_factor);
+    p_lcb->SetContNumber(cont_num);
   }
 
   l2cble_start_conn_update(p_lcb);

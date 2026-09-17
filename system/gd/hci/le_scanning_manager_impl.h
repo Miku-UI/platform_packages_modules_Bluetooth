@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <bluetooth/types/uuid.h>
+
 #include <memory>
 #include <vector>
 
@@ -25,7 +27,6 @@
 #include "hci/le_address_manager.h"
 #include "hci/le_scanning_callback.h"
 #include "hci/le_scanning_manager.h"
-#include "hci/uuid.h"
 #include "storage/storage_module.h"
 
 namespace bluetooth {
@@ -38,6 +39,10 @@ public:
   static constexpr uint8_t kTxPowerInformationNotPresent = 0x7f;
   static constexpr uint8_t kNotPeriodicAdvertisement = 0x00;
   static constexpr ScannerId kInvalidScannerId = 0xFF;
+  static constexpr uint8_t k1mPhyMask = 1;
+  static constexpr uint8_t kCodedPhyMask = 1 << 2;
+  static constexpr uint16_t kLeScanIntervalLowLatency = 160;  // 100ms = 160 * 0.625ms
+  static constexpr uint16_t kLeScanWindowLowLatency = 160;    // 100ms = 160 * 0.625ms
 
   LeScanningManagerImpl(os::Handler* handler, hci::HciInterface* hci_layer,
                         hci::Controller* controller, hci::LeAddressManager* le_address_manager,
@@ -99,6 +104,24 @@ public:
   void RegisterScanningCallback(ScanningCallback* scanning_callback) override;
 
   bool IsAdTypeFilterSupported() const override;
+
+  bool Is1mPhyConfigured() const override;
+
+  bool IsCodedPhyConfigured() const override;
+
+  bool IsScanActive() const override;
+
+  uint32_t GetIntervalMs1m() const override;
+
+  uint16_t GetWindowMs1m() const override;
+
+  uint32_t GetIntervalMsCoded() const override;
+
+  uint16_t GetWindowMsCoded() const override;
+
+  void StartDiscovery(uint8_t duration) override;
+
+  void StopDiscovery() override;
 
 private:
   struct impl;

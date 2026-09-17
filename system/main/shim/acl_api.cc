@@ -35,7 +35,7 @@
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_sec.h"
-#include "stack/btm/security_device_record.h"
+#include "stack/btm/btm_device_record.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/btm_log_history.h"
 #include "stack/include/main_thread.h"
@@ -46,8 +46,9 @@
   "bluetooth.core.gap.le.privacy.own_address_type.enabled"
 #endif
 
-void bluetooth::shim::ACL_CreateClassicConnection(const RawAddress& address) {
-  Stack::GetInstance()->GetAcl()->CreateClassicConnection(address);
+void bluetooth::shim::ACL_CreateClassicConnection(const RawAddress& address,
+                                                  uint16_t clock_offset) {
+  Stack::GetInstance()->GetAcl()->CreateClassicConnection(address, clock_offset);
 }
 
 void bluetooth::shim::ACL_CancelClassicConnection(const RawAddress& address) {
@@ -73,27 +74,18 @@ void bluetooth::shim::ACL_SendConnectionParameterUpdateRequest(
 
 void bluetooth::shim::ACL_ConfigureLePrivacy(bool is_le_privacy_enabled) {
   hci::LeAddressManager::AddressPolicy address_policy =
-          is_le_privacy_enabled ? hci::LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS
-                                : hci::LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS;
-  /* This is a Floss only flag. Android determines address policy according to
-   * privacy mode, hence it is not necessary to enable resolvable address with
-   * another sysprop */
-  if (com_android_bluetooth_flags_floss_separate_host_privacy_and_llprivacy()) {
-    address_policy = hci::LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS;
-    if (osi_property_get_bool(PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED, is_le_privacy_enabled)) {
-      address_policy = hci::LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS;
-    }
+          hci::LeAddressManager::AddressPolicy::USE_PUBLIC_ADDRESS;
+  if (osi_property_get_bool(PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED, is_le_privacy_enabled)) {
+    address_policy = hci::LeAddressManager::AddressPolicy::USE_RESOLVABLE_ADDRESS;
   }
 
   hci::AddressWithType empty_address_with_type(hci::Address{},
                                                hci::AddressType::RANDOM_DEVICE_ADDRESS);
 
-  /* Default to 7 minutes minimum, 15 minutes maximum for random address refreshing;
-   * device can override. */
   auto minimum_rotation_time = std::chrono::minutes(
-          android::sysprop::bluetooth::Ble::random_address_rotation_interval_min().value_or(7));
+          android::sysprop::bluetooth::Ble::random_address_rotation_interval_min());
   auto maximum_rotation_time = std::chrono::minutes(
-          android::sysprop::bluetooth::Ble::random_address_rotation_interval_max().value_or(15));
+          android::sysprop::bluetooth::Ble::random_address_rotation_interval_max());
 
   Stack::GetInstance()->GetAclManagerLe()->SetPrivacyPolicyForInitiatorAddress(
           address_policy, empty_address_with_type, minimum_rotation_time, maximum_rotation_time);

@@ -39,7 +39,7 @@ using TestBrowsePacket = TestPacketType<BrowsePacket>;
 class MockMediaInterface : public MediaInterface {
 public:
   MOCK_METHOD3(SendKeyEvent, void(const RawAddress&, uint8_t, KeyState));
-  MOCK_METHOD1(GetSongInfo, void(MediaInterface::SongInfoCallback));
+  MOCK_METHOD2(GetSongInfo, void(std::string, MediaInterface::SongInfoCallback));
   MOCK_METHOD1(GetPlayStatus, void(MediaInterface::PlayStatusCallback));
   MOCK_METHOD1(GetNowPlayingList, void(MediaInterface::NowPlayingCallback));
   MOCK_METHOD1(GetMediaPlayerList, void(MediaInterface::MediaListCallback));
@@ -112,18 +112,6 @@ public:
   MOCK_METHOD3(FindProfileVersionInRec, bool(t_sdp_disc_rec*, uint16_t, uint16_t*));
 };
 
-ACTION_TEMPLATE(InvokeCb, HAS_1_TEMPLATE_PARAMS(int, k), AND_1_VALUE_PARAMS(input)) {
-  ::testing::get<k>(args).Run(input);
-}
-
-ACTION_TEMPLATE(InvokeCb, HAS_1_TEMPLATE_PARAMS(int, k), AND_2_VALUE_PARAMS(a, b)) {
-  ::testing::get<k>(args).Run(a, b);
-}
-
-ACTION_TEMPLATE(InvokeCb, HAS_1_TEMPLATE_PARAMS(int, k), AND_3_VALUE_PARAMS(a, b, c)) {
-  ::testing::get<k>(args).Run(a, b, c);
-}
-
 template <class PacketType>
 class PacketMatcher : public ::testing::MatcherInterface<const AvrcpResponse&> {
 public:
@@ -140,9 +128,9 @@ public:
     pkt_to_compare_to_->Serialize(packet2);
 
     if (packet1->GetData() != packet2->GetData()) {
-      *listener << "\nPacket to compare to: \n";
+      *listener << "\nPacket to compare to:\n";
       *listener << packet2->ToString();
-      *listener << "\nActual packet: \n";
+      *listener << "\nActual packet:\n";
       *listener << packet1->ToString();
     }
 

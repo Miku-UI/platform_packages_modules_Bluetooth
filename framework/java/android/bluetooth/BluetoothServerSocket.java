@@ -16,11 +16,14 @@
 
 package android.bluetooth;
 
+import android.annotation.Hide;
 import android.annotation.NonNull;
 import android.annotation.RequiresNoPermission;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.ParcelUuid;
 import android.util.Log;
+
+import com.android.bluetooth.flags.Flags;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -80,6 +83,7 @@ public final class BluetoothServerSocket implements Closeable {
     private long mSocketCreationTimeMillis = 0;
     private long mSocketCreationLatencyMillis = 0;
 
+    private final BluetoothAdapter mAdapter;
     // BluetoothSocket.getConnectionType() will hide LE.
     // Therefore a new variable need to be maintained here.
     private final int mType;
@@ -92,12 +96,15 @@ public final class BluetoothServerSocket implements Closeable {
      * @param encrypt require the connection to be encrypted
      * @param port remote port
      */
-    /*package*/ BluetoothServerSocket(int type, boolean auth, boolean encrypt, int port) {
+    /*package*/ BluetoothServerSocket(
+            BluetoothAdapter adapter, int type, boolean auth, boolean encrypt, int port) {
+        mAdapter = adapter;
         mSocketCreationTimeMillis = System.currentTimeMillis();
         mType = type;
         mChannel = port;
-        mSocket = new BluetoothSocket(type, auth, encrypt, port, null);
-        if (port == BluetoothAdapter.SOCKET_CHANNEL_AUTO_STATIC_NO_SDP) {
+        mSocket = new BluetoothSocket(mAdapter, type, auth, encrypt, port, null);
+        if (port == BluetoothAdapter.SOCKET_CHANNEL_AUTO_STATIC_NO_SDP
+                || (Flags.lecocWithFixedPsm() && type == BluetoothSocket.TYPE_LE)) {
             mSocket.setExcludeSdp(true);
         }
         mSocketCreationLatencyMillis = System.currentTimeMillis() - mSocketCreationTimeMillis;
@@ -114,17 +121,21 @@ public final class BluetoothServerSocket implements Closeable {
      * @param min16DigitPin enforce a minimum length of 16 digits for a sec mode 2 connection
      */
     /*package*/ BluetoothServerSocket(
+            BluetoothAdapter adapter,
             int type,
             boolean auth,
             boolean encrypt,
             int port,
             boolean pitm,
             boolean min16DigitPin) {
+        mAdapter = adapter;
         mSocketCreationTimeMillis = System.currentTimeMillis();
         mType = type;
         mChannel = port;
-        mSocket = new BluetoothSocket(type, auth, encrypt, port, null, pitm, min16DigitPin);
-        if (port == BluetoothAdapter.SOCKET_CHANNEL_AUTO_STATIC_NO_SDP) {
+        mSocket =
+                new BluetoothSocket(mAdapter, type, auth, encrypt, port, null, pitm, min16DigitPin);
+        if (port == BluetoothAdapter.SOCKET_CHANNEL_AUTO_STATIC_NO_SDP
+                || (Flags.lecocWithFixedPsm() && type == BluetoothSocket.TYPE_LE)) {
             mSocket.setExcludeSdp(true);
         }
         mSocketCreationLatencyMillis = System.currentTimeMillis() - mSocketCreationTimeMillis;
@@ -138,10 +149,12 @@ public final class BluetoothServerSocket implements Closeable {
      * @param encrypt require the connection to be encrypted
      * @param uuid uuid
      */
-    /*package*/ BluetoothServerSocket(int type, boolean auth, boolean encrypt, ParcelUuid uuid) {
+    /*package*/ BluetoothServerSocket(
+            BluetoothAdapter adapter, int type, boolean auth, boolean encrypt, ParcelUuid uuid) {
+        mAdapter = adapter;
         mSocketCreationTimeMillis = System.currentTimeMillis();
         mType = type;
-        mSocket = new BluetoothSocket(type, auth, encrypt, -1, uuid);
+        mSocket = new BluetoothSocket(mAdapter, type, auth, encrypt, -1, uuid);
         // TODO: This is the same as mChannel = -1 - is this intentional?
         mChannel = mSocket.getPort();
         mSocketCreationLatencyMillis = System.currentTimeMillis() - mSocketCreationTimeMillis;
@@ -164,6 +177,7 @@ public final class BluetoothServerSocket implements Closeable {
      * @param maximumPacketSize The maximum size (in bytes) of a single data packet
      */
     /*package*/ BluetoothServerSocket(
+            BluetoothAdapter adapter,
             int type,
             boolean auth,
             boolean encrypt,
@@ -176,11 +190,13 @@ public final class BluetoothServerSocket implements Closeable {
             long hubId,
             long endpointId,
             int maximumPacketSize) {
+        mAdapter = adapter;
         mSocketCreationTimeMillis = System.currentTimeMillis();
         mType = type;
         mChannel = port;
         mSocket =
                 new BluetoothSocket(
+                        mAdapter,
                         type,
                         auth,
                         encrypt,
@@ -193,7 +209,8 @@ public final class BluetoothServerSocket implements Closeable {
                         hubId,
                         endpointId,
                         maximumPacketSize);
-        if (port == BluetoothAdapter.SOCKET_CHANNEL_AUTO_STATIC_NO_SDP) {
+        if (port == BluetoothAdapter.SOCKET_CHANNEL_AUTO_STATIC_NO_SDP
+                || (Flags.lecocWithFixedPsm() && type == BluetoothSocket.TYPE_LE)) {
             mSocket.setExcludeSdp(true);
         }
         mSocketCreationLatencyMillis = System.currentTimeMillis() - mSocketCreationTimeMillis;
@@ -235,6 +252,7 @@ public final class BluetoothServerSocket implements Closeable {
         try {
             acceptedSocket = mSocket.accept(timeout);
             SocketMetrics.logSocketAccept(
+                    mAdapter,
                     acceptedSocket,
                     mSocket,
                     mType,
@@ -247,6 +265,7 @@ public final class BluetoothServerSocket implements Closeable {
             return acceptedSocket;
         } catch (IOException e) {
             SocketMetrics.logSocketAccept(
+                    mAdapter,
                     acceptedSocket,
                     mSocket,
                     mType,
@@ -277,11 +296,8 @@ public final class BluetoothServerSocket implements Closeable {
         mSocket.setServiceName(serviceName);
     }
 
-    /**
-     * Returns the channel on which this socket is bound.
-     *
-     * @hide
-     */
+    /** Returns the channel on which this socket is bound. */
+    @Hide
     @RequiresNoPermission // Permission is checked when creating the socket
     public int getChannel() {
         return mChannel;

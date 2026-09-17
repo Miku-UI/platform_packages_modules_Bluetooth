@@ -26,7 +26,6 @@
 #include <map>
 #include <mutex>
 
-#include "avrc_defs.h"
 #include "avrcp_message_converter.h"
 #include "bta/include/bta_av_api.h"
 #include "device/include/interop.h"
@@ -34,6 +33,7 @@
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
 #include "packet/avrcp/avrcp_packet.h"
+#include "stack/include/avrc_defs.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/sdp_status.h"
@@ -60,7 +60,7 @@ ConnectionHandler* ConnectionHandler::Get() {
   return instance_;
 }
 
-static bool IsAbsoluteVolumeEnabled(const RawAddress* bdaddr) {
+static bool IsAbsoluteVolumeEnabled(RawAddress bdaddr) {
   char volume_disabled[PROPERTY_VALUE_MAX] = {0};
   osi_property_get("persist.bluetooth.disableabsvol", volume_disabled, "false");
   if (strncmp(volume_disabled, "true", 4) == 0) {
@@ -72,6 +72,25 @@ static bool IsAbsoluteVolumeEnabled(const RawAddress* bdaddr) {
     return false;
   }
   return true;
+}
+
+static RcFeature convertToRcFeature(uint16_t features) {
+  RcFeature rc_features = RcFeature::RC_FEAT_NONE;
+
+  if ((features & BTA_AV_FEAT_ADV_CTRL) && (features & BTA_AV_FEAT_RCTG)) {
+    rc_features |= RcFeature::RC_FEAT_ABSOLUTE_VOLUME;
+  }
+  if (features & BTA_AV_FEAT_METADATA) {
+    rc_features |= RcFeature::RC_FEAT_METADATA;
+  }
+  if (features & BTA_AV_FEAT_BROWSE) {
+    rc_features |= RcFeature::RC_FEAT_BROWSE;
+  }
+  if (features & BTA_AV_FEAT_COVER_ARTWORK) {
+    rc_features |= RcFeature::RC_FEAT_COVERART;
+  }
+
+  return rc_features;
 }
 
 bool ConnectionHandler::Initialize(const ConnectionCallback& callback, AvrcpInterface* avrcp,
@@ -148,19 +167,17 @@ bool ConnectionHandler::ConnectDevice(const RawAddress& bdaddr) {
 
     instance_->feature_map_[bdaddr] = features;
 
-    if (com_android_bluetooth_flags_abs_volume_sdp_conflict()) {
-      // Peer may connect avrcp during SDP. Check the connection state when
-      // SDP completed to resolve the conflict.
-      for (const auto& pair : instance_->device_map_) {
-        if (bdaddr == pair.second->GetAddress()) {
-          log::warn("Connected by peer device with address {}", bdaddr);
-          if (features & BTA_AV_FEAT_ADV_CTRL) {
-            pair.second->RegisterVolumeChanged();
-          } else if (instance_->vol_ != nullptr) {
-            instance_->vol_->DeviceConnected(pair.second->GetAddress());
-          }
-          return;
+    // Peer may connect avrcp during SDP. Check the connection state when SDP completed to resolve
+    // the conflict.
+    for (const auto& pair : instance_->device_map_) {
+      if (bdaddr == pair.second->GetAddress()) {
+        log::warn("Connected by peer device with address {}", bdaddr);
+        if (features & BTA_AV_FEAT_ADV_CTRL) {
+          pair.second->RegisterVolumeChanged();
+        } else if (instance_->vol_ != nullptr) {
+          instance_->vol_->DeviceConnected(pair.second->GetAddress());
         }
+        return;
       }
     }
     instance_->AvrcpConnect(true, bdaddr);
@@ -308,6 +325,12 @@ void ConnectionHandler::InitiatorControlCb(uint8_t handle, uint8_t event, uint16
           newDevice->RegisterVolumeChanged();
         } else if (instance_->vol_ != nullptr) {
           instance_->vol_->DeviceConnected(newDevice->GetAddress());
+        }
+      }
+      for (auto it = feature_map_.begin(); it != feature_map_.end(); it++) {
+        if (*peer_addr == it->first) {
+          device_map_[handle]->SetRcFeatures(convertToRcFeature(it->second));
+          break;
         }
       }
     } break;
@@ -539,13 +562,20 @@ void ConnectionHandler::SdpCb(RawAddress bdaddr, SdpCallback cb, tSDP_DISCOVERY_
           uint16_t categories = sdp_attribute->attr_value.v.u16;
           if (categories & AVRC_SUPF_CT_CAT2) {
             log::verbose("Device {} supports advanced control", bdaddr);
-            if (IsAbsoluteVolumeEnabled(&bdaddr)) {
+            if (IsAbsoluteVolumeEnabled(bdaddr)) {
               peer_features |= (BTA_AV_FEAT_ADV_CTRL);
             }
           }
           if (categories & AVRC_SUPF_CT_BROWSE) {
             log::verbose("Device {} supports browsing", bdaddr);
             peer_features |= (BTA_AV_FEAT_BROWSE);
+          }
+          if (peer_avrcp_version >= AVRC_REV_1_6) {
+            if ((categories & AVRC_SUPF_CT_COVER_ART_GET_IMAGE_PROP) ||
+                (categories & AVRC_SUPF_CT_COVER_ART_GET_IMAGE) ||
+                (categories & AVRC_SUPF_CT_COVER_ART_GET_THUMBNAIL)) {
+              peer_features |= (BTA_AV_FEAT_COVER_ARTWORK);
+            }
           }
         }
       }
@@ -578,12 +608,19 @@ void ConnectionHandler::SdpCb(RawAddress bdaddr, SdpCallback cb, tSDP_DISCOVERY_
           uint16_t categories = sdp_attribute->attr_value.v.u16;
           if (categories & AVRC_SUPF_CT_CAT2) {
             log::verbose("Device {} supports advanced control", bdaddr);
-            if (IsAbsoluteVolumeEnabled(&bdaddr)) {
+            if (IsAbsoluteVolumeEnabled(bdaddr)) {
               peer_features |= (BTA_AV_FEAT_ADV_CTRL);
             }
           }
         }
       }
+    }
+  }
+
+  for (auto it = device_map_.begin(); it != device_map_.end(); it++) {
+    if (bdaddr == it->second->GetAddress()) {
+      device_map_[it->first]->SetRcFeatures(convertToRcFeature(peer_features));
+      break;
     }
   }
 

@@ -458,6 +458,8 @@ enum OpCode : 16 {
   CONTROLLER_A2DP_OPCODE = 0xFD5D,
   CONTROLLER_BQR = 0xFD5E,
   DYNAMIC_AUDIO_BUFFER = 0xFD5F,
+  LE_SET_BIG_CHANNEL_MAP_CLASSIFICATION = 0xFD65,
+  LE_ADD_DEVICE_TO_FILTER_ACCEPT_LIST_WITH_PROXIMITY_THRESHOLD = 0xFD66,
   // MSFT_OPCODE_xxxx below are needed for the tests.
   MSFT_OPCODE_MEDIATEK = 0xFD30,
   MSFT_OPCODE_QUALCOMM = 0xFD70,
@@ -869,6 +871,7 @@ enum EventCode : 8 {
   NUMBER_OF_COMPLETED_DATA_BLOCKS = 0x48,
   AUTHENTICATED_PAYLOAD_TIMEOUT_EXPIRED = 0x57,
   ENCRYPTION_CHANGE_V2 = 0x59,
+  DEVELOPMENT = 0xFE,
   VENDOR_SPECIFIC = 0xFF,
 }
 
@@ -924,6 +927,10 @@ enum SubeventCode : 8 {
   LE_CS_SUBEVENT_RESULT = 0x31,
   LE_CS_SUBEVENT_RESULT_CONTINUE = 0x32,
   LE_CS_TEST_END_COMPLETE = 0x33,
+}
+
+enum DevelopmentSubeventCode : 8 {
+  RFU = 0xFF,
 }
 
 // Vendor specific events
@@ -2772,6 +2779,8 @@ enum HciVersion : 8 {
   V_5_1 = 0x0a,
   V_5_2 = 0x0b,
   V_5_3 = 0x0c,
+  V_5_4 = 0x0d,
+  V_6_0 = 0x0e,
 }
 
 enum LmpVersion : 8 {
@@ -2788,6 +2797,8 @@ enum LmpVersion : 8 {
   V_5_1 = 0x0a,
   V_5_2 = 0x0b,
   V_5_3 = 0x0c,
+  V_5_4 = 0x0d,
+  V_6_0 = 0x0e,
 }
 
 struct LocalVersionInformation {
@@ -3871,7 +3882,7 @@ packet LeSetDefaultPhyComplete : CommandComplete (command_op_code = LE_SET_DEFAU
   status : ErrorCode,
 }
 
-enum PhyOptions : 8 {
+enum PhyOptions : 16 {
   NO_PREFERENCE = 0x00,
   S_2 = 0x01,
   S_8 = 0x02,
@@ -5214,6 +5225,7 @@ packet LeCsSetChannelClassification : DistanceMeasurementCommand (op_code = LE_C
 }
 
 packet LeCsSetChannelClassificationComplete : CommandComplete (command_op_code = LE_CS_SET_CHANNEL_CLASSIFICATION) {
+  status : ErrorCode,
 }
 
 enum CsPhy : 8 {
@@ -5371,7 +5383,17 @@ packet LeGetVendorCapabilitiesComplete104 : LeGetVendorCapabilitiesComplete103 {
 }
 
 packet LeGetVendorCapabilitiesComplete105 : LeGetVendorCapabilitiesComplete104 {
+  iso_link_feedback_support : 8,
   sniff_offload_support : 8,
+  _payload_,
+}
+
+// HCI v1.06
+packet LeGetVendorCapabilitiesComplete106 : LeGetVendorCapabilitiesComplete105 {
+  big_set_channel_map_classification_support : 16,
+  vendor_connection_handle_min : 16,
+  vendor_connection_handle_max : 16,
+  connection_proximity_threshold_support : 8,
   _payload_,
 }
 
@@ -6338,6 +6360,11 @@ packet RemoteHostSupportedFeaturesNotification : Event (event_code = REMOTE_HOST
 
 packet LeMetaEvent : Event (event_code = LE_META_EVENT) {
   subevent_code : SubeventCode,
+  _body_,
+}
+
+packet DevelopmentEvent : Event (event_code = DEVELOPMENT) {
+  subevent_code : DevelopmentSubeventCode,
   _body_,
 }
 
@@ -7535,5 +7562,41 @@ packet WriteSniffOffloadParameters : VendorCommand (op_code = WRITE_SNIFF_OFFLOA
 }
 
 packet WriteSniffOffloadParametersComplete : CommandComplete (command_op_code = WRITE_SNIFF_OFFLOAD_PARAMETERS) {
+  status : ErrorCode,
+}
+
+enum LeSetBigChannelMapClassificationSubOpcode : 8 {
+  SET_BY_CONNECTION_HANDLE = 0x01,
+}
+
+enum LeSetBigChannelMapClassificationAction : 8 {
+  ADD = 0x00,
+  DELETE = 0x01,
+  CLEAR = 0x02,
+}
+
+packet LeSetBigChannelMapClassificationByConnHandle : VendorCommand(op_code = LE_SET_BIG_CHANNEL_MAP_CLASSIFICATION) {
+  sub_opcode: LeSetBigChannelMapClassificationSubOpcode,
+  action: LeSetBigChannelMapClassificationAction,
+  big_handle: 8,
+  num_handles: 8,
+  conn_handles: 16[],
+}
+
+packet LeSetBigChannelMapClassificationComplete : CommandComplete(command_op_code=LE_SET_BIG_CHANNEL_MAP_CLASSIFICATION) {
+  status: ErrorCode,
+  sub_opcode: LeSetBigChannelMapClassificationSubOpcode,
+  action: LeSetBigChannelMapClassificationAction,
+  big_handle: 8,
+}
+
+packet LeAddDeviceToFilterAcceptListWithProximityThreshold : VendorCommand (op_code = LE_ADD_DEVICE_TO_FILTER_ACCEPT_LIST_WITH_PROXIMITY_THRESHOLD) {
+  address_type : FilterAcceptListAddressType,
+  address : Address,
+  connection_path_loss_threshold : 8,
+  connection_rssi_threshold : 8,
+}
+
+packet LeAddDeviceToFilterAcceptListWithProximityThresholdComplete : CommandComplete (command_op_code = LE_ADD_DEVICE_TO_FILTER_ACCEPT_LIST_WITH_PROXIMITY_THRESHOLD) {
   status : ErrorCode,
 }

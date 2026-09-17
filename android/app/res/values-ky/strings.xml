@@ -21,6 +21,8 @@
     <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"Колдонмого BluetoothАлмашуу менежерине жетип, ал аркылуу файлдарды өткөрүү уруксатын берет."</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"Bluetooth түзмөгүнө кирүү мүмкүнчүлүгүн уруксат берилгендердин тизмесине жайгаштыруу."</string>
     <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"Колдонмого Bluetooth түзмөгүн уруксат берилгендердин тизмесине убактылуу жайгаштырып, колдонуучунун уруксатысыз файлдарды ал түзмөктөн бул түзмөккө жөнөтүү мүмкүнчүлүгүн берет."</string>
+    <string name="permlab_bluetoothBackup" msgid="49451988877877942">"Камдык көчүрмөнү сактоо үчүн Bluetooth аркылуу кабарлоого уруксат берүү."</string>
+    <string name="permdesc_bluetoothBackup" msgid="2871500153259509669">"Bluetooth колдонмосу параметрлердин маалыматынын камдык көчүрмөсүн сактоону иштетүү үчүн кабарларды ала алат"</string>
     <string name="bt_share_picker_label" msgid="7464438494743777696">"Bluetooth"</string>
     <string name="unknown_device" msgid="2317679521750821654">"Белгисиз түзмөк"</string>
     <string name="unknownNumber" msgid="1245183329830158661">"Белгисиз"</string>
@@ -112,10 +114,10 @@
     <string name="transfer_menu_open" msgid="5193344638774400131">"Ачуу"</string>
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Тизмектен алып салуу"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Тазалоо"</string>
-    <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Эмне ойноп жатат?"</string>
+    <string name="bluetooth_media_audio_app_name" msgid="2389937877819723460">"Bluetooth аудио"</string>
+    <string name="bluetooth_media_audio_queue_name" msgid="2327164681598379428">"Эмне ойноп жатат?"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Колдонмонун сүрөтчөсү"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Bluetooth аудио ажыратылды"</string>
-    <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Bluetooth аудио"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"4Гб чоң файлдарды өткөрүү мүмкүн эмес"</string>
     <string name="bluetooth_connect_action" msgid="2319449093046720209">"Bluetooth\'га туташуу"</string>
     <string name="bluetooth_enabled_apm_title" msgid="6914461147844949044">"Учак режиминде Bluetooth күйүк"</string>
@@ -130,4 +132,13 @@
     <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"Bluetooth кайра күйгүзүлдү"</string>
     <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"Бул параметрди каалаган убакта параметрлерден өзгөртө аласыз"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"Bluetooth\'тун абалын автоматтык түрдө өзгөртүү"</string>
+    <string name="auracast_notification_channel" msgid="5159181425358316696">"Auracast"</string>
+    <string name="auracast_notification_title" msgid="3101708313009368939">"<xliff:g id="STREAM_NAME">%1$s</xliff:g> аудио агымы жеткиликтүү"</string>
+    <string name="auracast_notification_subtext" msgid="4696155233480316395">"LE Audio"</string>
+    <string name="auracast_connect_device_message" msgid="4461776363082532493">"Угуп баштоо үчүн LE Audio түзмөгүн туташтырыңыз"</string>
+    <string name="auracast_listen_on_device_message" msgid="3719491065367993094">"<xliff:g id="DEVICE_NAME">%2$s</xliff:g> түзмөгүңүздө <xliff:g id="STREAM_NAME">%1$s</xliff:g> аудио агымын угуңуз"</string>
+    <string name="auracast_connect_action" msgid="7157544449029291355">"Туташуу"</string>
+    <string name="auracast_connection_failed_message" msgid="6490085541428198952">"<xliff:g id="DEVICE_NAME">%2$s</xliff:g> түзмөгүндөгү <xliff:g id="STREAM_NAME">%1$s</xliff:g> аудио агымына туташкан жок."</string>
+    <string name="auracast_default_stream_name" msgid="2824625871526576239">"Жакын жерде"</string>
+    <string name="auracast_default_device_name" msgid="15748131701036354">"түзмөктөр"</string>
 </resources>

@@ -39,7 +39,8 @@ public:
 
   /* Checks if any metadata has been set.
    * If not then calling GetAudioContextsForTheGroup will return empty contexts */
-  virtual bool IsAnyMetadataSet(void) = 0;
+  virtual bool IsAnyMetadataSet(
+          uint8_t local_directions = bluetooth::le_audio::types::kLeAudioDirectionBoth) = 0;
 
   /* Set encoding session metadata from Audio Framework */
   virtual void SetEncodingSessionMetadata(
@@ -54,6 +55,9 @@ public:
   /* Provide API to set and get call state. */
   virtual void SetInCall(bool in_call) = 0;
   virtual bool IsInCall(void) = 0;
+
+  virtual void SetInGame(bool in_game) = 0;
+  virtual bool IsInGame(void) = 0;
 
   /* Get the VOIP call state based on the provided metadata */
   virtual bool IsInVoip(void) = 0;

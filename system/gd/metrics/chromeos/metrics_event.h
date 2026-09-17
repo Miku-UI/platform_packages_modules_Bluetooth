@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <bluetooth/types/address.h>
+
 #include <cstdint>
 #include <string>
 
@@ -230,7 +232,7 @@ LLPrivacyState ToLLPrivacyState(uint32_t state);
 AddressPrivacyState ToAddressPrivacyState(uint32_t state);
 
 // Convert topshim::btif::BtDeviceType to ConnectionType
-ConnectionType ToPairingDeviceType(std::string addr, uint32_t device_type);
+ConnectionType ToPairingDeviceType(RawAddress addr, uint32_t device_type);
 
 // Convert topshim::btif::bond_state info (status, addr, bond_state, and fail_reason) to
 // PairingState

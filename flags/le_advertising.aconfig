@@ -2,8 +2,29 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "nrpa_non_connectable_adv"
+    name: "max_advertising_power"
     namespace: "bluetooth"
-    description: "Use NRPA for non-connectable advertising with public address policy."
-    bug: "319511126"
+    is_exported: true
+    description: "Increase max Tx power for LE advertising"
+    bug: "464003245"
+}
+
+flag {
+    name: "multi_adv_index"
+    namespace: "bluetooth"
+    description: "start multi-advertising index from 0"
+    bug: "465985107"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "allow_more_tx_power"
+    namespace: "bluetooth"
+    description: "Allow more TX power for LE operations"
+    bug: "478945356"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

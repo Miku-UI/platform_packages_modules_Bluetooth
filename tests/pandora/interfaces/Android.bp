@@ -1,0 +1,62 @@
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+java_library {
+    name: "pandora-grpc-java",
+    visibility: [
+        "//packages/modules/Bluetooth/framework/tests/bumble",
+        "//packages/modules/Bluetooth/framework/tests/metrics:__subpackages__",
+        "//packages/modules/Bluetooth/tests/pandora:__subpackages__",
+    ],
+    srcs: [
+        ":pandora_interfaces-protos",
+    ],
+    static_libs: [
+        "grpc-java-lite",
+        "guava",
+        "javax_annotation-api_1.3.2",
+        "libprotobuf-java-lite",
+        "opencensus-java-api",
+        "pandora-proto-java",
+    ],
+    proto: {
+        include_dirs: ["external/protobuf/src"],
+        local_include_dirs: ["."],
+        plugin: "grpc-java-plugin",
+        output_params: [
+            "lite",
+        ],
+    },
+}
+
+java_library {
+    name: "pandora-proto-java",
+    visibility: [
+        "//packages/modules/Bluetooth/framework/tests/bumble",
+        "//packages/modules/Bluetooth/framework/tests/metrics:__subpackages__",
+        "//packages/modules/Bluetooth/tests/pandora:__subpackages__",
+    ],
+    srcs: [
+        ":libprotobuf-internal-protos",
+        ":pandora_interfaces-protos",
+    ],
+    static_libs: [
+        "libprotobuf-java-lite",
+    ],
+    proto: {
+        // Disable canonical path as this breaks the identification of
+        // well known protobufs
+        canonical_path_from_root: false,
+        type: "lite",
+        include_dirs: ["external/protobuf/src"],
+        local_include_dirs: ["."],
+    },
+}
+
+filegroup {
+    name: "pandora_interfaces-protos",
+    srcs: [
+        "pandora/*.proto",
+    ],
+}

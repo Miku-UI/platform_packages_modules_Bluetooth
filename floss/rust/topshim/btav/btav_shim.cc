@@ -16,16 +16,17 @@
 
 #include "topshim/btav/btav_shim.h"
 
+#include <audio_hal_interface/a2dp_encoding_host.h>
+#include <base/functional/callback.h>
 #include <bluetooth/types/address.h>
+#include <btif/include/btif_av.h>
+#include <hardware/avrcp/avrcp.h>
+#include <hardware/bluetooth.h>
 
 #include <cstdio>
 #include <map>
 #include <memory>
 
-#include "base/functional/callback.h"
-#include "btif/include/btif_av.h"
-#include "include/hardware/avrcp/avrcp.h"
-#include "include/hardware/bluetooth.h"
 #include "rust/cxx.h"
 #include "src/profiles/a2dp.rs.h"
 #include "src/profiles/avrcp.rs.h"
@@ -39,20 +40,29 @@ public:
     rusty::avrcp_send_key_event(key, state == KeyState::PUSHED);
   }
 
-  void GetSongInfo(SongInfoCallback cb) override { cb.Run(songInfo_); }
-
-  void GetPlayStatus(PlayStatusCallback cb) override { cb.Run(playStatus_); }
-
-  void GetNowPlayingList(NowPlayingCallback cb) override {
-    cb.Run(currentSongId_, nowPlayingList_);
+  void GetSongInfo(std::string /* media_id */, SongInfoCallback cb) override {
+    // We ignore |media_id| because Floss only have the info for the current song (the fallback).
+    // See also the comment in |SetMetadata| below and reference the |getSongInfo| implementation in
+    // android/app/src/com/android/bluetooth/audio_util/MediaPlayerList.java
+    std::move(cb).Run(songInfo_);
   }
 
-  void GetMediaPlayerList(MediaListCallback cb) override { cb.Run(currentPlayer_, playerList_); }
+  void GetPlayStatus(PlayStatusCallback cb) override { std::move(cb).Run(playStatus_); }
+
+  void GetNowPlayingList(NowPlayingCallback cb) override {
+    std::move(cb).Run(currentSongId_, nowPlayingList_);
+  }
+
+  void GetMediaPlayerList(MediaListCallback cb) override {
+    std::move(cb).Run(currentPlayer_, playerList_);
+  }
 
   void GetFolderItems([[maybe_unused]] uint16_t player_id, [[maybe_unused]] std::string media_id,
                       [[maybe_unused]] FolderItemsCallback folder_cb) override {}
 
-  void GetAddressedPlayer(GetAddressedPlayerCallback cb) override { cb.Run(currentPlayer_); }
+  void GetAddressedPlayer(GetAddressedPlayerCallback cb) override {
+    std::move(cb).Run(currentPlayer_);
+  }
 
   void SetBrowsedPlayer([[maybe_unused]] uint16_t player_id,
                         [[maybe_unused]] std::string current_path,
@@ -266,10 +276,11 @@ static bool mandatory_codec_preferred_cb(const RawAddress& addr) {
   rusty::mandatory_codec_preferred_callback(addr);
   return false;
 }
+static void audio_delay_reported_cb(const RawAddress& /* bd_addr */, int /* delay */) {}
 
 btav_source_callbacks_t g_callbacks = {
-        sizeof(btav_source_callbacks_t), connection_state_cb, audio_state_cb, audio_config_cb,
-        mandatory_codec_preferred_cb,
+        sizeof(btav_source_callbacks_t), connection_state_cb,     audio_state_cb, audio_config_cb,
+        mandatory_codec_preferred_cb,    audio_delay_reported_cb,
 };
 }  // namespace internal
 
@@ -277,12 +288,10 @@ A2dpIntf::~A2dpIntf() {
   // TODO
 }
 
-std::unique_ptr<A2dpIntf> GetA2dpProfile(const unsigned char* btif) {
+std::unique_ptr<A2dpIntf> GetA2dpProfile() {
   if (internal::g_a2dpif) {
     std::abort();
   }
-
-  const bt_interface_t* btif_ = reinterpret_cast<const bt_interface_t*>(btif);
 
   auto a2dpif = std::make_unique<A2dpIntf>();
   internal::g_a2dpif = a2dpif.get();
@@ -348,15 +357,13 @@ RustPresentationPosition A2dpIntf::get_presentation_position() const {
 static bluetooth::avrcp::AvrcpMediaInterfaceImpl mAvrcpInterface;
 static bluetooth::avrcp::VolumeInterfaceImpl mVolumeInterface;
 
-std::unique_ptr<AvrcpIntf> GetAvrcpProfile(const unsigned char* btif) {
+std::unique_ptr<AvrcpIntf> GetAvrcpProfile(const BtIntf& intf) {
   if (internal::g_avrcpif) {
     std::abort();
   }
 
-  const bt_interface_t* btif_ = reinterpret_cast<const bt_interface_t*>(btif);
-
   auto avrcpif = std::make_unique<AvrcpIntf>(
-          reinterpret_cast<avrcp::ServiceInterface*>(btif_->get_avrcp_service()));
+          reinterpret_cast<avrcp::ServiceInterface*>(intf.get_avrcp_service()));
   internal::g_avrcpif = avrcpif.get();
   return avrcpif;
 }

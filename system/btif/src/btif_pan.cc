@@ -31,7 +31,6 @@
 
 #include <arpa/inet.h>
 #include <base/functional/bind.h>
-#include <base/location.h>
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
 #include <fcntl.h>
@@ -48,7 +47,6 @@
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
 #include <string>
 
@@ -56,7 +54,8 @@
 #include "btif/include/btif_common.h"
 #include "btif/include/btif_pan_internal.h"
 #include "btif/include/btif_sock_thread.h"
-#include "hardware/bluetooth.h"
+#include "btif/include/stack_manager_t.h"
+#include "btif_status.h"
 #include "hci/controller.h"
 #include "include/hardware/bt_pan.h"
 #include "internal_include/bt_target.h"
@@ -93,11 +92,11 @@ btpan_cb_t btpan_cb;
 static bool jni_initialized;
 static bool stack_initialized;
 
-static bt_status_t btpan_jni_init(const btpan_callbacks_t* callbacks);
+static BtStatus btpan_jni_init(const btpan_callbacks_t* callbacks);
 static void btpan_jni_cleanup();
-static bt_status_t btpan_connect(const RawAddress* bd_addr, int local_role, int remote_role);
-static bt_status_t btpan_disconnect(const RawAddress* bd_addr);
-static bt_status_t btpan_enable(int local_role);
+static BtStatus btpan_connect(const RawAddress bd_addr, int local_role, int remote_role);
+static BtStatus btpan_disconnect(const RawAddress bd_addr);
+static BtStatus btpan_enable(int local_role);
 static int btpan_get_local_role(void);
 
 static void btpan_tap_fd_signaled(int fd, int type, int flags, uint32_t user_id);
@@ -117,7 +116,7 @@ const btpan_interface_t* btif_pan_get_interface() { return &pan_if; }
  **
  ** Description     initializes the pan interface
  **
- ** Returns         bt_status_t
+ ** Returns         BtStatus
  **
  ******************************************************************************/
 void btif_pan_init() {
@@ -172,14 +171,14 @@ void btif_pan_cleanup() {
 }
 
 static btpan_callbacks_t callback;
-static bt_status_t btpan_jni_init(const btpan_callbacks_t* callbacks) {
+static BtStatus btpan_jni_init(const btpan_callbacks_t* callbacks) {
   log::verbose("stack_initialized = {}, btpan_cb.enabled:{}", stack_initialized, btpan_cb.enabled);
   callback = *callbacks;
   jni_initialized = true;
   if (stack_initialized && !btpan_cb.enabled) {
     btif_pan_init();
   }
-  return BT_STATUS_SUCCESS;
+  return BtifStatus();
 }
 
 static void btpan_jni_cleanup() {
@@ -213,21 +212,21 @@ static tBTA_PAN_ROLE btpan_dev_local_role;
 static tBTA_PAN_ROLE_INFO bta_panu_info = {std::string(PANU_SERVICE_NAME), 0};
 static tBTA_PAN_ROLE_INFO bta_pan_nap_info = {std::string(PAN_NAP_SERVICE_NAME), 1};
 
-static bt_status_t btpan_enable(int local_role) {
+static BtStatus btpan_enable(int local_role) {
   const tBTA_PAN_ROLE bta_pan_role = btpan_role_to_bta(local_role);
   BTA_PanSetRole(bta_pan_role, bta_panu_info, bta_pan_nap_info);
   btpan_dev_local_role = local_role;
-  return BT_STATUS_SUCCESS;
+  return BtifStatus();
 }
 
 static int btpan_get_local_role() { return static_cast<int>(btpan_dev_local_role); }
 
-static bt_status_t btpan_connect(const RawAddress* bd_addr, int local_role, int remote_role) {
+static BtStatus btpan_connect(RawAddress bd_addr, int local_role, int remote_role) {
   tBTA_PAN_ROLE bta_local_role = btpan_role_to_bta(local_role);
   tBTA_PAN_ROLE bta_remote_role = btpan_role_to_bta(remote_role);
-  btpan_new_conn(-1, *bd_addr, bta_local_role, bta_remote_role);
-  BTA_PanOpen(*bd_addr, bta_local_role, bta_remote_role);
-  return BT_STATUS_SUCCESS;
+  btpan_new_conn(-1, bd_addr, bta_local_role, bta_remote_role);
+  BTA_PanOpen(bd_addr, bta_local_role, bta_remote_role);
+  return BtifStatus();
 }
 
 constexpr uint16_t BTIF_PAN_CB_DISCONNECTING = 0x8401;
@@ -243,7 +242,7 @@ static void btif_in_pan_generic_evt(uint16_t event, char* p_param) {
       if (conn) {
         btpan_conn_local_role = bta_role_to_btpan(conn->local_role);
         btpan_remote_role = bta_role_to_btpan(conn->remote_role);
-        callback.connection_state_cb(BTPAN_STATE_DISCONNECTING, BT_STATUS_SUCCESS, &conn->peer,
+        callback.connection_state_cb(BTPAN_STATE_DISCONNECTING, BtifStatus(), conn->peer,
                                      btpan_conn_local_role, btpan_remote_role);
       }
     } break;
@@ -253,17 +252,17 @@ static void btif_in_pan_generic_evt(uint16_t event, char* p_param) {
   }
 }
 
-static bt_status_t btpan_disconnect(const RawAddress* bd_addr) {
-  btpan_conn_t* conn = btpan_find_conn_addr(*bd_addr);
+static BtStatus btpan_disconnect(RawAddress bd_addr) {
+  btpan_conn_t* conn = btpan_find_conn_addr(bd_addr);
   if (conn && conn->handle >= 0) {
     /* Inform the application that the disconnect has been initiated
      * successfully */
-    btif_transfer_context(btif_in_pan_generic_evt, BTIF_PAN_CB_DISCONNECTING, (char*)bd_addr,
+    btif_transfer_context(btif_in_pan_generic_evt, BTIF_PAN_CB_DISCONNECTING, (char*)&bd_addr,
                           sizeof(RawAddress), NULL);
     BTA_PanClose(conn->handle);
-    return BT_STATUS_SUCCESS;
+    return BtifStatus();
   }
-  return BT_STATUS_DEVICE_NOT_FOUND;
+  return BtifStatus(DEVICE_NOT_FOUND);
 }
 
 static int pan_pth = -1;
@@ -587,7 +586,7 @@ static void bta_pan_callback_transfer(uint16_t event, char* p_param) {
       break;
     case BTA_PAN_SET_ROLE_EVT: {
       int btpan_role = bta_role_to_btpan(p_data->set_role.role);
-      bt_status_t status = (p_data->set_role.status) ? BT_STATUS_SUCCESS : BT_STATUS_FAIL;
+      BtStatus status = (p_data->set_role.status) ? BtifStatus() : BtifStatus(FAIL);
       btpan_control_state_t state = btpan_role == 0 ? BTPAN_STATE_DISABLED : BTPAN_STATE_ENABLED;
       callback.control_state_cb(state, btpan_role, status, TAP_IF_NAME);
       break;
@@ -603,9 +602,8 @@ static void bta_pan_callback_transfer(uint16_t event, char* p_param) {
         conn->handle = p_data->opening.handle;
         int btpan_conn_local_role = bta_role_to_btpan(conn->local_role);
         int btpan_remote_role = bta_role_to_btpan(conn->remote_role);
-        callback.connection_state_cb(BTPAN_STATE_CONNECTING, BT_STATUS_SUCCESS,
-                                     &p_data->opening.bd_addr, btpan_conn_local_role,
-                                     btpan_remote_role);
+        callback.connection_state_cb(BTPAN_STATE_CONNECTING, BtifStatus(), p_data->opening.bd_addr,
+                                     btpan_conn_local_role, btpan_remote_role);
       } else {
         log::error("connection not found");
       }
@@ -613,17 +611,17 @@ static void bta_pan_callback_transfer(uint16_t event, char* p_param) {
     }
     case BTA_PAN_OPEN_EVT: {
       btpan_connection_state_t state;
-      bt_status_t status;
+      BtStatus status = BtifStatus();
       btpan_conn_t* conn = btpan_find_conn_handle(p_data->open.handle);
 
       log::verbose("pan connection open status: {}", p_data->open.status);
       if (p_data->open.status) {
         state = BTPAN_STATE_CONNECTED;
-        status = BT_STATUS_SUCCESS;
+        status = BtifStatus();
         btpan_open_conn(conn, p_data);
       } else {
         state = BTPAN_STATE_DISCONNECTED;
-        status = BT_STATUS_FAIL;
+        status = BtifStatus(FAIL);
         btpan_cleanup_conn(conn);
       }
       /* debug("BTA_PAN_OPEN_EVT handle:%d, conn:%p",  p_data->open.handle,
@@ -632,7 +630,7 @@ static void bta_pan_callback_transfer(uint16_t event, char* p_param) {
        * conn->remote_role); */
       int btpan_conn_local_role = bta_role_to_btpan(p_data->open.local_role);
       int btpan_remote_role = bta_role_to_btpan(p_data->open.peer_role);
-      callback.connection_state_cb(state, status, &p_data->open.bd_addr, btpan_conn_local_role,
+      callback.connection_state_cb(state, status, p_data->open.bd_addr, btpan_conn_local_role,
                                    btpan_remote_role);
       break;
     }
@@ -644,7 +642,7 @@ static void bta_pan_callback_transfer(uint16_t event, char* p_param) {
       if (conn && conn->handle >= 0) {
         int btpan_conn_local_role = bta_role_to_btpan(conn->local_role);
         int btpan_remote_role = bta_role_to_btpan(conn->remote_role);
-        callback.connection_state_cb(BTPAN_STATE_DISCONNECTED, (bt_status_t)0, &conn->peer,
+        callback.connection_state_cb(BTPAN_STATE_DISCONNECTED, BtifStatus(), conn->peer,
                                      btpan_conn_local_role, btpan_remote_role);
         btpan_cleanup_conn(conn);
       } else {
@@ -673,7 +671,7 @@ static void btu_exec_tap_fd_read(int fd) {
   // Don't occupy BTU context too long, avoid buffer overruns and
   // give other profiles a chance to run by limiting the amount of memory
   // PAN can use.
-  for (int i = 0; i < PAN_BUF_MAX && btif_is_enabled() && btpan_cb.flow; i++) {
+  for (int i = 0; i < PAN_BUF_MAX && stack_is_running() && btpan_cb.flow; i++) {
     BT_HDR* buffer = (BT_HDR*)osi_malloc(PAN_BUF_SIZE);
     buffer->offset = PAN_MINIMUM_OFFSET;
     buffer->len = PAN_BUF_SIZE - sizeof(BT_HDR) - buffer->offset;

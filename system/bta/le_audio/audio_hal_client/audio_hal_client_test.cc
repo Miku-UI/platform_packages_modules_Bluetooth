@@ -19,6 +19,7 @@
 #include "audio_hal_client.h"
 
 #include <bluetooth/log.h>
+#include <com_android_bluetooth_flags.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -27,8 +28,7 @@
 
 #include "audio_hal_interface/le_audio_software.h"
 #include "base/bind_helpers.h"
-#include "common/message_loop_thread.h"
-#include "hardware/bluetooth.h"
+#include "le_audio/mock_test_sync_main_handler.h"
 #include "osi/include/wakelock.h"
 #include "stack/include/main_thread.h"
 
@@ -51,30 +51,6 @@ using bluetooth::le_audio::LeAudioSinkAudioHalClient;
 using bluetooth::le_audio::LeAudioSourceAudioHalClient;
 
 using namespace bluetooth;
-
-bluetooth::common::MessageLoopThread message_loop_thread(
-        "test message loop", bluetooth::os::Thread::Priority::REAL_TIME);
-bluetooth::common::MessageLoopThread* get_main_thread() { return &message_loop_thread; }
-bt_status_t do_in_main_thread(base::OnceClosure task) {
-  if (!message_loop_thread.DoInThread(std::move(task))) {
-    log::error("failed to post task to task runner!");
-    return BT_STATUS_FAIL;
-  }
-  return BT_STATUS_SUCCESS;
-}
-
-static void init_message_loop_thread() {
-  message_loop_thread.StartUp();
-  if (!message_loop_thread.IsRunning()) {
-    FAIL() << "unable to create message loop thread.";
-  }
-
-  if (!message_loop_thread.EnableRealTimeScheduling()) {
-    log::error("Unable to set real time scheduling");
-  }
-}
-
-static void cleanup_message_loop_thread() { message_loop_thread.ShutDown(); }
 
 using bluetooth::audio::le_audio::LeAudioClientInterface;
 
@@ -120,6 +96,12 @@ public:
               (const ::bluetooth::le_audio::types::LeAudioCodecId& codecId, int32_t priority),
               (override));
   MOCK_METHOD((void), UpdateAudioConfigToHal, (const ::bluetooth::le_audio::stream_config&));
+  MOCK_METHOD((std::optional<::le_audio::broadcaster::BroadcastConfiguration>), GetBroadcastConfig,
+              ((const std::vector<std::pair<::le_audio::types::LeAudioContextType, uint8_t>>&),
+               (const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>&)),
+              (const));
+  MOCK_METHOD((void), UpdateBroadcastAudioConfigToHal,
+              (const ::bluetooth::le_audio::broadcast_offload_config&));
   MOCK_METHOD((size_t), Write, (const uint8_t* p_buf, uint32_t len));
 };
 
@@ -134,7 +116,8 @@ public:
                bool is_broadcasting_session_type));
   MOCK_METHOD((Source*), GetSource,
               (bluetooth::audio::le_audio::StreamCallbacks stream_cb,
-               bluetooth::common::MessageLoopThread* message_loop));
+               bluetooth::common::MessageLoopThread* message_loop,
+               bool is_broadcasting_session_type));
 
   MOCK_METHOD((void), SetAllowedDsaModes, (DsaModes dsa_modes));
 };
@@ -157,8 +140,9 @@ LeAudioClientInterface::Sink* LeAudioClientInterface::GetSink(
 }
 
 LeAudioClientInterface::Source* LeAudioClientInterface::GetSource(
-        StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* message_loop) {
-  return interface_mock->GetSource(stream_cb, message_loop);
+        StreamCallbacks stream_cb, bluetooth::common::MessageLoopThread* message_loop,
+        bool is_broadcasting_session_type) {
+  return interface_mock->GetSource(stream_cb, message_loop, is_broadcasting_session_type);
 }
 
 bool LeAudioClientInterface::ReleaseSink(LeAudioClientInterface::Sink* /*sink*/) { return true; }
@@ -211,6 +195,14 @@ void LeAudioClientInterface::Source::UpdateAudioConfigToHal(
         const ::bluetooth::le_audio::stream_config& /*config*/) {}
 void LeAudioClientInterface::Source::SuspendedForReconfiguration() {}
 void LeAudioClientInterface::Source::ReconfigurationComplete() {}
+void LeAudioClientInterface::Source::UpdateBroadcastAudioConfigToHal(
+        const ::bluetooth::le_audio::broadcast_offload_config& /*config*/) {}
+std::optional<::le_audio::broadcaster::BroadcastConfiguration>
+LeAudioClientInterface::Source::GetBroadcastConfig(
+    const std::vector<std::pair<::le_audio::types::LeAudioContextType, uint8_t>>& quality,
+    const std::optional<std::vector<::bluetooth::le_audio::types::acs_ac_record>>& pacs) const {
+  return source_mock->GetBroadcastConfig(quality, pacs);
+}
 
 size_t LeAudioClientInterface::Source::Write(const uint8_t* p_buf, uint32_t len) {
   return source_mock->Write(p_buf, len);
@@ -245,7 +237,7 @@ public:
 class LeAudioClientAudioTest : public ::testing::Test {
 protected:
   void SetUp(void) override {
-    com::android::bluetooth::flags::provider_->reset_flags();
+    com_android_bluetooth_flags_reset_flags();
 
     init_message_loop_thread();
     bluetooth::audio::le_audio::interface_mock = &mock_client_interface_;
@@ -267,7 +259,7 @@ protected:
     is_source_audio_hal_acquired = false;
     source_audio_hal_stream_cb = {.on_resume_ = nullptr, .on_suspend_ = nullptr};
 
-    ON_CALL(mock_client_interface_, GetSource(_, _))
+    ON_CALL(mock_client_interface_, GetSource(_, _, _))
             .WillByDefault(DoAll(SaveArg<0>(&source_audio_hal_stream_cb),
                                  Assign(&is_source_audio_hal_acquired, true),
                                  Return(bluetooth::audio::le_audio::source_mock)));
@@ -337,7 +329,7 @@ protected:
 };
 
 TEST_F(LeAudioClientAudioTest, testLeAudioClientAudioSinkInitializeCleanup) {
-  EXPECT_CALL(mock_client_interface_, GetSource(_, _));
+  EXPECT_CALL(mock_client_interface_, GetSource(_, _, _));
   ASSERT_TRUE(AcquireLeAudioSinkHalClient());
 
   EXPECT_CALL(mock_hal_interface_audio_source_, Cleanup());

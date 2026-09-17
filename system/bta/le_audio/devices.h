@@ -25,11 +25,11 @@
 
 #include "audio_hal_client/audio_hal_client.h"
 #include "bta_groups.h"
-#include "gatt_api.h"
 #include "gmap_client.h"
 #include "le_audio_types.h"
 #include "osi/include/alarm.h"
 #include "stack/btm/btm_dev.h"
+#include "stack/include/gatt_api.h"
 
 namespace bluetooth::le_audio {
 
@@ -103,11 +103,11 @@ public:
   bool notify_connected_after_read_;
   bool closing_stream_for_disconnection_;
   bool autoconnect_flag_;
+  tGATT_IF client_if_;
   tCONN_ID conn_id_;
   uint16_t mtu_;
   bool encrypted_;
   int group_id_;
-  bool csis_member_;
   int cis_failed_to_be_established_retry_cnt_;
   std::bitset<16> tmap_role_;
 
@@ -144,11 +144,11 @@ public:
         notify_connected_after_read_(false),
         closing_stream_for_disconnection_(false),
         autoconnect_flag_(false),
+        client_if_(0),
         conn_id_(GATT_INVALID_CONN_ID),
         mtu_(0),
         encrypted_(false),
         group_id_(group_id),
-        csis_member_(false),
         cis_failed_to_be_established_retry_cnt_(0),
         audio_directions_(0),
         model_name_(""),
@@ -158,10 +158,10 @@ public:
         subrate_state_(SubrateState::DISABLED),
         link_quality_timer(nullptr),
         last_ase_ctp_command_sent(0x00),
-        update_to_relaxed_conn_interval_timer(alarm_new(
-          (std::string("update_to_relaxed_conn_interval_timer_") +
-           address.ToString().substr(10, 4)).c_str()
-        )),
+        update_to_relaxed_conn_interval_timer(
+                alarm_new((std::string("update_to_relaxed_conn_interval_timer_") +
+                           address.ToString().substr(10, 4))
+                                  .c_str())),
         dsa_({{DsaMode::DISABLED},
               types::DataPathState::IDLE,
               LE_AUDIO_INVALID_CIS_HANDLE,
@@ -264,7 +264,9 @@ public:
   bool IsMetadataChanged(const types::BidirectionalPair<types::AudioContexts>& context_types,
                          const types::BidirectionalPair<std::vector<uint8_t>>& ccid_lists);
 
+  // TODO: will remove when Flags.leaudioAllowlistRefactor() publish
   void GetDeviceModelName(void);
+  // TODO: will remove when Flags.leaudioAllowlistRefactor() publish
   void UpdateDeviceAllowlistFlag(void);
   DsaModes GetDsaModes(void);
   bool DsaReducedSduSizeSupported();
@@ -318,7 +320,6 @@ public:
   LeAudioDevice* FindByConnId(tCONN_ID conn_id) const;
   LeAudioDevice* FindByCisConnHdl(uint8_t cig_id, uint16_t conn_hdl) const;
   void SetInitialGroupAutoconnectState(int group_id, int gatt_if,
-                                       tBTM_BLE_CONN_TYPE reconnection_mode,
                                        bool current_dev_autoconnect_flag);
   size_t Size(void) const;
   void Dump(std::stringstream& stream, int group_id) const;

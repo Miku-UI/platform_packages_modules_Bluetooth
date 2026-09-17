@@ -34,7 +34,6 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
@@ -48,8 +47,6 @@ import android.bluetooth.SdpPseRecord;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
-import android.platform.test.annotations.EnableFlags;
-import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
@@ -57,7 +54,6 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.bluetooth.TestLooper;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.flags.Flags;
 import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.After;
@@ -76,7 +72,6 @@ import java.util.Map;
 @RunWith(AndroidJUnit4.class)
 public class PbapClientServiceTest {
     @Rule public final MockitoRule mMockitoRule = new MockitoRule();
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock private AdapterService mAdapterService;
     @Mock private PackageManager mPackageManager;
@@ -110,8 +105,6 @@ public class PbapClientServiceTest {
         doReturn(CONNECTION_POLICY_ALLOWED)
                 .when(mAdapterService)
                 .getProfileConnectionPolicy(any(), anyInt());
-        doReturn(true).when(mAdapterService).setProfileConnectionPolicy(any(), anyInt(), anyInt());
-
         doReturn(mContext.getPackageName()).when(mAdapterService).getPackageName();
         doReturn(mPackageManager).when(mAdapterService).getPackageManager();
 
@@ -126,6 +119,7 @@ public class PbapClientServiceTest {
                         })
                 .when(mMockStorage)
                 .getStorageAccountForDevice(any(BluetoothDevice.class));
+        doReturn("").when(mMockStorage).dump();
 
         mTestLooper = new TestLooper();
         final var looper = mTestLooper.getLooper();
@@ -254,10 +248,11 @@ public class PbapClientServiceTest {
     }
 
     @Test
-    public void testOnSdpResultReceived_nullRecord_eventDropped() {
+    public void testOnSdpResultReceived_nullRecord_eventForwardedWithNullPbapRecord() {
+        // Verify that a null SdpPseRecord is forwarded to the state machine as a null
+        // PbapSdpRecord, rather than being dropped.
         mService.receiveSdpSearchRecord(mDevice, SDP_SUCCESS, null, BluetoothUuid.PBAP_PSE);
-        verify(mDeviceStateMachine, never())
-                .onSdpResultReceived(anyInt(), any(PbapSdpRecord.class));
+        verify(mDeviceStateMachine, times(1)).onSdpResultReceived(eq(SDP_SUCCESS), eq(null));
     }
 
     @Test
@@ -282,6 +277,14 @@ public class PbapClientServiceTest {
                 mDevice, SDP_BUSY, mMockSdpRecord, /* wrong */ BluetoothUuid.PBAP_PSE);
         verify(mDeviceStateMachine, times(1))
                 .onSdpResultReceived(eq(SDP_BUSY), any(PbapSdpRecord.class));
+    }
+
+    @Test
+    public void testOnSdpResultReceived_statusBusyAndNullRecord_eventForwarded() {
+        // Verify that a BUSY status with a null record is forwarded to the state machine. This is
+        // critical for the state machine to be able to retry the SDP search.
+        mService.receiveSdpSearchRecord(mDevice, SDP_BUSY, null, BluetoothUuid.PBAP_PSE);
+        verify(mDeviceStateMachine, times(1)).onSdpResultReceived(eq(SDP_BUSY), eq(null));
     }
 
     // *********************************************************************************************
@@ -346,30 +349,6 @@ public class PbapClientServiceTest {
         }
 
         assertThat(mService.connect(mDevice)).isFalse();
-    }
-
-    // connect (access rejected) -> false
-    @Test
-    @EnableFlags(Flags.FLAG_PBAP_CLIENT_CHECK_ACCESS_PERMISSION)
-    public void testConnect_onRejectedAccessAndUnconnectedDevice_deviceNotCreated() {
-        mDeviceMap.clear();
-        doReturn(BluetoothDevice.ACCESS_REJECTED)
-                .when(mAdapterService)
-                .getPhonebookAccessPermission(any(BluetoothDevice.class));
-        assertThat(mService.connect(mDevice)).isFalse();
-        assertThat(mService.getConnectionState(mDevice)).isEqualTo(STATE_DISCONNECTED);
-    }
-
-    // connect (access unknown) -> false
-    @Test
-    @EnableFlags(Flags.FLAG_PBAP_CLIENT_CHECK_ACCESS_PERMISSION)
-    public void testConnect_onUnknownAccessAndUnconnectedDevice_deviceNotCreated() {
-        mDeviceMap.clear();
-        doReturn(BluetoothDevice.ACCESS_UNKNOWN)
-                .when(mAdapterService)
-                .getPhonebookAccessPermission(any(BluetoothDevice.class));
-        assertThat(mService.connect(mDevice)).isFalse();
-        assertThat(mService.getConnectionState(mDevice)).isEqualTo(STATE_DISCONNECTED);
     }
 
     // disconnect (device connected) -> disconnect/true
@@ -465,26 +444,10 @@ public class PbapClientServiceTest {
                 () -> mService.setConnectionPolicy(null, CONNECTION_POLICY_ALLOWED));
     }
 
-    // setConnectionPolicy (database call fails) -> false
-    @Test
-    public void testSetConnectionPolicy_databaseCallFails_returnsFalse() {
-        doReturn(false).when(mAdapterService).setProfileConnectionPolicy(any(), anyInt(), anyInt());
-        assertThat(mService.setConnectionPolicy(mDevice, CONNECTION_POLICY_ALLOWED)).isFalse();
-    }
-
     // getConnectionPolicy -> returns what we set in setup() (allowed)
     @Test
     public void testGetConnectionPolicy_onKnownDevice_returnsAllowed() {
         assertThat(mService.getConnectionPolicy(mDevice)).isEqualTo(CONNECTION_POLICY_ALLOWED);
-    }
-
-    // getConnectionPolicy (device null) -> policy unknown
-    @Test
-    public void testGetConnectionPolicy_onNullDevice_returnsUnknown() {
-        doReturn(CONNECTION_POLICY_UNKNOWN)
-                .when(mAdapterService)
-                .getProfileConnectionPolicy(nullable(BluetoothDevice.class), anyInt());
-        assertThat(mService.getConnectionPolicy(null)).isEqualTo(CONNECTION_POLICY_UNKNOWN);
     }
 
     // *********************************************************************************************

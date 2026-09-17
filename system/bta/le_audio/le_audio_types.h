@@ -26,17 +26,16 @@
 #include <bluetooth/types/uuid.h>
 #include <stdint.h>
 
+#include <algorithm>
 #include <bit>
 #include <bitset>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
-#include <variant>
 #include <vector>
 
 #include "bta/include/bta_le_audio_uuids.h"
-#include "osi/include/alarm.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_iso_api_types.h"
 
@@ -65,50 +64,36 @@ namespace uuid {
  * and to wrap CSIS service as this is required to understand the context of the
  * CSIS
  */
-static const bluetooth::Uuid kCapServiceUuid =
-        bluetooth::Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE);
+static constexpr Uuid kCapServiceUuid = Uuid::From16Bit(UUID_COMMON_AUDIO_SERVICE);
 
 /* Assigned numbers for attributes */
-static const bluetooth::Uuid kPublishedAudioCapabilityServiceUuid =
-        bluetooth::Uuid::From16Bit(0x1850);
-static const bluetooth::Uuid kAudioStreamControlServiceUuid = bluetooth::Uuid::From16Bit(0x184E);
+static constexpr Uuid kPublishedAudioCapabilityServiceUuid = Uuid::From16Bit(0x1850);
+static constexpr Uuid kAudioStreamControlServiceUuid = Uuid::From16Bit(0x184E);
 
-static const bluetooth::Uuid kTelephonyMediaAudioServiceUuid = bluetooth::Uuid::From16Bit(0x1855);
+static constexpr Uuid kTelephonyMediaAudioServiceUuid = Uuid::From16Bit(0x1855);
 
-static const bluetooth::Uuid kGamingAudioServiceUuid = bluetooth::Uuid::From16Bit(0x1858);
+static constexpr Uuid kGamingAudioServiceUuid = Uuid::From16Bit(0x1858);
 
 /* Published Audio Capabilities Service Characteristics */
-static const bluetooth::Uuid kSinkPublishedAudioCapabilityCharacteristicUuid =
-        bluetooth::Uuid::From16Bit(0x2BC9);
-static const bluetooth::Uuid kSourcePublishedAudioCapabilityCharacteristicUuid =
-        bluetooth::Uuid::From16Bit(0x2BCB);
-static const bluetooth::Uuid kSinkAudioLocationCharacteristicUuid =
-        bluetooth::Uuid::From16Bit(0x2BCA);
-static const bluetooth::Uuid kSourceAudioLocationCharacteristicUuid =
-        bluetooth::Uuid::From16Bit(0x2BCC);
+static constexpr Uuid kSinkPublishedAudioCapabilityCharacteristicUuid = Uuid::From16Bit(0x2BC9);
+static constexpr Uuid kSourcePublishedAudioCapabilityCharacteristicUuid = Uuid::From16Bit(0x2BCB);
+static constexpr Uuid kSinkAudioLocationCharacteristicUuid = Uuid::From16Bit(0x2BCA);
+static constexpr Uuid kSourceAudioLocationCharacteristicUuid = Uuid::From16Bit(0x2BCC);
+static constexpr Uuid kAvailableAudioContextsCharacteristicUuid = Uuid::From16Bit(0x2BCD);
+static constexpr Uuid kSupportedAudioContextsCharacteristicUuid = Uuid::From16Bit(0x2BCE);
 
 /* Audio Stream Control Service Characteristics */
-static const bluetooth::Uuid kAudioContextAvailabilityCharacteristicUuid =
-        bluetooth::Uuid::From16Bit(0x2BCD);
-static const bluetooth::Uuid kAudioSupportedContextCharacteristicUuid =
-        bluetooth::Uuid::From16Bit(0x2BCE);
-
-/* Audio Stream Control Service Characteristics */
-static const bluetooth::Uuid kSinkAudioStreamEndpointUuid = bluetooth::Uuid::From16Bit(0x2BC4);
-static const bluetooth::Uuid kSourceAudioStreamEndpointUuid = bluetooth::Uuid::From16Bit(0x2BC5);
-static const bluetooth::Uuid kAudioStreamEndpointControlPointCharacteristicUuid =
-        bluetooth::Uuid::From16Bit(0x2BC6);
+static constexpr Uuid kSinkAudioStreamEndpointUuid = Uuid::From16Bit(0x2BC4);
+static constexpr Uuid kSourceAudioStreamEndpointUuid = Uuid::From16Bit(0x2BC5);
+static constexpr Uuid kAudioStreamEndpointControlPointCharacteristicUuid = Uuid::From16Bit(0x2BC6);
 
 /* Telephony and Media Audio Service Characteristics */
-static const bluetooth::Uuid kTelephonyMediaAudioProfileRoleCharacteristicUuid =
-        bluetooth::Uuid::From16Bit(0x2B51);
+static constexpr Uuid kTelephonyMediaAudioProfileRoleCharacteristicUuid = Uuid::From16Bit(0x2B51);
 
 /* Gaming Audio Service Characteristics */
-static const bluetooth::Uuid kRoleCharacteristicUuid = bluetooth::Uuid::From16Bit(0x2C00);
-static const bluetooth::Uuid kUnicastGameGatewayCharacteristicUuid =
-        bluetooth::Uuid::From16Bit(0x2C01);
-static const bluetooth::Uuid kUnicastGameTerminalCharacteristicUuid =
-        bluetooth::Uuid::From16Bit(0x2C02);
+static constexpr Uuid kRoleCharacteristicUuid = Uuid::From16Bit(0x2C00);
+static constexpr Uuid kUnicastGameGatewayCharacteristicUuid = Uuid::From16Bit(0x2C01);
+static constexpr Uuid kUnicastGameTerminalCharacteristicUuid = Uuid::From16Bit(0x2C02);
 }  // namespace uuid
 
 namespace codec_spec_conf {
@@ -156,6 +141,7 @@ constexpr uint8_t kLeAudioSamplingFreq384000Hz = 0x0D;
 /* Frame Durations */
 constexpr uint8_t kLeAudioCodecFrameDur7500us = 0x00;
 constexpr uint8_t kLeAudioCodecFrameDur10000us = 0x01;
+constexpr uint8_t kLeAudioCodecFrameDur20000us = 0x02;
 
 /* Audio Allocations */
 constexpr uint32_t kLeAudioLocationUninitialized = 0xFFFFFFFF;
@@ -226,13 +212,6 @@ uint16_t constexpr SamplingFreqConfig2Capability(uint8_t conf) {
 }
 
 uint8_t constexpr FrameDurationConfig2Capability(uint8_t conf) { return 0x01 << (conf); }
-
-uint16_t constexpr ChannelCountConfig2Capability(uint8_t conf) {
-  if (!conf) {
-    return 0;
-  }
-  return 0x01 << (conf - 1);
-}
 
 /* LTV Types - same values as in Codec Specific Configurations but 0x03 is
  * named differently.
@@ -350,9 +329,6 @@ constexpr uint16_t kLeAudioHeadtrackerMaxSduSize = 13;
 constexpr uint8_t kLeAudioHeadtrackerRtn = 2;
 
 /* CSIS Types */
-constexpr uint8_t kDefaultScanDurationS = 5;
-constexpr uint8_t kDefaultCsisSetSize = 2;
-
 constexpr uint8_t kLeAudioDirectionSink = 0x01;
 constexpr uint8_t kLeAudioDirectionSource = 0x02;
 constexpr uint8_t kLeAudioDirectionBoth = kLeAudioDirectionSink | kLeAudioDirectionSource;
@@ -1036,6 +1012,56 @@ struct LeAudioCodecId {
 
   friend bool operator!=(const LeAudioCodecId& lhs, const LeAudioCodecId& rhs) {
     return !(lhs == rhs);
+  }
+
+  bool operator<(const LeAudioCodecId& other) const {
+    if (coding_format < other.coding_format) {
+      return true;
+    }
+    if ((coding_format == other.coding_format) && (vendor_company_id < other.vendor_company_id)) {
+      return true;
+    }
+    if ((vendor_company_id == other.vendor_company_id) &&
+        (vendor_codec_id < other.vendor_codec_id)) {
+      return true;
+    }
+    return false;
+  }
+
+  uint64_t getCodecIdRaw() const {
+    uint64_t vendor_raw = (static_cast<uint64_t>(vendor_codec_id) << 24) |
+                          (static_cast<uint64_t>(vendor_company_id) << 8) |
+                          (static_cast<uint64_t>(coding_format));
+
+    return vendor_raw;
+  }
+
+  std::string ToString() const {
+    std::ostringstream _str;
+    switch (coding_format) {
+      case kLeAudioCodingFormatLC3:
+        _str << "LC3";
+        break;
+      case kLeAudioCodingFormatVendorSpecific:
+        if (vendor_company_id == kLeAudioVendorCompanyIdGoogle) {
+          _str << "Google";
+          if (vendor_codec_id == kLeAudioVendorCodecIdHeadtracking) {
+            _str << ", Headtracking";
+          } else if (vendor_codec_id == kLeAudioVendorCodecIdOpus) {
+            _str << ", Opus";
+          } else {
+            _str << ", vid: 0x" << vendor_codec_id;
+          }
+        } else {
+          _str << "Vendor specific: 0x" << vendor_company_id;
+          _str << ", vid: 0x" << vendor_codec_id;
+        }
+        break;
+      default:
+        _str << "Unknown";
+        break;
+    }
+    return _str.str();
   }
 };
 

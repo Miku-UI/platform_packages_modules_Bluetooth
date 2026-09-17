@@ -35,10 +35,8 @@
 #include "device/include/device_iot_config.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
-#include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sco.h"
 #include "stack/btm/btm_sec.h"
-#include "stack/btm/internal/btm_api.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/ble_hci_link_interface.h"
 #include "stack/include/bt_hdr.h"
@@ -107,8 +105,14 @@ void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddres
     /* Connected OK. Change state to connected */
     p_lcb->link_state = LST_CONNECTED;
 
-    /* Get the peer information if the l2cap flow-control/rtrans is supported */
-    l2cu_send_peer_info_req(p_lcb, L2CAP_EXTENDED_FEATURES_INFO_TYPE);
+    // TODO: This interop fix is temporary. Need to remove If there is a better
+    // way to handle this
+    if (l2c_should_skip_ertm(p_bda)) {
+      log::info("candidate device for skip ertm: donot query ext features");
+    } else {
+      /* Get the peer information if the l2cap flow-control/rtrans is supported */
+      l2cu_send_peer_info_req(p_lcb, L2CAP_EXTENDED_FEATURES_INFO_TYPE);
+    }
 
     if (p_lcb->IsBonding()) {
       log::debug("Link is dedicated bonding handle:0x{:04x}", p_lcb->Handle());
@@ -158,8 +162,7 @@ void l2c_link_hci_conn_comp(tHCI_STATUS status, uint16_t handle, const RawAddres
     } else /* there are any CCBs remaining */
     {
       if ((ci.hci_status == HCI_ERR_CONNECTION_EXISTS) ||
-          (com_android_bluetooth_flags_flag_handle_hci_error_controller_busy() &&
-           ci.hci_status == HCI_ERR_CONTROLLER_BUSY)) {
+           ci.hci_status == HCI_ERR_CONTROLLER_BUSY) {
         /* we are in collision situation, wait for connecttion request from
          * controller */
         p_lcb->link_state = LST_CONNECTING;
@@ -331,6 +334,9 @@ bool l2c_link_hci_disc_comp(uint16_t handle, tHCI_REASON reason) {
    * layer above issued connect request on link that was disconnecting */
   if (p_lcb->ccb_queue.p_first_ccb != nullptr || p_lcb->p_pending_ccb) {
     log::debug("l2c_link_hci_disc_comp: Restarting pending ACL request");
+    if (com_android_bluetooth_flags_reset_l2cap_idle_timeout_when_reusing_l2cap_context()) {
+      p_lcb->idle_timeout = l2cb.idle_timeout;
+    }
     /* Release any held buffers */
     while (!list_is_empty(p_lcb->link_xmit_data_q)) {
       BT_HDR* p_buf = static_cast<BT_HDR*>(list_front(p_lcb->link_xmit_data_q));
@@ -339,11 +345,10 @@ bool l2c_link_hci_disc_comp(uint16_t handle, tHCI_REASON reason) {
     }
     /* for LE link, always drop and re-open to ensure to get LE remote feature
      */
-    if (p_lcb->transport == BT_TRANSPORT_LE) {
+    if (!com_android_bluetooth_flags_donot_reuse_lecoc_ccbs() &&
+        p_lcb->transport == BT_TRANSPORT_LE) {
       btm_acl_removed(handle);
-      if (com_android_bluetooth_flags_invalidate_hci_handle_on_acl_removal()) {
-        p_lcb->InvalidateHandle();
-      }
+      p_lcb->InvalidateHandle();
     } else {
       /* If we are going to re-use the LCB without dropping it, release all
       fixed channels

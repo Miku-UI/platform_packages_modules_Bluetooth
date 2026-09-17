@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <bluetooth/types/acl_link_spec.h>
 #include <bluetooth/types/address.h>
 #include <bluetooth/types/ble_address_with_type.h>
 #include <bluetooth/types/bt_transport.h>
@@ -23,7 +24,7 @@
 #include <cstdint>
 
 #include "stack/acl/acl.h"
-#include "stack/btm/security_device_record.h"
+#include "stack/btm/btm_device_record.h"
 #include "stack/include/btm_api_types.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
@@ -41,8 +42,6 @@ void BTM_unblock_role_switch_for(const RawAddress& peer_addr);
 void BTM_block_role_switch_for(const RawAddress& peer_addr);
 void BTM_unblock_role_switch_and_sniff_mode_for(const RawAddress& peer_addr);
 void BTM_block_role_switch_and_sniff_mode_for(const RawAddress& peer_addr);
-
-void BTM_default_unblock_role_switch();
 
 void BTM_acl_after_controller_started();
 
@@ -129,7 +128,7 @@ tBTM_STATUS BTM_SwitchRoleToCentral(const RawAddress& remote_bd_addr);
  *                  tBTM_STATUS::BTM_BUSY if command is already in progress
  *
  ******************************************************************************/
-tBTM_STATUS BTM_ReadRSSI(const RawAddress& remote_bda, tBTM_CMPL_CB* p_cb);
+tBTM_STATUS BTM_ReadRSSI(const RawAddress& remote_bda, tBTM_READ_RSSI_CB* p_cb);
 
 /*******************************************************************************
  *
@@ -202,10 +201,6 @@ uint8_t acl_link_role_from_handle(uint16_t handle);
 
 void acl_set_disconnect_reason(tHCI_STATUS acl_disc_reason);
 
-void acl_set_locally_initiated(bool is_locally_initiated);
-
-bool acl_is_role_switch_allowed();
-
 uint16_t acl_get_supported_packet_types();
 
 bool acl_set_peer_le_features_from_handle(uint16_t hci_handle, const uint8_t* p);
@@ -235,9 +230,11 @@ void btm_acl_notif_conn_collision(const RawAddress& bda);
  ******************************************************************************/
 bool BTM_ReadPowerMode(const RawAddress& remote_bda, tBTM_PM_MODE* p_mode);
 
-void btm_acl_created(const tAclLinkSpec& link_spec, uint16_t hci_handle, tHCI_ROLE link_role);
+void btm_acl_created(const AclLinkSpec& link_spec, uint16_t hci_handle, tHCI_ROLE link_role,
+                     bool locally_initiated = false);
 
-void btm_acl_create_failed(const tAclLinkSpec& link_spec, tHCI_STATUS reason);
+void btm_acl_create_failed(const AclLinkSpec& link_spec, tHCI_STATUS reason,
+                           bool locally_initiated);
 
 void btm_acl_removed(uint16_t handle);
 
@@ -251,11 +248,11 @@ bool acl_peer_supports_sniff_subrating(const RawAddress& remote_bda);
 bool acl_peer_supports_ble_connection_subrating(const RawAddress& remote_bda);
 bool acl_peer_supports_ble_connection_subrating_host(const RawAddress& remote_bda);
 
+bool acl_link_is_disconnecting(const RawAddress& remote_bdat, tBT_TRANSPORT transport);
+
 uint8_t btm_handle_to_acl_index(uint16_t hci_handle);
 
 tHCI_REASON btm_get_acl_disc_reason_code(void);
-
-bool btm_is_acl_locally_initiated(void);
 
 tBTM_STATUS btm_remove_acl(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 

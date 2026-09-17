@@ -34,19 +34,19 @@
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_ras_api.h"
 #include "bta/ras/ras_types.h"
-#include "btm_ble_api_types.h"
 #include "com_android_bluetooth_flags.h"
 #include "gatt/database.h"
-#include "gatt_api.h"
-#include "gattdefs.h"
 #include "gd/hci/controller.h"
 #include "main/shim/entry.h"
 #include "osi/include/alarm.h"
 #include "stack/btm/btm_dev.h"
-#include "stack/btm/security_device_record.h"
+#include "stack/btm/btm_device_record.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_addr.h"
+#include "stack/include/btm_ble_api_types.h"
 #include "stack/include/gap_api.h"
+#include "stack/include/gatt_api.h"
+#include "stack/include/gattdefs.h"
 #include "stack/include/l2cap_interface.h"
 #include "stack/include/main_thread.h"
 
@@ -102,7 +102,7 @@ public:
     tCONN_ID conn_id_;
     RawAddress address_;
     RawAddress address_for_cs_;
-    const gatt::Service* service_ = nullptr;
+    gatt::Service service_;
     uint32_t remote_supported_features_;
     uint16_t latest_ranging_counter_ = 0;
     bool handling_on_demand_data_ = false;
@@ -118,11 +118,11 @@ public:
     uint16_t mtu = kDefaultGattMtu;
 
     const gatt::Characteristic* FindCharacteristicByUuid(Uuid uuid) {
-      if (service_ == nullptr) {
+      if (service_.uuid != kRangingService) {
         log::error("Can't find Ranging Service");
         return nullptr;
       }
-      for (auto& characteristic : service_->characteristics) {
+      for (auto& characteristic : service_.characteristics) {
         if (characteristic.uuid == uuid) {
           return &characteristic;
         }
@@ -131,7 +131,7 @@ public:
     }
 
     const gatt::Characteristic* FindCharacteristicByHandle(uint16_t handle) {
-      for (auto& characteristic : service_->characteristics) {
+      for (auto& characteristic : service_.characteristics) {
         if (characteristic.value_handle == handle) {
           return &characteristic;
         }
@@ -203,7 +203,7 @@ public:
                               tracker->vendor_specific_characteristics_, tracker->conn_interval_);
       return;
     }
-    BTA_GATTC_Open(gatt_if_, ble_bd_addr.bda, BTM_BLE_DIRECT_CONNECTION, true);
+    BTA_GATTC_Open(gatt_if_, ble_bd_addr.bda, BTM_BLE_OPPORTUNISTIC);
   }
 
   void SendVendorSpecificReply(
@@ -239,8 +239,7 @@ public:
       } break;
       case BTA_GATTC_CLOSE_EVT: {
         OnGattDisconnected(p_data->close);
-        break;
-      }
+      } break;
       case BTA_GATTC_SEARCH_CMPL_EVT: {
         OnGattServiceSearchComplete(p_data->search_cmpl);
       } break;
@@ -302,7 +301,7 @@ public:
             bluetooth::stack::l2cap::get_interface().L2CA_GetBleConnInterval(tracker->address_);
     log::debug("The initial conn interval {}", tracker->conn_interval_);
     log::info("Search service");
-    BTA_GATTC_ServiceSearchRequest(tracker->conn_id_, kRangingService);
+    BTA_GATTC_ServiceSearchRequest(tracker->conn_id_);
   }
 
   void OnGattDisconnected(const tBTA_GATTC_CLOSE& evt) {
@@ -329,12 +328,16 @@ public:
     // Get Ranging Service
     bool service_found = false;
     const std::list<gatt::Service>* all_services = BTA_GATTC_GetServices(evt.conn_id);
-    for (const auto& service : *all_services) {
-      if (service.uuid == kRangingService) {
-        tracker->service_ = &service;
-        service_found = true;
-        break;
+    if (all_services != nullptr) {
+      for (const auto& service : *all_services) {
+        if (service.uuid == kRangingService) {
+          tracker->service_ = service;
+          service_found = true;
+          break;
+        }
       }
+    } else {
+      log::warn("No GATT services found for conn_id: {}", evt.conn_id);
     }
     // config mtu anyway, if it had been configured by others, it can get the current mtu.
     log::info("config the MTU size as RAP minimum value {}", kMinimumRasMtu);
@@ -442,6 +445,12 @@ public:
       log::warn("Can't find tracker for conn_id:{}", evt.conn_id);
       return;
     }
+    // Handle race condition where notification arrives before
+    // service discovery is complete.
+    if (tracker->service_.uuid != kRangingService) {
+      log::warn("Notification received before service discovery, ignoring. handle:{}", evt.handle);
+      return;
+    }
     auto characteristic = tracker->FindCharacteristicByHandle(evt.handle);
     if (characteristic == nullptr) {
       log::warn("Can't find characteristic for handle:{}", evt.handle);
@@ -456,8 +465,7 @@ public:
       case kRasRealTimeRangingDataCharacteristic16bit:
       case kRasOnDemandDataCharacteristic16bit: {
         OnRemoteData(evt, tracker);
-        break;
-      }
+      } break;
       case kRasControlPointCharacteristic16bit: {
         OnControlPointEvent(evt, tracker);
       } break;
@@ -474,7 +482,7 @@ public:
     data.resize(evt.len);
     std::copy(evt.value, evt.value + evt.len, data.begin());
     bool is_last = (data[0] >> 1 & 0x01);
-    alarm_cancel(tracker->ranging_data_timeout_timer_);
+    CancelRangingTimer(tracker);
     if (!is_last) {
       SetTimeOutAlarm(tracker, kFollowingSegmentTimeoutMs, TimeoutType::FOLLOWING_SEGMENT);
     }
@@ -510,7 +518,7 @@ public:
     // Send get ranging data command
     tracker->latest_ranging_counter_ = ranging_counter;
     if (tracker->timeout_type_ == TimeoutType::RANGING_DATA_READY) {
-      alarm_cancel(tracker->ranging_data_timeout_timer_);
+      CancelRangingTimer(tracker);
     }
     GetRangingData(ranging_counter, tracker);
   }
@@ -722,7 +730,7 @@ public:
 
   void ListCharacteristic(std::shared_ptr<RasTracker> tracker) {
     tracker->vendor_specific_characteristics_.clear();
-    for (auto& characteristic : tracker->service_->characteristics) {
+    for (auto& characteristic : tracker->service_.characteristics) {
       bool vendor_specific = !IsRangingServiceCharacteristic(characteristic.uuid);
       log::info(
               "{}Characteristic uuid:0x{:04x}, handle:0x{:04x}, "
@@ -813,8 +821,8 @@ public:
         return;
       }
       uint16_t first_segment_timeout_ms = kFirstSegmentRangingDataTimeoutMs;
-      tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(tracker->address_);
-      if (p_dev_rec && (p_dev_rec->conn_params.peripheral_latency >= 2)) {
+      const BtmDevice* p_device = btm_find_dev(tracker->address_);
+      if (p_device && (p_device->conn_params.peripheral_latency >= 2)) {
         first_segment_timeout_ms = kLowPowerFirstSegmentRangingDataTimeoutMs;
       }
       SetTimeOutAlarm(tracker, first_segment_timeout_ms, TimeoutType::FIRST_SEGMENT);
@@ -866,6 +874,15 @@ public:
         }
       }
     }
+  }
+
+  void CancelRangingTimer(std::shared_ptr<RasTracker> tracker) {
+    if (tracker->ranging_data_timeout_timer_ != nullptr) {
+      alarm_cancel(tracker->ranging_data_timeout_timer_);
+      alarm_free(tracker->ranging_data_timeout_timer_);
+      tracker->ranging_data_timeout_timer_ = nullptr;
+    }
+    tracker->timeout_type_ = TimeoutType::TIMEOUT_NONE;
   }
 
   std::string GetFeaturesString(uint32_t value) {
@@ -922,17 +939,16 @@ public:
   void SetTimeOutAlarm(std::shared_ptr<RasTracker> tracker, uint16_t interval_ms,
                        TimeoutType timeout_type) {
     if (tracker->ranging_type_ == RangingType::REAL_TIME) {
-      if (com_android_bluetooth_flags_channel_sounding_offload() &&
-          is_ranging_hardware_offload_enabled_) {
-        log::info(
-                "Channel sounding offload is enabled and ranging type is "
-                "REAL_TIME, not setting timeout alarm for tracker address {}.",
-                tracker->address_for_cs_);
+      if (is_ranging_hardware_offload_enabled_) {
+        log::info("Ranging type is REAL_TIME, not setting timeout alarm for tracker address {}.",
+                  tracker->address_for_cs_);
         return;
       }
     }
     log::debug("ranging_type_: {}, timeout_type: {}", (uint8_t)tracker->ranging_type_,
                (uint8_t)timeout_type);
+    // Clean up any previous timer first
+    CancelRangingTimer(tracker);
     tracker->timeout_type_ = timeout_type;
     tracker->ranging_data_timeout_timer_ = alarm_new("Ranging Data Timeout");
     alarm_set_on_mloop(

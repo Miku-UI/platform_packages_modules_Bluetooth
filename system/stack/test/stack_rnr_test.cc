@@ -24,15 +24,14 @@
 #include "stack/btm/internal/btm_api.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/test/btm/btm_test_fixtures.h"
-#include "test/fake/fake_looper.h"
 #include "test/mock/mock_osi_allocator.h"
 #include "test/mock/mock_osi_thread.h"
 
 tBTM_CB btm_cb;
 
 namespace {
-const RawAddress kRawAddress = RawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
-const RawAddress kRawAddress2 = RawAddress({0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc});
+const RawAddress kRawAddress = RawAddress("11:22:33:44:55:66");
+const RawAddress kRawAddress2 = RawAddress("77:88:99:aa:bb:cc");
 const BD_NAME kBdName = {'A', ' ', 'B', 'd', ' ', 'N', 'a', 'm', 'e', '\0'};
 const BD_NAME kEmptyName = "";
 

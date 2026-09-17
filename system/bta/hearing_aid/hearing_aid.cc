@@ -52,37 +52,41 @@
 #include "bta/include/bta_gatt_queue.h"
 #include "bta/include/bta_hearing_aid_api.h"
 #include "btif/include/btif_profile_storage.h"
-#include "btm_api_types.h"
-#include "btm_ble_api_types.h"
-#include "btm_iso_api.h"
-#include "btm_sec_api_types.h"
 #include "embdrv/g722/g722_enc_dec.h"
-#include "gap_api.h"
 #include "gatt/database.h"
-#include "gatt_api.h"
-#include "gattdefs.h"
 #include "hardware/bt_gatt_types.h"
 #include "hardware/bt_hearing_aid.h"
 #include "hci/controller.h"
 #include "internal_include/bt_trace.h"
-#include "l2cap_types.h"
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
 #include "osi/include/properties.h"
-#include "profiles_api.h"
-#include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api_types.h"  // tBTM_RSSI_RESULT
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/btm_api_types.h"
+#include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_iso_api.h"
+#include "stack/include/btm_iso_api_types.h"
+#include "stack/include/btm_sec_api.h"
+#include "stack/include/btm_sec_api_types.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/gap_api.h"
+#include "stack/include/gatt_api.h"
+#include "stack/include/gattdefs.h"
 #include "stack/include/l2cap_interface.h"
+#include "stack/include/l2cap_types.h"
 #include "stack/include/main_thread.h"
+#include "stack/include/profiles_api.h"
+#include "stack/include/stack_le_connection.h"
 
 namespace bluetooth::asha {
 
-using base::Closure;
+using bluetooth::hci::iso_manager::IsoClientHandle;
+using bluetooth::hci::iso_manager::IsoManagerCallbacks;
+using bluetooth::hci::iso_manager::kInvalidIsoClientHandle;
 using hci::IsoManager;
 
 // The MIN_CE_LEN parameter for Connection Parameters based on the current
@@ -129,15 +133,15 @@ constexpr tCONN_ID INVALID_CONN_ID = 0;
 namespace {
 
 // clang-format off
-Uuid HEARING_AID_UUID          = Uuid::FromString("FDF0");
-Uuid READ_ONLY_PROPERTIES_UUID = Uuid::FromString("6333651e-c481-4a3e-9169-7c902aad37bb");
-Uuid AUDIO_CONTROL_POINT_UUID  = Uuid::FromString("f0d4de7e-4a88-476c-9d9f-1937b0996cc0");
-Uuid AUDIO_STATUS_UUID         = Uuid::FromString("38663f1a-e711-4cac-b641-326b56404837");
-Uuid VOLUME_UUID               = Uuid::FromString("00e4ca9e-ab14-41e4-8823-f9e70c7e91df");
-Uuid LE_PSM_UUID               = Uuid::FromString("2d410339-82b6-42aa-b34e-e2e01df8cc1a");
+constinit Uuid HEARING_AID_UUID("FDF0");
+constinit Uuid READ_ONLY_PROPERTIES_UUID("6333651e-c481-4a3e-9169-7c902aad37bb");
+constinit Uuid AUDIO_CONTROL_POINT_UUID("f0d4de7e-4a88-476c-9d9f-1937b0996cc0");
+constinit Uuid AUDIO_STATUS_UUID("38663f1a-e711-4cac-b641-326b56404837");
+constinit Uuid VOLUME_UUID("00e4ca9e-ab14-41e4-8823-f9e70c7e91df");
+constinit Uuid LE_PSM_UUID("2d410339-82b6-42aa-b34e-e2e01df8cc1a");
 // clang-format on
 
-static void read_rssi_callback(void* p_void);
+static void read_rssi_callback(tBTM_STATUS status, int8_t rssi, RawAddress address);
 static void hearingaid_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data);
 static void encryption_callback(RawAddress, tBT_TRANSPORT, void*, tBTM_STATUS);
 
@@ -295,10 +299,17 @@ private:
   // connected.
   std::unique_ptr<bluetooth::audio::asrc::SourceAudioHalAsrc> asrc;
 
-public:
-  ~HearingAidImpl() override = default;
+  IsoManagerCallbacks iso_callbacks_;
+  IsoClientHandle iso_client_handle_ = kInvalidIsoClientHandle;
 
-  HearingAidImpl(HearingAidCallbacks* callbacks, Closure initCb)
+public:
+  ~HearingAidImpl() override {
+    if (iso_client_handle_ != kInvalidIsoClientHandle) {
+      IsoManager::GetInstance()->DeregisterCallbacks(iso_client_handle_);
+    }
+  }
+
+  HearingAidImpl(HearingAidCallbacks* callbacks, base::OnceClosure initCb)
       : audio_running(false),
         overwrite_min_ce_len(-1),
         overwrite_max_ce_len(-1),
@@ -324,25 +335,27 @@ public:
 
     BTA_GATTC_AppRegister(
             "asha", hearingaid_gattc_callback,
-            base::Bind(
-                    [](Closure initCb, uint8_t client_id, uint8_t status) {
+            base::BindOnce(
+                    [](base::OnceClosure initCb, uint8_t client_id, uint8_t status) {
                       if (status != GATT_SUCCESS) {
                         log::error("Can't start Hearing Aid profile - no gatt clients left!");
                         return;
                       }
                       instance->gatt_if = client_id;
-                      initCb.Run();
+                      std::move(initCb).Run();
                     },
-                    initCb),
+                    std::move(initCb)),
             false);
 
-    IsoManager::GetInstance()->Start();
-    IsoManager::GetInstance()->RegisterOnIsoTrafficActiveCallback([](bool is_active) {
+    iso_callbacks_.iso_traffic_active_callback = [](bool is_active) {
       if (!instance) {
         return;
       }
       instance->IsoTrafficEventCb(is_active);
-    });
+    };
+
+    IsoManager::GetInstance()->Start();
+    iso_client_handle_ = IsoManager::GetInstance()->RegisterCallbacks(iso_callbacks_);
   }
 
   void IsoTrafficEventCb(bool is_active) {
@@ -456,33 +469,47 @@ public:
   void Connect(const RawAddress& address) {
     log::info("bd_addr={}", address);
     hearingDevices.Add(HearingDevice(address, true));
-    BTA_GATTC_Open(gatt_if, address, BTM_BLE_DIRECT_CONNECTION, false);
+    BTA_GATTC_Open(gatt_if, address, BTM_BLE_DIRECT_CONNECTION);
   }
 
   void AddToAcceptlist(const RawAddress& address) {
     log::info("bd_addr={}", address);
     hearingDevices.Add(HearingDevice(address, true));
-    BTA_GATTC_Open(gatt_if, address, BTM_BLE_BKG_CONNECT_ALLOW_LIST, false);
+    BTA_GATTC_Open(gatt_if, address, BTM_BLE_BKG_CONNECT_ALLOW_LIST);
   }
 
   void AddFromStorage(const HearingDevice& dev_info, bool is_acceptlisted) {
     log::info("bd_addr={} hi_sync_id=0x{:x} is_acceptlisted={}", dev_info.address,
               dev_info.hi_sync_id, is_acceptlisted);
     if (is_acceptlisted) {
-      hearingDevices.Add(dev_info);
+      if (com_android_bluetooth_flags_asha_retry_reconnect_when_in_set()) {
+        HearingDevice device_to_add = dev_info;
+        device_to_add.conn_id = INVALID_CONN_ID;
+        hearingDevices.Add(device_to_add);
+      } else {
+        hearingDevices.Add(dev_info);
+      }
 
       // TODO: we should increase the scanning window for few seconds, to get
       // faster initial connection, same after hearing aid disconnects, i.e.
       // BTM_BleSetConnScanParams(2048, 1024);
 
       /* add device into BG connection to accept remote initiated connection */
-      BTA_GATTC_Open(gatt_if, dev_info.address, BTM_BLE_BKG_CONNECT_ALLOW_LIST, false);
+      BTA_GATTC_Open(gatt_if, dev_info.address, BTM_BLE_BKG_CONNECT_ALLOW_LIST);
     }
 
     callbacks->OnDeviceAvailable(dev_info.capabilities, dev_info.hi_sync_id, dev_info.address);
   }
 
   int GetDeviceCount() { return hearingDevices.size(); }
+
+  void HandleConnectionFailed(const HearingDevice* hearingDevice) {
+    log::info("Device (addr={}) failed to connect. Use background connect", hearingDevice->address);
+    BTA_GATTC_Open(gatt_if, hearingDevice->address, BTM_BLE_BKG_CONNECT_ALLOW_LIST);
+    if (hearingDevice->connecting_actively) {
+      callbacks->OnConnectionState(ConnectionState::DISCONNECTED, hearingDevice->address);
+    }
+  }
 
   void OnGattConnected(tGATT_STATUS status, tCONN_ID conn_id, tGATT_IF /*client_if*/,
                        RawAddress address, tBT_TRANSPORT /*transport*/, uint16_t /*mtu*/) {
@@ -498,27 +525,30 @@ public:
     log::info("address={}, conn_id={}", address, conn_id);
 
     if (status != GATT_SUCCESS) {
-      if (!hearingDevice->connecting_actively) {
-        // acceptlist connection failed, that's ok.
-        return;
-      }
-
-      if (hearingDevice->switch_to_background_connection_after_failure) {
-        hearingDevice->connecting_actively = false;
-        hearingDevice->switch_to_background_connection_after_failure = false;
-        BTA_GATTC_Open(gatt_if, address, BTM_BLE_BKG_CONNECT_ALLOW_LIST, false);
+      if (com_android_bluetooth_flags_asha_retry_reconnect_when_in_set()) {
+        HandleConnectionFailed(hearingDevice);
       } else {
-        log::info("Failed to connect to Hearing Aid device, bda={}", address);
+        if (!hearingDevice->connecting_actively) {
+          // acceptlist connection failed, that's ok.
+          return;
+        }
 
-        hearingDevices.Remove(address);
-        callbacks->OnConnectionState(ConnectionState::DISCONNECTED, address);
+        if (hearingDevice->switch_to_background_connection_after_failure) {
+          hearingDevice->connecting_actively = false;
+          hearingDevice->switch_to_background_connection_after_failure = false;
+          BTA_GATTC_Open(gatt_if, address, BTM_BLE_BKG_CONNECT_ALLOW_LIST);
+        } else {
+          log::info("Failed to connect to Hearing Aid device, bda={}", address);
+
+          hearingDevices.Remove(address);
+          callbacks->OnConnectionState(ConnectionState::DISCONNECTED, address);
+        }
       }
       return;
     }
 
     hearingDevice->conn_id = conn_id;
 
-    log::info("[gatt] Clean conn_id={:#x}", conn_id);
     BtaGattQueue::Clean(conn_id);
 
     uint64_t hi_sync_id = hearingDevice->hi_sync_id;
@@ -527,13 +557,26 @@ public:
     // it to a direct connection to scan more aggressively for it
     if (hi_sync_id != 0) {
       for (auto& device : hearingDevices.devices) {
-        if (device.hi_sync_id == hi_sync_id && device.conn_id == INVALID_CONN_ID &&
-            !device.connecting_actively) {
-          log::info("Promoting device from the set from background to direct connection, bda={}",
-                    device.address);
-          device.connecting_actively = true;
-          device.switch_to_background_connection_after_failure = true;
-          BTA_GATTC_Open(gatt_if, device.address, BTM_BLE_DIRECT_CONNECTION, false);
+        if (com_android_bluetooth_flags_asha_retry_reconnect_when_in_set()) {
+          // If other device is not connected yet, promote it to direct connect.
+          // This connection may fail - in that case, device will be added back to
+          // background connect
+          if (device.hi_sync_id == hi_sync_id && device.conn_id == INVALID_CONN_ID &&
+              device.conn_id != hearingDevice->conn_id) {
+            log::info("Connecting other device from set, bda={} using direct connect",
+                      device.address);
+            BTA_GATTC_Close(device.conn_id);
+            BTA_GATTC_Open(gatt_if, device.address, BTM_BLE_DIRECT_CONNECTION);
+          }
+        } else {
+          if (device.hi_sync_id == hi_sync_id && device.conn_id == INVALID_CONN_ID &&
+              !device.connecting_actively) {
+            log::info("Promoting device from the set from background to direct connection, bda={}",
+                      device.address);
+            device.connecting_actively = true;
+            device.switch_to_background_connection_after_failure = true;
+            BTA_GATTC_Open(gatt_if, device.address, BTM_BLE_DIRECT_CONNECTION);
+          }
         }
       }
     }
@@ -543,7 +586,7 @@ public:
 
     if (bluetooth::shim::GetController()->SupportsBle2mPhy()) {
       log::info("{} set preferred 2M PHY", address);
-      get_btm_client_interface().ble.BTM_BleSetPhy(address, PHY_LE_2M, PHY_LE_2M, 0);
+      stack::leConnectionSetPhy(address, PHY_LE_2M, PHY_LE_2M, 0);
     }
 
     // Set data length
@@ -553,23 +596,23 @@ public:
       log::warn("Unable to set BLE data length peer:{} size:{}", address, 167);
     }
 
-    if (BTM_SecIsLeSecurityPending(address)) {
+    if (get_security_client_interface().BTM_SecIsLeSecurityPending(address)) {
       /* if security collision happened, wait for encryption done
        * (BTA_GATTC_ENC_CMPL_CB_EVT) */
       return;
     }
 
     /* verify bond */
-    if (BTM_IsEncrypted(address, BT_TRANSPORT_LE)) {
+    if (get_security_client_interface().BTM_IsEncrypted(address, BT_TRANSPORT_LE)) {
       /* if link has been encrypted */
       OnEncryptionComplete(address, true);
       return;
     }
 
-    if (BTM_IsBonded(address, BT_TRANSPORT_LE)) {
+    if (get_security_client_interface().BTM_IsBonded(address, BT_TRANSPORT_LE)) {
       /* if bonded and link not encrypted */
-      BTM_SetEncryption(address, BT_TRANSPORT_LE, encryption_callback, nullptr,
-                        BTM_BLE_SEC_ENCRYPT);
+      get_security_client_interface().BTM_SetEncryption(
+              address, BT_TRANSPORT_LE, encryption_callback, nullptr, BTM_BLE_SEC_ENCRYPT);
       return;
     }
 
@@ -692,29 +735,15 @@ public:
     if (!success) {
       log::error("encryption failed: bd_addr={}", address);
       BTA_GATTC_Close(hearingDevice->conn_id);
-      if (hearingDevice->first_connection ||
-          com_android_bluetooth_flags_continue_queued_command_after_discovery()) {
+      if (hearingDevice->first_connection) {
         callbacks->OnConnectionState(ConnectionState::DISCONNECTED, address);
       }
       return;
     }
 
     log::info("encryption successful: bd_addr={}", address);
-    if (!com_android_bluetooth_flags_continue_queued_command_after_discovery()) {
-      if (hearingDevice->audio_control_point_handle && hearingDevice->audio_status_handle &&
-          hearingDevice->audio_status_ccc_handle && hearingDevice->volume_handle &&
-          hearingDevice->read_psm_handle) {
-        // Use cached data, jump to read PSM
-        ReadPSM(hearingDevice);
-      } else {
-        log::info("starting service search request for ASHA: bd_addr={}", address);
-        hearingDevice->first_connection = true;
-        BTA_GATTC_ServiceSearchRequest(hearingDevice->conn_id, HEARING_AID_UUID);
-      }
-    } else {
-      log::info("starting service search request for ASHA: bd_addr={}", address);
-      BTA_GATTC_ServiceSearchRequest(hearingDevice->conn_id, HEARING_AID_UUID);
-    }
+    log::info("starting service search request for ASHA: bd_addr={}", address);
+    BTA_GATTC_ServiceSearchRequest(hearingDevice->conn_id);
   }
 
   void OnPhyUpdateEvent(tCONN_ID conn_id, uint8_t tx_phys, uint8_t rx_phys, tGATT_STATUS status) {
@@ -740,7 +769,7 @@ public:
               "phy update successful with unexpected phys, retrying:"
               " conn_id={:#x} tx_phy=0x{:x} rx_phy=0x{:x}",
               conn_id, tx_phys, rx_phys);
-      get_btm_client_interface().ble.BTM_BleSetPhy(hearingDevice->address, PHY_LE_2M, PHY_LE_2M, 0);
+      stack::leConnectionSetPhy(hearingDevice->address, PHY_LE_2M, PHY_LE_2M, 0);
       hearingDevice->phy_update_retry_remain--;
     } else {
       log::warn(
@@ -783,7 +812,7 @@ public:
           hearingDevice->audio_status_ccc_handle && hearingDevice->volume_handle &&
           hearingDevice->read_psm_handle)) {
       log::info("starting service search request for ASHA: bd_addr={}", address);
-      BTA_GATTC_ServiceSearchRequest(hearingDevice->conn_id, HEARING_AID_UUID);
+      BTA_GATTC_ServiceSearchRequest(hearingDevice->conn_id);
     }
   }
 
@@ -794,17 +823,10 @@ public:
       return;
     }
 
-    if (!com_android_bluetooth_flags_continue_queued_command_after_discovery() &&
-        !hearingDevice->first_connection) {
-      log::info("service discovery result ignored: bd_addr={}", hearingDevice->address);
-      return;
-    }
-
     if (status != GATT_SUCCESS) {
       /* close connection and report service discovery complete with error */
       log::error("service discovery failed: bd_addr={} status={}", hearingDevice->address, status);
-      if (com_android_bluetooth_flags_continue_queued_command_after_discovery() ||
-          hearingDevice->first_connection) {
+      if (hearingDevice->first_connection) {
         callbacks->OnConnectionState(ConnectionState::DISCONNECTED, hearingDevice->address);
       }
       return;
@@ -879,14 +901,8 @@ public:
        * Just in case, log such occurrence, letting us know we may use the old handle.
        */
       if (hearingDevice->service_changed_rcvd) {
-        if (com_android_bluetooth_flags_asha_omit_gatt_after_svc_changed()) {
-          log::error("Service change received before PSM read. Read omitted.");
-          return;
-        } else {
-          log::error(
-                  "Service change received before PSM read."
-                  "Attempting to read PSM using old handle");
-        }
+        log::error("Service change received before PSM read. Read omitted.");
+        return;
       }
       log::info("[gatt] ReadCharacteristic conn_id={:#x} handle=PSM({:#x})", hearingDevice->conn_id,
                 hearingDevice->read_psm_handle);
@@ -948,9 +964,7 @@ public:
       return;
     }
 
-    if (com_android_bluetooth_flags_continue_queued_command_after_discovery()) {
-      hearingDevice->first_connection = true;
-    }
+    hearingDevice->first_connection = true;
 
     uint8_t capabilities;
     STREAM_TO_UINT8(capabilities, p);
@@ -1063,7 +1077,7 @@ public:
     log::info("read PSM: bd_addr={} psm=0x{:x}", hearingDevice->address, psm);
 
     if (hearingDevice->gap_handle == GAP_INVALID_HANDLE &&
-        BTM_IsEncrypted(hearingDevice->address, BT_TRANSPORT_LE)) {
+        get_security_client_interface().BTM_IsEncrypted(hearingDevice->address, BT_TRANSPORT_LE)) {
       ConnectSocket(hearingDevice, psm);
     }
   }
@@ -1130,6 +1144,11 @@ public:
     log::info("bd_addr={}", address);
 
     if (hearingDevice->first_connection) {
+      if (com_android_bluetooth_flags_asha_retry_reconnect_when_in_set()) {
+        /* first connection sets connecting_actively to true. First connection just completed -
+         * set it to false */
+        hearingDevice->connecting_actively = false;
+      }
       btif_storage_add_hearing_aid(*hearingDevice);
 
       hearingDevice->first_connection = false;
@@ -1153,14 +1172,8 @@ public:
      * Just in case, log such occurrence, letting us know we may use the old handle.
      */
     if (hearingDevice->service_changed_rcvd) {
-      if (com_android_bluetooth_flags_asha_omit_gatt_after_svc_changed()) {
-        log::error("Stream is starting, but service change received. Aborting.");
-        return;
-      } else {
-        log::error(
-                "Service change received, but stream is starting."
-                "Attempting to subscribe Audio Status using old handle");
-      }
+      log::error("Stream is starting, but service change received. Aborting.");
+      return;
     }
 
     log::info(
@@ -1246,15 +1259,10 @@ public:
          * Just in case, log such occurrence, letting us know we may use the old handle.
          */
         if (device.service_changed_rcvd) {
-          if (com_android_bluetooth_flags_asha_omit_gatt_after_svc_changed()) {
-            log::error(
-                    "Service change received during active stream."
-                    "Omit write to Audio Control Point");
-            return;
-          }
           log::error(
-                  "Service change received, but stream is active."
-                  "Attempting to write using old Audio Control Point handle");
+                  "Service change received during active stream."
+                  "Omit write to Audio Control Point");
+          return;
         }
 
         log::info(
@@ -1326,15 +1334,10 @@ public:
      * Just in case, log such occurrence, letting us know we may use the old handle.
      */
     if (device->service_changed_rcvd) {
-      if (com_android_bluetooth_flags_asha_omit_gatt_after_svc_changed()) {
-        log::error(
-                "Service change received, but stream is starting."
-                "Omit write to Service Changed CCC");
-        return;
-      }
       log::error(
               "Service change received, but stream is starting."
-              "Attempting to subscribe Service Changed using old handle");
+              "Omit write to Service Changed CCC");
+      return;
     }
 
     log::info(
@@ -1375,15 +1378,10 @@ public:
        * Just in case, log such occurrence, letting us know we may use the old handle.
        */
       if (device->service_changed_rcvd) {
-        if (com_android_bluetooth_flags_asha_omit_gatt_after_svc_changed()) {
-          log::error(
-                  "Service change received, but stream is starting."
-                  "Omit write using to Audio Control Point");
-          return;
-        }
         log::error(
                 "Service change received, but stream is starting."
-                "Attempting to write using old Audio Control Point handle");
+                "Omit write using to Audio Control Point");
+        return;
       }
 
       log::info(
@@ -1797,10 +1795,10 @@ public:
 
       char eventtime[20];
       char temptime[20];
-      struct tm* tstamp = localtime(&rssi_logs.timestamp.tv_sec);
-      if (!strftime(temptime, sizeof(temptime), "%H:%M:%S", tstamp)) {
-        log::error("strftime fails. tm_sec={}, tm_min={}, tm_hour={}", tstamp->tm_sec,
-                   tstamp->tm_min, tstamp->tm_hour);
+      struct tm tstamp;
+      if (localtime_r(&rssi_logs.timestamp.tv_sec, &tstamp) == nullptr ||
+          !strftime(temptime, sizeof(temptime), "%H:%M:%S", &tstamp)) {
+        log::error("Failed to format time for sec: %ld", (long)rssi_logs.timestamp.tv_sec);
         osi_strlcpy(temptime, "UNKNOWN TIME", sizeof(temptime));
       }
       snprintf(eventtime, sizeof(eventtime), "%s.%03ld", temptime,
@@ -1923,12 +1921,14 @@ public:
     auto connection_type = hearingDevice->connecting_actively ? BTM_BLE_DIRECT_CONNECTION
                                                               : BTM_BLE_BKG_CONNECT_ALLOW_LIST;
 
-    hearingDevice->switch_to_background_connection_after_failure =
-            connection_type == BTM_BLE_DIRECT_CONNECTION;
+    if (!com_android_bluetooth_flags_asha_retry_reconnect_when_in_set()) {
+      hearingDevice->switch_to_background_connection_after_failure =
+              connection_type == BTM_BLE_DIRECT_CONNECTION;
+    }
 
     // This is needed just for the first connection. After stack is restarted,
     // code that loads device will add them to acceptlist.
-    BTA_GATTC_Open(gatt_if, hearingDevice->address, connection_type, false);
+    BTA_GATTC_Open(gatt_if, hearingDevice->address, connection_type);
 
     callbacks->OnConnectionState(ConnectionState::DISCONNECTED, remote_bda);
 
@@ -1991,14 +1991,11 @@ public:
 
       std::vector<uint8_t> volume_value({static_cast<unsigned char>(volume)});
       if (device.volume_handle == 0 || device.service_changed_rcvd) {
-        if (com_android_bluetooth_flags_asha_omit_gatt_after_svc_changed()) {
-          log::error(
-                  "Volume handle not set or service changed received: bd_addr={}"
-                  "Write to Volume omitted",
-                  device.address);
-          return;
-        }
-        log::error("Volume handle not set or service changed received: bd_addr={}", device.address);
+        log::error(
+                "Volume handle not set or service changed received: bd_addr={}"
+                "Write to Volume omitted",
+                device.address);
+        return;
       }
 
       log::info("[gatt] WriteCharacteristic conn_id={:#x} handle=Volume({:#x}) value=[{:#x}]",
@@ -2118,15 +2115,13 @@ private:
   }
 };
 
-static void read_rssi_callback(void* p_void) {
-  tBTM_RSSI_RESULT* p_result = (tBTM_RSSI_RESULT*)p_void;
-
-  if (!p_result) {
-    return;
+static void read_rssi_callback(tBTM_STATUS status, int8_t rssi, RawAddress address) {
+  if (status != tBTM_STATUS::BTM_SUCCESS) {
+    log::error("Read RSSI failed with status {}", status);
   }
 
-  if ((instance) && (p_result->status == tBTM_STATUS::BTM_SUCCESS)) {
-    instance->OnReadRssiComplete(p_result->rem_bda, p_result->rssi);
+  if (instance) {
+    instance->OnReadRssiComplete(address, rssi);
   }
 }
 
@@ -2136,10 +2131,6 @@ static void hearingaid_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) 
   }
 
   switch (event) {
-    case BTA_GATTC_DEREG_EVT:
-      log::info("");
-      break;
-
     case BTA_GATTC_OPEN_EVT: {
       if (!instance) {
         return;
@@ -2182,7 +2173,8 @@ static void hearingaid_gattc_callback(tBTA_GATTC_EVT event, tBTA_GATTC* p_data) 
         return;
       }
       instance->OnEncryptionComplete(p_data->enc_cmpl.remote_bda,
-                                     BTM_IsEncrypted(p_data->enc_cmpl.remote_bda, BT_TRANSPORT_LE));
+                                     get_security_client_interface().BTM_IsEncrypted(
+                                             p_data->enc_cmpl.remote_bda, BT_TRANSPORT_LE));
       break;
 
     case BTA_GATTC_CONN_UPDATE_EVT:
@@ -2248,7 +2240,7 @@ HearingAidAudioReceiverImpl audioReceiverImpl;
 
 }  // namespace
 
-void HearingAid::Initialize(HearingAidCallbacks* callbacks, Closure initCb) {
+void HearingAid::Initialize(HearingAidCallbacks* callbacks, base::OnceClosure initCb) {
   std::scoped_lock<std::mutex> lock(instance_mutex);
 
   if (instance) {
@@ -2257,7 +2249,7 @@ void HearingAid::Initialize(HearingAidCallbacks* callbacks, Closure initCb) {
   }
 
   audioReceiver = &audioReceiverImpl;
-  instance = new HearingAidImpl(callbacks, initCb);
+  instance = new HearingAidImpl(callbacks, std::move(initCb));
   HearingAidAudioSource::Initialize();
 }
 

@@ -42,7 +42,6 @@
 #include <utility>
 #include <vector>
 
-#include "advertise_data_parser.h"
 #include "bta_api.h"
 #include "bta_csis_api.h"
 #include "bta_gatt_api.h"
@@ -50,28 +49,28 @@
 #include "bta_groups.h"
 #include "bta_sec_api.h"
 #include "btif/include/btif_storage.h"
-#include "btm_ble_api_types.h"
-#include "btm_sec_api_types.h"
 #include "crypto_toolbox/crypto_toolbox.h"
 #include "csis_types.h"
-#include "gap_api.h"
 #include "gatt/database.h"
-#include "gatt_api.h"
-#include "gattdefs.h"
 #include "internal_include/bt_target.h"
 #include "internal_include/bt_trace.h"
 #include "main/shim/le_scanning_manager.h"
 #include "neighbor_inquiry.h"
 #include "osi/include/osi.h"
-#include "osi/include/stack_power_telemetry.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/gatt/gatt_int.h"
+#include "stack/include/advertise_data_parser.h"
 #include "stack/include/bt_types.h"
-#include "stack/include/btm_ble_sec_api.h"
+#include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_sec_api.h"
+#include "stack/include/btm_sec_api_types.h"
 #include "stack/include/btm_status.h"
+#include "stack/include/gap_api.h"
+#include "stack/include/gatt_api.h"
+#include "stack/include/gattdefs.h"
 
-using base::Closure;
+using base::OnceClosure;
 using bluetooth::Uuid;
 using bluetooth::csis::ConnectionState;
 using bluetooth::csis::CsisClient;
@@ -127,15 +126,16 @@ DeviceGroupsCallbacks* device_group_callbacks;
  */
 
 class CsisClientImpl : public CsisClient {
-  static constexpr uint8_t CSIS_STORAGE_CURRENT_LAYOUT_MAGIC = 0x10;
+  static constexpr uint8_t CSIS_STORAGE_CURRENT_LAYOUT_MAGIC_V10 = 0x10;
+  static constexpr uint8_t CSIS_STORAGE_CURRENT_LAYOUT_MAGIC = 0x11;
   static constexpr size_t CSIS_STORAGE_HEADER_SZ =
           sizeof(CSIS_STORAGE_CURRENT_LAYOUT_MAGIC) + sizeof(uint8_t); /* num_of_sets */
-  static constexpr size_t CSIS_STORAGE_ENTRY_SZ = sizeof(uint8_t) /* set_id */ +
-                                                  sizeof(uint8_t) /* desired_size */ +
-                                                  sizeof(uint8_t) /* rank */ + Octet16().size();
+  static constexpr size_t CSIS_STORAGE_ENTRY_SZ =
+          sizeof(uint8_t) /* set_id */ + sizeof(uint8_t) /* desired_size */ +
+          sizeof(uint8_t) /* rank */ + Octet16().size() + sizeof(uint8_t) /* is_unsafe */;
 
 public:
-  CsisClientImpl(bluetooth::csis::CsisClientCallbacks* callbacks, Closure initCb)
+  CsisClientImpl(bluetooth::csis::CsisClientCallbacks* callbacks, OnceClosure initCb)
       : gatt_if_(0), callbacks_(callbacks) {
     BTA_GATTC_AppRegister(
             "csis",
@@ -144,8 +144,8 @@ public:
                 instance->GattcCallback(event, p_data);
               }
             },
-            base::Bind(
-                    [](Closure initCb, uint8_t client_id, uint8_t status) {
+            base::BindOnce(
+                    [](OnceClosure initCb, uint8_t client_id, uint8_t status) {
                       if (status != GATT_SUCCESS) {
                         log::error(
                                 "Can't start Coordinated Set Service client profile - no "
@@ -153,12 +153,12 @@ public:
                         return;
                       }
                       instance->gatt_if_ = client_id;
-                      initCb.Run();
+                      std::move(initCb).Run();
 
                       DeviceGroups::Initialize(device_group_callbacks);
                       instance->dev_groups_ = DeviceGroups::Get();
                     },
-                    initCb),
+                    std::move(initCb)),
             true);
 
     BTA_DmSirkSecCbRegister([](tBTA_DM_SEC_EVT event, tBTA_DM_SEC* p_data) {
@@ -176,7 +176,8 @@ public:
         return;
       }
 
-      if (!p_data->auth_cmpl.success && !BTM_IsBonded(p_data->auth_cmpl.bd_addr, BT_TRANSPORT_LE)) {
+      if (!p_data->auth_cmpl.success && !get_security_client_interface().BTM_IsBonded(
+                                                p_data->auth_cmpl.bd_addr, BT_TRANSPORT_LE)) {
         instance->BondingFailed(p_data->auth_cmpl.bd_addr);
       }
     });
@@ -293,29 +294,51 @@ public:
     }
   }
 
+  bool isCsisServerSafe(std::shared_ptr<CsisDevice>& csis_device) {
+    if (!com_android_bluetooth_flags_leaudio_csis_handle_misconfigured_sets()) {
+      return true;
+    }
+
+    log::debug("{}", csis_device->addr);
+    for (const auto& csis_group : csis_groups_) {
+      if (!csis_group->IsDeviceInTheGroup(csis_device)) {
+        continue;
+      }
+
+      if (csis_group->IsUnsafe()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   void Connect(const RawAddress& address) override {
     log::info("{}", address);
 
-    bool use_opportunistic_connect = false;
+    auto mode = BTM_BLE_DIRECT_CONNECTION;
 
     auto device = FindDeviceByAddress(address);
     if (device == nullptr) {
-      if (!BTM_IsBonded(address, BT_TRANSPORT_LE)) {
+      if (!get_security_client_interface().BTM_IsBonded(address, BT_TRANSPORT_LE)) {
         log::error("Connecting  {} when not bonded", address);
         callbacks_->OnConnectionState(address, ConnectionState::DISCONNECTED);
         return;
       }
       devices_.emplace_back(std::make_shared<CsisDevice>(address, true));
     } else {
+      if (!isCsisServerSafe(device)) {
+        log::info("CSIS server is unsafe on device: {}, skip connecting", address);
+        callbacks_->OnConnectionState(address, ConnectionState::DISCONNECTED);
+        return;
+      }
       /* When this is already known device, we should use opportunistic connect for this profile.
        * Non opportunistic one is needed only after bonding to make sure the device is not
        * disconnected in case leAudio is not enabled by default.
        */
-      use_opportunistic_connect = true;
+      mode = BTM_BLE_OPPORTUNISTIC;
       device->connecting_actively = true;
     }
-
-    BTA_GATTC_Open(gatt_if_, address, BTM_BLE_DIRECT_CONNECTION, use_opportunistic_connect);
+    BTA_GATTC_Open(gatt_if_, address, mode);
   }
 
   void Disconnect(const RawAddress& addr) override {
@@ -332,7 +355,11 @@ public:
     if (device->IsConnected()) {
       BTA_GATTC_Close(device->conn_id);
     } else {
-      BTA_GATTC_CancelOpen(gatt_if_, addr, false);
+      if (com_android_bluetooth_flags_leaudio_cancel_open_with_direct_flag_when_connecting()) {
+        BTA_GATTC_CancelOpen(gatt_if_, addr, true);
+      } else {
+        BTA_GATTC_CancelOpen(gatt_if_, addr, false);
+      }
       DoDisconnectCleanUp(device);
       callbacks_->OnConnectionState(addr, ConnectionState::DISCONNECTED);
     }
@@ -353,6 +380,34 @@ public:
       RemoveCsisDevice(device);
     }
     dev_groups_->RemoveDevice(addr);
+  }
+
+  bool ShallCsisBeUsedForTheDevice(const RawAddress& addr) override {
+    if (!com_android_bluetooth_flags_csis_quirk_for_single_device_with_sirk_all_zeros()) {
+      return true;
+    }
+
+    auto device = FindDeviceByAddress(addr);
+    if (device == nullptr) {
+      return false;
+    }
+
+    /* In case remote device has CSIS service BUT something went wrong with connecting this device,
+     * LeAudio code need to make a decision if LeAudio should be connected or not.
+     * If the CSIS is not connected because of the missconfiguration i.e. Sirk is 0x00 and group
+     * size is 1, that means we can just treat device as it does not have CSIS. If there are other
+     * reasons for device being not connected, we consider it as Valid CSIS device and in case of
+     * error it will not be connected. */
+
+    if (device->sirk_all_zeros_size_one) {
+      return false;
+    }
+
+    if (!com_android_bluetooth_flags_leaudio_csis_handle_misconfigured_sets()) {
+      return true;
+    }
+
+    return isCsisServerSafe(device);
   }
 
   int GetGroupId(const RawAddress& addr, Uuid uuid) override {
@@ -465,7 +520,7 @@ public:
 
       if (next_dev) {
         auto next_csis_inst = next_dev->GetCsisInstanceByGroupId(group_id);
-        log::assert_that(csis_instance != nullptr, "csis_instance does not exist!");
+        log::assert_that(next_csis_inst != nullptr, "next_csis_inst does not exist!");
 #if CSIP_UPPER_TESTER_FORCE_TO_SEND_LOCK == FALSE
         if (next_csis_inst->GetLockState() == CsisLockState::CSIS_STATE_LOCKED) {
           /* Somebody else managed to lock it.
@@ -657,6 +712,7 @@ public:
       Octet16 sirk = csis_group->GetSirk();
       memcpy(ptr, sirk.data(), sirk.size());
       ptr += sirk.size();
+      UINT8_TO_STREAM(ptr, csis_group->IsUnsafe());
     });
 
     return true;
@@ -674,7 +730,8 @@ public:
     uint8_t magic;
     STREAM_TO_UINT8(magic, ptr);
 
-    if (magic == CSIS_STORAGE_CURRENT_LAYOUT_MAGIC) {
+    if (magic == CSIS_STORAGE_CURRENT_LAYOUT_MAGIC ||
+        magic == CSIS_STORAGE_CURRENT_LAYOUT_MAGIC_V10) {
       uint8_t num_sets;
       STREAM_TO_UINT8(num_sets, ptr);
 
@@ -689,11 +746,15 @@ public:
         Octet16 sirk;
         uint8_t size;
         uint8_t rank;
+        bool is_unsafe = false;
 
         STREAM_TO_UINT8(gid, ptr);
         STREAM_TO_UINT8(size, ptr);
         STREAM_TO_UINT8(rank, ptr);
         STREAM_TO_ARRAY(sirk.data(), ptr, (int)sirk.size());
+        if (magic == CSIS_STORAGE_CURRENT_LAYOUT_MAGIC) {
+          STREAM_TO_UINT8(is_unsafe, ptr);
+        }
 
         // Set grouping and SIRK
         auto csis_group = AssignCsisGroup(addr, gid, true, Uuid::kEmpty);
@@ -703,6 +764,9 @@ public:
 
         csis_group->SetDesiredSize(size);
         csis_group->SetSirk(sirk);
+        if (is_unsafe) {
+          csis_group->SetUnsafe();
+        }
 
         // TODO: Save it for later, so we won't have to read it using GATT
         group_rank_map[gid] = rank;
@@ -713,11 +777,8 @@ public:
   }
 
   void StartOpportunisticConnect(const RawAddress& address) {
-    /* Opportunistic works only for direct connect,
-     * but in fact this is background connect
-     */
     log::info(": {}", address);
-    BTA_GATTC_Open(gatt_if_, address, BTM_BLE_DIRECT_CONNECTION, true);
+    BTA_GATTC_Open(gatt_if_, address, BTM_BLE_OPPORTUNISTIC);
   }
 
   void AddFromStorage(const RawAddress& addr, const std::vector<uint8_t>& in) {
@@ -731,6 +792,7 @@ public:
       devices_.push_back(device);
     }
 
+    bool is_unsafe = false;
     for (const auto& csis_group : csis_groups_) {
       if (!csis_group->IsDeviceInTheGroup(device)) {
         continue;
@@ -745,7 +807,19 @@ public:
 
         callbacks_->OnDeviceAvailable(device->addr, group_id, csis_group->GetDesiredSize(), rank,
                                       csis_group->GetUuid());
+
+        /* If at least one group for the device is unsafe, the CSIS is not connected as behavior is
+         * undefined
+         */
+        if (!is_unsafe) {
+          is_unsafe = csis_group->IsUnsafe();
+        }
       }
+    }
+
+    if (com_android_bluetooth_flags_leaudio_csis_handle_misconfigured_sets() && is_unsafe) {
+      log::info("CSIS Server not safe on device: {}, skip connecting", addr);
+      return;
     }
 
     /* For bonded devices, CSIP can be always opportunistic service */
@@ -777,7 +851,7 @@ public:
            << "  Groups:\n";
     for (const auto& g : csis_groups_) {
       stream << "    == id: " << g->GetGroupId() << " ==\n"
-             << "    uuid: " << g->GetUuid() << "\n"
+             << "    uuid: " << g->GetUuid().ToString() << "\n"
              << "    desired size: " << g->GetDesiredSize() << "\n"
              << "    discoverable state: " << static_cast<int>(g->GetDiscoveryState()) << "\n"
              << "    current lock state: " << static_cast<int>(g->GetCurrentLockState()) << "\n"
@@ -805,7 +879,8 @@ public:
         }
 
         if (!device->IsConnected()) {
-          stream << "        Not connected\n";
+          stream << "        Not connected"
+                 << (g->IsUnsafe() ? " due to group being unsafe.\n" : "\n");
         } else {
           stream << "        Connected conn_id = " << std::to_string(device->conn_id) << "\n";
         }
@@ -915,7 +990,16 @@ private:
     if (device->is_gatt_service_valid) {
       NotifyCsisDeviceValidAndStoreIfNeeded(device);
     } else {
-      BTA_GATTC_ServiceSearchRequest(device->conn_id, kCsisServiceUuid);
+      BTA_GATTC_ServiceSearchRequest(device->conn_id);
+    }
+  }
+
+  void DisableUnsafeGroups(void) {
+    for (const auto& csis_group : csis_groups_) {
+      if (csis_group->IsUnsafe()) {
+        log::warn("Disconnecting unsafe group {}", csis_group->GetGroupId());
+        DisconnectGroupDevices(csis_group->GetGroupId());
+      }
     }
   }
 
@@ -926,6 +1010,12 @@ private:
      */
     bool notify_connected = false;
     int group_id_to_discover = bluetooth::groups::kGroupUnknown;
+
+    if (!isCsisServerSafe(device)) {
+      DisableUnsafeGroups();
+      return;
+    }
+
     for (const auto& csis_group : csis_groups_) {
       if (!csis_group->IsDeviceInTheGroup(device)) {
         continue;
@@ -1137,6 +1227,18 @@ private:
       return;
     }
 
+    auto new_size = value[0];
+
+    if (!device->is_gatt_service_valid && device->sirk_all_zeros && new_size == 1) {
+      /* This is incorrectly configured device which has CSIS service with size 1 and SIRK 0.
+       * We disconnect CSIS and not use it.
+       */
+      device->sirk_all_zeros_size_one = true;
+      log::error("Disconnecting due to invalid SIRK, but device is size 1", device->addr);
+      BTA_GATTC_Close(device->conn_id);
+      return;
+    }
+
     auto csis_instance = device->GetCsisInstanceByOwningHandle(handle);
     if (csis_instance == nullptr) {
       log::error("Unknown csis instance");
@@ -1149,7 +1251,6 @@ private:
       return;
     }
 
-    auto new_size = value[0];
     csis_group->SetDesiredSize(new_size);
 
     if (notify_valid_services) {
@@ -1274,14 +1375,14 @@ private:
    * encrypted_sirk: LE order
    */
   bool sdf(const RawAddress& address, const Octet16& encrypted_sirk, Octet16& sirk) {
-    auto pltk = BTM_BleGetPeerLTK(address);
+    auto pltk = get_security_client_interface().BTM_BleGetPeerLTK(address);
     if (!pltk.has_value()) {
       log::error("No security for {}", address);
       return false;
     }
 
 #ifdef CSIS_DEBUG
-    auto irk = BTM_BleGetPeerIRK(address);
+    auto irk = get_security_client_interface().BTM_BleGetPeerIRK(address);
     log::info("LTK {}", base::HexEncode(pltk.value().data(), 16));
     log::info("IRK {}", irk.has_value() ? base::HexEncode(irk.value().data(), 16) : 0x00);
 #endif
@@ -1380,9 +1481,9 @@ private:
     /* Make sure device is not already bonded which could
      * be a case for dual mode devices where
      */
-    if (BTM_IsBonded(result->bd_addr, BT_TRANSPORT_LE)) {
+    if (get_security_client_interface().BTM_IsBonded(result->bd_addr, BT_TRANSPORT_LE)) {
       log::verbose("Device {} already bonded. Identity address: {}", result->bd_addr,
-                   *BTM_BleGetIdentityAddress(result->bd_addr));
+                   *get_security_client_interface().BTM_BleGetIdentityAddress(result->bd_addr));
       return;
     }
 
@@ -1446,7 +1547,6 @@ private:
       }
 
       if (event == BTA_DM_OBSERVE_CMPL_EVT) {
-        power_telemetry::GetInstance().LogBleScan(static_cast<int>(p_data->observe_cmpl.num_resps));
         log::info("BLE observe complete. Num Resp: {}", p_data->observe_cmpl.num_resps);
         csis_ad_type_filter_set(false);
         instance->OnCsisObserveCompleted();
@@ -1521,9 +1621,9 @@ private:
     /* Make sure device is not already bonded which could
      * be a case for dual mode devices where
      */
-    if (BTM_IsBonded(result->bd_addr, BT_TRANSPORT_LE)) {
+    if (get_security_client_interface().BTM_IsBonded(result->bd_addr, BT_TRANSPORT_LE)) {
       log::verbose("Device {} already bonded. Identity address: {}", result->bd_addr,
-                   *BTM_BleGetIdentityAddress(result->bd_addr));
+                   *get_security_client_interface().BTM_BleGetIdentityAddress(result->bd_addr));
       return;
     }
 
@@ -1566,7 +1666,6 @@ private:
       }
 
       if (event == BTA_DM_OBSERVE_CMPL_EVT) {
-        power_telemetry::GetInstance().LogBleScan(static_cast<int>(p_data->observe_cmpl.num_resps));
         log::verbose("BLE observe complete. Num Resp: {}", p_data->observe_cmpl.num_resps);
         return;
       }
@@ -1578,6 +1677,46 @@ private:
 
       instance->OnScanBackgroundResult(&p_data->inq_res);
     });
+  }
+
+  void DisconnectGroupDevices(int group_id) {
+    if (!com_android_bluetooth_flags_leaudio_csis_handle_misconfigured_sets()) {
+      return;
+    }
+    const auto addr_device_list = GetDeviceList(group_id);
+    for (const auto& addr : addr_device_list) {
+      log::verbose("{}", addr);
+      auto dev = FindDeviceByAddress(addr);
+      if (dev == nullptr) {
+        continue;
+      }
+      log::verbose("{} is connected: {}", dev->addr, dev->IsConnected());
+
+      if (dev->IsConnected()) {
+        log::info("Disconnecting {} due to group being disabled", dev->addr);
+        BTA_GATTC_Close(dev->conn_id);
+      } else {
+        log::info("Removing {} from opportunistic connect due to group being disabled", dev->addr);
+        BTA_GATTC_CancelOpen(gatt_if_, dev->addr, true);
+      }
+
+      DoDisconnectCleanUp(dev);
+      callbacks_->OnConnectionState(dev->addr, ConnectionState::DISCONNECTED);
+    }
+  }
+
+  void SetUnsafeGroupsWithSirk(Octet16& sirk) {
+    if (!com_android_bluetooth_flags_leaudio_csis_handle_misconfigured_sets()) {
+      return;
+    }
+
+    log::info("");
+    for (auto& g : csis_groups_) {
+      if (g->IsSirkBelongsToGroup(sirk)) {
+        log::info("Disabling group_id: {:#x}", g->GetGroupId());
+        g->SetUnsafe();
+      }
+    }
   }
 
   void OnCsisSirkValueUpdate(tCONN_ID conn_id, tGATT_STATUS status, uint16_t handle, uint16_t len,
@@ -1624,8 +1763,17 @@ private:
     /* Verify if sirk is not all zeros */
     Octet16 zero{};
     if (memcmp(zero.data(), value + 1, 16) == 0) {
-      log::error("Received invalid zero SIRK conn_id: 0x{:02x}. Disconnecting", device->conn_id);
-      BTA_GATTC_Close(device->conn_id);
+      log::error("Received invalid zero SIRK for {}, conn_id: {:#x}.", device->addr,
+                 device->conn_id);
+      if (!com_android_bluetooth_flags_csis_quirk_for_single_device_with_sirk_all_zeros() ||
+          device->is_gatt_service_valid ||
+          (csis_instance->svc_data.size_handle.val_hdl == GAP_INVALID_HANDLE)) {
+        log::error("Disconnecting out of spec device {}", device->addr);
+        BTA_GATTC_Close(device->conn_id);
+      } else {
+        device->sirk_all_zeros = true;
+        log::warn("Wait for the set size before disconnect");
+      }
       return;
     }
 
@@ -1641,6 +1789,8 @@ private:
 
     /* SIRK is ready. Add device to the group */
 
+    bool duplicated_sirk = false;
+
     std::shared_ptr<CsisGroup> csis_group;
     int group_id = csis_instance->GetGroupId();
     if (group_id != bluetooth::groups::kGroupUnknown) {
@@ -1653,6 +1803,14 @@ private:
        */
       for (auto& g : csis_groups_) {
         if (g->IsSirkBelongsToGroup(received_sirk)) {
+          if (g->GetCurrentSize() == g->GetDesiredSize()) {
+            log::warn(
+                    "Device {} is using SIRK which matches to group_id: {} but this group is "
+                    "already full: current_size == desired size ({} == {})",
+                    device->addr, g->GetGroupId(), g->GetCurrentSize(), g->GetDesiredSize());
+            duplicated_sirk = true;
+            continue;
+          }
           group_id = g->GetGroupId();
           break;
         }
@@ -1706,6 +1864,10 @@ private:
           ++iter;
         }
       }
+    }
+    if (duplicated_sirk) {
+      /* Just mark all the groups which use same SIRK as unsafe. */
+      SetUnsafeGroupsWithSirk(received_sirk);
     }
   }
 
@@ -1894,9 +2056,6 @@ private:
     }
 
     switch (event) {
-      case BTA_GATTC_DEREG_EVT:
-        break;
-
       case BTA_GATTC_OPEN_EVT:
         OnGattConnected(p_data->open);
         break;
@@ -1915,7 +2074,8 @@ private:
 
       case BTA_GATTC_ENC_CMPL_CB_EVT: {
         tBTM_STATUS encryption_status;
-        if (BTM_IsEncrypted(p_data->enc_cmpl.remote_bda, BT_TRANSPORT_LE)) {
+        if (get_security_client_interface().BTM_IsEncrypted(p_data->enc_cmpl.remote_bda,
+                                                                BT_TRANSPORT_LE)) {
           encryption_status = tBTM_STATUS::BTM_SUCCESS;
         } else {
           encryption_status = tBTM_STATUS::BTM_FAILED_ON_SECURITY;
@@ -1968,21 +2128,21 @@ private:
     device->conn_id = evt.conn_id;
     BtaGattQueue::Clean(evt.conn_id);
     /* Verify bond */
-    if (BTM_SecIsLeSecurityPending(device->addr)) {
+    if (get_security_client_interface().BTM_SecIsLeSecurityPending(device->addr)) {
       /* if security collision happened, wait for encryption done
        * (BTA_GATTC_ENC_CMPL_CB_EVT) */
       return;
     }
 
     /* verify bond */
-    if (BTM_IsEncrypted(device->addr, BT_TRANSPORT_LE)) {
+    if (get_security_client_interface().BTM_IsEncrypted(device->addr, BT_TRANSPORT_LE)) {
       /* if link has been encrypted */
       OnEncrypted(device);
       return;
     }
 
-    tBTM_STATUS result =
-            BTM_SetEncryption(device->addr, BT_TRANSPORT_LE, nullptr, nullptr, BTM_BLE_SEC_ENCRYPT);
+    tBTM_STATUS result = get_security_client_interface().BTM_SetEncryption(
+            device->addr, BT_TRANSPORT_LE, nullptr, nullptr, BTM_BLE_SEC_ENCRYPT);
 
     log::info("Encryption required for {}. Request result: 0x{:02x}", device->addr, result);
 
@@ -2030,7 +2190,7 @@ private:
     }
 
     /* verify encryption enabled */
-    if (!BTM_IsEncrypted(device->addr, BT_TRANSPORT_LE)) {
+    if (!get_security_client_interface().BTM_IsEncrypted(device->addr, BT_TRANSPORT_LE)) {
       log::warn("Device not yet bonded - waiting for encryption");
       return;
     }
@@ -2137,7 +2297,7 @@ private:
     if (device->is_gatt_service_valid) {
       instance->OnEncrypted(device);
     } else {
-      BTA_GATTC_ServiceSearchRequest(device->conn_id, kCsisServiceUuid);
+      BTA_GATTC_ServiceSearchRequest(device->conn_id);
     }
   }
 
@@ -2154,7 +2314,7 @@ private:
     DeregisterNotifications(device);
     device->ClearSvcData();
     if (search_request) {
-      BTA_GATTC_ServiceSearchRequest(device->conn_id, kCsisServiceUuid);
+      BTA_GATTC_ServiceSearchRequest(device->conn_id);
     }
   }
 
@@ -2179,7 +2339,7 @@ private:
     log::debug("address={}", address);
 
     if (!device->is_gatt_service_valid) {
-      BTA_GATTC_ServiceSearchRequest(device->conn_id, kCsisServiceUuid);
+      BTA_GATTC_ServiceSearchRequest(device->conn_id);
     }
   }
 
@@ -2345,6 +2505,9 @@ private:
   DeviceGroups* dev_groups_;
   int discovering_group_ = bluetooth::groups::kGroupUnknown;
 
+  // Member variables should appear before the WeakPtrFactory, to ensure
+  // that any WeakPtrs are invalidated before its members
+  // variable's destructors are executed, rendering them invalid.
   base::WeakPtrFactory<CsisClientImpl> weak_factory_{this};
 };
 
@@ -2387,7 +2550,7 @@ DeviceGroupsCallbacksImpl deviceGroupsCallbacksImpl;
 
 }  // namespace
 
-void CsisClient::Initialize(bluetooth::csis::CsisClientCallbacks* callbacks, Closure initCb) {
+void CsisClient::Initialize(bluetooth::csis::CsisClientCallbacks* callbacks, OnceClosure initCb) {
   std::scoped_lock<std::mutex> lock(instance_mutex);
   if (instance) {
     log::info("Already initialized!");
@@ -2395,7 +2558,7 @@ void CsisClient::Initialize(bluetooth::csis::CsisClientCallbacks* callbacks, Clo
   }
 
   device_group_callbacks = &deviceGroupsCallbacksImpl;
-  instance = new CsisClientImpl(callbacks, initCb);
+  instance = new CsisClientImpl(callbacks, std::move(initCb));
 }
 
 bool CsisClient::IsCsisClientRunning() { return instance; }

@@ -104,118 +104,8 @@ uint16_t L2CA_LeCreditThreshold();
  *  Callback Functions Prototypes
  *********************************/
 
-/* Connection indication callback prototype. Parameters are
- *              BD Address of remote
- *              Local CID assigned to the connection
- *              PSM that the remote wants to connect to
- *              Identifier that the remote sent
- */
-typedef void(tL2CA_CONNECT_IND_CB)(const RawAddress&, uint16_t, uint16_t, uint8_t);
-
-/* Connection confirmation callback prototype. Parameters are
- *              Local CID
- *              Result - 0 = connected
- *              If there is an error, tL2CA_ERROR_CB is invoked
- */
-typedef void(tL2CA_CONNECT_CFM_CB)(uint16_t, tL2CAP_CONN);
-
-/* Configuration indication callback prototype. Parameters are
- *              Local CID assigned to the connection
- *              Pointer to configuration info
- */
-typedef void(tL2CA_CONFIG_IND_CB)(uint16_t, tL2CAP_CFG_INFO*);
-
 constexpr uint16_t L2CAP_INITIATOR_LOCAL = 1;
 constexpr uint16_t L2CAP_INITIATOR_REMOTE = 0;
-/* Configuration confirm callback prototype. Parameters are
- *              Local CID assigned to the connection
- *              Initiator (1 for local, 0 for remote)
- *              Initial config from remote
- * If there is an error, tL2CA_ERROR_CB is invoked
- */
-typedef void(tL2CA_CONFIG_CFM_CB)(uint16_t, uint16_t, tL2CAP_CFG_INFO*);
-
-/* Disconnect indication callback prototype. Parameters are
- *              Local CID
- *              Boolean whether upper layer should ack this
- */
-typedef void(tL2CA_DISCONNECT_IND_CB)(uint16_t, bool);
-
-/* Disconnect confirm callback prototype. Parameters are
- *              Local CID
- *              Result
- */
-typedef void(tL2CA_DISCONNECT_CFM_CB)(uint16_t, uint16_t);
-
-/* Disconnect confirm callback prototype. Parameters are
- *              Local CID
- *              Result
- */
-typedef void(tL2CA_DATA_IND_CB)(uint16_t, BT_HDR*);
-
-/* Congestion status callback protype. This callback is optional. If
- * an application tries to send data when the transmit queue is full,
- * the data will anyways be dropped. The parameter is:
- *              Local CID
- *              true if congested, false if uncongested
- */
-typedef void(tL2CA_CONGESTION_STATUS_CB)(uint16_t, bool);
-
-/* Transmit complete callback protype. This callback is optional. If
- * set, L2CAP will call it when packets are sent or flushed. If the
- * count is 0xFFFF, it means all packets are sent for that CID (eRTM
- * mode only). The parameters are:
- *              Local CID
- *              Number of SDUs sent or dropped
- */
-typedef void(tL2CA_TX_COMPLETE_CB)(uint16_t, uint16_t);
-
-/*
- * Notify the user when the remote send error result on ConnectRsp or ConfigRsp
- * The parameters are:
- *              Local CID
- *              Error type (L2CAP_CONN_OTHER_ERROR for ConnectRsp,
- *                          L2CAP_CFG_FAILED_NO_REASON for ConfigRsp)
- */
-typedef void(tL2CA_ERROR_CB)(uint16_t, uint16_t);
-
-/* Create credit based connection request callback prototype. Parameters are
- *              BD Address of remote
- *              Vector of allocated local cids to accept
- *              PSM
- *              Peer MTU
- *              Identifier that the remote sent
- */
-typedef void(tL2CA_CREDIT_BASED_CONNECT_IND_CB)(const RawAddress& bdaddr,
-                                                std::vector<uint16_t>& lcids, uint16_t psm,
-                                                uint16_t peer_mtu, uint8_t identifier);
-
-/* Collision Indication callback prototype. Used to notify upper layer that
- * remote devices sent Credit Based Connection Request but it was rejected due
- * to ongoing local request. Upper layer might want to sent another request when
- * local request is completed. Parameters are:
- *              BD Address of remote
- */
-typedef void(tL2CA_CREDIT_BASED_COLLISION_IND_CB)(const RawAddress& bdaddr);
-
-/* Credit based connection confirmation callback prototype. Parameters are
- *              BD Address of remote
- *              Connected Local CIDs
- *              Peer MTU
- *              Result - 0 = connected, non-zero means CID is not connected
- */
-typedef void(tL2CA_CREDIT_BASED_CONNECT_CFM_CB)(const RawAddress& bdaddr, uint16_t lcid,
-                                                uint16_t peer_mtu, tL2CAP_LE_RESULT_CODE result);
-
-/* Credit based reconfiguration confirm callback prototype. Parameters are
- *              BD Address of remote
- *              Local CID assigned to the connection
- *              Flag indicating if this is local or peer configuration
- *              Pointer to configuration info
- */
-typedef void(tL2CA_CREDIT_BASED_RECONFIG_COMPLETED_CB)(const RawAddress& bdaddr, uint16_t lcid,
-                                                       bool is_local_cfg,
-                                                       tL2CAP_LE_CFG_INFO* p_cfg);
 
 /*****************************************************************************
  *  External Function Declarations
@@ -268,7 +158,7 @@ void L2CA_Deregister(uint16_t psm);
  * Returns          LE_PSM to use if success. Otherwise returns 0.
  *
  ******************************************************************************/
-[[nodiscard]] uint16_t L2CA_AllocateLePSM(void);
+[[nodiscard]] uint16_t L2CA_AllocateLePSM(int fixed_psm_slots);
 
 /*******************************************************************************
  *
@@ -532,6 +422,18 @@ void L2CA_DeregisterLECoc(uint16_t psm);
 
 /*******************************************************************************
  *
+ * Function         L2CA_SetRateControlEnabled
+ *
+ * Description      Enable or disable rate control algorithm for a channel.
+ *
+ * Returns          true if a valid channel, else false
+ *
+ ******************************************************************************/
+
+[[nodiscard]] bool L2CA_SetRateControlEnabled(const RawAddress& bd_addr, bool enabled);
+
+/*******************************************************************************
+ *
  * Function         L2CA_SetTxPriority
  *
  * Description      Sets the transmission priority for a channel. (FCR Mode)
@@ -711,7 +613,10 @@ void L2CA_LockBleConnParamsForLeAudioSubrate(const RawAddress& rem_bda, bool loc
  ******************************************************************************/
 void L2CA_Consolidate(const RawAddress& identity_addr, const RawAddress& rpa);
 [[nodiscard]] tHCI_ROLE L2CA_GetBleConnRole(const RawAddress& bd_addr);
+[[nodiscard]] uint16_t L2CA_GetBleSubrateFactor(const RawAddress& bd_addr);
 [[nodiscard]] uint16_t L2CA_GetBleConnInterval(const RawAddress& bd_addr);
+[[nodiscard]] uint16_t L2CA_GetBlePeriphLatency(const RawAddress& bd_addr);
+[[nodiscard]] uint16_t L2CA_GetBleSupervisionTimeout(const RawAddress& bd_addr);
 
 void L2CA_AdjustConnectionIntervals(uint16_t* min_interval, uint16_t* max_interval,
                                     uint16_t floor_interval);

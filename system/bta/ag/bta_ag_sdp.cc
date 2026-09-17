@@ -42,21 +42,20 @@
 #include "bta_api.h"
 #include "bta_sys.h"
 #include "btif/include/btif_config.h"
-#include "btm_api_types.h"
 #include "common/time_util.h"
 #include "device/include/interop.h"
 #include "device/include/interop_config.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/helpers.h"
 #include "osi/include/allocator.h"
-#include "sdp_callback.h"
-#include "sdp_status.h"
-#include "sdpdefs.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/btm_api_types.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/sdp_api.h"
-#include "stack/sdp/sdp_discovery_db.h"
+#include "stack/include/sdp_discovery_db.h"
+#include "stack/include/sdp_status.h"
+#include "stack/include/sdpdefs.h"
 #include "storage/config_keys.h"
 
 using namespace bluetooth::legacy::stack::sdp;
@@ -113,7 +112,8 @@ static void bta_ag_sdp_cback(tSDP_STATUS status, uint8_t idx) {
     p_scb->sdp_metrics.status = (status == tSDP_STATUS::SDP_SUCCESS) ? tBTA_JV_STATUS::SUCCESS
                                                                      : tBTA_JV_STATUS::FAILURE;
     p_scb->sdp_metrics.sdp_end_ms = common::time_gettimeofday_us();
-    do_in_main_thread(base::BindOnce(&bta_ag_sm_execute_by_handle, idx, event, disc_result));
+    do_in_main_thread(
+            base::BindOnce(&bta_ag_sm_execute_by_handle, idx, event, disc_result, NO_FAILURE));
   }
 }
 
@@ -186,14 +186,14 @@ bool bta_ag_add_record(uint16_t service_uuid, const char* p_service_name, uint8_
   proto_elem_list[1].protocol_uuid = UUID_PROTOCOL_RFCOMM;
   proto_elem_list[1].num_params = 1;
   proto_elem_list[1].params[0] = scn;
-  result &= get_legacy_stack_sdp_api()->handle.SDP_AddProtocolList(
-          sdp_handle, BTA_AG_NUM_PROTO_ELEMS, proto_elem_list);
+  result &= get_legacy_stack_sdp_api()->SDP_AddProtocolList(sdp_handle, BTA_AG_NUM_PROTO_ELEMS,
+                                                            proto_elem_list);
 
   /* add service class id list */
   svc_class_id_list[0] = service_uuid;
   svc_class_id_list[1] = UUID_SERVCLASS_GENERIC_AUDIO;
-  result &= get_legacy_stack_sdp_api()->handle.SDP_AddServiceClassIdList(
-          sdp_handle, BTA_AG_NUM_SVC_ELEMS, svc_class_id_list);
+  result &= get_legacy_stack_sdp_api()->SDP_AddServiceClassIdList(sdp_handle, BTA_AG_NUM_SVC_ELEMS,
+                                                                  svc_class_id_list);
 
   /* add profile descriptor list */
   if (service_uuid == UUID_SERVCLASS_AG_HANDSFREE) {
@@ -203,12 +203,12 @@ bool bta_ag_add_record(uint16_t service_uuid, const char* p_service_name, uint8_
     profile_uuid = UUID_SERVCLASS_HEADSET;
     version = HSP_VERSION_1_2;
   }
-  result &= get_legacy_stack_sdp_api()->handle.SDP_AddProfileDescriptorList(sdp_handle,
-                                                                            profile_uuid, version);
+  result &= get_legacy_stack_sdp_api()->SDP_AddProfileDescriptorList(sdp_handle, profile_uuid,
+                                                                     version);
 
   /* add service name */
   if (p_service_name != nullptr && p_service_name[0] != 0) {
-    result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
+    result &= get_legacy_stack_sdp_api()->SDP_AddAttribute(
             sdp_handle, ATTR_ID_SERVICE_NAME, TEXT_STR_DESC_TYPE,
             (uint32_t)(strlen(p_service_name) + 1), (uint8_t*)p_service_name);
   }
@@ -216,7 +216,7 @@ bool bta_ag_add_record(uint16_t service_uuid, const char* p_service_name, uint8_
   /* add features and network */
   if (service_uuid == UUID_SERVCLASS_AG_HANDSFREE) {
     network = (features & BTA_AG_FEAT_REJECT) ? 1 : 0;
-    result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
+    result &= get_legacy_stack_sdp_api()->SDP_AddAttribute(
             sdp_handle, ATTR_ID_DATA_STORES_OR_NETWORK, UINT_DESC_TYPE, 1, &network);
 
     if (features & BTA_AG_FEAT_CODEC) {
@@ -235,13 +235,13 @@ bool bta_ag_add_record(uint16_t service_uuid, const char* p_service_name, uint8_
     }
 
     UINT16_TO_BE_FIELD(buf, features);
-    result &= get_legacy_stack_sdp_api()->handle.SDP_AddAttribute(
-            sdp_handle, ATTR_ID_SUPPORTED_FEATURES, UINT_DESC_TYPE, 2, buf);
+    result &= get_legacy_stack_sdp_api()->SDP_AddAttribute(sdp_handle, ATTR_ID_SUPPORTED_FEATURES,
+                                                           UINT_DESC_TYPE, 2, buf);
   }
 
   /* add browse group list */
-  result &= get_legacy_stack_sdp_api()->handle.SDP_AddUuidSequence(
-          sdp_handle, ATTR_ID_BROWSE_GROUP_LIST, 1, browse_list);
+  result &= get_legacy_stack_sdp_api()->SDP_AddUuidSequence(sdp_handle, ATTR_ID_BROWSE_GROUP_LIST,
+                                                            1, browse_list);
 
   return result;
 }
@@ -266,7 +266,7 @@ void bta_ag_create_records(tBTA_AG_SCB* p_scb, const tBTA_AG_DATA& data) {
     if (services & 1) {
       /* add sdp record if not already registered */
       if (bta_ag_cb.profile[i].sdp_handle == 0) {
-        bta_ag_cb.profile[i].sdp_handle = get_legacy_stack_sdp_api()->handle.SDP_CreateRecord();
+        bta_ag_cb.profile[i].sdp_handle = get_legacy_stack_sdp_api()->SDP_CreateRecord();
         bta_ag_cb.profile[i].scn = BTA_AllocateSCN();
         bta_ag_add_record(bta_ag_uuid[i], data.api_register.p_name[i], bta_ag_cb.profile[i].scn,
                           data.api_register.features, bta_ag_cb.profile[i].sdp_handle);
@@ -311,7 +311,7 @@ void bta_ag_del_records(tBTA_AG_SCB* p_scb) {
     if (((services & 1) == 1) && ((others & 1) == 0)) {
       log::verbose("bta_ag_del_records {}", i);
       if (bta_ag_cb.profile[i].sdp_handle != 0) {
-        if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(bta_ag_cb.profile[i].sdp_handle)) {
+        if (!get_legacy_stack_sdp_api()->SDP_DeleteRecord(bta_ag_cb.profile[i].sdp_handle)) {
           log::warn("Unable to delete record sdp_handle:{}", bta_ag_cb.profile[i].sdp_handle);
         }
         bta_ag_cb.profile[i].sdp_handle = 0;
@@ -357,13 +357,13 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
   /* loop through all records we found */
   while (true) {
     /* get next record; if none found, we're done */
-    p_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(p_scb->p_disc_db, uuid, p_rec);
+    p_rec = get_legacy_stack_sdp_api()->SDP_FindServiceInDb(p_scb->p_disc_db, uuid, p_rec);
     if (p_rec == nullptr) {
       if (uuid == UUID_SERVCLASS_HEADSET_HS) {
         /* Search again in case the peer device uses the old HSP UUID */
         uuid = UUID_SERVCLASS_HEADSET;
         p_scb->peer_version = HSP_VERSION_1_0;
-        p_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(p_scb->p_disc_db, uuid, p_rec);
+        p_rec = get_legacy_stack_sdp_api()->SDP_FindServiceInDb(p_scb->p_disc_db, uuid, p_rec);
         if (p_rec == nullptr) {
           break;
         }
@@ -374,8 +374,8 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
 
     /* get scn from proto desc list if initiator */
     if (p_scb->role == BTA_AG_INT) {
-      if (get_legacy_stack_sdp_api()->record.SDP_FindProtocolListElemInRec(
-                  p_rec, UUID_PROTOCOL_RFCOMM, &pe)) {
+      if (get_legacy_stack_sdp_api()->SDP_FindProtocolListElemInRec(p_rec, UUID_PROTOCOL_RFCOMM,
+                                                                    &pe)) {
         p_scb->peer_scn = (uint8_t)pe.params[0];
       } else {
         continue;
@@ -384,8 +384,7 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
 
     /* get profile version (if failure, version parameter is not updated) */
     uint16_t peer_version = HFP_HSP_VERSION_UNKNOWN;
-    if (!get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(p_rec, uuid,
-                                                                        &peer_version)) {
+    if (!get_legacy_stack_sdp_api()->SDP_FindProfileVersionInRec(p_rec, uuid, &peer_version)) {
       log::warn("Get peer_version failed, using default 0x{:04x}", p_scb->peer_version);
       peer_version = p_scb->peer_version;
     }
@@ -403,8 +402,8 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
         }
       }
       /* get features if HFP */
-      p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
-              p_rec, ATTR_ID_SUPPORTED_FEATURES);
+      p_attr =
+              get_legacy_stack_sdp_api()->SDP_FindAttributeInRec(p_rec, ATTR_ID_SUPPORTED_FEATURES);
       if (p_attr != nullptr && SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) == UINT_DESC_TYPE &&
           SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 2) {
         /* Found attribute. Get value. */
@@ -434,16 +433,16 @@ bool bta_ag_sdp_find_attr(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
         }
         /* Remote supports 1.7, store it in HFP 1.7 BL file */
         if (p_scb->peer_version >= HFP_VERSION_1_9) {
-          interop_database_add_addr(INTEROP_HFP_1_9_ALLOWLIST, &p_scb->peer_addr, 3);
+          interop_database_add_addr(INTEROP_HFP_1_9_ALLOWLIST, p_scb->peer_addr, 3);
         } else if (p_scb->peer_version >= HFP_VERSION_1_7) {
-          interop_database_add_addr(INTEROP_HFP_1_7_ALLOWLIST, &p_scb->peer_addr, 3);
+          interop_database_add_addr(INTEROP_HFP_1_7_ALLOWLIST, p_scb->peer_addr, 3);
         }
       }
     } else {
       /* No peer version caching for HSP, use discovered one directly */
       p_scb->peer_version = peer_version;
       /* get features if HSP */
-      p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
+      p_attr = get_legacy_stack_sdp_api()->SDP_FindAttributeInRec(
               p_rec, ATTR_ID_REMOTE_AUDIO_VOLUME_CONTROL);
       if (p_attr != nullptr && SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) == BOOLEAN_DESC_TYPE &&
           SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 1) {
@@ -536,9 +535,9 @@ void bta_ag_do_disc(tBTA_AG_SCB* p_scb, tBTA_SERVICE_MASK service) {
   /* allocate buffer for sdp database */
   p_scb->p_disc_db = (tSDP_DISCOVERY_DB*)osi_malloc(BTA_AG_DISC_BUF_SIZE);
   /* set up service discovery database; attr happens to be attr_list len */
-  if (get_legacy_stack_sdp_api()->service.SDP_InitDiscoveryDb(
-              p_scb->p_disc_db, BTA_AG_DISC_BUF_SIZE, num_uuid, uuid_list, num_attr, attr_list)) {
-    if (get_legacy_stack_sdp_api()->service.SDP_ServiceSearchAttributeRequest(
+  if (get_legacy_stack_sdp_api()->SDP_InitDiscoveryDb(p_scb->p_disc_db, BTA_AG_DISC_BUF_SIZE,
+                                                      num_uuid, uuid_list, num_attr, attr_list)) {
+    if (get_legacy_stack_sdp_api()->SDP_ServiceSearchAttributeRequest(
                 p_scb->peer_addr, p_scb->p_disc_db,
                 bta_ag_sdp_cback_tbl[bta_ag_scb_to_idx(p_scb) - 1])) {
       p_scb->sdp_metrics.sdp_start_ms = common::time_gettimeofday_us() / 1000;

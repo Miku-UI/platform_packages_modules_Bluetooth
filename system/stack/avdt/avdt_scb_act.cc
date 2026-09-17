@@ -33,18 +33,18 @@
 
 #include <cstdint>
 
-#include "a2dp_codec_api.h"
-#include "a2dp_constants.h"
-#include "avdt_api.h"
 #include "avdt_defs.h"
 #include "avdt_int.h"
 #include "internal_include/bt_target.h"
-#include "l2cap_types.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
+#include "stack/include/a2dp_codec_api.h"
+#include "stack/include/a2dp_constants.h"
+#include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/l2cap_interface.h"
+#include "stack/include/l2cap_types.h"
 
 using namespace bluetooth;
 
@@ -693,8 +693,7 @@ void avdt_scb_hdl_setconfig_rsp(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
     // Delay reporting is sent before open request (i.e., in configured state).
     avdt_scb_snd_snk_delay_rpt_req(p_scb, p_data);
 
-    if (com_android_bluetooth_flags_avdt_wait_for_initial_delay_report_as_initiator() &&
-        (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT)) {
+    if (p_scb->curr_cfg.psc_mask & AVDT_PSC_DELAY_RPT) {
       log::verbose("set alarm init_delay_report_timer");
       alarm_set_on_mloop(p_scb->init_delay_report_timer, AVDT_INIT_DELAY_REPORT_TIMEOUT_MS,
                          avdt_init_delay_report_timer_timeout, p_scb);
@@ -862,10 +861,6 @@ void avdt_scb_hdl_delay_rpt_cmd(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data) {
   }
 
   avdt_msg_send_rsp(p_scb->p_ccb, AVDT_SIG_DELAY_RPT, &p_data->msg);
-
-  if (!com_android_bluetooth_flags_avdt_wait_for_initial_delay_report_as_initiator()) {
-    return;
-  }
 
   if (!alarm_is_scheduled(p_scb->init_delay_report_timer)) {
     log::verbose("init_delay_report_timer alarm not scheduled");

@@ -22,6 +22,7 @@
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
 #include <bluetooth/types/bt_transport.h>
+#include <bluetooth/types/string_helpers.h>
 #include <com_android_bluetooth_flags.h>
 #include <stdio.h>
 
@@ -38,20 +39,12 @@
 #include <string>
 #include <vector>
 
-#include "acl_api.h"
 #include "bta_gatt_api.h"
 #include "bta_gatt_queue.h"
 #include "btif/include/btif_storage.h"
-#include "btm_ble_api_types.h"
-#include "btm_iso_api.h"
-#include "btm_iso_api_types.h"
 #include "common/le_conn_params.h"
-#include "common/strings.h"
-#include "gatt_api.h"
 #include "hardware/bluetooth.h"
 #include "hci/controller.h"
-#include "hci_error_code.h"
-#include "hcidefs.h"
 #include "internal_include/bt_trace.h"
 #include "le_audio/codec_manager.h"
 #include "le_audio/le_audio_types.h"
@@ -60,8 +53,16 @@
 #include "main/shim/entry.h"
 #include "osi/include/alarm.h"
 #include "osi/include/properties.h"
+#include "stack/include/acl_api.h"
+#include "stack/include/btm_ble_api_types.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_iso_api.h"
+#include "stack/include/btm_iso_api_types.h"
+#include "stack/include/gatt_api.h"
+#include "stack/include/hci_error_code.h"
+#include "stack/include/hcidefs.h"
 #include "stack/include/l2cap_interface.h"
+#include "stack/include/stack_le_connection.h"
 
 using bluetooth::hci::kIsoCigPhy1M;
 using bluetooth::hci::kIsoCigPhy2M;
@@ -454,7 +455,9 @@ bool LeAudioDevice::ConfigureAses(const types::AudioSetConfiguration* audio_set_
      * Nothing more to do is needed here.
      */
     if (ase->state != AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING) {
-      if (ase->state == AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED) {
+      if (ase->state == AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED ||
+          (com_android_bluetooth_flags_leaudio_fix_qos_reconfiguration() &&
+           ase->state == AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED)) {
         ase->reconfigure = true;
       }
 
@@ -462,11 +465,34 @@ bool LeAudioDevice::ConfigureAses(const types::AudioSetConfiguration* audio_set_
       ase->codec_config = ase_cfg.codec;
 
       /* Let's choose audio channel allocation if not set */
-      auto location =
-              PickAudioLocation(strategy, direction, audio_locations_, group_audio_locations_memo);
+      bool location_provided_in_config =
+              ase->codec_config.params.Find(codec_spec_conf::kLeAudioLtvTypeAudioChannelAllocation)
+                      .has_value();
+      uint32_t location = 0;
+
+      if (com_android_bluetooth_flags_leaudio_fix_allocation_in_codec_config()) {
+        if (location_provided_in_config) {
+          auto config = ase->codec_config.params.GetAsCoreCodecConfig();
+          group_audio_locations_memo |= config.audio_channel_allocation.value();
+          location = config.audio_channel_allocation.value();
+        } else {
+          location = PickAudioLocation(strategy, direction, audio_locations_,
+                                       group_audio_locations_memo);
+        }
+      } else {
+        location = PickAudioLocation(strategy, direction, audio_locations_,
+                                     group_audio_locations_memo);
+      }
+
       if (location != bluetooth::le_audio::codec_spec_conf::kLeAudioLocationMonoAudio) {
         ase->codec_config.params.Add(codec_spec_conf::kLeAudioLtvTypeAudioChannelAllocation,
                                      location);
+      } else if (com_android_bluetooth_flags_leaudio_fix_allocation_in_codec_config()) {
+        if (location_provided_in_config) {
+          log::info(
+                  "Mono location is provided by audio hal, remove it from Codec Config operations");
+          ase->codec_config.params.Remove(codec_spec_conf::kLeAudioLtvTypeAudioChannelAllocation);
+        }
       }
 
       /* Get default value if no requirement for specific frame blocks per sdu
@@ -888,7 +914,10 @@ bool LeAudioDevice::HaveAnyUnconfiguredAses(void) {
     }
 
     if (ase.state == AseState::BTA_LE_AUDIO_ASE_STATE_IDLE ||
-        ((ase.state == AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED) && ase.reconfigure)) {
+        ((ase.state == AseState::BTA_LE_AUDIO_ASE_STATE_CODEC_CONFIGURED ||
+          (com_android_bluetooth_flags_leaudio_fix_qos_reconfiguration() &&
+           ase.state == AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED)) &&
+         ase.reconfigure)) {
       return true;
     }
 
@@ -973,45 +1002,33 @@ bool LeAudioDevice::IsReadyToCreateStream(void) {
             if (ase.direction == types::kLeAudioDirectionSink &&
                 (ase.state != AseState::BTA_LE_AUDIO_ASE_STATE_STREAMING &&
                  ase.state != AseState::BTA_LE_AUDIO_ASE_STATE_ENABLING)) {
-              if (com_android_bluetooth_flags_leaudio_dynamic_direction_opening()) {
-                if (ase.state == AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED &&
-                    ase.expected_state == AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED) {
-                  return false;
-                } else {
-                  return true;
-                }
-              } else {
-                return true;
+              if (ase.state == AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED &&
+                  ase.expected_state == AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED) {
+                return false;
               }
+              return true;
             }
 
             if (ase.direction == types::kLeAudioDirectionSource &&
                 ase.state != AseState::BTA_LE_AUDIO_ASE_STATE_ENABLING) {
-              if (com_android_bluetooth_flags_leaudio_dynamic_direction_opening()) {
-                if (ase.state == AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED &&
-                    ase.expected_state == AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED) {
-                  return false;
-                } else {
-                  return true;
-                }
-              } else {
-                return true;
+              if (ase.state == AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED &&
+                  ase.expected_state == AseState::BTA_LE_AUDIO_ASE_STATE_QOS_CONFIGURED) {
+                return false;
               }
+              return true;
             }
 
             is_any_direction_started = true;
             return false;
           });
 
-  if (com_android_bluetooth_flags_leaudio_dynamic_direction_opening()) {
-    /* This is actually just for testing code, but still valid check. If it turns out that
-     * device has all directions in QoS state, it could be reported as Ready To Stream which is not
-     * true. At least one direction need to be enabled per device.
-     */
-    if (is_any_active && !is_any_direction_started) {
-      log::debug("{}, has active ASEs but has no enabled direction yet.", address_);
-      return false;
-    }
+  /* This is actually just for testing code, but still valid check. If it turns out that
+   * device has all directions in QoS state, it could be reported as Ready To Stream which is not
+   * true. At least one direction need to be enabled per device.
+   */
+  if (is_any_active && !is_any_direction_started) {
+    log::debug("{}, has active ASEs but has no enabled direction yet.", address_);
+    return false;
   }
 
   return iter == ases_.end();
@@ -1292,9 +1309,9 @@ void LeAudioDevice::DisconnectAcl(void) {
 
 void LeAudioDevice::SetAvailableContexts(BidirectionalPair<AudioContexts> contexts) {
   log::debug(
-          "{}: \n\t previous_contexts_.sink: {} \n\t previous_contexts_.source: {} "
+          "{}:\n\t previous_contexts_.sink: {}\n\t previous_contexts_.source: {} "
           " "
-          "\n\t new_contexts.sink: {} \n\t new_contexts.source: {} \n\t",
+          "\n\t new_contexts.sink: {}\n\t new_contexts.source: {}\n\t",
           address_, avail_contexts_.sink.to_string(), avail_contexts_.source.to_string(),
           contexts.sink.to_string(), contexts.source.to_string());
 
@@ -1394,17 +1411,19 @@ bool LeAudioDevice::IsMetadataChanged(const BidirectionalPair<AudioContexts>& co
   return false;
 }
 
+// TODO: will remove when Flags.leaudioAllowlistRefactor() publish
 void LeAudioDevice::GetDeviceModelName(void) {
   bt_property_t prop_name;
   bt_bdname_t prop_value = {0};
   // Retrieve model name from storage
   BTIF_STORAGE_FILL_PROPERTY(&prop_name, BT_PROPERTY_REMOTE_MODEL_NUM, sizeof(bt_bdname_t),
                              &prop_value);
-  if (btif_storage_get_remote_device_property(&address_, &prop_name) == BT_STATUS_SUCCESS) {
+  if (btif_storage_get_remote_device_property(address_, &prop_name) == BT_STATUS_SUCCESS) {
     model_name_.assign((char*)prop_value.name);
   }
 }
 
+// TODO: will remove when Flags.leaudioAllowlistRefactor() publish
 void LeAudioDevice::UpdateDeviceAllowlistFlag(void) {
   char allow_list[PROPERTY_VALUE_MAX] = {0};
   GetDeviceModelName();
@@ -1461,10 +1480,6 @@ void LeAudioDevice::StartLinkQualityReports(uint16_t cis_handle) {
 }
 
 void LeAudioDevice::StartConnSubrate() {
-  if (!com_android_bluetooth_flags_leaudio_connection_subrating()) {
-    return;
-  }
-
   log::verbose(
           " Subrate flag enabled. local conrtoller - {}, {}: remote controller - {}, remote host - "
           "{}",
@@ -1523,6 +1538,22 @@ void LeAudioDevice::StartConnSubrate() {
     return;
   }
 
+  if (com_android_bluetooth_flags_le_subrate_manager()) {
+    stack::l2cap::get_interface().L2CA_LockBleConnParamsForLeAudioSubrate(address_, true);
+    tGATT_STATUS status =
+            stack::leConnectionUpdateSubrateConfig(client_if_, address_, GATT_SUBRATE_MODE_LEA);
+
+    if (status != GATT_SUCCESS) {
+      stack::l2cap::get_interface().L2CA_LockBleConnParamsForLeAudioSubrate(address_, false);
+      SetSubrateState(SubrateState::DISABLED);
+      log::error("Fail to request subrate mode.");
+    } else {
+      SetSubrateState(SubrateState::PENDING_ENABLING_SUBRATE_UPDATE);
+    }
+
+    return;
+  }
+
   stack::l2cap::get_interface().L2CA_LockBleConnParamsForLeAudioSubrate(address_, true);
   stack::l2cap::get_interface().L2CA_SubrateRequest(address_, min_subrate, max_subrate, 0,
                                                     cont_number, supervision_timeout);
@@ -1536,6 +1567,11 @@ void LeAudioDevice::StopConnSubrate() {
   }
 
   stack::l2cap::get_interface().L2CA_LockBleConnParamsForLeAudioSubrate(address_, false);
+
+  if (com_android_bluetooth_flags_le_subrate_manager()) {
+    stack::leConnectionUpdateSubrateConfig(client_if_, address_, GATT_SUBRATE_MODE_OFF);
+  }
+
   SetSubrateState(SubrateState::DISABLED);
 }
 
@@ -1650,7 +1686,6 @@ LeAudioDevice* LeAudioDevices::FindByCisConnHdl(uint8_t cig_id, uint16_t conn_hd
 }
 
 void LeAudioDevices::SetInitialGroupAutoconnectState(int group_id, int gatt_if,
-                                                     tBTM_BLE_CONN_TYPE /*reconnection_mode*/,
                                                      bool current_dev_autoconnect_flag) {
   if (!current_dev_autoconnect_flag) {
     /* If current device autoconnect flag is false, check if there is other
@@ -1682,7 +1717,7 @@ void LeAudioDevices::SetInitialGroupAutoconnectState(int group_id, int gatt_if,
       dev->SetConnectionState(DeviceConnectState::CONNECTING_AUTOCONNECT);
       dev->autoconnect_flag_ = true;
       btif_storage_set_leaudio_autoconnect(dev->address_, true);
-      BTA_GATTC_Open(gatt_if, dev->address_, BTM_BLE_DIRECT_CONNECTION, false);
+      BTA_GATTC_Open(gatt_if, dev->address_, BTM_BLE_DIRECT_CONNECTION);
     }
   }
 }

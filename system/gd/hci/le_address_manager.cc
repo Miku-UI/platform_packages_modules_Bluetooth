@@ -17,11 +17,11 @@
 #include "hci/le_address_manager.h"
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/bt_octets.h>
 #include <com_android_bluetooth_flags.h>
 
 #include <ctime>
 
-#include "hci/octets.h"
 #include "include/macros.h"
 #include "os/rand.h"
 
@@ -30,7 +30,7 @@
 namespace bluetooth {
 namespace hci {
 
-static constexpr uint8_t BLE_ADDR_MASK = 0xc0u;
+static constexpr uint8_t BLE_ADDR_MASK = 0b11000000;
 
 enum class LeAddressManager::ClientState {
   WAITING_FOR_PAUSE,
@@ -61,10 +61,10 @@ static std::string AddressPolicyText(const LeAddressManager::AddressPolicy polic
 }
 
 LeAddressManager::LeAddressManager(
-        common::Callback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
+        base::RepeatingCallback<void(std::unique_ptr<CommandBuilder>)> enqueue_command,
         os::Handler* handler, Address public_address, uint8_t accept_list_size,
         uint8_t resolving_list_size, Controller* controller)
-    : enqueue_command_(enqueue_command),
+    : enqueue_command_(std::move(enqueue_command)),
       handler_(handler),
       public_address_(public_address),
       accept_list_size_(accept_list_size),
@@ -80,11 +80,11 @@ LeAddressManager::~LeAddressManager() {
     address_rotation_non_wake_alarm_->Cancel();
     address_rotation_non_wake_alarm_.reset();
   }
-  if (address_rotation_interval_min.has_value()) {
-    address_rotation_interval_min.reset();
+  if (expected_address_rotation_interval_min.has_value()) {
+    expected_address_rotation_interval_min.reset();
   }
-  if (address_rotation_interval_max.has_value()) {
-    address_rotation_interval_max.reset();
+  if (expected_address_rotation_interval_max.has_value()) {
+    expected_address_rotation_interval_max.reset();
   }
 }
 
@@ -114,12 +114,10 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddress(
   supports_ble_privacy_ = supports_ble_privacy;
   log::info("New policy: {}", AddressPolicyText(address_policy));
 
-  if (com_android_bluetooth_flags_nrpa_non_connectable_adv()) {
-    minimum_rotation_time_ = minimum_rotation_time;
-    maximum_rotation_time_ = maximum_rotation_time;
-    log::info("minimum_rotation_time_={}ms, maximum_rotation_time_={}ms",
-              minimum_rotation_time_.count(), maximum_rotation_time_.count());
-  }
+  minimum_rotation_time_ = minimum_rotation_time;
+  maximum_rotation_time_ = maximum_rotation_time;
+  log::info("minimum_rotation_time_={}ms, maximum_rotation_time_={}ms",
+            minimum_rotation_time_.count(), maximum_rotation_time_.count());
 
   switch (address_policy_) {
     case AddressPolicy::USE_PUBLIC_ADDRESS:
@@ -141,18 +139,12 @@ void LeAddressManager::SetPrivacyPolicyForInitiatorAddress(
       }
       le_address_ = fixed_address;
       auto packet = hci::LeSetRandomAddressBuilder::Create(le_address_.GetAddress());
-      handler_->Post(common::BindOnce(enqueue_command_, std::move(packet)));
+      handler_->Post(base::BindOnce(enqueue_command_, std::move(packet)));
     } break;
     case AddressPolicy::USE_NON_RESOLVABLE_ADDRESS:
     case AddressPolicy::USE_RESOLVABLE_ADDRESS:
       le_address_ = fixed_address;
       rotation_irk_ = rotation_irk;
-      if (!com_android_bluetooth_flags_nrpa_non_connectable_adv()) {
-        minimum_rotation_time_ = minimum_rotation_time;
-        maximum_rotation_time_ = maximum_rotation_time;
-        log::info("minimum_rotation_time_={}ms, maximum_rotation_time_={}ms",
-                  minimum_rotation_time_.count(), maximum_rotation_time_.count());
-      }
       if (controller_->IsRpaGenerationSupported()) {
         auto min_seconds = std::chrono::duration_cast<std::chrono::seconds>(minimum_rotation_time_);
         auto max_seconds = std::chrono::duration_cast<std::chrono::seconds>(maximum_rotation_time_);
@@ -283,11 +275,11 @@ void LeAddressManager::unregister_client(LeAddressManagerCallback* callback) {
     if (address_rotation_non_wake_alarm_ != nullptr) {
       address_rotation_non_wake_alarm_->Cancel();
     }
-    if (address_rotation_interval_min.has_value()) {
-      address_rotation_interval_min.reset();
+    if (expected_address_rotation_interval_min.has_value()) {
+      expected_address_rotation_interval_min.reset();
     }
-    if (address_rotation_interval_max.has_value()) {
-      address_rotation_interval_max.reset();
+    if (expected_address_rotation_interval_max.has_value()) {
+      expected_address_rotation_interval_max.reset();
     }
     log::info("Cancelled address rotation alarm");
   }
@@ -298,12 +290,8 @@ bool LeAddressManager::UnregisterSync(LeAddressManagerCallback* callback,
   handler_->BindOnceOn(this, &LeAddressManager::unregister_client, callback)();
   std::promise<void> promise;
   auto future = promise.get_future();
-  if (com_android_bluetooth_flags_use_shared_promise_for_le_address_manager()) {
-    handler_->Post(common::BindOnce([](std::promise<void> promise) { promise.set_value(); },
-                                    std::move(promise)));
-  } else {
-    handler_->Post(common::BindOnce(&std::promise<void>::set_value, common::Unretained(&promise)));
-  }
+  handler_->Post(base::BindOnce([](std::promise<void> promise) { promise.set_value(); },
+                                std::move(promise)));
 
   return future.wait_for(timeout) == std::future_status::ready;
 }
@@ -330,9 +318,6 @@ AddressWithType LeAddressManager::NewResolvableAddress() {
 }
 
 AddressWithType LeAddressManager::NewNonResolvableAddress() {
-  if (!com_android_bluetooth_flags_nrpa_non_connectable_adv()) {
-    log::assert_that(RotatingAddress(), "assert failed: RotatingAddress()");
-  }
   hci::Address address = generate_nrpa();
   auto random_address = AddressWithType(address, AddressType::RANDOM_DEVICE_ADDRESS);
   return random_address;
@@ -422,22 +407,22 @@ void LeAddressManager::schedule_rotate_random_address() {
   std::string client_name = "LeAddressManager";
   auto privateAddressIntervalRange = GetNextPrivateAddressIntervalRange(client_name);
   address_rotation_wake_alarm_->Schedule(
-          common::BindOnce(
-                  []() { log::info("deadline wakeup in schedule_rotate_random_address"); }),
+          base::BindOnce([]() { log::info("deadline wakeup in schedule_rotate_random_address"); }),
           privateAddressIntervalRange.max);
   address_rotation_non_wake_alarm_->Schedule(
-          common::BindOnce(&LeAddressManager::prepare_to_rotate, common::Unretained(this)),
+          base::BindOnce(&LeAddressManager::prepare_to_rotate, base::Unretained(this)),
           privateAddressIntervalRange.min);
 
   auto now = std::chrono::system_clock::now();
-  if (address_rotation_interval_min.has_value()) {
-    CheckAddressRotationHappenedInExpectedTimeInterval(
-            *address_rotation_interval_min, *address_rotation_interval_max, now, client_name);
+  if (expected_address_rotation_interval_min.has_value()) {
+    CheckAddressRotationHappenedInExpectedTimeInterval(*expected_address_rotation_interval_min,
+                                                       *expected_address_rotation_interval_max, now,
+                                                       client_name);
   }
 
   // Update the expected range here.
-  address_rotation_interval_min.emplace(now + privateAddressIntervalRange.min);
-  address_rotation_interval_max.emplace(now + privateAddressIntervalRange.max);
+  expected_address_rotation_interval_min.emplace(now + privateAddressIntervalRange.min);
+  expected_address_rotation_interval_max.emplace(now + privateAddressIntervalRange.max);
 }
 
 void LeAddressManager::set_random_address() {
@@ -492,17 +477,19 @@ void LeAddressManager::update_irk(UpdateIRKCommand command) {
 }
 
 /* This function generates Resolvable Private Address (RPA) from Identity
- * Resolving Key |irk| and |prand|*/
+ * Resolving Key |irk| and |prand| */
 hci::Address LeAddressManager::generate_rpa() {
-  // most significant bit, bit7, bit6 is 01 to be resolvable random
+  // The most significant bit shall be '0', the second most significant bit shall be '1'
   // Bits of the random part of prand shall not be all 1 or all 0
-  std::array<uint8_t, 3> prand = os::GenerateRandom<3>();
-  constexpr uint8_t BLE_RESOLVE_ADDR_MSB = 0x40;
-  prand[2] &= ~BLE_ADDR_MASK;
-  if ((prand[0] == 0x00 && prand[1] == 0x00 && prand[2] == 0x00) ||
-      (prand[0] == 0xFF && prand[1] == 0xFF && prand[2] == 0x3F)) {
-    prand[0] = (uint8_t)(os::GenerateRandom() % 0xFE + 1);
-  }
+  constexpr uint8_t BLE_RESOLVE_ADDR_MSB = 0b01000000;
+  constexpr std::array<uint8_t, 3> invalid_prand = {0x00, 0x00, 0x00};
+  constexpr std::array<uint8_t, 3> invalid_prand_2 = {0xFF, 0xFF, (0xFF & ~BLE_ADDR_MASK)};
+
+  std::array<uint8_t, 3> prand;
+  do {
+    prand = os::GenerateRandom<3>();
+    prand[2] &= ~BLE_ADDR_MASK;
+  } while (prand == invalid_prand || prand == invalid_prand_2);
   prand[2] |= BLE_RESOLVE_ADDR_MSB;
 
   hci::Address address;
@@ -515,10 +502,10 @@ hci::Address LeAddressManager::generate_rpa() {
   rand[1] = prand[1];
   rand[2] = prand[2];
 
-  /* encrypt with IRK */
+  // Encrypt with IRK
   Octet16 p = crypto_toolbox::aes_128(rotation_irk_, rand);
 
-  /* set hash to be LSB of rpAddress */
+  // Set hash to be LSB of rpAddress
   address.address[0] = p[0];
   address.address[1] = p[1];
   address.address[2] = p[2];
@@ -527,33 +514,22 @@ hci::Address LeAddressManager::generate_rpa() {
 
 // This function generates NON-Resolvable Private Address (NRPA)
 hci::Address LeAddressManager::generate_nrpa() {
-  // The two most significant bits of the address shall be equal to 0
-  // Bits of the random part of the address shall not be all 1 or all 0
-  std::array<uint8_t, 6> random = os::GenerateRandom<6>();
-  random[5] &= ~BLE_ADDR_MASK;
-  if ((random[0] == 0x00 && random[1] == 0x00 && random[2] == 0x00 && random[3] == 0x00 &&
-       random[4] == 0x00 && random[5] == 0x00) ||
-      (random[0] == 0xFF && random[1] == 0xFF && random[2] == 0xFF && random[3] == 0xFF &&
-       random[4] == 0xFF && random[5] == 0x3F)) {
-    random[0] = (uint8_t)(os::GenerateRandom() % 0xFE + 1);
-  }
-
   hci::Address address;
-  address.FromOctets(random.data());
-
-  // the address shall not be equal to the public address
-  while (address == public_address_) {
-    address.address[0] = (uint8_t)(os::GenerateRandom() % 0xFE + 1);
-  }
+  do {
+    // The two most significant bits of the address shall be equal to 0
+    // Bits of the random part of the address shall not be all 1 or all 0
+    constexpr std::array<uint8_t, 6> invalid_rand = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    constexpr std::array<uint8_t, 6> invalid_rand2 = {0xFF, 0xFF, 0xFF,
+                                                      0xFF, 0xFF, (0xFF & ~BLE_ADDR_MASK)};
+    std::array<uint8_t, 6> rand;
+    do {
+      rand = os::GenerateRandom<6>();
+      rand[5] &= ~BLE_ADDR_MASK;
+    } while (rand == invalid_rand || rand == invalid_rand2);
+    address.FromOctets(rand.data());
+  } while (address == public_address_);  // Address shall not be same as the public address
 
   return address;
-}
-
-std::chrono::milliseconds LeAddressManager::GetNextPrivateAddressIntervalMs() {
-  auto interval_random_part_wake_delay = maximum_rotation_time_ - minimum_rotation_time_;
-  auto random_ms =
-          std::chrono::milliseconds(os::GenerateRandom()) % (interval_random_part_wake_delay);
-  return minimum_rotation_time_ + random_ms;
 }
 
 PrivateAddressIntervalRange LeAddressManager::GetNextPrivateAddressIntervalRange(
@@ -847,6 +823,23 @@ void LeAddressManager::OnCommandComplete(bluetooth::hci::CommandCompleteView vie
   }
 
   handler_->BindOnceOn(this, &LeAddressManager::check_cached_commands)();
+}
+
+void LeAddressManager::PrepareToRotateAddress() {
+  if (controller_->IsRpaGenerationSupported()) {
+    log::warn("Should not be called when RPA generation is supported");
+    return;
+  }
+
+  // We are rotating the address outside of what we previously scheduled.
+  // Prevent showing the warning log by removing expected time interval for the next rotation.
+  if (expected_address_rotation_interval_min.has_value()) {
+    expected_address_rotation_interval_min.reset();
+  }
+  if (expected_address_rotation_interval_max.has_value()) {
+    expected_address_rotation_interval_max.reset();
+  }
+  handler_->BindOnceOn(this, &LeAddressManager::prepare_to_rotate)();
 }
 
 void LeAddressManager::check_cached_commands() {

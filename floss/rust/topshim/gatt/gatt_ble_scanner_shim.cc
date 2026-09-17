@@ -190,10 +190,7 @@ void BleScannerIntf::OnBatchScanThresholdCrossed(int client_if) {
 
 // BleScannerInterface implementations
 
-void BleScannerIntf::RegisterScanner(Uuid uuid) {
-  scanner_intf_->RegisterScanner(
-          uuid, base::Bind(&BleScannerIntf::OnRegisterCallback, base::Unretained(this), uuid));
-}
+void BleScannerIntf::RegisterScanner(Uuid uuid) { scanner_intf_->RegisterScanner(uuid); }
 
 void BleScannerIntf::Unregister(uint8_t scanner_id) { scanner_intf_->Unregister(scanner_id); }
 
@@ -279,8 +276,9 @@ void BleScannerIntf::BatchScanReadReports(uint8_t scanner_id, int32_t scan_mode)
   scanner_intf_->BatchScanReadReports(scanner_id, scan_mode);
 }
 
-void BleScannerIntf::StartSync(uint8_t sid, RawAddress addr, uint16_t skip, uint16_t timeout) {
-  scanner_intf_->StartSync(sid, addr, skip, timeout, 0 /* place holder */);
+void BleScannerIntf::StartSync(uint8_t sid, RawAddress addr, uint8_t addr_type, uint16_t skip,
+                               uint16_t timeout) {
+  scanner_intf_->StartSync(sid, addr, addr_type, skip, timeout, 0 /* place holder */);
 }
 
 void BleScannerIntf::StopSync(uint16_t handle) { scanner_intf_->StopSync(handle); }
@@ -300,10 +298,6 @@ void BleScannerIntf::TransferSetInfo(RawAddress addr, uint16_t service_data, uin
 void BleScannerIntf::SyncTxParameters(RawAddress addr, uint8_t mode, uint16_t skip,
                                       uint16_t timeout) {
   scanner_intf_->SyncTxParameters(addr, mode, skip, timeout, 0 /* place holder */);
-}
-
-void BleScannerIntf::OnRegisterCallback(Uuid uuid, uint8_t scanner_id, uint8_t btm_status) {
-  rusty::gdscan_register_callback(uuid, scanner_id, btm_status);
 }
 
 void BleScannerIntf::OnStatusCallback(uint8_t scanner_id, uint8_t btm_status) {
@@ -364,12 +358,6 @@ void BleScannerIntf::OnBigInfoReport(uint16_t sync_handle, bool encrypted) {
 void BleScannerIntf::RegisterCallbacks() {
   // Register self as a callback handler. We will dispatch to Rust callbacks.
   scanner_intf_->RegisterCallbacks(this);
-}
-
-// ScanningCallbacks overrides
-std::unique_ptr<BleScannerIntf> GetBleScannerIntf(const unsigned char* gatt_intf) {
-  return std::make_unique<BleScannerIntf>(
-          reinterpret_cast<const btgatt_interface_t*>(gatt_intf)->scanner);
 }
 
 }  // namespace rust

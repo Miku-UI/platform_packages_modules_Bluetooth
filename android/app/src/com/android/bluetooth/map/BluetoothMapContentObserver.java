@@ -17,8 +17,6 @@ package com.android.bluetooth.map;
 
 import android.app.Activity;
 import android.app.PendingIntent;
-import android.bluetooth.BluetoothProfile;
-import android.bluetooth.BluetoothProtoEnums;
 import android.content.BroadcastReceiver;
 import android.content.ContentProviderClient;
 import android.content.ContentResolver;
@@ -55,9 +53,8 @@ import android.util.Log;
 import android.util.Xml;
 
 import com.android.bluetooth.BluetoothMethodProxy;
-import com.android.bluetooth.BluetoothStatsLog;
+import com.android.bluetooth.Util;
 import com.android.bluetooth.Utils;
-import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
 import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.map.BluetoothMapContract.MessageColumns;
 import com.android.bluetooth.map.BluetoothMapUtils.TYPE;
@@ -89,7 +86,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-// Next tag value for ContentProfileErrorReportUtils.report(): 41
 public class BluetoothMapContentObserver {
     private static final String TAG = BluetoothMapContentObserver.class.getSimpleName();
 
@@ -351,11 +347,6 @@ public class BluetoothMapContentObserver {
                             + " though PARTICIPANT_PRESENCE_CHANGE_BIT or"
                             + " PARTICIPANT_CHAT_STATE_CHANGE_BIT were set, mMapSupportedFeatures="
                             + mMapSupportedFeatures);
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                    0);
         }
         Log.d(
                 TAG,
@@ -499,12 +490,6 @@ public class BluetoothMapContentObserver {
                 public void onChange(boolean selfChange, Uri uri) {
                     if (uri == null) {
                         Log.w(TAG, "onChange() with URI == null - not handled.");
-                        ContentProfileErrorReportUtils.report(
-                                BluetoothProfile.MAP,
-                                BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                                1);
                         return;
                     }
 
@@ -548,11 +533,6 @@ public class BluetoothMapContentObserver {
             return name;
         }
         Log.e(TAG, "New SMS mailbox types have been introduced, without an update in BT...");
-        ContentProfileErrorReportUtils.report(
-                BluetoothProfile.MAP,
-                BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
-                2);
         return "Unknown";
     }
 
@@ -572,11 +552,6 @@ public class BluetoothMapContentObserver {
             return name;
         }
         Log.e(TAG, "New MMS mailboxes have been introduced, without an update in BT...");
-        ContentProfileErrorReportUtils.report(
-                BluetoothProfile.MAP,
-                BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
-                3);
         return "Unknown";
     }
 
@@ -892,25 +867,10 @@ public class BluetoothMapContentObserver {
                 xmlEvtReport.endTag("", "MAP-event-report");
                 xmlEvtReport.endDocument();
             } catch (IllegalArgumentException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        4);
                 Log.w(TAG, e);
             } catch (IllegalStateException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        5);
                 Log.w(TAG, e);
             } catch (IOException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        6);
                 Log.w(TAG, e);
             }
 
@@ -1067,7 +1027,6 @@ public class BluetoothMapContentObserver {
         }
 
         if (mAccount != null) {
-
             mProviderClient = mResolver.acquireUnstableContentProviderClient(mAuthority);
             if (mProviderClient == null) {
                 throw new RemoteException("Failed to acquire provider for " + mAuthority);
@@ -1109,7 +1068,6 @@ public class BluetoothMapContentObserver {
             mResolver.registerContentObserver(uri, true, mObserver);
 
             if (mAccount.getType() == TYPE.IM) {
-
                 uri =
                         Uri.parse(
                                 mAccount.mBase_uri_no_account
@@ -1163,12 +1121,6 @@ public class BluetoothMapContentObserver {
                 try {
                     handleMsgListChangesMsg(mMessageUri);
                 } catch (RemoteException e) {
-                    ContentProfileErrorReportUtils.report(
-                            BluetoothProfile.MAP,
-                            BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                            7);
                     Log.e(
                             TAG,
                             "Unable to update FolderVersionCounter. - Not fatal, but can cause"
@@ -1331,11 +1283,6 @@ public class BluetoothMapContentObserver {
                                         null,
                                         null);
             } catch (SQLiteException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        9);
                 Log.e(TAG, "Failed to initialize the list of messages: " + e);
                 return;
             }
@@ -1537,12 +1484,6 @@ public class BluetoothMapContentObserver {
                         int idIndex = c.getColumnIndexOrThrow(Sms._ID);
                         if (c.isNull(idIndex)) {
                             Log.w(TAG, "handleMsgListChangesSms, ID is null");
-                            ContentProfileErrorReportUtils.report(
-                                    BluetoothProfile.MAP,
-                                    BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                                    BluetoothStatsLog
-                                            .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                                    10);
                             continue;
                         }
                         long id = c.getLong(idIndex);
@@ -1774,12 +1715,6 @@ public class BluetoothMapContentObserver {
                         int idIndex = c.getColumnIndexOrThrow(Mms._ID);
                         if (c.isNull(idIndex)) {
                             Log.w(TAG, "handleMsgListChangesMms, ID is null");
-                            ContentProfileErrorReportUtils.report(
-                                    BluetoothProfile.MAP,
-                                    BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                                    BluetoothStatsLog
-                                            .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                                    11);
                             continue;
                         }
                         long id = c.getLong(idIndex);
@@ -2270,11 +2205,6 @@ public class BluetoothMapContentObserver {
                 Log.d(TAG, "handleMsgListChanges: account type = " + mAccount.getType().toString());
                 handleMsgListChangesMsg(uri);
             } catch (RemoteException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        12);
                 mMasInstance.restartObexServerSession();
                 Log.w(
                         TAG,
@@ -2543,11 +2473,6 @@ public class BluetoothMapContentObserver {
                     }
                 }
             } catch (RemoteException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        13);
                 mMasInstance.restartObexServerSession();
                 Log.w(
                         TAG,
@@ -2602,12 +2527,6 @@ public class BluetoothMapContentObserver {
                                     + status
                                     + " failed for folderId "
                                     + folderId);
-                    ContentProfileErrorReportUtils.report(
-                            BluetoothProfile.MAP,
-                            BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                            14);
                 }
             } else if (status == BluetoothMapAppParams.STATUS_VALUE_NO) {
                 /* Undelete message. move to old folder if we know it,
@@ -2668,11 +2587,6 @@ public class BluetoothMapContentObserver {
         }
         if (!res) {
             Log.w(TAG, "Set delete status " + status + " failed.");
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                    15);
         }
         return res;
     }
@@ -2693,12 +2607,10 @@ public class BluetoothMapContentObserver {
                         .contentResolverQuery(mResolver, uri, null, null, null, null);
         try {
             if (c != null && c.moveToFirst()) {
-                if (Flags.notDeleteLockedMessage()) {
-                    int lockedColIndex = c.getColumnIndex(Sms.LOCKED);
-                    if (lockedColIndex >= 0 && c.getInt(lockedColIndex) == 1) {
-                        Log.w(TAG, "Can't delete locked MMS");
-                        return false;
-                    }
+                int lockedColIndex = c.getColumnIndex(Mms.LOCKED);
+                if (lockedColIndex >= 0 && c.getInt(lockedColIndex) == 1) {
+                    Log.w(TAG, "Can't delete locked MMS");
+                    return false;
                 }
                 /* Move to deleted folder, or delete if already in deleted folder */
                 int threadId = c.getInt(c.getColumnIndex(Mms.THREAD_ID));
@@ -2802,12 +2714,10 @@ public class BluetoothMapContentObserver {
                         .contentResolverQuery(mResolver, uri, null, null, null, null);
         try {
             if (c != null && c.moveToFirst()) {
-                if (Flags.notDeleteLockedMessage()) {
-                    int lockedColIndex = c.getColumnIndex(Sms.LOCKED);
-                    if (lockedColIndex >= 0 && c.getInt(lockedColIndex) == 1) {
-                        Log.w(TAG, "Can't delete locked SMS");
-                        return false;
-                    }
+                int lockedColIndex = c.getColumnIndex(Sms.LOCKED);
+                if (lockedColIndex >= 0 && c.getInt(lockedColIndex) == 1) {
+                    Log.w(TAG, "Can't delete locked SMS");
+                    return false;
                 }
                 /* Move to deleted folder, or delete if already in deleted folder */
                 int threadId = c.getInt(c.getColumnIndex(Sms.THREAD_ID));
@@ -3038,7 +2948,6 @@ public class BluetoothMapContentObserver {
             this.statusDelivered = 0; /* Assume success */
             this.timestamp = 0;
         }
-        ;
     }
 
     private final Map<Long, PushMsgInfo> mPushMsgList =
@@ -3102,18 +3011,8 @@ public class BluetoothMapContentObserver {
                 recipientList = new ArrayList<BluetoothMapbMessage.VCard>();
                 recipientList.add(empty);
                 Log.w(TAG, "Added empty recipient to draft message");
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                        16);
             } else {
                 Log.e(TAG, "Trying to send a message with no recipients");
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
-                        17);
                 return -1;
             }
         }
@@ -3155,21 +3054,9 @@ public class BluetoothMapContentObserver {
                     // Write Email to DB
                     os.write(msgBody.getBytes(), 0, msgBody.getBytes().length);
                 } catch (FileNotFoundException e) {
-                    ContentProfileErrorReportUtils.report(
-                            BluetoothProfile.MAP,
-                            BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                            18);
                     Log.w(TAG, e);
                     throw (new IOException("Unable to open file stream"));
                 } catch (NullPointerException e) {
-                    ContentProfileErrorReportUtils.report(
-                            BluetoothProfile.MAP,
-                            BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                            19);
                     Log.w(TAG, e);
                     throw (new IllegalArgumentException("Unable to parse message."));
                 } finally {
@@ -3178,12 +3065,6 @@ public class BluetoothMapContentObserver {
                             os.close();
                         }
                     } catch (IOException e) {
-                        ContentProfileErrorReportUtils.report(
-                                BluetoothProfile.MAP,
-                                BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                                20);
                         Log.w(TAG, e);
                     }
                     try {
@@ -3191,12 +3072,6 @@ public class BluetoothMapContentObserver {
                             fdOut.close();
                         }
                     } catch (IOException e) {
-                        ContentProfileErrorReportUtils.report(
-                                BluetoothProfile.MAP,
-                                BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                                21);
                         Log.w(TAG, e);
                     }
                 }
@@ -3331,12 +3206,6 @@ public class BluetoothMapContentObserver {
                                     c.close();
                                 } else {
                                     Log.w(TAG, "Message: " + uri + " no longer exist!");
-                                    ContentProfileErrorReportUtils.report(
-                                            BluetoothProfile.MAP,
-                                            BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                                            BluetoothStatsLog
-                                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                                            22);
                                     /* This can only happen, if the message is deleted
                                      * just as it is added */
                                     return -1;
@@ -3458,12 +3327,6 @@ public class BluetoothMapContentObserver {
                     }
                 } else {
                     Log.w(TAG, "Could not move MMS message to " + getMmsFolderName(folder));
-                    ContentProfileErrorReportUtils.report(
-                            BluetoothProfile.MAP,
-                            BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                            23);
                 }
             } finally {
                 if (queryResult != null) {
@@ -3498,9 +3361,20 @@ public class BluetoothMapContentObserver {
         values.put(Mms.MMS_VERSION, PduHeaders.CURRENT_MMS_VERSION);
         values.put(Mms.PRIORITY, PduHeaders.PRIORITY_NORMAL);
         values.put(Mms.READ_REPORT, PduHeaders.VALUE_NO);
-        values.put(Mms.TRANSACTION_ID, "T" + Long.toHexString(System.currentTimeMillis()));
         values.put(Mms.DELIVERY_REPORT, PduHeaders.VALUE_NO);
         values.put(Mms.LOCKED, 0);
+
+        // This field is read by our MmsFileProvider via PduComposer when we create and send the PDU
+        // bytes representing the message we want sent. PduComposer asserts it must not be null.
+        // Despite this though, the field is otherwise unused/reserved in Telephony. The usual code
+        // paths in Messenger/Telephony owned code don't explicitly set this, and rely on a default
+        // constructor to set a value in the same format we're setting here (See
+        // SendPdu#generateTransactionId() constructor for details). Telephony could choose to use
+        // the field at any time. Thus, we need to set this for now to avoid an exception, but
+        // *should not* rely on the value being anything specific in our logic. We should explore
+        // removal in the future.
+        values.put(Mms.TRANSACTION_ID, "T" + Long.toHexString(System.currentTimeMillis()));
+
         if (msg.getTextOnly()) {
             values.put(Mms.TEXT_ONLY, true);
         }
@@ -3518,11 +3392,6 @@ public class BluetoothMapContentObserver {
             if (uri == null) {
                 // unable to insert MMS
                 Log.e(TAG, "Unable to insert MMS " + values + "Uri: " + uri);
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
-                        24);
                 return -1;
             }
             /* As we already have all the values we need, we could skip the query, but
@@ -3559,11 +3428,6 @@ public class BluetoothMapContentObserver {
                 /* Perhaps this message have been deleted, and no longer have any content,
                  * but only headers */
                 Log.w(TAG, "No MMS parts present...");
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                        25);
             } else {
                 Log.v(TAG, "Adding " + msg.getMimeParts().size() + " parts to the data base.");
                 for (MimePart part : msg.getMimeParts()) {
@@ -3651,11 +3515,6 @@ public class BluetoothMapContentObserver {
                 }
             }
         } catch (IOException e) {
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                    27);
             Log.w(TAG, e);
         }
 
@@ -3693,11 +3552,6 @@ public class BluetoothMapContentObserver {
             values.put(Mms.Part.CONTENT_TYPE, part.mContentType);
         } else {
             Log.w(TAG, "MMS has no CONTENT_TYPE for part " + count);
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                    28);
         }
         if (part.mContentId != null) {
             values.put(Mms.Part.CONTENT_ID, part.mContentId);
@@ -3802,16 +3656,31 @@ public class BluetoothMapContentObserver {
 
             Log.d(TAG, "sendMessage to " + msgInfo.phone);
 
+            // TODO(b/480794923): Change this to SDK check once the SDK is finalized
+            boolean isMessageUpgradeAvailable =
+                    Flags.mapUseNewMessageApi()
+                            && com.android.internal.telephony.flags.Flags.messagePromotion();
+            Log.d(TAG, "isMessageUpgradeAvailable: " + isMessageUpgradeAvailable);
             if (parts.size() == 1) {
-                smsMng.sendTextMessageWithoutPersisting(
-                        msgInfo.phone,
-                        null,
-                        parts.get(0),
-                        sentIntents.get(0),
-                        deliveryIntents.get(0));
+                if (isMessageUpgradeAvailable) {
+                    smsMng.sendStoredTextMessage(
+                            msgInfo.uri, sentIntents.getFirst(), deliveryIntents.getFirst());
+                } else {
+                    smsMng.sendTextMessageWithoutPersisting(
+                            msgInfo.phone,
+                            null,
+                            parts.get(0),
+                            sentIntents.get(0),
+                            deliveryIntents.get(0));
+                }
             } else {
-                smsMng.sendMultipartTextMessageWithoutPersisting(
-                        msgInfo.phone, null, parts, sentIntents, deliveryIntents);
+                if (isMessageUpgradeAvailable) {
+                    smsMng.sendStoredMultipartTextMessage(
+                            msgInfo.uri, sentIntents, deliveryIntents);
+                } else {
+                    smsMng.sendMultipartTextMessageWithoutPersisting(
+                            msgInfo.phone, null, parts, sentIntents, deliveryIntents);
+                }
             }
         }
     }
@@ -3826,11 +3695,6 @@ public class BluetoothMapContentObserver {
             try {
                 intentFilter.addDataType("message/*");
             } catch (MalformedMimeTypeException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        29);
                 Log.e(TAG, "Wrong mime type!!!", e);
             }
 
@@ -3841,11 +3705,6 @@ public class BluetoothMapContentObserver {
             try {
                 mContext.unregisterReceiver(this);
             } catch (IllegalArgumentException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        30);
                 /* do nothing */
             }
         }
@@ -3910,12 +3769,6 @@ public class BluetoothMapContentObserver {
                 if (msgInfo.transparent == 0) {
                     if (!Utils.moveMessageToFolder(context, msgInfo.uri, true)) {
                         Log.w(TAG, "Failed to move " + msgInfo.uri + " to SENT");
-                        ContentProfileErrorReportUtils.report(
-                                BluetoothProfile.MAP,
-                                BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                                31);
                     }
                 } else {
                     delete = true;
@@ -3948,12 +3801,6 @@ public class BluetoothMapContentObserver {
                     if (msgInfo.transparent == 0) {
                         if (!Utils.moveMessageToFolder(context, msgInfo.uri, false)) {
                             Log.w(TAG, "Failed to move " + msgInfo.uri + " to FAILED");
-                            ContentProfileErrorReportUtils.report(
-                                    BluetoothProfile.MAP,
-                                    BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                                    BluetoothStatsLog
-                                            .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                                    32);
                         }
                     } else {
                         delete = true;
@@ -4005,11 +3852,6 @@ public class BluetoothMapContentObserver {
             try {
                 mContext.unregisterReceiver(this);
             } catch (IllegalArgumentException e) {
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        33);
                 /* do nothing */
             }
         }
@@ -4023,12 +3865,6 @@ public class BluetoothMapContentObserver {
                 try {
                     initMsgList();
                 } catch (RemoteException e) {
-                    ContentProfileErrorReportUtils.report(
-                            BluetoothProfile.MAP,
-                            BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                            BluetoothStatsLog
-                                    .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                            34);
                     Log.e(TAG, "Error initializing SMS/MMS message lists.");
                 }
 
@@ -4069,11 +3905,6 @@ public class BluetoothMapContentObserver {
         long handle = intent.getLongExtra(EXTRA_MESSAGE_SENT_HANDLE, -1);
         if (handle < 0) {
             Log.w(TAG, "Intent received for an invalid handle");
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                    35);
             return;
         }
         ContentResolver resolver = context.getContentResolver();
@@ -4126,13 +3957,8 @@ public class BluetoothMapContentObserver {
     public static void actionSmsSentDisconnected(Context context, Intent intent, int result) {
         /* Check permission for message deletion. */
         if ((Binder.getCallingPid() != Process.myPid())
-                || !Utils.checkCallerHasWriteSmsPermission(context)) {
+                || !Util.checkCallerHasWriteSmsPermission(context)) {
             Log.w(TAG, "actionSmsSentDisconnected: Not allowed to delete SMS/MMS messages");
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                    36);
             return;
         }
 
@@ -4147,7 +3973,7 @@ public class BluetoothMapContentObserver {
         Uri uri = Uri.parse(uriString);
 
         if (result == Activity.RESULT_OK) {
-            Log.d(TAG, "actionMessageSentDisconnected: result OK");
+            Log.d(TAG, "actionSmsSentDisconnected: result OK");
             if (transparent == 0) {
                 if (!Utils.moveMessageToFolder(context, uri, true)) {
                     Log.d(TAG, "Failed to move " + uri + " to SENT");
@@ -4178,11 +4004,6 @@ public class BluetoothMapContentObserver {
                 BluetoothMethodProxy.getInstance().contentResolverDelete(resolver, uri, null, null);
             } else {
                 Log.w(TAG, "Unable to get resolver");
-                ContentProfileErrorReportUtils.report(
-                        BluetoothProfile.MAP,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                        37);
             }
         }
     }
@@ -4257,11 +4078,6 @@ public class BluetoothMapContentObserver {
             mResolver.delete(Sms.CONTENT_URI, "thread_id = " + DELETED_THREAD_ID, null);
             mResolver.delete(Mms.CONTENT_URI, "thread_id = " + DELETED_THREAD_ID, null);
         } catch (SQLiteException e) {
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                    38);
             // TODO: Include this unexpected exception in Bluetooth metrics
             Log.w("SQLite exception while removing deleted messages.", e);
         }
@@ -4325,11 +4141,6 @@ public class BluetoothMapContentObserver {
         if (!mMnsClient.isConnected()) {
             // No need to handle notifications, just use default handling
             Log.w(TAG, "MNS not connected - use static handling");
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                    39);
             return false;
         }
         long handle = intent.getLongExtra(EXTRA_MESSAGE_SENT_HANDLE, -1);
@@ -4337,11 +4148,6 @@ public class BluetoothMapContentObserver {
         actionMmsSent(context, intent, result, getMsgListMms());
         if (handle < 0) {
             Log.w(TAG, "Intent received for an invalid handle");
-            ContentProfileErrorReportUtils.report(
-                    BluetoothProfile.MAP,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_CONTENT_OBSERVER,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                    40);
             return true;
         }
         if (result != Activity.RESULT_OK) {

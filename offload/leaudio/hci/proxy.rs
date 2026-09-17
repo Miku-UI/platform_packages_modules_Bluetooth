@@ -17,8 +17,8 @@ use bluetooth_offload_hci as hci;
 use crate::arbiter::Arbiter;
 use crate::service::{Service, StreamConfiguration};
 use hci::{
-    Command, CommandToBytes, Event, EventToBytes, IsoData, Module, ModuleBuilder, ReturnParameters,
-    Status,
+    Command, CommandToBytes, Event, EventToBytes, IsoData, LeDataPathDirection, Module,
+    ModuleBuilder, ReturnParameters, Status,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -94,11 +94,11 @@ impl Stream {
         let iso_interval_us = (e.iso_interval as u32) * 1250;
 
         assert!(
-            cig.sdu_interval_c_to_p == 0 || (iso_interval_us % cig.sdu_interval_c_to_p) == 0,
+            cig.sdu_interval_c_to_p == 0 || iso_interval_us.is_multiple_of(cig.sdu_interval_c_to_p),
             "Framing mode not supported"
         );
         assert!(
-            cig.sdu_interval_p_to_c == 0 || (iso_interval_us % cig.sdu_interval_p_to_c) == 0,
+            cig.sdu_interval_p_to_c == 0 || iso_interval_us.is_multiple_of(cig.sdu_interval_p_to_c),
             "Framing mode not supported"
         );
 
@@ -198,7 +198,7 @@ impl Module for LeAudioModule {
             }
 
             Ok(Command::LeSetupIsoDataPath(ref c)) if c.data_path_id == DATA_PATH_ID => 'command: {
-                assert_eq!(c.data_path_direction, hci::LeDataPathDirection::Input);
+                assert_eq!(c.data_path_direction, LeDataPathDirection::Input);
                 let mut state = self.state.lock().unwrap();
                 let Some(stream) = state.stream.get_mut(&c.connection_handle) else {
                     log::warn!(

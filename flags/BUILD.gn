@@ -7,11 +7,13 @@ aconfig("bluetooth_flags_c_lib") {
     "active_device_manager.aconfig",
     "adapter.aconfig",
     "avrcp.aconfig",
+    "avrcp_controller.aconfig",
     "bta_dm.aconfig",
     "btif_dm.aconfig",
     "btm_ble.aconfig",
+    "btm_iso.aconfig",
+    "classic_connections.aconfig",
     "connectivity.aconfig",
-    "dis.aconfig",
     "framework.aconfig",
     "gap.aconfig",
     "gatt.aconfig",
@@ -27,6 +29,7 @@ aconfig("bluetooth_flags_c_lib") {
     "le_scanning.aconfig",
     "leaudio.aconfig",
     "mapclient.aconfig",
+    "media_audio.aconfig",
     "metric.aconfig",
     "native.aconfig",
     "opp.aconfig",
@@ -44,7 +47,6 @@ aconfig("bluetooth_flags_c_lib") {
     "tbs.aconfig",
     "threading.aconfig",
     "vcp.aconfig",
-    "vsc.aconfig",
   ]
 
   # LINT.ThenChange(/flags/Android.bp)

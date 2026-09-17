@@ -2,20 +2,20 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "delay_offload_le_coc_connection_ind"
+    name: "ldac_rate_control"
     namespace: "bluetooth"
-    description: "Delay LE CoC connection indication callback if controller Tx window is full"
-    bug: "408478753"
+    description: "Configure LDAC rate control based on the LDAC bitrate."
+    bug: "422347819"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "ldac_rate_control"
+    name: "reset_l2cap_idle_timeout_when_reusing_l2cap_context"
     namespace: "bluetooth"
-    description: "Configure LDAC rate control based on the LDAC bitrate."
-    bug: "422347819"
+    description: "Reset L2CAP idle timeout when reusing L2CAP context."
+    bug: "466943800"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

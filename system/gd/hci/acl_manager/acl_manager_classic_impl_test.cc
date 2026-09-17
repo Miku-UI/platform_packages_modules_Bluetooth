@@ -16,6 +16,7 @@
 
 #include "hci/acl_manager/acl_manager_classic_impl.h"
 
+#include <base/functional/bind.h>
 #include <bluetooth/log.h>
 #include <com_android_bluetooth_flags.h>
 #include <gmock/gmock.h>
@@ -128,10 +129,9 @@ protected:
             client_handler_, *test_hci_layer_, *test_controller_, *test_storage_,
             *test_round_robin_scheduler_, *acl_manager_classic_);
 
-    Address::FromString("A1:A2:A3:A4:A5:A6", remote);
+    remote = Address::FromString("A1:A2:A3:A4:A5:A6").value();
 
-    hci::Address address;
-    Address::FromString("D0:05:04:03:02:01", address);
+    hci::Address address = Address::FromString("D0:05:04:03:02:01").value();
     hci::AddressWithType address_with_type(address, hci::AddressType::RANDOM_DEVICE_ADDRESS);
     auto minimum_rotation_time = std::chrono::milliseconds(7 * 60 * 1000);
     auto maximum_rotation_time = std::chrono::milliseconds(15 * 60 * 1000);
@@ -149,13 +149,14 @@ protected:
             LeSetRandomAddressCompleteBuilder::Create(0x01, ErrorCode::SUCCESS));
 
     ON_CALL(mock_connection_callback_, OnConnectSuccess)
-            .WillByDefault([this](std::unique_ptr<ClassicAclConnection> connection) {
-              connections_.push_back(std::move(connection));
-              if (connection_promise_ != nullptr) {
-                connection_promise_->set_value();
-                connection_promise_.reset();
-              }
-            });
+            .WillByDefault(
+                    [this](std::unique_ptr<ClassicAclConnection> connection, Role /* role */) {
+                      connections_.push_back(std::move(connection));
+                      if (connection_promise_ != nullptr) {
+                        connection_promise_->set_value();
+                        connection_promise_.reset();
+                      }
+                    });
   }
 
   void TearDown() override {
@@ -223,7 +224,7 @@ protected:
                       promise.set_value();
                       return NextPayload(handle);
                     },
-                    queue_end, handle, common::Passed(std::move(promise))));
+                    queue_end, handle, base::Passed(std::move(promise))));
     auto status = future.wait_for(kTimeout);
     ASSERT_EQ(status, std::future_status::ready);
   }
@@ -257,16 +258,13 @@ protected:
     AclManagerClassicTest::SetUp();
 
     handle_ = 0x123;
-    acl_manager_classic_->CreateConnection(remote);
+    acl_manager_classic_->CreateConnection(remote, 0);
 
     // Wait for the connection request
     auto last_command = GetConnectionManagementCommand(OpCode::CREATE_CONNECTION);
     while (!last_command.IsValid()) {
       last_command = GetConnectionManagementCommand(OpCode::CREATE_CONNECTION);
     }
-
-    EXPECT_CALL(mock_connection_management_callbacks_,
-                OnRoleChange(hci::ErrorCode::SUCCESS, Role::CENTRAL));
 
     auto first_connection = GetConnectionFuture();
     test_hci_layer_->IncomingEvent(ConnectionCompleteBuilder::Create(
@@ -297,7 +295,7 @@ protected:
 TEST_F(AclManagerClassicTest, startup_teardown) {}
 
 TEST_F(AclManagerClassicTest, invoke_registered_callback_connection_complete_success) {
-  acl_manager_classic_->CreateConnection(remote);
+  acl_manager_classic_->CreateConnection(remote, 0);
 
   // Wait for the connection request
   auto last_command = GetConnectionManagementCommand(OpCode::CREATE_CONNECTION);
@@ -318,7 +316,7 @@ TEST_F(AclManagerClassicTest, invoke_registered_callback_connection_complete_suc
 }
 
 TEST_F(AclManagerClassicTest, invoke_registered_callback_connection_complete_fail) {
-  acl_manager_classic_->CreateConnection(remote);
+  acl_manager_classic_->CreateConnection(remote, 0);
 
   // Wait for the connection request
   auto last_command = GetConnectionManagementCommand(OpCode::CREATE_CONNECTION);
@@ -469,21 +467,6 @@ TEST_F(AclManagerClassicWithConnectionTest, send_read_clock_offset) {
   EXPECT_CALL(mock_connection_management_callbacks_, OnReadClockOffsetComplete(0x0123));
   test_hci_layer_->IncomingEvent(
           ReadClockOffsetCompleteBuilder::Create(ErrorCode::SUCCESS, handle_, 0x0123));
-  sync_client_handler();
-}
-
-TEST_F(AclManagerClassicWithConnectionTest, send_hold_mode) {
-  connection_->HoldMode(0x0500, 0x0020);
-  auto packet = GetConnectionManagementCommand(OpCode::HOLD_MODE);
-  auto command_view = HoldModeView::Create(packet);
-  ASSERT_TRUE(command_view.IsValid());
-  ASSERT_EQ(command_view.GetHoldModeMaxInterval(), 0x0500);
-  ASSERT_EQ(command_view.GetHoldModeMinInterval(), 0x0020);
-
-  EXPECT_CALL(mock_connection_management_callbacks_,
-              OnModeChange(ErrorCode::SUCCESS, Mode::HOLD, 0x0020));
-  test_hci_layer_->IncomingEvent(
-          ModeChangeBuilder::Create(ErrorCode::SUCCESS, handle_, Mode::HOLD, 0x0020));
   sync_client_handler();
 }
 
@@ -791,7 +774,7 @@ protected:
             client_handler_, *test_hci_layer_, *test_controller_, *test_storage_,
             *test_round_robin_scheduler_, *acl_manager_classic_);
 
-    Address::FromString("A1:A2:A3:A4:A5:A6", remote);
+    remote = Address::FromString("A1:A2:A3:A4:A5:A6").value();
   }
 };
 
@@ -808,7 +791,7 @@ protected:
 
 TEST_F(AclManagerClassicLifeCycleTest, unregister_classic_after_create_connection) {
   // Inject create connection
-  acl_manager_classic_->CreateConnection(remote);
+  acl_manager_classic_->CreateConnection(remote, 0);
   auto connection_command = GetConnectionManagementCommand(OpCode::CREATE_CONNECTION);
 
   // Unregister callbacks after sending connection request

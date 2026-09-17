@@ -19,11 +19,10 @@
 
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
+#include <bluetooth/types/bt_octets.h>
 
 #include <cstdint>
 
-#include "stack/include/bt_octets.h"
-#include "stack/include/btm_api_types.h"  // tBTM_CMPL_CB
 #include "stack/include/btm_ble_sec_api_types.h"
 #include "stack/include/btm_sec_api_types.h"
 
@@ -32,9 +31,11 @@
  */
 typedef struct {
   BD_NAME bd_name;      /* local Bluetooth device name */
+
+  // TODO : Remove when the flag local_pin_key_type is shipped
   bool pin_type;        /* true if PIN type is fixed */
   uint8_t pin_code_len; /* Bonding information */
-  PIN_CODE pin_code;    /* PIN CODE if pin type is fixed */
+  PinCode pin_code;     /* PIN CODE if pin type is fixed */
 } tBTM_CFG;
 
 /* Pairing State */
@@ -69,24 +70,12 @@ enum tBTM_KEY_MISSING_REASON : uint8_t {
 #define BTM_PAIR_FLAGS_PEER_STARTED_DD 0x02  /* Peer initiated dedicated bonding             */
 #define BTM_PAIR_FLAGS_DISC_WHEN_DONE 0x04   /* Disconnect when done     */
 #define BTM_PAIR_FLAGS_PIN_REQD 0x08         /* set this bit when pin_callback is called     */
-#define BTM_PAIR_FLAGS_PRE_FETCH_PIN 0x10    /* set this bit when pre-fetch pin     */
+// TODO(b/460502961): remove when security_mode_3_pairing is shipped
+#define BTM_PAIR_FLAGS_PRE_FETCH_PIN 0x10 /* set this bit when pre-fetch pin */
+
 #define BTM_PAIR_FLAGS_REJECTED_CONNECT 0x20 /* set this bit when rejected incoming connection  */
 #define BTM_PAIR_FLAGS_WE_CANCEL_DD 0x40     /* set this bit when cancelling a bonding procedure */
 #define BTM_PAIR_FLAGS_LE_ACTIVE 0x80        /* use this bit when SMP pairing is active */
-
-// Todo(b/405594028): Remove when separate_encryption_queue is released
-typedef struct {
-  bool is_mux;
-  RawAddress bd_addr;
-  uint16_t psm;
-  bool is_orig;
-  tBTM_SEC_CALLBACK* p_callback;
-  tSMP_SIRK_CALLBACK* p_sirk_callback;
-  void* p_ref_data;
-  uint16_t rfcomm_security_requirement;
-  tBT_TRANSPORT transport;
-  tBTM_BLE_SEC_ACT sec_act;
-} tBTM_SEC_QUEUE_ENTRY;
 
 // Pending service access request
 typedef struct {
@@ -110,12 +99,8 @@ typedef struct {
 /* Define the Device Management control structure
  */
 typedef struct tBTM_SEC_DEVCB {
-  tBTM_CMPL_CB* p_stored_link_key_cmpl_cb; /* Read/Write/Delete stored link key    */
-
   tBTM_BLE_LOCAL_ID_KEYS id_keys;   /* local BLE ID keys */
   Octet16 ble_encryption_key_value; /* BLE encryption key */
-
-  tBTM_IO_CAP loc_io_caps;    /* IO capability of the local device */
   tBTM_AUTH_REQ loc_auth_req; /* the auth_req flag  */
 } tBTM_SEC_DEVCB;
 

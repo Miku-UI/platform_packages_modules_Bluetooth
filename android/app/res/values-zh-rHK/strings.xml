@@ -21,6 +21,8 @@
     <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"允許應用程式存取 BluetoothShare 管理員並使用 BluetoothShare 管理員傳輸檔案。"</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"將藍牙裝置加入允許名單。"</string>
     <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"允許應用程式暫時將藍牙裝置加入允許名單，使其不需經用戶確認便可把檔案傳送到裝置上。"</string>
+    <string name="permlab_bluetoothBackup" msgid="49451988877877942">"允許藍牙備份廣播。"</string>
+    <string name="permdesc_bluetoothBackup" msgid="2871500153259509669">"允許藍牙應用程式接受廣播，以觸發設定資料備份"</string>
     <string name="bt_share_picker_label" msgid="7464438494743777696">"藍牙"</string>
     <string name="unknown_device" msgid="2317679521750821654">"不明裝置"</string>
     <string name="unknownNumber" msgid="1245183329830158661">"未知"</string>
@@ -112,10 +114,10 @@
     <string name="transfer_menu_open" msgid="5193344638774400131">"開啟"</string>
     <string name="transfer_menu_clear" msgid="7213491281898188730">"從清單清除"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"清除"</string>
-    <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"歌曲識別"</string>
+    <string name="bluetooth_media_audio_app_name" msgid="2389937877819723460">"藍牙音訊"</string>
+    <string name="bluetooth_media_audio_queue_name" msgid="2327164681598379428">"歌曲識別"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"應用程式圖示"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"已與藍牙音訊解除連接"</string>
-    <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"藍牙音訊"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"無法轉移 4 GB 以上的檔案"</string>
     <string name="bluetooth_connect_action" msgid="2319449093046720209">"連接藍牙"</string>
     <string name="bluetooth_enabled_apm_title" msgid="6914461147844949044">"在飛航模式中保持藍牙開啟"</string>
@@ -130,4 +132,13 @@
     <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"已重新開啟藍牙"</string>
     <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"你可隨時前往「設定」變更此設定"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"藍牙自動狀態變更"</string>
+    <string name="auracast_notification_channel" msgid="5159181425358316696">"Auracast"</string>
+    <string name="auracast_notification_title" msgid="3101708313009368939">"有可以使用的「<xliff:g id="STREAM_NAME">%1$s</xliff:g>」音訊串流"</string>
+    <string name="auracast_notification_subtext" msgid="4696155233480316395">"LE Audio"</string>
+    <string name="auracast_connect_device_message" msgid="4461776363082532493">"連接 LE Audio 裝置，即可開始收聽"</string>
+    <string name="auracast_listen_on_device_message" msgid="3719491065367993094">"在「<xliff:g id="DEVICE_NAME">%2$s</xliff:g>」上收聽「<xliff:g id="STREAM_NAME">%1$s</xliff:g>」音訊串流"</string>
+    <string name="auracast_connect_action" msgid="7157544449029291355">"連接"</string>
+    <string name="auracast_connection_failed_message" msgid="6490085541428198952">"無法在「<xliff:g id="DEVICE_NAME">%2$s</xliff:g>」上連接「<xliff:g id="STREAM_NAME">%1$s</xliff:g>」音訊串流。"</string>
+    <string name="auracast_default_stream_name" msgid="2824625871526576239">"附近"</string>
+    <string name="auracast_default_device_name" msgid="15748131701036354">"裝置"</string>
 </resources>

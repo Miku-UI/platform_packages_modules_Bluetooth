@@ -36,9 +36,9 @@
 
 #include "bta/hh/bta_hh_int.h"
 #include "bta/sys/bta_sys.h"
-#include "hiddefs.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/hiddefs.h"
 #include "stack/include/main_thread.h"
 
 using namespace bluetooth;
@@ -50,14 +50,13 @@ using namespace bluetooth;
 /**
  * Android Headtracker Service UUIDs
  */
-const Uuid ANDROID_HEADTRACKER_SERVICE_UUID =
-        Uuid::FromString(ANDROID_HEADTRACKER_SERVICE_UUID_STRING);
-const Uuid ANDROID_HEADTRACKER_VERSION_CHARAC_UUID =
-        Uuid::FromString(ANDROID_HEADTRACKER_VERSION_CHARAC_UUID_STRING);
-const Uuid ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID =
-        Uuid::FromString(ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID_STRING);
-const Uuid ANDROID_HEADTRACKER_REPORT_CHARAC_UUID =
-        Uuid::FromString(ANDROID_HEADTRACKER_REPORT_CHARAC_UUID_STRING);
+constinit Uuid ANDROID_HEADTRACKER_SERVICE_UUID(ANDROID_HEADTRACKER_SERVICE_UUID_STRING);
+constinit Uuid ANDROID_HEADTRACKER_VERSION_CHARAC_UUID(
+        ANDROID_HEADTRACKER_VERSION_CHARAC_UUID_STRING);
+constinit Uuid ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID(
+        ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID_STRING);
+constinit Uuid ANDROID_HEADTRACKER_REPORT_CHARAC_UUID(
+        ANDROID_HEADTRACKER_REPORT_CHARAC_UUID_STRING);
 
 static const tBTA_SYS_REG bta_hh_reg = {bta_hh_hdl_event, BTA_HhDisable};
 
@@ -108,11 +107,12 @@ void BTA_HhDisable(void) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhClose(uint8_t dev_handle) {
-  BT_HDR* p_buf = (BT_HDR*)osi_calloc(sizeof(BT_HDR));
+void BTA_HhClose(uint8_t dev_handle, bthh_status_t status) {
+  tBTA_HH_API_CLOSE* p_buf = (tBTA_HH_API_CLOSE*)osi_calloc(sizeof(tBTA_HH_API_CLOSE));
 
-  p_buf->event = BTA_HH_API_CLOSE_EVT;
-  p_buf->layer_specific = (uint16_t)dev_handle;
+  p_buf->hdr.event = BTA_HH_API_CLOSE_EVT;
+  p_buf->hdr.layer_specific = (uint16_t)dev_handle;
+  p_buf->status = status;
 
   bta_sys_sendmsg(p_buf);
 }
@@ -127,7 +127,7 @@ void BTA_HhClose(uint8_t dev_handle) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhOpen(const tAclLinkSpec& link_spec, bool direct) {
+void BTA_HhOpen(const AclLinkSpec& link_spec, bool direct) {
   tBTA_HH_API_CONN* p_buf = (tBTA_HH_API_CONN*)osi_calloc(sizeof(tBTA_HH_API_CONN));
   tBTA_HH_PROTO_MODE mode = BTA_HH_PROTO_RPT_MODE;
 
@@ -136,6 +136,26 @@ void BTA_HhOpen(const tAclLinkSpec& link_spec, bool direct) {
   p_buf->mode = mode;
   p_buf->link_spec = link_spec;
   p_buf->direct = direct;
+
+  bta_sys_sendmsg((void*)p_buf);
+}
+
+/*******************************************************************************
+ *
+ * Function         BTA_HhOpen
+ *
+ * Description      Cancel connecting to a device of specified BD address.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_HhCancelOpen(const AclLinkSpec& link_spec) {
+  tBTA_HH_API_CANCEL_CONN* p_buf =
+          (tBTA_HH_API_CANCEL_CONN*)osi_calloc(sizeof(tBTA_HH_API_CANCEL_CONN));
+
+  p_buf->hdr.event = BTA_HH_API_CANCEL_OPEN_EVT;
+  p_buf->hdr.layer_specific = BTA_HH_INVALID_HANDLE;
+  p_buf->link_spec = link_spec;
 
   bta_sys_sendmsg((void*)p_buf);
 }
@@ -270,7 +290,7 @@ void BTA_HhSendCtrl(uint8_t dev_handle, tBTA_HH_TRANS_CTRL_TYPE c_type) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhSendData(uint8_t dev_handle, const tAclLinkSpec& /* link_spec */, BT_HDR* p_data) {
+void BTA_HhSendData(uint8_t dev_handle, const AclLinkSpec& /* link_spec */, BT_HDR* p_data) {
   if (p_data->layer_specific != BTA_HH_RPTT_OUTPUT) {
     log::error("ERROR! Wrong report type! Write Command only valid for output report!");
     return;
@@ -308,7 +328,7 @@ void BTA_HhGetDscpInfo(uint8_t dev_handle) {
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhAddDev(const tAclLinkSpec& link_spec, tBTA_HH_ATTR_MASK attr_mask, uint8_t sub_class,
+void BTA_HhAddDev(const AclLinkSpec& link_spec, tBTA_HH_ATTR_MASK attr_mask, uint8_t sub_class,
                   uint8_t app_id, tBTA_HH_DEV_DSCP_INFO dscp_info) {
   size_t len = sizeof(tBTA_HH_MAINT_DEV) + dscp_info.descriptor.dl_len;
   tBTA_HH_MAINT_DEV* p_buf = (tBTA_HH_MAINT_DEV*)osi_calloc(len);

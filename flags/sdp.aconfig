@@ -2,28 +2,26 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "stack_sdp_detect_nil_property_type"
+    name: "stack_sdp_detect_nil_property_type_v2"
     namespace: "bluetooth"
     description: "Check for NIL SDP property length"
     bug: "329171845"
-}
-
-flag {
-    name: "call_sdp_free_in_main_thread"
-    namespace: "bluetooth"
-    description: "Free SDP service in main thread instead of management thread"
-    bug: "415917037"
     metadata {
-        purpose: PURPOSE_BUGFIX
+      purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "sdp_reset_transport_status_if_disconnect"
+  name: "explicit_uuid_transport_api"
+  namespace: "bluetooth"
+  description: "Enables the new fetchUuids(int transport)"
+  bug: "457242678"
+  is_exported: true  # Required for @FlaggedApi
+}
+
+flag {
+    name: "enable_service_discovery_server"
     namespace: "bluetooth"
-    description: "Reset bta_dm_discovery_cb if disconnect unexpectly"
-    bug: "430467927"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    description: "Enables the ServiceDiscoveryServer service class and the ServiceDatabaseState attribute."
+    bug: "460011459"
 }

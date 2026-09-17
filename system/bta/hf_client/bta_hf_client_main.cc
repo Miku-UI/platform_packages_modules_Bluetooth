@@ -26,17 +26,17 @@
 #include <cstdio>
 #include <cstring>
 
-#include "bt_dev_class.h"
 #include "bta/hf_client/bta_hf_client_int.h"
 #include "bta/include/utl.h"
 #include "bta_api_data_types.h"
 #include "bta_hf_client_api.h"
 #include "bta_sys.h"
-#include "btm_api_types.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
+#include "stack/include/bt_dev_class.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/btm_api_types.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/sdp_api.h"
 
@@ -284,7 +284,7 @@ static void bta_hf_client_cb_init(tBTA_HF_CLIENT_CB* client_cb, uint16_t handle)
   client_cb->peer_hf_indicators.clear();
 
   if (client_cb->p_disc_db) {
-    if (!get_legacy_stack_sdp_api()->service.SDP_CancelServiceSearch(client_cb->p_disc_db)) {
+    if (!get_legacy_stack_sdp_api()->SDP_CancelServiceSearch(client_cb->p_disc_db)) {
       log::warn("Unable to cancel SDP service discovery peer:{}", client_cb->peer_addr);
     }
     osi_free_and_reset((void**)&client_cb->p_disc_db);
@@ -369,7 +369,7 @@ void bta_hf_client_collision_cback(tBTA_SYS_CONN_STATUS /* status */, tBTA_SYS_I
 
     /* Cancel SDP if it had been started. */
     if (client_cb->p_disc_db) {
-      if (!get_legacy_stack_sdp_api()->service.SDP_CancelServiceSearch(client_cb->p_disc_db)) {
+      if (!get_legacy_stack_sdp_api()->SDP_CancelServiceSearch(client_cb->p_disc_db)) {
         log::warn("Unable to cancel SDP service discovery peer:{}", peer_addr);
       }
       osi_free_and_reset((void**)&client_cb->p_disc_db);

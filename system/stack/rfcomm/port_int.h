@@ -30,7 +30,6 @@
 #include <cstdint>
 
 #include "include/macros.h"
-#include "internal_include/bt_target.h"
 #include "osi/include/alarm.h"
 #include "osi/include/fixed_queue.h"
 #include "stack/include/l2cap_types.h"
@@ -91,7 +90,7 @@ typedef struct {
   RawAddress bd_addr = RawAddress::kEmpty; /* BD ADDR of the peer if initiator */
   uint16_t lcid;                           /* Local cid used for this channel */
   uint16_t peer_l2cap_mtu;                 /* Max frame that can be sent to peer L2CAP */
-  tRFC_MX_STATE state;                     /* Current multiplexer channel state */
+  RfcommMuxState state;                    /* Current multiplexer channel state */
   uint8_t is_initiator;                    /* true if this side sends SABME (dlci=0) */
   bool restart_required;                   /* true if has to restart channel after disc */
   bool peer_ready;                         /* True if other side can accept frames */
@@ -102,44 +101,19 @@ typedef struct {
   bool collision_outgoing_conn_cnf;        /* true if peer responded to start_req after collision */
   bool collision_outgoing_cfg_complete;    /* true if configuration of outgoing conn completed */
   tL2CAP_CFG_INFO collision_cfg_info = {}; /* collision: store cfg info for outgoing connection */
-  // TODO: b/399420482 - delete pending_XXX when removing flag
-  uint16_t pending_lcid;                   /* store LCID for incoming connection while connecting */
-  bool pending_configure_complete;         /* true if confiquration of the pending
-                                              connection was completed*/
-  tL2CAP_CFG_INFO pending_cfg_info = {};   /* store configure info for incoming
-                                         connection while connecting */
 } tRFC_MCB;
 
 /*
  * RFCOMM Port State Machine Control Block
  */
 struct RfcommPortSm {
-  tRFC_PORT_STATE state;
-  tRFC_PORT_STATE state_prior;
-  tRFC_PORT_EVENT last_event;
+  RfcommPortState state;
+  RfcommPortState state_prior;
+  RfcommPortEvent last_event;
   tPORT_RESULT close_reason;
   uint64_t open_timestamp;
   uint64_t close_timestamp;
 };
-
-/*
- * RFCOMM Port Connection Control Block
- */
-typedef struct {
-  RfcommPortSm sm_cb;  // State machine control block
-
-#define RFC_RSP_PN 0x01
-#define RFC_RSP_RPN_REPLY 0x02
-#define RFC_RSP_RPN 0x04
-#define RFC_RSP_MSC 0x08
-#define RFC_RSP_RLS 0x10
-
-  uint8_t expected_rsp;
-
-  tRFC_MCB* p_mcb;
-
-  alarm_t* port_timer;
-} tRFC_PORT;
 
 typedef enum : uint8_t {
   PORT_CONNECTION_STATE_CLOSED = 0,
@@ -183,6 +157,19 @@ typedef struct {
   bool is_server;     /* true if the server application */
   uint8_t dlci;       /* DLCI of the connection */
 
+  RfcommPortSm sm_cb;  // State machine control block
+
+#define RFC_RSP_PN 0x01
+#define RFC_RSP_RPN_REPLY 0x02
+#define RFC_RSP_RPN 0x04
+#define RFC_RSP_MSC 0x08
+#define RFC_RSP_RLS 0x10
+  uint8_t expected_rsp;
+
+  tRFC_MCB* p_mcb;
+
+  alarm_t* port_timer;
+
   uint8_t line_status; /* Line status as reported by peer */
 
   uint8_t default_signal_state; /* Initial signal state depending on uuid */
@@ -209,8 +196,6 @@ typedef struct {
   uint8_t port_ctrl; /* Modem Status Command  */
 
   bool rx_flag_ev_pending; /* RXFLAG Character is received */
-
-  tRFC_PORT rfc; /* RFCOMM port control block */
 
   uint32_t ev_mask;                           /* Event mask for the callback */
   tPORT_CALLBACK* p_callback;                 /* Pointer to users callback function */

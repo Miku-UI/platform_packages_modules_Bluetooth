@@ -30,8 +30,7 @@
 
 #include "macros.h"
 
-/* Define the service attribute IDs.
- */
+/* Define the service attribute IDs. */
 #define ATTR_ID_SERVICE_RECORD_HDL 0x0000
 #define ATTR_ID_SERVICE_CLASS_ID_LIST 0x0001
 #define ATTR_ID_SERVICE_RECORD_STATE 0x0002
@@ -49,8 +48,7 @@
 #define ATTR_ID_SERVICE_DESCRIPTION (LANGUAGE_BASE_ID + 0x0001)
 #define ATTR_ID_PROVIDER_NAME (LANGUAGE_BASE_ID + 0x0002)
 
-/* Device Identification (DI)
- */
+/* Device Identification (DI) */
 #define ATTR_ID_SPECIFICATION_ID 0x0200
 #define ATTR_ID_VENDOR_ID 0x0201
 #define ATTR_ID_PRODUCT_ID 0x0202
@@ -103,6 +101,9 @@
 #define ATTR_ID_HID_BOOT_DEVICE 0x020E
 #define ATTR_ID_HID_SSR_HOST_MAX_LAT 0x020F
 #define ATTR_ID_HID_SSR_HOST_MIN_TOUT 0x0210
+
+/* These values are for Service Discovery Server */
+#define ATTR_ID_SERVICE_DATABASE_STATE 0x0201
 
 inline std::string sdp_attr_id_text(const unsigned& id) {
   switch (id) {

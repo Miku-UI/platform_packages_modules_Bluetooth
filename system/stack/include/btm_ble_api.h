@@ -35,6 +35,7 @@
 
 #include "btm_ble_api_types.h"
 #include "stack/btm/neighbor_inquiry.h"
+#include "stack/include/btm_api_types.h"
 
 void btm_ble_init();
 void btm_ble_free();
@@ -85,7 +86,7 @@ void BTM_BleGetDynamicAudioBuffer(tBTM_BT_DYNAMIC_AUDIO_BUFFER_CB* p_dynamic_aud
  *
  ******************************************************************************/
 tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_results_cb,
-                           tBTM_CMPL_CB* p_cmpl_cb);
+                           tBTM_INQUIRY_CMPL_CB* p_cmpl_cb);
 
 /*******************************************************************************
  *
@@ -190,12 +191,11 @@ void BTM_BleReadControllerFeatures(tBTM_BLE_CTRL_FEATURES_CBACK* p_vsc_cback);
  *                  of BD address.
  *
  * Parameter        remote_bda: remote device address
- *                  p_dev_type: output parameter to read the device type.
- *                  p_addr_type: output parameter to read the address type.
+ *
+ * Return           DevInfo struct containing the device type and address type
  *
  ******************************************************************************/
-void BTM_ReadDevInfo(const RawAddress& remote_bda, tBT_DEVICE_TYPE* p_dev_type,
-                     tBLE_ADDR_TYPE* p_addr_type);
+DevInfo BTM_ReadDevInfo(const RawAddress& remote_bda);
 
 /*******************************************************************************
  *
@@ -208,22 +208,6 @@ void BTM_ReadDevInfo(const RawAddress& remote_bda, tBT_DEVICE_TYPE* p_dev_type,
  *
  *******************************************************************************/
 bool BTM_GetRemoteDeviceName(const RawAddress& bda, BD_NAME bd_name);
-
-/*******************************************************************************
- *
- * Function         BTM_ReadConnectedTransportAddress
- *
- * Description      This function is called to read the paired device/address
- *                  type of other device paired corresponding to the BD_address
- *
- * Parameter        remote_bda: remote device address, carry out the transport
- *                              address
- *                  transport: active transport
- *
- * Return           true if an active link is identified; false otherwise
- *
- ******************************************************************************/
-bool BTM_ReadConnectedTransportAddress(RawAddress* remote_bda, tBT_TRANSPORT transport);
 
 /*******************************************************************************
  *
@@ -333,32 +317,6 @@ tBTM_STATUS BTM_SetBleDataLength(const RawAddress& bd_addr, uint16_t tx_pdu_leng
 
 /*******************************************************************************
  *
- * Function         BTM_BleReadPhy
- *
- * Description      To read the current PHYs for specified LE connection
- *
- *
- * Returns          tBTM_STATUS::BTM_SUCCESS if success; otherwise failed.
- *
- ******************************************************************************/
-void BTM_BleReadPhy(const RawAddress& bd_addr,
-                    base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb);
-
-/*******************************************************************************
- *
- * Function         BTM_BleSetPhy
- *
- * Description      To set PHY preferences for specified LE connection
- *
- *
- * Returns          tBTM_STATUS::BTM_SUCCESS if success; otherwise failed.
- *
- ******************************************************************************/
-void BTM_BleSetPhy(const RawAddress& bd_addr, uint8_t tx_phys, uint8_t rx_phys,
-                   uint16_t phy_options);
-
-/*******************************************************************************
- *
  * Function         btm_ble_get_acl_remote_addr
  *
  * Description      This function reads the active remote address used for the
@@ -370,23 +328,14 @@ void BTM_BleSetPhy(const RawAddress& bd_addr, uint8_t tx_phys, uint8_t rx_phys,
 bool btm_ble_get_acl_remote_addr(uint16_t hci_handle, RawAddress& conn_addr,
                                  tBLE_ADDR_TYPE* p_addr_type);
 
-using StartSyncCb = base::Callback<void(
+using StartSyncCb = base::RepeatingCallback<void(
         uint8_t /*status*/, uint16_t /*sync_handle*/, uint8_t /*advertising_sid*/,
         uint8_t /*address_type*/, RawAddress /*address*/, uint8_t /*phy*/, uint16_t /*interval*/)>;
 using SyncReportCb =
-        base::Callback<void(uint16_t /*sync_handle*/, int8_t /*tx_power*/, int8_t /*rssi*/,
-                            uint8_t /*status*/, std::vector<uint8_t> /*data*/)>;
-using SyncLostCb = base::Callback<void(uint16_t /*sync_handle*/)>;
-using BigInfoReportCb = base::Callback<void(uint16_t /*sync_handle*/, bool /*encrypted*/)>;
-
-void btm_ble_periodic_adv_sync_established(uint8_t status, uint16_t sync_handle, uint8_t adv_sid,
-                                           uint8_t address_type, const RawAddress& addr,
-                                           uint8_t phy, uint16_t interval,
-                                           uint8_t adv_clock_accuracy);
-void btm_ble_periodic_adv_report(uint16_t sync_handle, uint8_t tx_power, int8_t rssi,
-                                 uint8_t cte_type, uint8_t data_status, uint8_t data_len,
-                                 const uint8_t* periodic_data);
-void btm_ble_periodic_adv_sync_lost(uint16_t sync_handle);
+        base::RepeatingCallback<void(uint16_t /*sync_handle*/, int8_t /*tx_power*/, int8_t /*rssi*/,
+                                     uint8_t /*status*/, std::vector<uint8_t> /*data*/)>;
+using SyncLostCb = base::RepeatingCallback<void(uint16_t /*sync_handle*/)>;
+using BigInfoReportCb = base::RepeatingCallback<void(uint16_t /*sync_handle*/, bool /*encrypted*/)>;
 
 /*******************************************************************************
  *
@@ -412,5 +361,16 @@ bool BTM_BleConfigPrivacy(bool enable);
  *
  ******************************************************************************/
 bool BTM_BleLocalPrivacyEnabled(void);
+
+/*******************************************************************************
+ *
+ * Function         BTM_BleIsFilteringSupported
+ *
+ * Description      Checks if the device supports filtering.
+ *
+ * Returns          Return true if filtering is supported else false
+ *
+ ******************************************************************************/
+bool BTM_BleIsFilteringSupported(void);
 
 #endif

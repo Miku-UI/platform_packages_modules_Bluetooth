@@ -48,9 +48,11 @@ protected:
   }
   void TearDown() override {
     enqueue_handler_->Clear();
+    enqueue_handler_->WaitUntilStopped(kHandlerStopTimeout);
     delete enqueue_handler_;
     delete enqueue_thread_;
     dequeue_handler_->Clear();
+    dequeue_handler_->WaitUntilStopped(kHandlerStopTimeout);
     delete dequeue_handler_;
     delete dequeue_thread_;
     enqueue_handler_ = nullptr;
@@ -857,7 +859,7 @@ public:
     EXPECT_FALSE(registered_);
     registered_ = true;
     handler->Post(common::BindOnce(&MockIQueueEnqueue::handle_register_enqueue,
-                                   common::Unretained(this), callback));
+                                   common::Unretained(this), std::move(callback)));
   }
 
   void handle_register_enqueue(EnqueueCallback callback) {

@@ -30,8 +30,8 @@
 #include <variant>
 
 #include "bta/le_audio/le_audio_types.h"
+#include "bta/mock/bta_gatt_api_mock.h"
 #include "bta_csis_api.h"
-#include "bta_gatt_api_mock.h"
 #include "bta_gatt_queue_mock.h"
 #include "bta_has_api.h"
 #include "btif_storage_mock.h"
@@ -44,6 +44,8 @@
 #include "stack/gatt/gatt_int.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_status.h"
+#include "stack/mock/mock_stack_btm_interface.h"
+#include "stack/mock/mock_stack_security_client_interface.h"
 #include "test/common/mock_functions.h"
 
 bool gatt_profile_get_eatt_support(const RawAddress& /*addr*/) { return true; }
@@ -82,10 +84,10 @@ using ::testing::Sequence;
 using ::testing::SetArgPointee;
 using ::testing::WithArg;
 
-RawAddress GetTestAddress(int index) {
+static RawAddress GetTestAddress(uint8_t index) {
   EXPECT_LT(index, UINT8_MAX);
-  RawAddress result = {{0xC0, 0xDE, 0xC0, 0xDE, 0x00, static_cast<uint8_t>(index)}};
-  return result;
+  std::array<uint8_t, 6> bytes{0xC0, 0xDE, 0xC0, 0xDE, 0x00, index};
+  return RawAddress(bytes);
 }
 
 static uint16_t GetTestConnId(const RawAddress& address) {
@@ -628,11 +630,13 @@ protected:
     gatt::SetMockBtaGattInterface(&gatt_interface);
     gatt::SetMockBtaGattQueue(&gatt_queue);
 
+    set_security_client_interface(mock_btm_security_);
+
     encryption_result = true;
 
-    ON_CALL(btm_interface, IsDeviceBonded(_, _)).WillByDefault(DoAll(Return(true)));
+    ON_CALL(mock_btm_security_, BTM_IsBonded(_, _)).WillByDefault(DoAll(Return(true)));
 
-    ON_CALL(btm_interface, SetEncryption(_, _, _, _, _))
+    ON_CALL(mock_btm_security_, BTM_SetEncryption(_, _, _, _, _))
             .WillByDefault(Invoke([this](const RawAddress& bd_addr, tBT_TRANSPORT /*transport*/,
                                          tBTM_SEC_CALLBACK* /*p_callback*/, void* /*p_ref_data*/,
                                          tBTM_BLE_SEC_ACT /*sec_act*/) -> tBTM_STATUS {
@@ -643,6 +647,7 @@ protected:
     MockCsisClient::SetMockInstanceForTesting(&mock_csis_client_module_);
     ON_CALL(mock_csis_client_module_, Get()).WillByDefault(Return(&mock_csis_client_module_));
     ON_CALL(mock_csis_client_module_, IsCsisClientRunning()).WillByDefault(Return(true));
+    ON_CALL(mock_csis_client_module_, ShallCsisBeUsedForTheDevice(_)).WillByDefault(Return(true));
 
     /* default action for GetCharacteristic function call */
     ON_CALL(gatt_interface, GetCharacteristic(_, _))
@@ -673,7 +678,7 @@ protected:
               return nullptr;
             }));
 
-    ON_CALL(gatt_interface, ServiceSearchRequest(_, _))
+    ON_CALL(gatt_interface, ServiceSearchRequest(_))
             .WillByDefault(WithArg<0>(
                     Invoke([&](uint16_t conn_id) { InjectSearchCompleteEvent(conn_id); })));
 
@@ -702,9 +707,9 @@ protected:
             }));
 
     /* by default connect only direct connection requests */
-    ON_CALL(gatt_interface, Open(_, _, _, _))
+    ON_CALL(gatt_interface, Open(_, _, _))
             .WillByDefault(Invoke([&](tGATT_IF /*client_if*/, const RawAddress& remote_bda,
-                                      tBTM_BLE_CONN_TYPE connection_type, bool /*opportunistic*/) {
+                                      tBTM_BLE_CONN_TYPE connection_type) {
               if (connection_type == BTM_BLE_DIRECT_CONNECTION) {
                 InjectConnectedEvent(remote_bda, GetTestConnId(remote_bda));
               }
@@ -717,6 +722,7 @@ protected:
 
   void TearDown(void) override {
     services_map.clear();
+    reset_mock_btm_client_interface();
     gatt::SetMockBtaGattQueue(nullptr);
     gatt::SetMockBtaGattInterface(nullptr);
     bluetooth::storage::SetMockBtifStorageInterface(nullptr);
@@ -729,11 +735,12 @@ protected:
   void TestAppRegister(void) {
     BtaAppRegisterCallback app_register_callback;
     EXPECT_CALL(gatt_interface, AppRegister(_, _, _, _))
-            .WillOnce(DoAll(SaveArg<1>(&gatt_callback), SaveArg<2>(&app_register_callback)));
+            .WillOnce(DoAll(SaveArg<1>(&gatt_callback),
+                            WithArg<2>([&](auto arg) { app_register_callback = std::move(arg); })));
     HasClient::Initialize(&callbacks, base::DoNothing());
     ASSERT_TRUE(gatt_callback);
     ASSERT_TRUE(app_register_callback);
-    app_register_callback.Run(gatt_if, GATT_SUCCESS);
+    std::move(app_register_callback).Run(gatt_if, GATT_SUCCESS);
     ASSERT_TRUE(HasClient::IsHasClientRunning());
     Mock::VerifyAndClearExpectations(&gatt_interface);
   }
@@ -746,10 +753,10 @@ protected:
   }
 
   void TestConnect(const RawAddress& address) {
-    ON_CALL(btm_interface, BTM_IsEncrypted(address, _))
+    ON_CALL(mock_btm_security_, BTM_IsEncrypted(address, _))
             .WillByDefault(DoAll(Return(encryption_result)));
 
-    EXPECT_CALL(gatt_interface, Open(gatt_if, address, BTM_BLE_DIRECT_CONNECTION, _));
+    EXPECT_CALL(gatt_interface, Open(gatt_if, address, BTM_BLE_DIRECT_CONNECTION));
     HasClient::Get()->Connect(address);
 
     Mock::VerifyAndClearExpectations(&callbacks);
@@ -761,23 +768,33 @@ protected:
   void TestDisconnect(const RawAddress& address, uint16_t conn_id) {
     EXPECT_CALL(gatt_interface, CancelOpen(_, address, _)).Times(AnyNumber());
     if (conn_id != GATT_INVALID_CONN_ID) {
-      assert(0);
       EXPECT_CALL(gatt_interface, Close(conn_id));
     } else {
       EXPECT_CALL(gatt_interface, CancelOpen(gatt_if, address, _));
     }
     HasClient::Get()->Disconnect(address);
+    Mock::VerifyAndClearExpectations(&gatt_interface);
+  }
+
+  void TestRemove(const RawAddress& address, uint16_t conn_id) {
+    if (conn_id != GATT_INVALID_CONN_ID) {
+      EXPECT_CALL(gatt_interface, Close(conn_id));
+    } else {
+      EXPECT_CALL(gatt_interface, CancelOpen(gatt_if, address, _));
+    }
+    HasClient::Get()->RemoveDevice(address);
+    Mock::VerifyAndClearExpectations(&gatt_interface);
   }
 
   void TestAddFromStorage(const RawAddress& address, uint8_t features, bool auto_connect) {
     if (auto_connect) {
-      EXPECT_CALL(gatt_interface, Open(gatt_if, address, BTM_BLE_BKG_CONNECT_ALLOW_LIST, _));
+      EXPECT_CALL(gatt_interface, Open(gatt_if, address, BTM_BLE_BKG_CONNECT_ALLOW_LIST));
       HasClient::Get()->AddFromStorage(address, features, auto_connect);
 
       /* Inject connected event for autoconnect/background connection */
       InjectConnectedEvent(address, GetTestConnId(address));
     } else {
-      EXPECT_CALL(gatt_interface, Open(gatt_if, address, _, _)).Times(0);
+      EXPECT_CALL(gatt_interface, Open(gatt_if, address, _)).Times(0);
       HasClient::Get()->AddFromStorage(address, features, auto_connect);
     }
 
@@ -854,10 +871,10 @@ protected:
   void SetEncryptionResult(const RawAddress& address, bool success) {
     encryption_result = success;
 
-    ON_CALL(btm_interface, BTM_IsEncrypted(address, _))
+    ON_CALL(mock_btm_security_, BTM_IsEncrypted(address, _))
             .WillByDefault(DoAll(Return(encryption_result)));
 
-    ON_CALL(btm_interface, IsDeviceBonded(address, _)).WillByDefault(DoAll(Return(true)));
+    ON_CALL(mock_btm_security_, BTM_IsBonded(address, _)).WillByDefault(DoAll(Return(true)));
   }
 
   void InjectNotifyReadPresetResponse(uint16_t conn_id, RawAddress const& address, uint16_t handle,
@@ -1108,12 +1125,33 @@ protected:
     set_sample_database(address, builder, features, std::nullopt);
   }
 
+  void CheckDebugDump(const std::string& substr, bool present) {
+    int fds[2];
+    ASSERT_NE(pipe(fds), -1);
+
+    HasClient::DebugDump(fds[1]);
+    close(fds[1]);
+
+    char buf[1024] = {};
+    ssize_t len = read(fds[0], buf, sizeof(buf) - 1);
+    close(fds[0]);
+
+    ASSERT_GT(len, 0);
+    std::string dump_output(buf, len);
+    if (present) {
+      ASSERT_THAT(dump_output, ::testing::HasSubstr(substr));
+    } else {
+      ASSERT_THAT(dump_output, ::testing::Not(::testing::HasSubstr(substr)));
+    }
+  }
+
   NiceMock<MockHasCallbacks> callbacks;
   NiceMock<bluetooth::manager::MockBtmInterface> btm_interface;
   NiceMock<bluetooth::storage::MockBtifStorageInterface> btif_storage_interface_;
   NiceMock<gatt::MockBtaGattInterface> gatt_interface;
   NiceMock<gatt::MockBtaGattQueue> gatt_queue;
   NiceMock<MockCsisClient> mock_csis_client_module_;
+  NiceMock<MockSecurityClientInterface> mock_btm_security_;
   tBTA_GATTC_CBACK* gatt_callback;
   const uint8_t gatt_if = 0xfe;
   std::map<uint8_t, RawAddress> connected_devices;
@@ -1121,20 +1159,9 @@ protected:
   bool encryption_result;
 };
 
-class HasClientTest : public HasClientTestBase {
-  void SetUp(void) override {
-    com::android::bluetooth::flags::provider_->reset_flags();
-    com::android::bluetooth::flags::provider_->synchronize_preset_can_timeout(true);
-    HasClientTestBase::SetUp();
-    TestAppRegister();
-  }
-  void TearDown(void) override {
-    TestAppUnregister();
-    HasClientTestBase::TearDown();
-  }
-};
+class HasClientDeathTest : public HasClientTestBase {};
 
-TEST_F(HasClientTestBase, test_get_uninitialized) { ASSERT_DEATH(HasClient::Get(), ""); }
+TEST_F(HasClientDeathTest, get_while_uninitialized) { ASSERT_DEATH(HasClient::Get(), ""); }
 
 TEST_F(HasClientTestBase, test_initialize) {
   HasClient::Initialize(&callbacks, base::DoNothing());
@@ -1166,6 +1193,18 @@ TEST_F(HasClientTestBase, test_app_registration) {
   TestAppUnregister();
 }
 
+class HasClientTest : public HasClientTestBase {
+  void SetUp(void) override {
+    com_android_bluetooth_flags_reset_flags();
+    HasClientTestBase::SetUp();
+    TestAppRegister();
+  }
+  void TearDown(void) override {
+    TestAppUnregister();
+    HasClientTestBase::TearDown();
+  }
+};
+
 TEST_F(HasClientTest, test_connect) { TestConnect(GetTestAddress(1)); }
 
 TEST_F(HasClientTest, test_add_from_storage) {
@@ -1177,7 +1216,7 @@ TEST_F(HasClientTest, test_connect_after_remove) {
   const RawAddress test_address = GetTestAddress(1);
 
   /* Override the default action to prevent us sendind the connected event */
-  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION, _))
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION))
           .WillOnce(Return());
   HasClient::Get()->Connect(test_address);
   TestDisconnect(test_address, GATT_INVALID_CONN_ID);
@@ -1186,7 +1225,7 @@ TEST_F(HasClientTest, test_connect_after_remove) {
   EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address));
 
   // Device has no Link Key
-  ON_CALL(btm_interface, IsDeviceBonded(test_address, _)).WillByDefault(DoAll(Return(true)));
+  ON_CALL(mock_btm_security_, BTM_IsBonded(test_address, _)).WillByDefault(DoAll(Return(true)));
   HasClient::Get()->Connect(test_address);
   Mock::VerifyAndClearExpectations(&callbacks);
 }
@@ -1195,7 +1234,7 @@ TEST_F(HasClientTest, test_disconnect_non_connected) {
   const RawAddress test_address = GetTestAddress(1);
 
   /* Override the default action to prevent us sendind the connected event */
-  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION, _))
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION))
           .WillOnce(Return());
   HasClient::Get()->Connect(test_address);
   TestDisconnect(test_address, GATT_INVALID_CONN_ID);
@@ -1227,6 +1266,44 @@ TEST_F(HasClientTest, test_disconnect_connected) {
   TestDisconnect(test_address, 1);
 }
 
+TEST_F(HasClientTest, test_disconnect_connected_keep_bonded_dev_in_ram) {
+  set_com_android_bluetooth_flags_hap_keep_bonded_dev_in_ram(true);
+  const RawAddress test_address = GetTestAddress(1);
+  /* Minimal possible HA device (only feature flags) */
+  SetSampleDatabaseHasNoPresetChange(test_address,
+                                     bluetooth::has::kFeatureBitHearingAidTypeBinaural);
+
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(1);
+  TestConnect(test_address);
+
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(1);
+  EXPECT_CALL(gatt_queue, Clean(1)).Times(AtLeast(1));
+  TestDisconnect(test_address, 1);
+
+  // Verify that the device list is not empty by inspecting the dump output
+  CheckDebugDump("No known HAS devices", false);
+}
+
+TEST_F(HasClientTest, test_remove_connected) {
+  set_com_android_bluetooth_flags_hap_keep_bonded_dev_in_ram(true);
+  const RawAddress test_address = GetTestAddress(1);
+  /* Minimal possible HA device (only feature flags) */
+  SetSampleDatabaseHasNoPresetChange(test_address,
+                                     bluetooth::has::kFeatureBitHearingAidTypeBinaural);
+
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(1);
+  TestConnect(test_address);
+
+  EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(1);
+  EXPECT_CALL(gatt_queue, Clean(1)).Times(AtLeast(1));
+  TestRemove(test_address, 1);
+
+  // Verify that the device list is empty by inspecting the dump output
+  CheckDebugDump("No known HAS devices", true);
+  Mock::VerifyAndClearExpectations(&callbacks);
+  Mock::VerifyAndClearExpectations(&gatt_queue);
+}
+
 TEST_F(HasClientTest, test_disconnected_while_autoconnect) {
   const RawAddress test_address = GetTestAddress(1);
   TestAddFromStorage(test_address, bluetooth::has::kFeatureBitHearingAidTypeBinaural, true);
@@ -1254,7 +1331,7 @@ TEST_F(HasClientTest, test_service_discovery_complete_before_encryption) {
   EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(0);
 
   SetEncryptionResult(test_address, false);
-  ON_CALL(btm_interface, SetEncryption(_, _, _, _, _))
+  ON_CALL(mock_btm_security_, BTM_SetEncryption(_, _, _, _, _))
           .WillByDefault(Return(tBTM_STATUS::BTM_SUCCESS));
 
   TestConnect(test_address);
@@ -1277,8 +1354,8 @@ TEST_F(HasClientTest, test_disconnect_when_link_key_is_gone) {
   EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(0);
   EXPECT_CALL(callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(0);
 
-  ON_CALL(btm_interface, BTM_IsEncrypted(test_address, _)).WillByDefault(DoAll(Return(false)));
-  ON_CALL(btm_interface, SetEncryption(test_address, _, _, _, _))
+  ON_CALL(mock_btm_security_, BTM_IsEncrypted(test_address, _)).WillByDefault(DoAll(Return(false)));
+  ON_CALL(mock_btm_security_, BTM_SetEncryption(test_address, _, _, _, _))
           .WillByDefault(Return(tBTM_STATUS::BTM_ERR_KEY_MISSING));
 
   auto test_conn_id = GetTestConnId(test_address);
@@ -3014,8 +3091,8 @@ TEST_F(HasClientTest, test_connect_database_out_of_sync) {
             }
           }));
 
-  ON_CALL(gatt_interface, ServiceSearchRequest(_, _)).WillByDefault(Return());
-  EXPECT_CALL(gatt_interface, ServiceSearchRequest(_, _));
+  ON_CALL(gatt_interface, ServiceSearchRequest(_)).WillByDefault(Return());
+  EXPECT_CALL(gatt_interface, ServiceSearchRequest(_));
   HasClient::Get()->GetPresetInfo(test_address, 1);
 }
 

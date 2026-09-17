@@ -40,19 +40,16 @@ import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class ModeListenerTest {
-
     @get:Rule val testName = TestName()
 
-    private val resolver: ContentResolver =
-        ApplicationProvider.getApplicationContext<Context>().getContentResolver()
-
+    private val resolver = ApplicationProvider.getApplicationContext<Context>().contentResolver
     private val looper: Looper = Looper.getMainLooper()
 
     private lateinit var mode: ArrayList<Boolean>
 
     @Before
     fun setup() {
-        Log.i("SatelliteModeListener", "\t--> setup of " + testName.getMethodName())
+        Log.i("SatelliteModeListener", "\t--> setup of ${testName.methodName}")
         mode = ArrayList()
     }
 
@@ -201,15 +198,11 @@ class ModeListenerTest {
     }
 
     companion object {
-        internal fun setupSatelliteModeToOn(
-            resolver: ContentResolver,
-            looper: Looper,
-            callback: (m: Boolean) -> Unit,
-        ) {
+        internal fun setupSatelliteModeToOn(resolver: ContentResolver, looper: Looper) {
             enableSensitive(resolver, looper, SETTINGS_SATELLITE_MODE_RADIOS)
             enableMode(resolver, looper, SETTINGS_SATELLITE_MODE_ENABLED)
 
-            initialize(looper, resolver, callback)
+            initialize(looper, resolver) {}
         }
 
         internal fun setupSatelliteModeToOff(resolver: ContentResolver, looper: Looper) {

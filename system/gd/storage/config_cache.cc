@@ -24,7 +24,6 @@
 
 #include "hci/enum_helper.h"
 #include "os/parameter_provider.h"
-#include "storage/mutation.h"
 
 namespace {
 
@@ -109,21 +108,6 @@ bool ConfigCache::operator==(const ConfigCache& rhs) const {
 }
 
 bool ConfigCache::operator!=(const ConfigCache& rhs) const { return !(*this == rhs); }
-
-void ConfigCache::Clear() {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  if (information_sections_.size() > 0) {
-    information_sections_.clear();
-    PersistentConfigChangedCallback();
-  }
-  if (persistent_devices_.size() > 0) {
-    persistent_devices_.clear();
-    PersistentConfigChangedCallback();
-  }
-  if (temporary_devices_.size() > 0) {
-    temporary_devices_.clear();
-  }
-}
 
 bool ConfigCache::HasSection(const std::string& section) const {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -368,27 +352,6 @@ std::vector<std::string> ConfigCache::GetPersistentSections() const {
     paired_devices.emplace_back(elem.first);
   }
   return paired_devices;
-}
-
-void ConfigCache::Commit(std::queue<MutationEntry>& mutation_entries) {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  while (!mutation_entries.empty()) {
-    auto entry = std::move(mutation_entries.front());
-    mutation_entries.pop();
-    switch (entry.entry_type) {
-      case MutationEntry::EntryType::SET:
-        SetProperty(std::move(entry.section), std::move(entry.property), std::move(entry.value));
-        break;
-      case MutationEntry::EntryType::REMOVE_PROPERTY:
-        RemoveProperty(entry.section, entry.property);
-        break;
-      case MutationEntry::EntryType::REMOVE_SECTION:
-        RemoveSection(entry.section);
-        break;
-        // do not write a default case so that when a new enum is defined, compilation would fail
-        // automatically
-    }
-  }
 }
 
 std::string ConfigCache::SerializeToLegacyFormat() const {

@@ -24,13 +24,13 @@
 #include <set>
 #include <vector>
 
-#include "gap_api.h"
 #include "hardware/bt_has.h"
 #include "has_ctp.h"
 #include "has_journal.h"
 #include "has_preset.h"
 #include "internal_include/bt_trace.h"
 #include "stack/include/bt_types.h"
+#include "stack/include/gap_api.h"
 #include "stack/include/gatt_api.h"
 
 namespace bluetooth::le_audio {
@@ -72,10 +72,10 @@ public:
 static_assert(sizeof(HasGattOpContext) <= sizeof(void*));
 
 /* Service UUIDs */
-static const bluetooth::Uuid kUuidHearingAccessService = bluetooth::Uuid::From16Bit(0x1854);
-static const bluetooth::Uuid kUuidHearingAidFeatures = bluetooth::Uuid::From16Bit(0x2BDA);
-static const bluetooth::Uuid kUuidHearingAidPresetControlPoint = bluetooth::Uuid::From16Bit(0x2BDB);
-static const bluetooth::Uuid kUuidActivePresetIndex = bluetooth::Uuid::From16Bit(0x2BDC);
+static constexpr Uuid kUuidHearingAccessService = Uuid::From16Bit(0x1854);
+static constexpr Uuid kUuidHearingAidFeatures = Uuid::From16Bit(0x2BDA);
+static constexpr Uuid kUuidHearingAidPresetControlPoint = Uuid::From16Bit(0x2BDB);
+static constexpr Uuid kUuidActivePresetIndex = Uuid::From16Bit(0x2BDC);
 
 static const uint8_t kStartPresetIndex = 1;
 static const uint8_t kMaxNumOfPresets = 255;

@@ -1,4 +1,4 @@
-use crate::btif::{BluetoothInterface, BtStatus, RawAddress, ToggleableProfile};
+use crate::btif::{BtStatus, RawAddress, ToggleableProfile};
 use crate::topstack::get_dispatchers;
 
 use bitflags::bitflags;
@@ -65,7 +65,7 @@ impl A2dpCodecIndex {
 
 impl From<i32> for A2dpCodecIndex {
     fn from(item: i32) -> Self {
-        A2dpCodecIndex::from_i32(item).unwrap_or_else(|| A2dpCodecIndex::MIN)
+        A2dpCodecIndex::from_i32(item).unwrap_or(A2dpCodecIndex::MIN)
     }
 }
 
@@ -79,7 +79,7 @@ pub enum A2dpCodecPriority {
 
 impl From<i32> for A2dpCodecPriority {
     fn from(item: i32) -> Self {
-        A2dpCodecPriority::from_i32(item).unwrap_or_else(|| A2dpCodecPriority::Default)
+        A2dpCodecPriority::from_i32(item).unwrap_or(A2dpCodecPriority::Default)
     }
 }
 
@@ -197,7 +197,7 @@ pub mod ffi {
         type RawAddress = crate::btif::RawAddress;
     }
 
-    #[derive(Debug, Copy, Clone)]
+    #[derive(Debug, Default, Copy, Clone)]
     pub struct A2dpCodecConfig {
         pub codec_type: i32,
         pub codec_priority: i32,
@@ -232,7 +232,7 @@ pub mod ffi {
         type A2dpIntf;
         type A2dpSinkIntf;
 
-        unsafe fn GetA2dpProfile(btif: *const u8) -> UniquePtr<A2dpIntf>;
+        fn GetA2dpProfile() -> UniquePtr<A2dpIntf>;
 
         fn init(self: &A2dpIntf) -> i32;
         fn connect(self: &A2dpIntf, bt_addr: RawAddress) -> u32;
@@ -252,7 +252,7 @@ pub mod ffi {
         fn get_presentation_position(self: &A2dpIntf) -> RustPresentationPosition;
         // A2dp sink functions
 
-        unsafe fn GetA2dpSinkProfile(btif: *const u8) -> UniquePtr<A2dpSinkIntf>;
+        fn GetA2dpSinkProfile() -> UniquePtr<A2dpSinkIntf>;
 
         fn init(self: &A2dpSinkIntf) -> i32;
         fn connect(self: &A2dpSinkIntf, bt_addr: RawAddress) -> i32;
@@ -282,31 +282,15 @@ pub type A2dpCodecConfig = ffi::A2dpCodecConfig;
 pub type PresentationPosition = ffi::RustPresentationPosition;
 pub type FfiA2dpError<'a> = ffi::A2dpError<'a>;
 
-impl Default for A2dpCodecConfig {
-    fn default() -> A2dpCodecConfig {
-        A2dpCodecConfig {
-            codec_type: 0,
-            codec_priority: 0,
-            sample_rate: 0,
-            bits_per_sample: 0,
-            channel_mode: 0,
-            codec_specific_1: 0,
-            codec_specific_2: 0,
-            codec_specific_3: 0,
-            codec_specific_4: 0,
-        }
-    }
-}
-
-impl<'a> Into<A2dpError> for FfiA2dpError<'a> {
-    fn into(self) -> A2dpError {
+impl From<FfiA2dpError<'_>> for A2dpError {
+    fn from(val: FfiA2dpError<'_>) -> Self {
         A2dpError {
-            status: self.status.into(),
-            error: self.error_code as i32,
-            error_message: if self.error_msg == "" {
+            status: val.status.into(),
+            error: val.error_code as i32,
+            error_message: if val.error_msg.is_empty() {
                 None
             } else {
-                Some(self.error_msg.to_string())
+                Some(val.error_msg.to_string())
             },
         }
     }
@@ -333,9 +317,7 @@ impl Debug for A2dpCallbacksDispatcher {
 type A2dpCb = Arc<Mutex<A2dpCallbacksDispatcher>>;
 
 cb_variant!(A2dpCb, connection_state_callback -> A2dpCallbacks::ConnectionState,
-RawAddress, u32 -> BtavConnectionState, FfiA2dpError -> A2dpError,{
-    let _2 = _2.into();
-});
+RawAddress, u32 -> BtavConnectionState, FfiA2dpError -> A2dpError);
 
 cb_variant!(A2dpCb, audio_state_callback -> A2dpCallbacks::AudioState, RawAddress, u32 -> BtavAudioState);
 
@@ -375,13 +357,16 @@ impl ToggleableProfile for A2dp {
     }
 }
 
+impl Default for A2dp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl A2dp {
     #[log_args]
-    pub fn new(intf: &BluetoothInterface) -> A2dp {
-        let a2dpif: cxx::UniquePtr<ffi::A2dpIntf>;
-        unsafe {
-            a2dpif = ffi::GetA2dpProfile(intf.as_raw_ptr());
-        }
+    pub fn new() -> A2dp {
+        let a2dpif: cxx::UniquePtr<ffi::A2dpIntf> = ffi::GetA2dpProfile();
 
         A2dp { internal: a2dpif, _is_init: false, _is_enabled: false }
     }
@@ -474,9 +459,7 @@ impl Debug for A2dpSinkCallbacksDispatcher {
 type A2dpSinkCb = Arc<Mutex<A2dpSinkCallbacksDispatcher>>;
 
 cb_variant!(A2dpSinkCb, sink_connection_state_callback -> A2dpSinkCallbacks::ConnectionState,
-    RawAddress, u32 -> BtavConnectionState, FfiA2dpError -> A2dpError,{
-        let _2 = _2.into();
-});
+    RawAddress, u32 -> BtavConnectionState, FfiA2dpError -> A2dpError);
 
 cb_variant!(A2dpSinkCb, sink_audio_state_callback -> A2dpSinkCallbacks::AudioState, RawAddress, u32 -> BtavAudioState);
 
@@ -510,13 +493,16 @@ impl ToggleableProfile for A2dpSink {
     }
 }
 
+impl Default for A2dpSink {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl A2dpSink {
     #[log_args]
-    pub fn new(intf: &BluetoothInterface) -> A2dpSink {
-        let a2dp_sink: cxx::UniquePtr<ffi::A2dpSinkIntf>;
-        unsafe {
-            a2dp_sink = ffi::GetA2dpSinkProfile(intf.as_raw_ptr());
-        }
+    pub fn new() -> A2dpSink {
+        let a2dp_sink: cxx::UniquePtr<ffi::A2dpSinkIntf> = ffi::GetA2dpSinkProfile();
 
         A2dpSink { internal: a2dp_sink, _is_init: false, _is_enabled: false }
     }

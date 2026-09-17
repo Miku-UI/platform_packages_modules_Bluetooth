@@ -19,6 +19,7 @@
 #include <android_bluetooth_sysprop.h>
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
+#include <bluetooth/types/string_helpers.h>
 #include <string.h>
 
 #include <cctype>
@@ -28,7 +29,7 @@
 
 #include "bta/ag/bta_ag_int.h"
 #include "bta_ag_api.h"
-#include "common/strings.h"
+#include "btif_status.h"
 #include "hardware/bluetooth.h"
 #include "hardware/bt_hf.h"
 #include "osi/include/alarm.h"
@@ -77,13 +78,13 @@ bool get_swb_codec_status(bluetooth::headset::bthf_swb_codec_t swb_codec, RawAdd
   return status;
 }
 
-bt_status_t enable_aptx_swb_codec(bool enable, RawAddress bd_addr) {
+BtStatus enable_aptx_swb_codec(bool enable, RawAddress bd_addr) {
   if (is_hfp_aptx_voice_enabled() && (!get_lc3_swb_codec_status(bd_addr))) {
     log::verbose("enable={}", enable);
     aptx_swb_codec_status = enable;
-    return BT_STATUS_SUCCESS;
+    return BtifStatus();
   }
-  return BT_STATUS_FAIL;
+  return BtifStatus(FAIL);
 }
 
 void bta_ag_swb_handle_vs_at_events(tBTA_AG_SCB* p_scb, uint16_t cmd, int16_t int_arg,

@@ -31,7 +31,9 @@
 #include <optional>
 #include <vector>
 
+#include "bind_helpers.h"
 #include "btif/include/btif_hh.h"
+#include "com_android_bluetooth_flags.h"
 #include "hal/hci_hal.h"
 #include "hci/acl_manager/acl_manager_classic_mock.h"
 #include "hci/acl_manager/acl_manager_le_mock.h"
@@ -60,7 +62,7 @@
 #include "os/thread.h"
 #include "packet/packet_view.h"
 #include "stack/btm/btm_int_types.h"
-#include "stack/btm/btm_sec_cb.h"
+#include "stack/btm/btm_security.h"
 #include "stack/btm/internal/btm_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
@@ -81,7 +83,7 @@ namespace test = bluetooth::hci::testing;
 
 tL2C_CB l2cb;
 tBTM_CB btm_cb;
-tBTM_SEC_CB btm_sec_cb;
+BtmSecurity btm_sec_cb;
 btif_hh_cb_t btif_hh_cb;
 
 namespace {
@@ -120,8 +122,8 @@ static void mock_on_send_data_upwards(BT_HDR*) {}
 static void mock_on_packets_completed(uint16_t /*handle*/, uint16_t /*num_packets*/) {}
 
 static void mock_connection_classic_on_connected(const RawAddress& /*bda*/, uint16_t /*handle*/,
-                                                 uint8_t /*enc_mode*/, bool /*locally_initiated*/) {
-}
+                                                 uint8_t /*enc_mode*/, bool /*locally_initiated*/,
+                                                 tHCI_ROLE /*role*/) {}
 
 static void mock_connection_classic_on_failed(const RawAddress& /*bda*/, tHCI_STATUS /*status*/,
                                               bool /*locally_initiated*/) {}
@@ -199,7 +201,7 @@ const packet_fragmenter_t* packet_fragmenter_get_interface() { return nullptr; }
 
 template <typename T>
 class MockEnQueue : public os::IQueueEnqueue<T> {
-  using EnqueueCallback = base::Callback<std::unique_ptr<T>()>;
+  using EnqueueCallback = base::RepeatingCallback<std::unique_ptr<T>()>;
 
   void RegisterEnqueue(os::Handler* /*handler*/, EnqueueCallback /*callback*/) override {}
   void UnregisterEnqueue() override {}
@@ -207,7 +209,7 @@ class MockEnQueue : public os::IQueueEnqueue<T> {
 
 template <typename T>
 class MockDeQueue : public os::IQueueDequeue<T> {
-  using DequeueCallback = base::Callback<void()>;
+  using DequeueCallback = base::RepeatingCallback<void()>;
 
   void RegisterDequeue(os::Handler* /*handler*/, DequeueCallback /*callback*/) override {}
   void UnregisterDequeue() override {}
@@ -377,8 +379,8 @@ protected:
     acl_ = MakeAcl();
 
     // Create connection
-    EXPECT_CALL(*test::mock_acl_manager_classic_, CreateConnection(_)).Times(1);
-    acl_->CreateClassicConnection(address);
+    EXPECT_CALL(*test::mock_acl_manager_classic_, CreateConnection(_, _)).Times(1);
+    acl_->CreateClassicConnection(address, 0);
 
     // Respond with a mock connection created
     auto connection = std::make_unique<MockClassicAclConnection>(address, 123);
@@ -386,7 +388,7 @@ protected:
     ASSERT_EQ(hci::Address({0x11, 0x22, 0x33, 0x44, 0x55, 0x66}), connection->GetAddress());
     raw_connection_ = connection.get();
 
-    acl_->OnConnectSuccess(std::move(connection));
+    acl_->OnConnectSuccess(std::move(connection), hci::Role::CENTRAL);
     ASSERT_EQ(nullptr, connection);
     ASSERT_NE(nullptr, raw_connection_->callbacks_);
   }
@@ -448,8 +450,8 @@ TEST_F(MainShimTest, connect_and_disconnect) {
   auto acl = MakeAcl();
 
   // Create connection
-  EXPECT_CALL(*test::mock_acl_manager_classic_, CreateConnection(_)).Times(1);
-  acl->CreateClassicConnection(address);
+  EXPECT_CALL(*test::mock_acl_manager_classic_, CreateConnection(_, _)).Times(1);
+  acl->CreateClassicConnection(address, 0);
 
   // Respond with a mock connection created
   auto connection = std::make_unique<MockClassicAclConnection>(address, 123);
@@ -457,7 +459,7 @@ TEST_F(MainShimTest, connect_and_disconnect) {
   ASSERT_EQ(hci::Address({0x11, 0x22, 0x33, 0x44, 0x55, 0x66}), connection->GetAddress());
   MockClassicAclConnection* raw_connection = connection.get();
 
-  acl->OnConnectSuccess(std::move(connection));
+  acl->OnConnectSuccess(std::move(connection), hci::Role::CENTRAL);
   ASSERT_EQ(nullptr, connection);
 
   // Specify local disconnect request
@@ -726,4 +728,124 @@ TEST(MainShimRegressionTest, OOB_In_StartAdvertisingSet) {
   bluetooth::shim::parse_gap_data(raw_data, res);
 
   ASSERT_EQ(res.size(), (size_t)0);
+}
+
+class MockScanningCallbacks : public ::ScanningCallbacks {
+public:
+  MOCK_METHOD(void, OnScannerRegistered,
+              (const bluetooth::Uuid app_uuid, uint8_t scannerId, uint8_t status), (override));
+  MOCK_METHOD(void, OnSetScannerParameterComplete, (uint8_t scannerId, uint8_t status), (override));
+  MOCK_METHOD(void, OnScanResult,
+              (uint16_t event_type, uint8_t addr_type, RawAddress bda, uint8_t primary_phy,
+               uint8_t secondary_phy, uint8_t advertising_sid, int8_t tx_power, int8_t rssi,
+               uint16_t periodic_adv_int, std::vector<uint8_t> adv_data),
+              (override));
+  MOCK_METHOD(void, OnTrackAdvFoundLost, (AdvertisingTrackInfo advertising_track_info), (override));
+  MOCK_METHOD(void, OnBatchScanReports,
+              (int client_if, int status, int report_format, int num_records,
+               std::vector<uint8_t> data),
+              (override));
+  MOCK_METHOD(void, OnBatchScanThresholdCrossed, (int client_if), (override));
+  MOCK_METHOD(void, OnPeriodicSyncStarted,
+              (int reg_id, uint8_t status, uint16_t sync_handle, uint8_t advertising_sid,
+               uint8_t address_type, RawAddress address, uint8_t phy, uint16_t interval),
+              (override));
+  MOCK_METHOD(void, OnPeriodicSyncReport,
+              (uint16_t sync_handle, int8_t tx_power, int8_t rssi, uint8_t status,
+               std::vector<uint8_t> data),
+              (override));
+  MOCK_METHOD(void, OnPeriodicSyncLost, (uint16_t sync_handle), (override));
+  MOCK_METHOD(void, OnPeriodicSyncTransferred, (int pa_source, uint8_t status, RawAddress address),
+              (override));
+  MOCK_METHOD(void, OnBigInfoReport, (uint16_t sync_handle, bool encrypted), (override));
+};
+
+TEST_F(MainShimTest, BleScannerInterfaceImpl_MultiClient_PeriodicSync_Routing) {
+  com_android_bluetooth_flags_reset_flags();
+  set_com_android_bluetooth_flags_support_native_pa_callback(true);
+
+  auto* ble = static_cast<bluetooth::shim::BleScannerInterfaceImpl*>(
+          bluetooth::shim::get_ble_scanner_instance());
+
+  bluetooth::hci::ScanningCallback* scanner_impl_as_callback = nullptr;
+  EXPECT_CALL(*hci::testing::mock_le_scanning_manager_, RegisterScanningCallback(_))
+          .WillOnce(SaveArg<0>(&scanner_impl_as_callback));
+
+  bluetooth::shim::init_scanning_manager();
+
+  MockScanningCallbacks mock_cb_jni;
+  MockScanningCallbacks mock_cb_native;
+
+  ble->RegisterCallbacksNative(&mock_cb_jni, kScannerClientIdJni);
+  ble->RegisterCallbacksNative(&mock_cb_native, kScannerClientIdLeAudio);
+
+  int reg_id = 100;
+  uint16_t sync_handle = 200;
+  uint8_t adv_sid = 1;
+  bluetooth::hci::Address address;
+  bluetooth::hci::AddressWithType address_with_type(
+          address, bluetooth::hci::AddressType::RANDOM_DEVICE_ADDRESS);
+  uint16_t skip = 0;
+  uint16_t timeout = 100;
+
+  // 1. StartSync called by LeAudio Client.
+  EXPECT_CALL(*hci::testing::mock_le_scanning_manager_, StartSync(_, _, _, _, _)).Times(1);
+  ble->StartSync(adv_sid, ToRawAddress(address), BLE_ADDR_RANDOM, skip, timeout, reg_id,
+                 kScannerClientIdLeAudio);
+
+  // 2. Verify OnPeriodicSyncStarted is routed ONLY to LeAudio Client.
+  EXPECT_CALL(mock_cb_native, OnPeriodicSyncStarted(reg_id, 0, sync_handle, _, _, _, _, _))
+          .Times(1);
+  EXPECT_CALL(mock_cb_jni, OnPeriodicSyncStarted(_, _, _, _, _, _, _, _)).Times(0);
+
+  // Simulate callback from GD
+  scanner_impl_as_callback->OnPeriodicSyncStarted(reg_id, 0, sync_handle, adv_sid,
+                                                  address_with_type, 0, 0);
+
+  run_all_jni_thread_task();
+
+  // 3. Verify OnPeriodicSyncReport is routed ONLY to LeAudio Client (based on sync_handle).
+  std::vector<uint8_t> data;
+  EXPECT_CALL(mock_cb_native, OnPeriodicSyncReport(sync_handle, _, _, _, _)).Times(1);
+  EXPECT_CALL(mock_cb_jni, OnPeriodicSyncReport(_, _, _, _, _)).Times(0);
+
+  scanner_impl_as_callback->OnPeriodicSyncReport(sync_handle, 0, 0, 0, data);
+  run_all_jni_thread_task();
+
+  // 4. Verify OnBigInfoReport is routed ONLY to LeAudio Client.
+  EXPECT_CALL(mock_cb_native, OnBigInfoReport(sync_handle, true)).Times(1);
+  EXPECT_CALL(mock_cb_jni, OnBigInfoReport(_, _)).Times(0);
+
+  scanner_impl_as_callback->OnBigInfoReport(sync_handle, true);
+  run_all_jni_thread_task();
+
+  // 5. Verify OnPeriodicSyncLost is routed ONLY to LeAudio Client and clears mapping.
+  EXPECT_CALL(mock_cb_native, OnPeriodicSyncLost(sync_handle)).Times(1);
+  EXPECT_CALL(mock_cb_jni, OnPeriodicSyncLost(_)).Times(0);
+
+  scanner_impl_as_callback->OnPeriodicSyncLost(sync_handle);
+  run_all_jni_thread_task();
+
+  // 6. Verify subsequent report for the same handle does NOT go to LeAudio client (mapping removed)
+  // It should be dropped (not routed to JNI either)
+  EXPECT_CALL(mock_cb_native, OnPeriodicSyncReport(sync_handle, _, _, _, _)).Times(0);
+  EXPECT_CALL(mock_cb_jni, OnPeriodicSyncReport(sync_handle, _, _, _, _)).Times(0);
+
+  scanner_impl_as_callback->OnPeriodicSyncReport(sync_handle, 0, 0, 0, data);
+  run_all_jni_thread_task();
+
+  // 7. Verify OnPeriodicSyncStarted FAILURE case.
+  int reg_id_fail = 101;
+  // StartSync called by LeAudio Client.
+  EXPECT_CALL(*hci::testing::mock_le_scanning_manager_, StartSync(_, _, _, _, _)).Times(1);
+  ble->StartSync(adv_sid, ToRawAddress(address), BLE_ADDR_RANDOM, skip, timeout, reg_id_fail,
+                 kScannerClientIdLeAudio);
+
+  // Callback with error status should still route to LeAudio Client
+  EXPECT_CALL(mock_cb_native, OnPeriodicSyncStarted(reg_id_fail, 1, _, _, _, _, _, _)).Times(1);
+  EXPECT_CALL(mock_cb_jni, OnPeriodicSyncStarted(_, _, _, _, _, _, _, _)).Times(0);
+
+  scanner_impl_as_callback->OnPeriodicSyncStarted(reg_id_fail, 1, 0, adv_sid, address_with_type, 0,
+                                                  0);
+  run_all_jni_thread_task();
 }

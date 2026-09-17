@@ -48,7 +48,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadset;
@@ -78,14 +77,14 @@ import androidx.test.filters.MediumTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.bluetooth.TestLooper;
-import com.android.bluetooth.Utils;
+import com.android.bluetooth.Util;
 import com.android.bluetooth.btservice.ActiveDeviceManager;
 import com.android.bluetooth.btservice.AdapterService;
 import com.android.bluetooth.btservice.RemoteDevices;
 import com.android.bluetooth.btservice.SilenceDeviceManager;
-import com.android.bluetooth.btservice.storage.DatabaseManager;
 import com.android.bluetooth.flags.Flags;
 import com.android.bluetooth.le_audio.LeAudioService;
+import com.android.bluetooth.storage.BluetoothStorageManager;
 import com.android.tests.bluetooth.FlagsWrapper;
 import com.android.tests.bluetooth.StaticMockitoRule;
 
@@ -97,6 +96,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -115,31 +115,21 @@ import java.util.Set;
 @MediumTest
 @RunWith(ParameterizedAndroidJunit4.class)
 public class HeadsetServiceAndStateMachineTest {
-    private static final String TAG = HeadsetServiceAndStateMachineTest.class.getSimpleName();
-
     @Rule public final SetFlagsRule mSetFlagsRule;
     @Rule public final CheckFlagsRule mCheckFlagsRule = createCheckFlagsRule();
-
-    @Parameters(name = "{0}")
-    public static List<FlagsWrapper> getParams() {
-        return FlagsWrapper.progressionOf(Flags.FLAG_VOICE_RECOGNITION_FIXES);
-    }
-
-    public HeadsetServiceAndStateMachineTest(FlagsWrapper flags) {
-        mSetFlagsRule = new SetFlagsRule(flags.getFlags());
-    }
 
     @Rule
     public final StaticMockitoRule mMockitoRule = new StaticMockitoRule(SystemProperties.class);
 
     @Spy private HeadsetObjectsFactory mObjectsFactory = HeadsetObjectsFactory.getInstance();
 
+    @Mock private BluetoothSinkAudioPolicy sinkAudioPolicy;
     @Mock private HeadsetNativeInterface mNativeInterface;
     @Mock private LeAudioService mLeAudioService;
     @Mock private AdapterService mAdapterService;
     @Mock private ActiveDeviceManager mActiveDeviceManager;
     @Mock private SilenceDeviceManager mSilenceDeviceManager;
-    @Mock private DatabaseManager mDatabaseManager;
+    @Mock private BluetoothStorageManager mStorage;
     @Mock private HeadsetSystemInterface mSystemInterface;
     @Mock private AudioManager mAudioManager;
     @Mock private AudioDeviceVolumeManager mAudioDeviceVolumeManager;
@@ -148,8 +138,9 @@ public class HeadsetServiceAndStateMachineTest {
     @Mock private AudioDeviceInfo mAudioDeviceInfo;
     @Mock private AudioDeviceInfo mAudioDeviceInfo2;
 
-    ArgumentCaptor<AudioDeviceCallback> mAudioDeviceCallbackArgumentCaptor =
-            ArgumentCaptor.forClass(AudioDeviceCallback.class);
+    @Captor private ArgumentCaptor<AudioDeviceCallback> mAudioDeviceCallbackArgumentCaptor;
+
+    private static final String TAG = HeadsetServiceAndStateMachineTest.class.getSimpleName();
 
     private static final int MAX_HEADSET_CONNECTIONS = 5;
     private static final ParcelUuid[] FAKE_HEADSET_UUID = {BluetoothUuid.HFP};
@@ -164,8 +155,18 @@ public class HeadsetServiceAndStateMachineTest {
     private InOrder mInOrder;
     private TestLooper mTestLooper;
 
+    @Parameters(name = "{0}")
+    public static List<FlagsWrapper> getParams() {
+        return FlagsWrapper.progressionOf();
+    }
+
+    public HeadsetServiceAndStateMachineTest(FlagsWrapper flags) {
+        mSetFlagsRule = new SetFlagsRule(flags.getFlags());
+    }
+
     @Before
     public void setUp() {
+        doReturn(sinkAudioPolicy).when(mStorage).getAudioPolicyMetadata(any());
         mInOrder = inOrder(mAdapterService);
         doReturn(mContext.getPackageName()).when(mAdapterService).getPackageName();
         doReturn(mContext.getPackageManager()).when(mAdapterService).getPackageManager();
@@ -179,19 +180,15 @@ public class HeadsetServiceAndStateMachineTest {
         doReturn(new ParcelUuid[] {BluetoothUuid.HFP})
                 .when(mAdapterService)
                 .getRemoteUuids(any(BluetoothDevice.class));
-        doReturn(mDatabaseManager).when(mAdapterService).getDatabaseManager();
         HeadsetObjectsFactory.setInstanceForTesting(mObjectsFactory);
         // Mock methods in AdapterService
         doReturn(FAKE_HEADSET_UUID)
                 .when(mAdapterService)
                 .getRemoteUuids(any(BluetoothDevice.class));
-        doAnswer(invocation -> mBondedDevices.toArray(new BluetoothDevice[] {}))
-                .when(mAdapterService)
-                .getBondedDevices();
+        doAnswer(invocation -> mBondedDevices).when(mAdapterService).getBondedDevices();
         doReturn(new BluetoothSinkAudioPolicy.Builder().build())
                 .when(mAdapterService)
                 .getRequestedAudioPolicyAsSink(any(BluetoothDevice.class));
-        doReturn(mActiveDeviceManager).when(mAdapterService).getActiveDeviceManager();
         doReturn(mSilenceDeviceManager).when(mAdapterService).getSilenceDeviceManager();
         doReturn(mRemoteDevices).when(mAdapterService).getRemoteDevices();
         // Mock system interface
@@ -230,20 +227,24 @@ public class HeadsetServiceAndStateMachineTest {
         // Use real state machines here
         doCallRealMethod()
                 .when(mObjectsFactory)
-                .makeStateMachine(any(), any(), any(), any(), any(), any());
+                .makeStateMachine(any(), any(), any(), any(), any(), any(), any());
         mTestLooper = new TestLooper();
 
         mHeadsetService =
                 new HeadsetService(
                         mAdapterService,
+                        mStorage,
                         mNativeInterface,
                         mSystemInterface,
+                        mActiveDeviceManager,
                         mTestLooper.getLooper());
         mHeadsetService.setAvailable(true);
-        if (android.media.audio.Flags.scoManagedByAudio()) {
-            verify(mAudioManager)
-                    .registerAudioDeviceCallback(
-                            mAudioDeviceCallbackArgumentCaptor.capture(), any());
+        if (!Flags.admCentralizeActiveDeviceHandling()) {
+            if (android.media.audio.Flags.scoManagedByAudio()) {
+                verify(mAudioManager)
+                        .registerAudioDeviceCallback(
+                                mAudioDeviceCallbackArgumentCaptor.capture(), any());
+            }
         }
 
         verify(mNativeInterface).init(MAX_HEADSET_CONNECTIONS + 1, true /* inband ringtone */);
@@ -297,6 +298,7 @@ public class HeadsetServiceAndStateMachineTest {
                         mTestLooper.getLooper(),
                         mHeadsetService,
                         mAdapterService,
+                        mStorage,
                         mNativeInterface,
                         mSystemInterface);
         verifyConnectionStateIntent(device, STATE_CONNECTING, STATE_DISCONNECTED);
@@ -338,6 +340,7 @@ public class HeadsetServiceAndStateMachineTest {
                         mTestLooper.getLooper(),
                         mHeadsetService,
                         mAdapterService,
+                        mStorage,
                         mNativeInterface,
                         mSystemInterface);
         verifyConnectionStateIntent(device, STATE_CONNECTING, STATE_DISCONNECTED);
@@ -382,6 +385,7 @@ public class HeadsetServiceAndStateMachineTest {
                         mTestLooper.getLooper(),
                         mHeadsetService,
                         mAdapterService,
+                        mStorage,
                         mNativeInterface,
                         mSystemInterface);
         verify(mNativeInterface).connectHfp(device);
@@ -1038,11 +1042,7 @@ public class HeadsetServiceAndStateMachineTest {
         BluetoothDevice disconnectedDevice = getTestDevice(0);
         assertThat(mHeadsetService.startVoiceRecognition(disconnectedDevice)).isFalse();
         mTestLooper.dispatchAll();
-        if (Flags.voiceRecognitionFixes()) {
-            verify(mNativeInterface).isVoiceRecognitionSupported(disconnectedDevice);
-        } else {
-            verifyNoMoreInteractions(mNativeInterface);
-        }
+        verify(mNativeInterface).isVoiceRecognitionSupported(disconnectedDevice);
         verifyNoMoreInteractions(mAudioManager);
     }
 
@@ -1063,18 +1063,19 @@ public class HeadsetServiceAndStateMachineTest {
         BluetoothDevice deviceB = getTestDevice(1);
         connectTestDevice(deviceB);
         if (android.media.audio.Flags.scoManagedByAudio()) {
-            when(mAudioDeviceInfo.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
+            doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO).when(mAudioDeviceInfo).getType();
             final String deviceBAddress = deviceB.getAddress();
-            when(mAudioDeviceInfo.getAddress()).thenReturn(deviceBAddress);
-            when(mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(deviceBAddress)))
-                    .thenReturn(deviceB);
+            doReturn(deviceBAddress).when(mAudioDeviceInfo).getAddress();
+            byte[] byteAddressB = Util.getBytesFromAddress(deviceBAddress);
+            doReturn(deviceB).when(mAdapterService).getDeviceFromByte(byteAddressB);
             final String deviceAAddress = deviceA.getAddress();
-            when(mAudioDeviceInfo2.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
-            when(mAudioDeviceInfo2.getAddress()).thenReturn(deviceAAddress);
-            when(mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(deviceAAddress)))
-                    .thenReturn(deviceA);
-            when(mAudioManager.getAvailableCommunicationDevices())
-                    .thenReturn(List.of(mAudioDeviceInfo, mAudioDeviceInfo2));
+            doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO).when(mAudioDeviceInfo2).getType();
+            doReturn(deviceAAddress).when(mAudioDeviceInfo2).getAddress();
+            byte[] byteAddressA = Util.getBytesFromAddress(deviceAAddress);
+            doReturn(deviceA).when(mAdapterService).getDeviceFromByte(byteAddressA);
+            doReturn(List.of(mAudioDeviceInfo, mAudioDeviceInfo2))
+                    .when(mAudioManager)
+                    .getAvailableCommunicationDevices();
         }
         InOrder inOrder = inOrder(mNativeInterface);
         inOrder.verify(mNativeInterface).sendBsir(eq(deviceA), eq(false));
@@ -1279,20 +1280,25 @@ public class HeadsetServiceAndStateMachineTest {
         mTestLooper.dispatchAll();
         verify(mNativeInterface).setActiveDevice(deviceB);
         if (android.media.audio.Flags.scoManagedByAudio()) {
-            AudioDeviceCallback callbackVal = mAudioDeviceCallbackArgumentCaptor.getValue();
-            when(mAudioDeviceInfo.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
-            final String deviceBAddress = deviceB.getAddress();
-            when(mAudioDeviceInfo.getAddress()).thenReturn(deviceBAddress);
-            when(mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(deviceBAddress)))
-                    .thenReturn(deviceB);
-            final String deviceAAddress = deviceA.getAddress();
-            when(mAudioDeviceInfo2.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
-            when(mAudioDeviceInfo2.getAddress()).thenReturn(deviceAAddress);
-            when(mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(deviceAAddress)))
-                    .thenReturn(deviceA);
-            when(mAudioManager.getAvailableCommunicationDevices())
-                    .thenReturn(List.of(mAudioDeviceInfo, mAudioDeviceInfo2));
-            callbackVal.onAudioDevicesAdded(new AudioDeviceInfo[] {mAudioDeviceInfo});
+            if (!Flags.admCentralizeActiveDeviceHandling()) {
+                AudioDeviceCallback callbackVal = mAudioDeviceCallbackArgumentCaptor.getValue();
+                doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO).when(mAudioDeviceInfo).getType();
+                final String deviceBAddress = deviceB.getAddress();
+                doReturn(deviceBAddress).when(mAudioDeviceInfo).getAddress();
+                byte[] byteAddressB = Util.getBytesFromAddress(deviceBAddress);
+                doReturn(deviceB).when(mAdapterService).getDeviceFromByte(byteAddressB);
+                final String deviceAAddress = deviceA.getAddress();
+                doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO).when(mAudioDeviceInfo2).getType();
+                doReturn(deviceAAddress).when(mAudioDeviceInfo2).getAddress();
+                byte[] byteAddressA = Util.getBytesFromAddress(deviceAAddress);
+                doReturn(deviceA).when(mAdapterService).getDeviceFromByte(byteAddressA);
+                doReturn(List.of(mAudioDeviceInfo, mAudioDeviceInfo2))
+                        .when(mAudioManager)
+                        .getAvailableCommunicationDevices();
+                callbackVal.onAudioDevicesAdded(new AudioDeviceInfo[] {mAudioDeviceInfo});
+            } else {
+                mHeadsetService.handleAudioDeviceAdded(deviceB);
+            }
             assertThat(mHeadsetService.mExposedActiveDevice).isEqualTo(deviceB);
             verifyIntentSent(
                     hasAction(BluetoothHeadset.ACTION_ACTIVE_DEVICE_CHANGED),
@@ -1305,20 +1311,25 @@ public class HeadsetServiceAndStateMachineTest {
         mTestLooper.dispatchAll();
         verify(mNativeInterface).setActiveDevice(deviceA);
         if (android.media.audio.Flags.scoManagedByAudio()) {
-            AudioDeviceCallback callbackVal = mAudioDeviceCallbackArgumentCaptor.getValue();
-            when(mAudioDeviceInfo.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
-            final String deviceBAddress = deviceB.getAddress();
-            when(mAudioDeviceInfo.getAddress()).thenReturn(deviceBAddress);
-            when(mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(deviceBAddress)))
-                    .thenReturn(deviceB);
-            final String deviceAAddress = deviceA.getAddress();
-            when(mAudioDeviceInfo2.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
-            when(mAudioDeviceInfo2.getAddress()).thenReturn(deviceAAddress);
-            when(mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(deviceAAddress)))
-                    .thenReturn(deviceA);
-            when(mAudioManager.getAvailableCommunicationDevices())
-                    .thenReturn(List.of(mAudioDeviceInfo, mAudioDeviceInfo2));
-            callbackVal.onAudioDevicesAdded(new AudioDeviceInfo[] {mAudioDeviceInfo2});
+            if (!Flags.admCentralizeActiveDeviceHandling()) {
+                AudioDeviceCallback callbackVal = mAudioDeviceCallbackArgumentCaptor.getValue();
+                doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO).when(mAudioDeviceInfo).getType();
+                final String deviceBAddress = deviceB.getAddress();
+                doReturn(deviceBAddress).when(mAudioDeviceInfo).getAddress();
+                byte[] byteAddressB = Util.getBytesFromAddress(deviceBAddress);
+                doReturn(deviceB).when(mAdapterService).getDeviceFromByte(byteAddressB);
+                final String deviceAAddress = deviceA.getAddress();
+                doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO).when(mAudioDeviceInfo2).getType();
+                doReturn(deviceAAddress).when(mAudioDeviceInfo2).getAddress();
+                byte[] byteAddressA = Util.getBytesFromAddress(deviceAAddress);
+                doReturn(deviceA).when(mAdapterService).getDeviceFromByte(byteAddressA);
+                doReturn(List.of(mAudioDeviceInfo, mAudioDeviceInfo2))
+                        .when(mAudioManager)
+                        .getAvailableCommunicationDevices();
+                callbackVal.onAudioDevicesAdded(new AudioDeviceInfo[] {mAudioDeviceInfo2});
+            } else {
+                mHeadsetService.handleAudioDeviceAdded(deviceA);
+            }
             assertThat(mHeadsetService.mExposedActiveDevice).isEqualTo(deviceA);
             verifyIntentSent(
                     hasAction(BluetoothHeadset.ACTION_ACTIVE_DEVICE_CHANGED),
@@ -1881,7 +1892,6 @@ public class HeadsetServiceAndStateMachineTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_VOICE_RECOGNITION_FIXES)
     public void testStopVoiceRecognitionBeforeStop_returnsFalse() {
         BluetoothDevice device = getTestDevice(0);
 
@@ -1909,7 +1919,6 @@ public class HeadsetServiceAndStateMachineTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_VOICE_RECOGNITION_FIXES)
     public void testStartVoiceRecognitionNotSupported_returnsFalse() {
         BluetoothDevice device = getTestDevice(0);
         doReturn(false).when(mNativeInterface).isVoiceRecognitionSupported(device);
@@ -1975,13 +1984,12 @@ public class HeadsetServiceAndStateMachineTest {
     }
 
     private void startVoiceRecognitionFromHf_ScoManagedByAudio(BluetoothDevice device) {
-        when(mAudioDeviceInfo.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
+        doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO).when(mAudioDeviceInfo).getType();
         final String address = device.getAddress();
-        when(mAudioDeviceInfo.getAddress()).thenReturn(address);
-        when(mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(device.getAddress())))
-                .thenReturn(device);
-        when(mAudioManager.getAvailableCommunicationDevices())
-                .thenReturn(List.of(mAudioDeviceInfo));
+        doReturn(address).when(mAudioDeviceInfo).getAddress();
+        byte[] byteAddress = Util.getBytesFromAddress(device.getAddress());
+        doReturn(device).when(mAdapterService).getDeviceFromByte(byteAddress);
+        doReturn(List.of(mAudioDeviceInfo)).when(mAudioManager).getAvailableCommunicationDevices();
         // Start voice recognition
         HeadsetStackEvent startVrEvent =
                 new HeadsetStackEvent(
@@ -2034,13 +2042,12 @@ public class HeadsetServiceAndStateMachineTest {
     private void startVoiceRecognitionFromAg_ScoManagedByAudio() {
         BluetoothDevice device = mHeadsetService.getActiveDevice();
         assertThat(device).isNotNull();
-        when(mAudioDeviceInfo.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
+        doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO).when(mAudioDeviceInfo).getType();
         final String address = device.getAddress();
-        when(mAudioDeviceInfo.getAddress()).thenReturn(address);
-        when(mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(device.getAddress())))
-                .thenReturn(device);
-        when(mAudioManager.getAvailableCommunicationDevices())
-                .thenReturn(List.of(mAudioDeviceInfo));
+        doReturn(address).when(mAudioDeviceInfo).getAddress();
+        byte[] byteAddress = Util.getBytesFromAddress(device.getAddress());
+        doReturn(device).when(mAdapterService).getDeviceFromByte(byteAddress);
+        doReturn(List.of(mAudioDeviceInfo)).when(mAudioManager).getAvailableCommunicationDevices();
         mHeadsetService.startVoiceRecognition(device);
         mTestLooper.dispatchAll();
         // has not add verification AudioDeviceInfo because it is final, unless add a wrapper
@@ -2101,8 +2108,11 @@ public class HeadsetServiceAndStateMachineTest {
         BluetoothDevice device = getTestDevice(0);
         assertThat(device).isNotNull();
         connectTestDevice(device);
-        verify(mAudioManager)
-                .registerAudioDeviceCallback(mAudioDeviceCallbackArgumentCaptor.capture(), any());
+        if (!Flags.admCentralizeActiveDeviceHandling()) {
+            verify(mAudioManager)
+                    .registerAudioDeviceCallback(
+                            mAudioDeviceCallbackArgumentCaptor.capture(), any());
+        }
 
         mHeadsetService.setActiveDevice(device);
         mTestLooper.dispatchAll();
@@ -2134,12 +2144,14 @@ public class HeadsetServiceAndStateMachineTest {
     public void testHfStartsAudioConnection_deviceDisconnected() {
         ArgumentCaptor<AudioDeviceCallback> callback =
                 ArgumentCaptor.forClass(AudioDeviceCallback.class);
-        when(mSystemInterface.getAudioManager()).thenReturn(mAudioManager);
+        doReturn(mAudioManager).when(mSystemInterface).getAudioManager();
 
         BluetoothDevice device = getTestDevice(0);
         assertThat(device).isNotNull();
         connectTestDevice(device);
-        verify(mAudioManager).registerAudioDeviceCallback(callback.capture(), any());
+        if (!Flags.admCentralizeActiveDeviceHandling()) {
+            verify(mAudioManager).registerAudioDeviceCallback(callback.capture(), any());
+        }
 
         mHeadsetService.setActiveDevice(device);
         mTestLooper.dispatchAll();
@@ -2181,13 +2193,14 @@ public class HeadsetServiceAndStateMachineTest {
     public void testHfStartsAudioConnection_scoStartedByOtherMeans() {
         ArgumentCaptor<AudioDeviceCallback> callback =
                 ArgumentCaptor.forClass(AudioDeviceCallback.class);
-        when(mSystemInterface.getAudioManager()).thenReturn(mAudioManager);
+        doReturn(mAudioManager).when(mSystemInterface).getAudioManager();
 
         BluetoothDevice device = getTestDevice(0);
         assertThat(device).isNotNull();
         connectTestDevice(device);
-        verify(mAudioManager).registerAudioDeviceCallback(callback.capture(), any());
-
+        if (!Flags.admCentralizeActiveDeviceHandling()) {
+            verify(mAudioManager).registerAudioDeviceCallback(callback.capture(), any());
+        }
         mHeadsetService.setActiveDevice(device);
         mTestLooper.dispatchAll();
         assertThat(mHeadsetService.setActiveDevice(device)).isTrue();
@@ -2221,8 +2234,39 @@ public class HeadsetServiceAndStateMachineTest {
      */
     @Test
     @RequiresFlagsEnabled(android.media.audio.Flags.FLAG_SCO_MANAGED_BY_AUDIO)
+    @EnableFlags(Flags.FLAG_ADM_CENTRALIZE_ACTIVE_DEVICE_HANDLING)
+    public void testMExposedDevice_isSetCorrectly_movedAudioManagerCallbacks() {
+        BluetoothDevice deviceA = getTestDevice(0);
+        BluetoothDevice deviceB = getTestDevice(1);
+        assertThat(deviceA).isNotNull();
+        connectTestDevice(deviceA);
+        assertThat(mHeadsetService.mExposedActiveDevice).isNull();
+
+        mHeadsetService.setActiveDevice(deviceA);
+        mTestLooper.dispatchAll();
+        assertThat(mHeadsetService.setActiveDevice(deviceA)).isTrue();
+        mTestLooper.dispatchAll();
+        assertThat(mHeadsetService.mExposedActiveDevice).isNull();
+
+        verifyActiveDeviceChanged_scoManagement(deviceA);
+
+        // trigger removal of a device that is not the exposed active device
+        mHeadsetService.handleAudioDeviceRemoved(deviceB);
+        assertThat(mHeadsetService.mExposedActiveDevice).isEqualTo(deviceA);
+
+        // trigger removal of the exposed active device
+        mHeadsetService.handleAudioDeviceRemoved(deviceA);
+        assertThat(mHeadsetService.mExposedActiveDevice).isNull();
+    }
+
+    /*
+     * Test that mExposedDevice is set correctly
+     */
+    @Test
+    @RequiresFlagsEnabled(android.media.audio.Flags.FLAG_SCO_MANAGED_BY_AUDIO)
     public void testMExposedDevice_isSetCorrectly() {
         BluetoothDevice device = getTestDevice(0);
+        BluetoothDevice device2 = getTestDevice(1);
         assertThat(device).isNotNull();
         connectTestDevice(device);
         assertThat(mHeadsetService.mExposedActiveDevice).isNull();
@@ -2235,18 +2279,25 @@ public class HeadsetServiceAndStateMachineTest {
 
         verifyActiveDeviceChanged_scoManagement(device);
 
-        AudioDeviceCallback callbackVal = mAudioDeviceCallbackArgumentCaptor.getValue();
-        final String address = device.getAddress();
-        // trigger audio callback to remove device
-        when(mAudioDeviceInfo.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
-        // trigger removal of a device that is not the exposed active device
-        when(mAudioDeviceInfo.getAddress()).thenReturn("00:00:00:00");
-        callbackVal.onAudioDevicesRemoved(new AudioDeviceInfo[] {mAudioDeviceInfo});
-        assertThat(mHeadsetService.mExposedActiveDevice).isEqualTo(device);
+        if (!Flags.admCentralizeActiveDeviceHandling()) {
+            AudioDeviceCallback callbackVal = mAudioDeviceCallbackArgumentCaptor.getValue();
+            final String address = device.getAddress();
+            // trigger audio callback to remove device
+            doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO).when(mAudioDeviceInfo).getType();
+            // trigger removal of a device that is not the exposed active device
+            doReturn("00:00:00:00").when(mAudioDeviceInfo).getAddress();
+            callbackVal.onAudioDevicesRemoved(new AudioDeviceInfo[] {mAudioDeviceInfo});
+            assertThat(mHeadsetService.mExposedActiveDevice).isEqualTo(device);
 
-        when(mAudioDeviceInfo.getAddress()).thenReturn(address);
-        callbackVal.onAudioDevicesRemoved(new AudioDeviceInfo[] {mAudioDeviceInfo});
-        assertThat(mHeadsetService.mExposedActiveDevice).isNull();
+            doReturn(address).when(mAudioDeviceInfo).getAddress();
+            callbackVal.onAudioDevicesRemoved(new AudioDeviceInfo[] {mAudioDeviceInfo});
+            assertThat(mHeadsetService.mExposedActiveDevice).isNull();
+        } else {
+            mHeadsetService.handleAudioDeviceRemoved(device2);
+            assertThat(mHeadsetService.mExposedActiveDevice).isEqualTo(device);
+            mHeadsetService.handleAudioDeviceRemoved(device);
+            assertThat(mHeadsetService.mExposedActiveDevice).isNull();
+        }
     }
 
     @Test
@@ -2282,7 +2333,6 @@ public class HeadsetServiceAndStateMachineTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SEND_OK_CLCC_BEFORE_SLC)
     public void testProcessSendClccResponse_rfcommNotCompleted() {
         doReturn(true).when(mSystemInterface).listCurrentCalls(mHeadsetService);
         BluetoothDevice device = getTestDevice(0);
@@ -2307,6 +2357,7 @@ public class HeadsetServiceAndStateMachineTest {
                         mTestLooper.getLooper(),
                         mHeadsetService,
                         mAdapterService,
+                        mStorage,
                         mNativeInterface,
                         mSystemInterface);
         verify(mActiveDeviceManager)
@@ -2331,7 +2382,6 @@ public class HeadsetServiceAndStateMachineTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SEND_OK_CLCC_BEFORE_SLC)
     public void testProcessSendClccResponse_rfcommCompleted() {
         doReturn(true).when(mSystemInterface).listCurrentCalls(mHeadsetService);
         BluetoothDevice device = getTestDevice(0);
@@ -2363,6 +2413,7 @@ public class HeadsetServiceAndStateMachineTest {
                         mTestLooper.getLooper(),
                         mHeadsetService,
                         mAdapterService,
+                        mStorage,
                         mNativeInterface,
                         mSystemInterface);
         verify(mActiveDeviceManager)
@@ -2388,15 +2439,20 @@ public class HeadsetServiceAndStateMachineTest {
 
     private void verifyActiveDeviceChanged_scoManagement(BluetoothDevice device) {
         // trigger audio callback
-        AudioDeviceCallback callbackVal = mAudioDeviceCallbackArgumentCaptor.getValue();
-        when(mAudioDeviceInfo.getType()).thenReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO);
-        final String address = device.getAddress();
-        when(mAudioDeviceInfo.getAddress()).thenReturn(address);
-        when(mAdapterService.getDeviceFromByte(Utils.getBytesFromAddress(device.getAddress())))
-                .thenReturn(device);
-        when(mAudioManager.getAvailableCommunicationDevices())
-                .thenReturn(List.of(mAudioDeviceInfo));
-        callbackVal.onAudioDevicesAdded(new AudioDeviceInfo[] {mAudioDeviceInfo});
+        if (!Flags.admCentralizeActiveDeviceHandling()) {
+            AudioDeviceCallback callbackVal = mAudioDeviceCallbackArgumentCaptor.getValue();
+            doReturn(AudioDeviceInfo.TYPE_BLUETOOTH_SCO).when(mAudioDeviceInfo).getType();
+            final String address = device.getAddress();
+            doReturn(address).when(mAudioDeviceInfo).getAddress();
+            byte[] byteAddress = Util.getBytesFromAddress(device.getAddress());
+            doReturn(device).when(mAdapterService).getDeviceFromByte(byteAddress);
+            doReturn(List.of(mAudioDeviceInfo))
+                    .when(mAudioManager)
+                    .getAvailableCommunicationDevices();
+            callbackVal.onAudioDevicesAdded(new AudioDeviceInfo[] {mAudioDeviceInfo});
+        } else {
+            mHeadsetService.handleAudioDeviceAdded(device);
+        }
         assertThat(mHeadsetService.mExposedActiveDevice).isEqualTo(device);
         verifyIntentSent(
                 hasAction(BluetoothHeadset.ACTION_ACTIVE_DEVICE_CHANGED),
@@ -2425,6 +2481,7 @@ public class HeadsetServiceAndStateMachineTest {
                         mTestLooper.getLooper(),
                         mHeadsetService,
                         mAdapterService,
+                        mStorage,
                         mNativeInterface,
                         mSystemInterface);
         verify(mActiveDeviceManager)
@@ -2452,23 +2509,13 @@ public class HeadsetServiceAndStateMachineTest {
     }
 
     private void verifyNoIntentSent() {
-        if (Flags.onlyBroadcastToLocalUser()) {
-            mInOrder.verify(mAdapterService, never()).sendBroadcast(any(), any(), any());
-            return;
-        }
-        mInOrder.verify(mAdapterService, never()).sendBroadcastAsUser(any(), any(), any(), any());
+        mInOrder.verify(mAdapterService, never()).sendBroadcast(any(), any(), any());
     }
 
     @SafeVarargs
     private void verifyIntentSent(Matcher<Intent>... matchers) {
-        if (Flags.onlyBroadcastToLocalUser()) {
-            mInOrder.verify(mAdapterService)
-                    .sendBroadcast(MockitoHamcrest.argThat(AllOf.allOf(matchers)), any(), any());
-            return;
-        }
         mInOrder.verify(mAdapterService)
-                .sendBroadcastAsUser(
-                        MockitoHamcrest.argThat(AllOf.allOf(matchers)), any(), any(), any());
+                .sendBroadcast(MockitoHamcrest.argThat(AllOf.allOf(matchers)), any(), any());
     }
 
     private void verifyConnectionStateIntent(BluetoothDevice device, int newState, int prevState) {

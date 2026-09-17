@@ -29,8 +29,8 @@ import android.util.Log;
 
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.gatt.GattService;
+import com.android.bluetooth.profile.ProfileService;
 
 import java.util.HashMap;
 import java.util.List;
@@ -66,7 +66,7 @@ public class TbsService extends ProfileService {
     }
 
     public TbsService(AdapterService adapterService, GattService gattService) {
-        super(BluetoothProfile.LE_CALL_CONTROL, requireNonNull(adapterService));
+        super(BluetoothProfile.LE_CALL_CONTROL, adapterService);
         unusedGattService = requireNonNull(gattService);
 
         mTbsGeneric = new TbsGeneric(adapterService, new TbsGatt(adapterService, this));
@@ -148,7 +148,7 @@ public class TbsService extends ProfileService {
             return authorization;
         }
 
-        final var leAudio = mAdapterService.getLeAudioService();
+        final var leAudio = getAdapterService().getLeAudioService();
         if (leAudio.isEmpty()) {
             Log.e(TAG, "TBS access not permitted. LeAudioService not available");
             return BluetoothDevice.ACCESS_UNKNOWN;
@@ -239,8 +239,6 @@ public class TbsService extends ProfileService {
     @Override
     public void dump(StringBuilder sb) {
         super.dump(sb);
-        sb.append("TbsService instance:\n");
-
         mTbsGeneric.dump(sb);
 
         for (Map.Entry<BluetoothDevice, Integer> entry : mDeviceAuthorizations.entrySet()) {
@@ -252,7 +250,7 @@ public class TbsService extends ProfileService {
             } else {
                 accessString = "ACCESS_UNKNOWN";
             }
-            sb.append("\n\tDevice: ")
+            sb.append("\n    Device: ")
                     .append(entry.getKey())
                     .append(", access: ")
                     .append(accessString);

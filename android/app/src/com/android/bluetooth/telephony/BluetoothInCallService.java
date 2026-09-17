@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNullElseGet;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothLeCall;
+import android.bluetooth.State;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -191,10 +192,10 @@ public class BluetoothInCallService extends InCallService {
                 int state =
                         intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR);
                 Log.d(TAG, "Bluetooth Adapter state: " + state);
-                if (state == BluetoothAdapter.STATE_ON) {
+                if (state == State.ON) {
                     mLeCallControlClient.registerBearer();
                     queryPhoneState(getHeadsetService());
-                } else if (state == BluetoothAdapter.STATE_TURNING_OFF) {
+                } else if (state == State.TURNING_OFF) {
                     clear();
                 }
             }
@@ -419,7 +420,9 @@ public class BluetoothInCallService extends InCallService {
                 /* Find active call other than conference */
                 call = getNonConferenceActiveCall();
             }
-            if (call.getState() == Call.STATE_RINGING) {
+            if (call.getState() == Call.STATE_RINGING
+                    || (Flags.hangupCallstateSimulatedRinging()
+                            && call.getState() == Call.STATE_SIMULATED_RINGING)) {
                 call.reject(false, "");
             } else {
                 call.disconnect();
@@ -669,15 +672,13 @@ public class BluetoothInCallService extends InCallService {
                     Log.d(TAG, "add inference call with reason: " + cause.getReason());
                     mBluetoothCallQueue.add(call.getId());
                     mBluetoothConferenceCallInference.put(call.getId(), call);
-                    if (Flags.maintainCallIndexAfterConference()) {
-                        // If the disconnect is due to call merge, store the index for future use.
-                        if (cause.getReason() != null
-                                && cause.getReason().equals("IMS_MERGED_SUCCESSFULLY")) {
-                            if (!mConferenceCallClccIndexMap.containsKey(getClccMapKey(call))) {
-                                if (call.mClccIndex > -1) {
-                                    mConferenceCallClccIndexMap.put(
-                                            getClccMapKey(call), call.mClccIndex);
-                                }
+                    // If the disconnect is due to call merge, store the index for future use.
+                    if (cause.getReason() != null
+                            && cause.getReason().equals("IMS_MERGED_SUCCESSFULLY")) {
+                        if (!mConferenceCallClccIndexMap.containsKey(getClccMapKey(call))) {
+                            if (call.mClccIndex > -1) {
+                                mConferenceCallClccIndexMap.put(
+                                        getClccMapKey(call), call.mClccIndex);
                             }
                         }
                     }
@@ -700,8 +701,7 @@ public class BluetoothInCallService extends InCallService {
 
             updateHeadsetWithCallState(headset, false /* force */);
 
-            if (Flags.maintainCallIndexAfterConference()
-                    && mConferenceCallClccIndexMap.size() > 0) {
+            if (mConferenceCallClccIndexMap.size() > 0) {
                 int anyActiveCalls = mCallInfo.isNullCall(mCallInfo.getActiveCall()) ? 0 : 1;
                 int numHeldCalls = mCallInfo.getNumHeldCalls();
                 // If no call is active or held clear the hashmap.
@@ -1054,8 +1054,7 @@ public class BluetoothInCallService extends InCallService {
         }
 
         // Check if the call handle is already stored. Return the previously stored index.
-        if (Flags.maintainCallIndexAfterConference()
-                && mConferenceCallClccIndexMap.containsKey(getClccMapKey(call))) {
+        if (mConferenceCallClccIndexMap.containsKey(getClccMapKey(call))) {
             call.mClccIndex = mConferenceCallClccIndexMap.get(getClccMapKey(call));
         }
 
@@ -1071,13 +1070,11 @@ public class BluetoothInCallService extends InCallService {
 
         // NOTE: Indexes are removed in {@link #onCallRemoved}.
         call.mClccIndex = getNextAvailableClccIndex(index);
-        if (Flags.maintainCallIndexAfterConference()) {
-            // Remove the index from conference hashmap, this can be later added if call merges in
-            // conference
-            mConferenceCallClccIndexMap
-                    .entrySet()
-                    .removeIf(entry -> entry.getValue() == call.mClccIndex);
-        }
+        // Remove the index from conference hashmap, this can be later added if call merges in
+        // conference
+        mConferenceCallClccIndexMap
+                .entrySet()
+                .removeIf(entry -> entry.getValue() == call.mClccIndex);
         Log.d(TAG, "call " + call.getId() + " CLCC index is " + call.mClccIndex);
         return call.mClccIndex;
     }
@@ -1114,14 +1111,10 @@ public class BluetoothInCallService extends InCallService {
                 heldCall.disconnect();
                 return true;
             }
-            if (Flags.sendOkOnNoActionOnChld()) {
-                return true;
-            }
+            return true;
         } else if (chld == CHLD_TYPE_RELEASEACTIVE_ACCEPTHELD) {
-            if (Flags.endOutgoingCallOnChld()) {
-                if (activeCall == null) {
-                    activeCall = mCallInfo.getOutgoingCall();
-                }
+            if (activeCall == null) {
+                activeCall = mCallInfo.getOutgoingCall();
             }
             if (mCallInfo.isNullCall(activeCall)
                     && mCallInfo.isNullCall(ringingCall)
@@ -1176,9 +1169,7 @@ public class BluetoothInCallService extends InCallService {
                     return true;
                 }
             }
-            if (Flags.sendOkOnNoActionOnChld()) {
-                return true;
-            }
+            return true;
         } else if (chld == CHLD_TYPE_ADDHELDTOCONF) {
             if (!mCallInfo.isNullCall(activeCall)) {
                 if (activeCall.can(Connection.CAPABILITY_MERGE_CONFERENCE)) {
@@ -1200,9 +1191,7 @@ public class BluetoothInCallService extends InCallService {
                     }
                 }
             }
-            if (Flags.sendOkOnNoActionOnChld()) {
-                return true;
-            }
+            return true;
         }
         return false;
     }
@@ -1635,7 +1624,8 @@ public class BluetoothInCallService extends InCallService {
         };
     }
 
-    private BluetoothLeCall toLeCall(BluetoothCall call) {
+    @VisibleForTesting
+    BluetoothLeCall toLeCall(BluetoothCall call) {
         Integer state = getTbsCallState(call);
         boolean isConferenceWithNoChildren = isConferenceWithNoChildren(call);
 
@@ -1696,7 +1686,13 @@ public class BluetoothInCallService extends InCallService {
             addressUri = call.getHandle();
         }
 
-        String uri = addressUri == null ? null : addressUri.toString();
+        String uri;
+        if (addressUri == null) {
+            uri = null;
+        } else {
+            uri = addressUri.getScheme() + ":" + addressUri.getSchemeSpecificPart();
+        }
+
         int callFlags = call.isIncoming() ? 0 : BluetoothLeCall.FLAG_OUTGOING_CALL;
 
         String friendlyName = call.getCallerDisplayName();

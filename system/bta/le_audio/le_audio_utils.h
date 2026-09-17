@@ -22,6 +22,7 @@
 #include <hardware/audio.h>
 #endif
 
+#include <bluetooth/types/string_helpers.h>
 #include <hardware/bt_le_audio.h>
 
 #include <bitset>
@@ -30,18 +31,43 @@
 
 #include "audio_hal_client/audio_hal_client.h"
 #include "bta_groups.h"
-#include "common/strings.h"
 #include "common/time_util.h"
 #include "le_audio_types.h"
 
 namespace bluetooth::le_audio {
 namespace utils {
+
+inline uint8_t GetPreferredPhyFromTargetPhy(uint8_t target_phy) {
+  switch (target_phy) {
+    case types::kTargetPhy1M:
+      return bluetooth::hci::kIsoCigPhy1M;
+    case types::kTargetPhy2M:
+      return bluetooth::hci::kIsoCigPhy2M;
+    case types::kTargetPhyCoded:
+      return bluetooth::hci::kIsoCigPhyC;
+    case types::kTargetPhyUndefined:
+      [[fallthrough]];  // bluetooth::hci::kIsoCigPhy2M
+    default:
+      return bluetooth::hci::kIsoCigPhy2M;
+  }
+}
+
+inline uint8_t GetTargetPhyFromPreferredPhy(uint8_t preferred_phy) {
+  if (preferred_phy & bluetooth::hci::kIsoCigPhy2M) {
+    return types::kTargetPhy2M;
+  } else if (preferred_phy & bluetooth::hci::kIsoCigPhy1M) {
+    return types::kTargetPhy1M;
+  } else if (preferred_phy & bluetooth::hci::kIsoCigPhyC) {
+    return types::kTargetPhyCoded;
+  } else {
+    return types::kTargetPhyUndefined;
+  }
+}
+
 types::LeAudioContextType AudioContentToLeAudioContext(audio_content_type_t content_type,
                                                        audio_usage_t usage);
 types::AudioContexts GetAudioContextsFromSourceMetadata(
         const std::vector<struct playback_track_metadata_v7>& source_metadata);
-types::AudioContexts GetAudioContextsFromSinkMetadata(
-        const std::vector<struct record_track_metadata_v7>& sink_metadata);
 size_t GetConfigurationHash(const bluetooth::le_audio::types::AudioSetConfiguration& conf);
 
 inline uint8_t GetTargetLatencyForAudioContext(types::LeAudioContextType ctx) {

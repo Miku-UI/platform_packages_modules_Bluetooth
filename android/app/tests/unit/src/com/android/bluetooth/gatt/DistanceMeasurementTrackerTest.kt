@@ -16,14 +16,13 @@
 
 package com.android.bluetooth.gatt
 
-import android.bluetooth.BluetoothDevice
 import android.bluetooth.le.DistanceMeasurementMethod
 import android.bluetooth.le.DistanceMeasurementParams
 import android.bluetooth.le.IDistanceMeasurementCallback
 import android.os.HandlerThread
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.bluetooth.TestUtils.getTestDevice
+import com.android.bluetooth.getTestDevice
 import com.android.tests.bluetooth.MockitoRule
 import com.google.common.truth.Truth.assertThat
 import java.util.UUID
@@ -48,7 +47,7 @@ class DistanceMeasurementTrackerTest {
     @Mock private lateinit var distanceMeasurementManager: DistanceMeasurementManager
     @Mock private lateinit var callback: IDistanceMeasurementCallback
 
-    private val device: BluetoothDevice = getTestDevice(35)
+    private val device = getTestDevice(35)
 
     private lateinit var tracker: DistanceMeasurementTracker
     private lateinit var uuid: UUID

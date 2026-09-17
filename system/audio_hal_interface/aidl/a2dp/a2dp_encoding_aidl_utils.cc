@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "bluetooth-a2dp-ahal-aidl-utils"
+#define LOG_TAG "bluetooth-a2dp-aidl"
 
 #include "a2dp_encoding_aidl_utils.h"
 
 #include <vector>
 
-#include "a2dp_constants.h"
 #include "a2dp_encoding.h"
 #include "audio_aidl_interfaces.h"
 #include "hardware/bt_av.h"
+#include "stack/include/a2dp_constants.h"
 
 namespace bluetooth::audio::aidl::a2dp {
 

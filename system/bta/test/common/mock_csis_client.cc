@@ -22,9 +22,9 @@ static MockCsisClient* mock_csis_client;
 void MockCsisClient::SetMockInstanceForTesting(MockCsisClient* mock) { mock_csis_client = mock; }
 
 void bluetooth::csis::CsisClient::Initialize(bluetooth::csis::CsisClientCallbacks* callbacks,
-                                             base::Closure initCb) {
+                                             base::OnceClosure initCb) {
   log::assert_that(mock_csis_client, "Mock CsisClient interface not set!");
-  mock_csis_client->Initialize(callbacks, initCb);
+  mock_csis_client->Initialize(callbacks, std::move(initCb));
 }
 
 void bluetooth::csis::CsisClient::CleanUp() {
@@ -45,4 +45,9 @@ void bluetooth::csis::CsisClient::DebugDump(int fd) {
 bool bluetooth::csis::CsisClient::IsCsisClientRunning() {
   log::assert_that(mock_csis_client, "Mock CsisClient interface not set!");
   return mock_csis_client->IsCsisClientRunning();
+}
+
+bool bluetooth::csis::CsisClient::ShallCsisBeUsedForTheDevice(const RawAddress& addr) {
+  log::assert_that(mock_csis_client, "Mock CsisClient interface not set!");
+  return mock_csis_client->ShallCsisBeUsedForTheDevice(addr);
 }

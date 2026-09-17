@@ -12,11 +12,21 @@ flag {
 }
 
 flag {
-    name: "vcp_on_main_looper"
+    name: "threading_remove_management_thread"
     namespace: "bluetooth"
-    description: "Run on the main looper instead of yet another thread"
+    description: "Remove management_thread"
+    bug: "475658554"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
-    bug: "381275568"
+}
+
+flag {
+    name: "clean_up_posting_on_main_thread"
+    namespace: "bluetooth"
+    description: "Clean up posting to main thread when already on main thread."
+    bug: "480224148"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

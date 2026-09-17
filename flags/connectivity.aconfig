@@ -2,30 +2,20 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "idempotent_direct_connect_add"
+    name: "fix_intent_selection_for_acl"
     namespace: "bluetooth"
-    description: "Make direct_connect_add idempotent"
-    bug: "409239278"
+    description: "Fix the intent selection for ACL connection and disconnection"
+    bug: "448289959"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "fix_race_in_orphaned_acls"
+    name: "fix_no_acl_disconnected_intent"
     namespace: "bluetooth"
-    description: "Fix race in CheckForOrphanedAclConnections"
-    bug: "436611420"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "allow_rearm_if_suspend_scan_params_used"
-    namespace: "bluetooth"
-    description: "When suspend scan params are used, allow re-arm connection even if device is in accept list"
-    bug: "435261884"
+    description: "Fix ACTION_ACL_DISCONNECTED will not broadcast when calling disconnect() with active RFCOMM/GATT"
+    bug: "465064128"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

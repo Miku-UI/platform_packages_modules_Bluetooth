@@ -31,6 +31,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -50,8 +51,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
 
 import com.android.bluetooth.BluetoothMethodProxy;
-import com.android.bluetooth.BluetoothObexTransport;
 import com.android.bluetooth.btservice.AdapterService;
+import com.android.bluetooth.obex.BluetoothObexTransport;
 import com.android.obex.ObexTransport;
 import com.android.tests.bluetooth.MockitoRule;
 
@@ -83,7 +84,8 @@ public class BluetoothOppTransferTest {
     @Before
     public void setUp() throws Exception {
         mockGetSystemService(mAdapterService, NotificationManager.class);
-
+        doCallRealMethod().when(mAdapterService).getBrEdrAddress(any(BluetoothDevice.class));
+        doCallRealMethod().when(mAdapterService).getBrEdrAddress(any(String.class));
         doAnswer(
                         invocation -> {
                             String address = invocation.getArgument(0);
@@ -263,7 +265,6 @@ public class BluetoothOppTransferTest {
 
     @Test
     public void eventHandler_handleMessage_MSG_SHARE_INTERRUPTED_batchFailed() {
-
         mInitShareInfo =
                 new BluetoothOppShareInfo(
                         123,

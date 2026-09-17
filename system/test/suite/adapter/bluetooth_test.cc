@@ -21,10 +21,12 @@
 #include <binder/ProcessState.h>
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <mutex>
 
 #include "osi/include/allocator.h"
+#include "osi/include/wakelock.h"
 
 extern bt_interface_t bluetoothInterface;
 
@@ -74,10 +76,10 @@ void AdapterPropertiesCallback(bt_status_t /*status*/, int num_properties,
   semaphore_post(instance->adapter_properties_callback_sem_);
 }
 
-void RemoteDevicePropertiesCallback(bt_status_t /*status*/, RawAddress* remote_bd_addr,
+void RemoteDevicePropertiesCallback(bt_status_t /*status*/, RawAddress remote_bd_addr,
                                     uint8_t /*address_type*/, int num_properties,
                                     bt_property_t* properties) {
-  instance->curr_remote_device_ = *remote_bd_addr;
+  instance->curr_remote_device_ = remote_bd_addr;
   property_free_array(instance->remote_device_last_changed_properties_,
                       instance->remote_device_properties_changed_count_);
   instance->remote_device_last_changed_properties_ =
@@ -100,6 +102,7 @@ static bt_callbacks_t callbacks = {
 };
 
 void BluetoothTest::SetUp() {
+  com_android_bluetooth_flags_reset_flags();
   android::ProcessState::self()->startThreadPool();
   state_ = BT_STATE_OFF;
   properties_changed_count_ = 0;
@@ -113,12 +116,12 @@ void BluetoothTest::SetUp() {
   remove("/data/misc/bluedroid/bt_config.conf.encrypted-checksum");
 
   instance = this;
-  int status = bluetoothInterface.init(&callbacks, false, false, 0, false, "default");
-  ASSERT_EQ(status, BT_STATUS_SUCCESS);
+  bluetooth_init(&callbacks, false, false, 0, false, "default", nullptr, false);
+  wakelock_set_os_callouts(nullptr);  // To force using 'native' wakelock in tests
 }
 
 void BluetoothTest::TearDown() {
-  bluetoothInterface.cleanup();
+  bluetooth_cleanup();
   instance = nullptr;
 }
 

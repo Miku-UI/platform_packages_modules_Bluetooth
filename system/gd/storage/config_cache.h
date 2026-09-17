@@ -30,12 +30,9 @@
 #include "common/lru_cache.h"
 #include "hci/address.h"
 #include "os/utils.h"
-#include "storage/mutation_entry.h"
 
 namespace bluetooth {
 namespace storage {
-
-class Mutation;
 
 // A memory operated section-key-value structured config
 //
@@ -105,7 +102,6 @@ public:
 
   // modifiers
   // Commit all mutation entries in sequence while holding the config mutex
-  virtual void Commit(std::queue<MutationEntry>& mutation);
   virtual void SetProperty(std::string section, std::string property, std::string value);
   virtual bool RemoveSection(const std::string& section);
   virtual bool RemoveProperty(const std::string& section, const std::string& property);
@@ -113,8 +109,6 @@ public:
   // TODO: have a systematic way of doing this instead of specialized methods
   // Remove sections with |property| set
   virtual void RemoveSectionWithProperty(const std::string& property);
-  // remove all content in this config cache, restore it to the state after the explicit constructor
-  virtual void Clear();
   // Set a callback to notify interested party that a persistent config change has just happened
   virtual void SetPersistentConfigChangedCallback(
           std::function<void()> persistent_config_changed_callback);

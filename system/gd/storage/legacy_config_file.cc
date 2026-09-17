@@ -17,12 +17,12 @@
 #include "storage/legacy_config_file.h"
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/string_helpers.h>
 
 #include <cerrno>
 #include <fstream>
 #include <sstream>
 
-#include "common/strings.h"
 #include "os/files.h"
 #include "storage/device.h"
 
@@ -31,6 +31,7 @@ namespace storage {
 
 LegacyConfigFile::LegacyConfigFile(std::string path) : path_(std::move(path)) {
   log::assert_that(!path_.empty(), "assert failed: !path_.empty()");
+  log::info("Config created with path parameter: {}", path_);
 }
 
 std::optional<ConfigCache> LegacyConfigFile::Read(size_t temp_devices_capacity) {

@@ -27,6 +27,8 @@
 #include <base/functional/callback.h>
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
+#include <bluetooth/types/bt_octets.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -37,18 +39,15 @@
 #include "main/shim/entry.h"
 #include "p_256_ecc_pp.h"
 #include "smp_int.h"
-#include "stack/btm/btm_ble_sec.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sec.h"
 #include "stack/include/acl_api.h"
-#include "stack/include/bt_octets.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/btm_ble_api.h"
-#include "stack/include/btm_ble_sec_api.h"
+#include "stack/include/btm_sec_api.h"
 #include "stack/include/main_thread.h"
 
-using bluetooth::common::BindOnce;
-using bluetooth::common::OnceCallback;
+using base::BindOnce;
 using crypto_toolbox::aes_128;
 using namespace bluetooth;
 
@@ -60,7 +59,7 @@ static void smp_process_stk(tSMP_CB* p_cb, Octet16* p);
 static Octet16 smp_calculate_legacy_short_term_key(tSMP_CB* p_cb);
 static void smp_process_private_key(tSMP_CB* p_cb);
 
-static void send_ble_rand(OnceCallback<void(uint64_t)> callback);
+static void send_ble_rand(base::OnceCallback<void(uint64_t)> callback);
 
 #define SMP_PASSKEY_MASK 0x000fffff
 
@@ -81,7 +80,7 @@ static bool is_oob_data_empty(tSMP_LOC_OOB_DATA* data) {
 
 bool smp_has_local_oob_data() { return !is_oob_data_empty(&saved_local_oob_data); }
 
-static void smp_debug_print_nbyte_little_endian(uint8_t* /* p */, const char* /* key_name */,
+static void smp_debug_print_nbyte_little_endian(const uint8_t* /* p */, const char* /* key_name */,
                                                 uint8_t /* len */) {}
 
 static void smp_debug_print_nbyte_little_endian(const Octet16& p, const char* key_name,
@@ -108,6 +107,7 @@ static void smp_proc_passkey(tSMP_CB* p_cb, uint64_t rand) {
   if (p_cb->p_callback) {
     tSMP_EVT_DATA smp_evt_data = {
             .passkey = passkey,
+            .pairing_algorithm = smp_get_pairing_algorithm(p_cb),
     };
     (*p_cb->p_callback)(SMP_PASSKEY_NOTIF_EVT, p_cb->pairing_bda, &smp_evt_data);
   }
@@ -178,7 +178,7 @@ static void smp_compute_csrk(uint16_t div, tSMP_CB* p_cb) {
   p_cb->div = div;
 
   log::verbose("div=0x{:x}", p_cb->div);
-  const Octet16& er = BTM_GetDeviceEncRoot();
+  const Octet16& er = get_security_client_interface().BTM_GetDeviceEncRoot();
   /* CSRK = d1(ER, DIV, 1) */
   UINT16_TO_STREAM(p, p_cb->div);
   UINT16_TO_STREAM(p, r);
@@ -195,7 +195,7 @@ void smp_generate_csrk(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_data */) {
 
   log::verbose("addr:{}", p_cb->pairing_bda);
 
-  div_status = btm_get_local_div(p_cb->pairing_bda, &p_cb->div);
+  div_status = get_security_client_interface().BTM_GetLocalDiv(p_cb->pairing_bda, &p_cb->div);
   if (div_status) {
     smp_compute_csrk(p_cb->div, p_cb);
   } else {
@@ -290,8 +290,7 @@ Octet16 smp_gen_p2_4_confirm(tSMP_CB* p_cb, const RawAddress& remote_bda) {
   log::verbose("addr:{}", p_cb->pairing_bda);
   Octet16 p2{0};
   uint8_t* p = p2.data();
-  /* 32-bit Padding */
-  memset(p, 0, OCTET16_LEN);
+
   if (p_cb->role == HCI_ROLE_CENTRAL) {
     /* ra : Responder's (remote) address */
     BDADDR_TO_STREAM(p, remote_bda);
@@ -442,16 +441,21 @@ void smp_generate_compare(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_data */) {
 /** This function is called when STK is generated proceed to send the encrypt
  * the link using STK. */
 static void smp_process_stk(tSMP_CB* p_cb, Octet16* p) {
-  tSMP_KEY key;
-
-  log::verbose("addr:{}", p_cb->pairing_bda);
   smp_mask_enc_key(p_cb->loc_enc_size, p);
 
-  key.key_type = SMP_KEY_TYPE_STK;
-  key.p_data = p->data();
+  if (p_cb->selected_association_model == SMP_MODEL_SEC_CONN_PASSKEY_DISP ||
+      p_cb->selected_association_model == SMP_MODEL_KEY_NOTIF) {
+    p_cb->passkey_display_state.confirmed = true;
+    p_cb->tk = *p;
+    if (!p_cb->passkey_display_state.approved) {
+      log::info("Waiting for user to approve pairing {}", p_cb->pairing_bda);
+      return;
+    }
+  }
 
-  tSMP_INT_DATA smp_int_data;
-  smp_int_data.key = key;
+  log::verbose("addr:{}", p_cb->pairing_bda);
+
+  tSMP_INT_DATA smp_int_data = {.key = {.key_type = SMP_KEY_TYPE_STK, .p_data = p->data()}};
   smp_sm_event(p_cb, SMP_KEY_READY_EVT, &smp_int_data);
 }
 
@@ -481,9 +485,9 @@ static void smp_process_ediv(tSMP_CB* p_cb, Octet16& p) {
 static void smp_generate_y(tSMP_CB* p_cb, uint64_t rand) {
   log::verbose("addr:{}", p_cb->pairing_bda);
 
-  const Octet16& dhk = BTM_GetDeviceDHK();
+  const Octet16& dhk = get_security_client_interface().BTM_GetDeviceDHK();
 
-  memcpy(p_cb->enc_rand, (uint8_t*)&rand, sizeof(uint64_t));
+  memcpy(p_cb->enc_rand.data(), (uint8_t*)&rand, sizeof(uint64_t));
   Octet16 rand16{};
   memcpy(rand16.data(), (uint8_t*)&rand, sizeof(uint64_t));
   Octet16 output = aes_128(dhk, rand16);
@@ -497,7 +501,7 @@ static void smp_generate_ltk_cont(uint16_t div, tSMP_CB* p_cb) {
   p_cb->div = div;
 
   log::verbose("addr:{}", p_cb->pairing_bda);
-  const Octet16& er = BTM_GetDeviceEncRoot();
+  const Octet16& er = get_security_client_interface().BTM_GetDeviceEncRoot();
 
   /* LTK = d1(ER, DIV, 0)= e(ER, DIV)*/
   Octet16 div16{};
@@ -538,7 +542,8 @@ void smp_generate_ltk(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_data */) {
     return;
   }
 
-  bool div_status = btm_get_local_div(p_cb->pairing_bda, &p_cb->div);
+  bool div_status =
+          get_security_client_interface().BTM_GetLocalDiv(p_cb->pairing_bda, &p_cb->div);
 
   if (div_status) {
     smp_generate_ltk_cont(p_cb->div, p_cb);
@@ -561,11 +566,11 @@ Octet16 smp_calculate_legacy_short_term_key(tSMP_CB* p_cb) {
 
   Octet16 text{};
   if (p_cb->role == HCI_ROLE_CENTRAL) {
-    memcpy(text.data(), p_cb->rand.data(), BT_OCTET8_LEN);
-    memcpy(text.data() + BT_OCTET8_LEN, p_cb->rrand.data(), BT_OCTET8_LEN);
+    memcpy(text.data(), p_cb->rand.data(), kOctet8Length);
+    memcpy(text.data() + kOctet8Length, p_cb->rrand.data(), kOctet8Length);
   } else {
-    memcpy(text.data(), p_cb->rrand.data(), BT_OCTET8_LEN);
-    memcpy(text.data() + BT_OCTET8_LEN, p_cb->rand.data(), BT_OCTET8_LEN);
+    memcpy(text.data(), p_cb->rrand.data(), kOctet8Length);
+    memcpy(text.data() + kOctet8Length, p_cb->rand.data(), kOctet8Length);
   }
 
   /* generate STK = Etk(rand|rrand)*/
@@ -596,7 +601,7 @@ void smp_create_private_key(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_data */) {
     // out, so if the advertiser times out we want the pairing to fail anyway.
     if (!is_oob_data_empty(&saved_local_oob_data)) {
       log::warn("Found OOB data, loading keys");
-      for (int i = 0; i < BT_OCTET32_LEN; i++) {
+      for (unsigned int i = 0; i < kOctet32Length; i++) {
         p_cb->private_key[i] = saved_local_oob_data.private_key_used[i];
         p_cb->loc_publ_key.x[i] = saved_local_oob_data.publ_key_used.x[i];
         p_cb->loc_publ_key.y[i] = saved_local_oob_data.publ_key_used.y[i];
@@ -611,7 +616,7 @@ void smp_create_private_key(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_data */) {
 
   send_ble_rand(BindOnce(
           [](tSMP_CB* p_cb, uint64_t rand) {
-            memcpy(p_cb->private_key, (uint8_t*)&rand, sizeof(uint64_t));
+            memcpy(&p_cb->private_key[0], (uint8_t*)&rand, sizeof(uint64_t));
             send_ble_rand(BindOnce(
                     [](tSMP_CB* p_cb, uint64_t rand) {
                       memcpy(&p_cb->private_key[8], (uint8_t*)&rand, sizeof(uint64_t));
@@ -666,7 +671,7 @@ void smp_use_oob_private_key(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_data */) {
         // pairing to fail anyway.
         if (!is_oob_data_empty(&saved_local_oob_data)) {
           log::info("Found OOB data, loading keys");
-          for (int i = 0; i < BT_OCTET32_LEN; i++) {
+          for (unsigned int i = 0; i < kOctet32Length; i++) {
             p_cb->private_key[i] = saved_local_oob_data.private_key_used[i];
             p_cb->loc_publ_key.x[i] = saved_local_oob_data.publ_key_used.x[i];
             p_cb->loc_publ_key.y[i] = saved_local_oob_data.publ_key_used.y[i];
@@ -679,7 +684,7 @@ void smp_use_oob_private_key(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_data */) {
         log::info("OOB Association Model with no saved data present");
       }
 
-      memcpy(p_cb->private_key, p_cb->sc_oob_data.loc_oob_data.private_key_used, BT_OCTET32_LEN);
+      p_cb->private_key = p_cb->sc_oob_data.loc_oob_data.private_key_used;
       smp_process_private_key(p_cb);
       break;
     default:
@@ -703,18 +708,21 @@ void smp_use_oob_private_key(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_data */) {
  ******************************************************************************/
 void smp_process_private_key(tSMP_CB* p_cb) {
   Point public_key;
-  BT_OCTET32 private_key;
+  Octet32 private_key;
 
   log::verbose("addr:{}", p_cb->pairing_bda);
 
-  memcpy(private_key, p_cb->private_key, BT_OCTET32_LEN);
-  ECC_PointMult(&public_key, &(curve_p256.G), (uint32_t*)private_key);
-  memcpy(p_cb->loc_publ_key.x, public_key.x, BT_OCTET32_LEN);
-  memcpy(p_cb->loc_publ_key.y, public_key.y, BT_OCTET32_LEN);
+  private_key = p_cb->private_key;
+  ECC_PointMult(&public_key, &(curve_p256.G), (uint32_t*)private_key.data());
+  memcpy(p_cb->loc_publ_key.x.data(), public_key.x, p_cb->loc_publ_key.x.size());
+  memcpy(p_cb->loc_publ_key.y.data(), public_key.y, p_cb->loc_publ_key.y.size());
 
-  smp_debug_print_nbyte_little_endian(p_cb->private_key, "private", BT_OCTET32_LEN);
-  smp_debug_print_nbyte_little_endian(p_cb->loc_publ_key.x, "local public(x)", BT_OCTET32_LEN);
-  smp_debug_print_nbyte_little_endian(p_cb->loc_publ_key.y, "local public(y)", BT_OCTET32_LEN);
+  smp_debug_print_nbyte_little_endian(p_cb->private_key.data(), "private",
+                                      p_cb->private_key.size());
+  smp_debug_print_nbyte_little_endian(p_cb->loc_publ_key.x.data(), "local public(x)",
+                                      p_cb->loc_publ_key.x.size());
+  smp_debug_print_nbyte_little_endian(p_cb->loc_publ_key.y.data(), "local public(y)",
+                                      p_cb->loc_publ_key.y.size());
   p_cb->flags |= SMP_PAIR_FLAG_HAVE_LOCAL_PUBL_KEY;
   smp_sm_event(p_cb, SMP_LOC_PUBL_KEY_CRTD_EVT, NULL);
 }
@@ -733,24 +741,26 @@ void smp_process_private_key(tSMP_CB* p_cb) {
  ******************************************************************************/
 void smp_compute_dhkey(tSMP_CB* p_cb) {
   Point peer_publ_key, new_publ_key;
-  BT_OCTET32 private_key;
+  Octet32 private_key;
 
   log::verbose("addr:{}", p_cb->pairing_bda);
 
-  memcpy(private_key, p_cb->private_key, BT_OCTET32_LEN);
-  memcpy(peer_publ_key.x, p_cb->peer_publ_key.x, BT_OCTET32_LEN);
-  memcpy(peer_publ_key.y, p_cb->peer_publ_key.y, BT_OCTET32_LEN);
+  private_key = p_cb->private_key;
+  memcpy(peer_publ_key.x, p_cb->peer_publ_key.x.data(), p_cb->peer_publ_key.x.size());
+  memcpy(peer_publ_key.y, p_cb->peer_publ_key.y.data(), p_cb->peer_publ_key.y.size());
 
-  ECC_PointMult(&new_publ_key, &peer_publ_key, (uint32_t*)private_key);
+  ECC_PointMult(&new_publ_key, &peer_publ_key, (uint32_t*)private_key.data());
 
-  memcpy(p_cb->dhkey, new_publ_key.x, BT_OCTET32_LEN);
+  memcpy(p_cb->dhkey.data(), new_publ_key.x, p_cb->dhkey.size());
 
-  smp_debug_print_nbyte_little_endian(p_cb->dhkey, "Old DHKey", BT_OCTET32_LEN);
-
-  smp_debug_print_nbyte_little_endian(p_cb->private_key, "private", BT_OCTET32_LEN);
-  smp_debug_print_nbyte_little_endian(p_cb->peer_publ_key.x, "rem public(x)", BT_OCTET32_LEN);
-  smp_debug_print_nbyte_little_endian(p_cb->peer_publ_key.y, "rem public(y)", BT_OCTET32_LEN);
-  smp_debug_print_nbyte_little_endian(p_cb->dhkey, "Reverted DHKey", BT_OCTET32_LEN);
+  smp_debug_print_nbyte_little_endian(p_cb->dhkey.data(), "Old DHKey", p_cb->dhkey.size());
+  smp_debug_print_nbyte_little_endian(p_cb->private_key.data(), "private",
+                                      p_cb->private_key.size());
+  smp_debug_print_nbyte_little_endian(p_cb->peer_publ_key.x.data(), "rem public(x)",
+                                      p_cb->peer_publ_key.x.size());
+  smp_debug_print_nbyte_little_endian(p_cb->peer_publ_key.y.data(), "rem public(y)",
+                                      p_cb->peer_publ_key.y.size());
+  smp_debug_print_nbyte_little_endian(p_cb->dhkey.data(), "Reverted DHKey", p_cb->dhkey.size());
 }
 
 /** The function calculates and saves local commmitment in CB. */
@@ -767,19 +777,19 @@ void smp_calculate_local_commitment(tSMP_CB* p_cb) {
                 "local commitment calc on central is not expected for Just "
                 "Works/Numeric Comparison models");
       }
-      p_cb->commitment =
-              crypto_toolbox::f4(p_cb->loc_publ_key.x, p_cb->peer_publ_key.x, p_cb->rand, 0);
+      p_cb->commitment = crypto_toolbox::f4(p_cb->loc_publ_key.x.data(),
+                                            p_cb->peer_publ_key.x.data(), p_cb->rand, 0);
       break;
     case SMP_MODEL_SEC_CONN_PASSKEY_ENT:
     case SMP_MODEL_SEC_CONN_PASSKEY_DISP:
       random_input = smp_calculate_random_input(p_cb->local_random.data(), p_cb->round);
-      p_cb->commitment = crypto_toolbox::f4(p_cb->loc_publ_key.x, p_cb->peer_publ_key.x, p_cb->rand,
-                                            random_input);
+      p_cb->commitment = crypto_toolbox::f4(p_cb->loc_publ_key.x.data(),
+                                            p_cb->peer_publ_key.x.data(), p_cb->rand, random_input);
       break;
     case SMP_MODEL_SEC_CONN_OOB:
       log::warn("local commitment calc is expected for OOB model BEFORE pairing");
-      p_cb->commitment =
-              crypto_toolbox::f4(p_cb->loc_publ_key.x, p_cb->loc_publ_key.x, p_cb->local_random, 0);
+      p_cb->commitment = crypto_toolbox::f4(p_cb->loc_publ_key.x.data(),
+                                            p_cb->loc_publ_key.x.data(), p_cb->local_random, 0);
       break;
     default:
       log::error("Association Model={} is not used in LE SC", p_cb->selected_association_model);
@@ -801,16 +811,18 @@ Octet16 smp_calculate_peer_commitment(tSMP_CB* p_cb) {
                 "peer commitment calc on peripheral is not expected for Just "
                 "Works/Numeric Comparison models");
       }
-      output = crypto_toolbox::f4(p_cb->peer_publ_key.x, p_cb->loc_publ_key.x, p_cb->rrand, 0);
+      output = crypto_toolbox::f4(p_cb->peer_publ_key.x.data(), p_cb->loc_publ_key.x.data(),
+                                  p_cb->rrand, 0);
       break;
     case SMP_MODEL_SEC_CONN_PASSKEY_ENT:
     case SMP_MODEL_SEC_CONN_PASSKEY_DISP:
       ri = smp_calculate_random_input(p_cb->peer_random.data(), p_cb->round);
-      output = crypto_toolbox::f4(p_cb->peer_publ_key.x, p_cb->loc_publ_key.x, p_cb->rrand, ri);
+      output = crypto_toolbox::f4(p_cb->peer_publ_key.x.data(), p_cb->loc_publ_key.x.data(),
+                                  p_cb->rrand, ri);
       break;
     case SMP_MODEL_SEC_CONN_OOB:
-      output = crypto_toolbox::f4(p_cb->peer_publ_key.x, p_cb->peer_publ_key.x, p_cb->peer_random,
-                                  0);
+      output = crypto_toolbox::f4(p_cb->peer_publ_key.x.data(), p_cb->peer_publ_key.x.data(),
+                                  p_cb->peer_random, 0);
       break;
     default:
       log::error("Association Model={} is not used in LE SC", p_cb->selected_association_model);
@@ -834,11 +846,11 @@ void smp_calculate_numeric_comparison_display_number(tSMP_CB* p_cb, tSMP_INT_DAT
   log::verbose("addr:{}", p_cb->pairing_bda);
 
   if (p_cb->role == HCI_ROLE_CENTRAL) {
-    p_cb->number_to_display = crypto_toolbox::g2(p_cb->loc_publ_key.x, p_cb->peer_publ_key.x,
-                                                 p_cb->rand, p_cb->rrand);
+    p_cb->number_to_display = crypto_toolbox::g2(
+            p_cb->loc_publ_key.x.data(), p_cb->peer_publ_key.x.data(), p_cb->rand, p_cb->rrand);
   } else {
-    p_cb->number_to_display = crypto_toolbox::g2(p_cb->peer_publ_key.x, p_cb->loc_publ_key.x,
-                                                 p_cb->rrand, p_cb->rand);
+    p_cb->number_to_display = crypto_toolbox::g2(
+            p_cb->peer_publ_key.x.data(), p_cb->loc_publ_key.x.data(), p_cb->rrand, p_cb->rand);
   }
 
   if (p_cb->number_to_display >= (BTM_MAX_PASSKEY_VAL + 1)) {
@@ -924,7 +936,7 @@ void smp_calculate_peer_dhkey_check(tSMP_CB* p_cb, tSMP_INT_DATA* /* p_data */) 
  *
  ******************************************************************************/
 bool smp_calculate_link_key_from_long_term_key(tSMP_CB* p_cb) {
-  tBTM_SEC_DEV_REC* p_dev_rec;
+  const BtmDevice* p_device;
   RawAddress bda_for_lk;
   tBLE_ADDR_TYPE conn_addr_type;
 
@@ -941,8 +953,8 @@ bool smp_calculate_link_key_from_long_term_key(tSMP_CB* p_cb) {
     return false;
   }
 
-  p_dev_rec = btm_find_dev(p_cb->pairing_bda);
-  if (p_dev_rec == NULL) {
+  p_device = btm_find_dev(p_cb->pairing_bda);
+  if (p_device == NULL) {
     log::error("failed to find Security Record");
     return false;
   }
@@ -969,7 +981,7 @@ bool smp_calculate_link_key_from_long_term_key(tSMP_CB* p_cb) {
     }
   } else {
     log::error("failed to update link_key. Sec Mode={}, sm4=0x{:02x}", p_cb->init_security_mode,
-               p_dev_rec->sm4);
+               p_device->sm4);
     return false;
   }
 
@@ -984,18 +996,19 @@ bool smp_calculate_link_key_from_long_term_key(tSMP_CB* p_cb) {
 
 /** The function calculates and saves SC LTK derived from BR/EDR link key. */
 bool smp_calculate_long_term_key_from_link_key(tSMP_CB* p_cb) {
-  tBTM_SEC_DEV_REC* p_dev_rec;
+  const BtmDevice* p_device;
 
   log::verbose("addr:{}", p_cb->pairing_bda);
 
-  p_dev_rec = btm_find_dev(p_cb->pairing_bda);
-  if (p_dev_rec == NULL) {
+  p_device = btm_find_dev(p_cb->pairing_bda);
+  if (p_device == NULL) {
     log::error("ailed to find Security Record");
     return false;
   }
 
   uint8_t br_link_key_type;
-  br_link_key_type = BTM_SecGetDeviceLinkKeyType(p_cb->pairing_bda);
+  br_link_key_type =
+          get_security_client_interface().BTM_SecGetDeviceLinkKeyType(p_cb->pairing_bda);
   if (br_link_key_type == BTM_LKEY_TYPE_IGNORE) {
     log::error("failed to retrieve BR link type");
     return false;
@@ -1008,7 +1021,7 @@ bool smp_calculate_long_term_key_from_link_key(tSMP_CB* p_cb) {
   }
 
   Octet16 rev_link_key;
-  std::reverse_copy(p_dev_rec->sec_rec.link_key.begin(), p_dev_rec->sec_rec.link_key.end(),
+  std::reverse_copy(p_device->sec_rec.link_key.begin(), p_device->sec_rec.link_key.end(),
                     rev_link_key.begin());
   p_cb->ltk = crypto_toolbox::link_key_to_ltk(rev_link_key, p_cb->key_derivation_h7_used);
 
@@ -1038,6 +1051,6 @@ void smp_start_nonce_generation(tSMP_CB* p_cb) {
           p_cb));
 }
 
-static void send_ble_rand(OnceCallback<void(uint64_t)> callback) {
+static void send_ble_rand(base::OnceCallback<void(uint64_t)> callback) {
   bluetooth::shim::GetController()->LeRand(get_main_thread()->BindOnce(std::move(callback)));
 }

@@ -22,12 +22,13 @@
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
 #include <bluetooth/types/ble_address_with_type.h>
+#include <bluetooth/types/bt_octets.h>
 
 #include <cstdint>
 #include <string>
 
+#include "include/hardware/bluetooth.h"
 #include "macros.h"
-#include "stack/include/bt_octets.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/smp_status.h"
 
@@ -80,12 +81,6 @@ inline std::string smp_evt_to_text(const tSMP_EVT evt) {
       return "UNKNOWN SMP EVENT";
   }
 }
-
-/* Device IO capability */
-#define SMP_IO_CAP_IO BTM_IO_CAP_IO         /* DisplayYesNo */
-#define SMP_IO_CAP_KBDISP BTM_IO_CAP_KBDISP /* Keyboard Display */
-#define SMP_IO_CAP_MAX BTM_IO_CAP_MAX
-typedef uint8_t tSMP_IO_CAP;
 
 /* OOB data present or not */
 enum { SMP_OOB_NONE, SMP_OOB_PRESENT, SMP_OOB_UNKNOWN };
@@ -155,7 +150,7 @@ typedef uint8_t tSMP_SC_KEY_TYPE;
 
 /* data type for BTM_SP_IO_REQ_EVT */
 typedef struct {
-  tSMP_IO_CAP io_cap;     /* local IO capabilities */
+  BtIoCap io_cap;         /* local IO capabilities */
   tSMP_OOB_FLAG oob_data; /* OOB data present (locally) for the peer device */
   tSMP_AUTH_REQ auth_req; /* Authentication required (for local device) */
   uint8_t max_key_size;   /* max encryption key size */
@@ -171,8 +166,8 @@ typedef struct {
 } tSMP_CMPL;
 
 typedef struct {
-  BT_OCTET32 x;
-  BT_OCTET32 y;
+  Octet32 x;
+  Octet32 y;
 } tSMP_PUBLIC_KEY;
 
 /* the data associated with the info sent to the peer via OOB interface */
@@ -182,7 +177,7 @@ typedef struct {
   Octet16 commitment;
 
   tBLE_BD_ADDR addr_sent_to;
-  BT_OCTET32 private_key_used; /* is used to calculate: */
+  Octet32 private_key_used; /* is used to calculate: */
   /* publ_key_used = P-256(private_key_used, curve_p256.G) - send it to the */
   /* other side */
   /* dhkey = P-256(private_key_used, publ key rcvd from the other side) */
@@ -202,22 +197,17 @@ typedef struct {
   tSMP_PEER_OOB_DATA peer_oob_data;
 } tSMP_SC_OOB_DATA;
 
-typedef union {
-  uint32_t passkey;
-  tSMP_IO_REQ io_req; /* IO request */
-  tSMP_CMPL cmplt;
-  tSMP_OOB_DATA_TYPE req_oob_type;
-  tSMP_LOC_OOB_DATA loc_oob_data;
-  tBLE_BD_ADDR id_addr_with_type;
-} tSMP_EVT_DATA;
-
-/* AES Encryption output */
 typedef struct {
-  uint8_t status;
-  uint8_t param_len;
-  uint16_t opcode;
-  uint8_t param_buf[OCTET16_LEN];
-} tSMP_ENC;
+  union {
+    uint32_t passkey;
+    tSMP_IO_REQ io_req; /* IO request */
+    tSMP_CMPL cmplt;
+    tSMP_OOB_DATA_TYPE req_oob_type;
+    tSMP_LOC_OOB_DATA loc_oob_data;
+    tBLE_BD_ADDR id_addr_with_type;
+  };
+  PairingAlgorithm pairing_algorithm;
+} tSMP_EVT_DATA;
 
 /* Security Manager events - Called by the stack when Security Manager related
  * events occur.*/

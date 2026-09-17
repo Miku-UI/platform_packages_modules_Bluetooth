@@ -23,7 +23,7 @@
 
 #define LOG_TAG "bluetooth-a2dp"
 
-#include "a2dp_aac.h"
+#include "stack/include/a2dp_aac.h"
 
 #include <bluetooth/log.h>
 #include <string.h>
@@ -35,16 +35,17 @@
 #include <sstream>
 #include <string>
 
-#include "a2dp_aac_constants.h"
-#include "a2dp_aac_decoder.h"
-#include "a2dp_aac_encoder.h"
-#include "a2dp_api.h"
-#include "a2dp_codec_api.h"
-#include "a2dp_constants.h"
-#include "avdt_api.h"
+#include "gd/common/utils.h"
 #include "hardware/bt_av.h"
 #include "internal_include/bt_trace.h"
 #include "osi/include/properties.h"
+#include "stack/include/a2dp_aac_constants.h"
+#include "stack/include/a2dp_aac_decoder.h"
+#include "stack/include/a2dp_aac_encoder.h"
+#include "stack/include/a2dp_api.h"
+#include "stack/include/a2dp_codec_api.h"
+#include "stack/include/a2dp_constants.h"
+#include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
 
 #define A2DP_AAC_DEFAULT_BITRATE 320000  // 320 kbps
@@ -296,14 +297,13 @@ static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityAac(const tA2DP_AAC_CIE* p_ca
 
   /* verify that each parameter is in range */
 
-  log::verbose("Object Type peer: 0x{:x}, capability 0x{:x}", cfg_cie.objectType,
-               p_cap->objectType);
-  log::verbose("Sample Rate peer: {}, capability {}", cfg_cie.sampleRate, p_cap->sampleRate);
-  log::verbose("Channel Mode peer: 0x{:x}, capability 0x{:x}", cfg_cie.channelMode,
-               p_cap->channelMode);
-  log::verbose("Variable Bit Rate Support peer: 0x{:x}, capability 0x{:x}",
-               cfg_cie.variableBitRateSupport, p_cap->variableBitRateSupport);
-  log::verbose("Bit Rate peer: {}, capability {}", cfg_cie.bitRate, p_cap->bitRate);
+  log::debug("Object Type peer: 0x{:x}, capability 0x{:x}", cfg_cie.objectType, p_cap->objectType);
+  log::debug("Sample Rate peer: {}, capability {}", cfg_cie.sampleRate, p_cap->sampleRate);
+  log::debug("Channel Mode peer: 0x{:x}, capability 0x{:x}", cfg_cie.channelMode,
+             p_cap->channelMode);
+  log::debug("Variable Bit Rate Support peer: 0x{:x}, capability 0x{:x}",
+             cfg_cie.variableBitRateSupport, p_cap->variableBitRateSupport);
+  log::debug("Bit Rate peer: {}, capability {}", cfg_cie.bitRate, p_cap->bitRate);
 
   /* Object Type */
   if ((cfg_cie.objectType & p_cap->objectType) == 0) {
@@ -322,8 +322,6 @@ static tA2DP_STATUS A2DP_CodecInfoMatchesCapabilityAac(const tA2DP_AAC_CIE* p_ca
 
   return A2DP_SUCCESS;
 }
-
-const char* A2DP_CodecNameAac(const uint8_t* /* p_codec_info */) { return "AAC"; }
 
 bool A2DP_CodecTypeEqualsAac(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b) {
   tA2DP_AAC_CIE aac_cie_a;
@@ -673,18 +671,6 @@ bool A2DP_AdjustCodecAac(uint8_t* p_codec_info) {
   return true;
 }
 
-btav_a2dp_codec_index_t A2DP_SourceCodecIndexAac(const uint8_t* /* p_codec_info */) {
-  return BTAV_A2DP_CODEC_INDEX_SOURCE_AAC;
-}
-
-btav_a2dp_codec_index_t A2DP_SinkCodecIndexAac(const uint8_t* /* p_codec_info */) {
-  return BTAV_A2DP_CODEC_INDEX_SINK_AAC;
-}
-
-const char* A2DP_CodecIndexStrAac(void) { return "AAC"; }
-
-const char* A2DP_CodecIndexStrAacSink(void) { return "AAC SINK"; }
-
 static void aac_source_caps_initialize() {
   if (aac_source_caps_configured) {
     return;
@@ -692,6 +678,13 @@ static void aac_source_caps_initialize() {
   a2dp_aac_source_caps = osi_property_get_bool("persist.bluetooth.a2dp_aac.vbr_supported", false)
                                  ? a2dp_aac_vbr_source_caps
                                  : a2dp_aac_cbr_source_caps;
+
+  if (bluetooth::common::IsPtsTestMode()) {
+    // Test AVDTP/SRC/INT/SIG/SMG/BV-33-C requires AVDT_ReconfigReq.
+    // Add 48kHz capability to enable switching 44.1kHz <-> 48kHz
+    a2dp_aac_source_caps.sampleRate |= A2DP_AAC_SAMPLING_FREQ_48000;
+  }
+
   aac_source_caps_configured = true;
 }
 
@@ -705,8 +698,7 @@ bool A2DP_InitCodecConfigAacSink(AvdtpSepConfig* p_cfg) {
 }
 
 A2dpCodecConfigAacSource::A2dpCodecConfigAacSource(btav_a2dp_codec_priority_t codec_priority)
-    : A2dpCodecConfigAacBase(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC, A2DP_CodecIndexStrAac(),
-                             codec_priority, true) {
+    : A2dpCodecConfigAacBase(BTAV_A2DP_CODEC_INDEX_SOURCE_AAC, "AAC", codec_priority, true) {
   aac_source_caps_initialize();
   // Compute the local capability
   if (a2dp_aac_source_caps.sampleRate & A2DP_AAC_SAMPLING_FREQ_44100) {
@@ -954,13 +946,10 @@ tA2DP_STATUS A2dpCodecConfigAacBase::setCodecConfig(const uint8_t* p_peer_codec_
   btav_a2dp_codec_config_t saved_codec_selectable_capability = codec_selectable_capability_;
   btav_a2dp_codec_config_t saved_codec_user_config = codec_user_config_;
   btav_a2dp_codec_config_t saved_codec_audio_config = codec_audio_config_;
-  uint8_t saved_ota_codec_config[AVDT_CODEC_SIZE];
-  uint8_t saved_ota_codec_peer_capability[AVDT_CODEC_SIZE];
-  uint8_t saved_ota_codec_peer_config[AVDT_CODEC_SIZE];
-  memcpy(saved_ota_codec_config, ota_codec_config_, sizeof(ota_codec_config_));
-  memcpy(saved_ota_codec_peer_capability, ota_codec_peer_capability_,
-         sizeof(ota_codec_peer_capability_));
-  memcpy(saved_ota_codec_peer_config, ota_codec_peer_config_, sizeof(ota_codec_peer_config_));
+  bluetooth::a2dp::MediaCodecCapabilities saved_ota_codec_config = ota_codec_config_;
+  bluetooth::a2dp::MediaCodecCapabilities saved_ota_codec_peer_capability =
+          ota_codec_peer_capability_;
+  bluetooth::a2dp::MediaCodecCapabilities saved_ota_codec_peer_config = ota_codec_peer_config_;
 
   tA2DP_STATUS status = A2DP_ParseInfoAac(&peer_info_cie, p_peer_codec_info, is_capability);
   if (status != A2DP_SUCCESS) {
@@ -979,6 +968,13 @@ tA2DP_STATUS A2dpCodecConfigAacBase::setCodecConfig(const uint8_t* p_peer_codec_
 
   // NOTE: Always assign the Object Type and Variable Bit Rate Support.
   result_config_cie.objectType = p_a2dp_aac_caps->objectType;
+
+  if (!is_capability &&
+      p_a2dp_aac_caps->variableBitRateSupport == A2DP_AAC_VARIABLE_BIT_RATE_DISABLED &&
+      peer_info_cie.variableBitRateSupport == A2DP_AAC_VARIABLE_BIT_RATE_ENABLED) {
+    log::error("VBR not supported, cannot setup VBR");
+    return A2DP_NOT_SUPPORTED_VBR;
+  }
 
   // The Variable Bit Rate Support is disabled if either side disables it
   result_config_cie.variableBitRateSupport =
@@ -1272,16 +1268,17 @@ tA2DP_STATUS A2dpCodecConfigAacBase::setCodecConfig(const uint8_t* p_peer_codec_
   // Create a local copy of the peer codec capability/config, and the
   // result codec config.
   if (is_capability) {
-    log::assert_that(
-            A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_capability_),
-            "Failed to build media codec capabilities");
+    log::assert_that(A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie,
+                                       ota_codec_peer_capability_.data()),
+                     "Failed to build media codec capabilities");
   } else {
     log::assert_that(
-            A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_config_),
+            A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_config_.data()),
             "Failed to build media codec capabilities");
   }
-  log::assert_that(A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, ota_codec_config_),
-                   "Failed to build media codec capabilities");
+  log::assert_that(
+          A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, ota_codec_config_.data()),
+          "Failed to build media codec capabilities");
   return A2DP_SUCCESS;
 
 fail:
@@ -1290,10 +1287,9 @@ fail:
   codec_selectable_capability_ = saved_codec_selectable_capability;
   codec_user_config_ = saved_codec_user_config;
   codec_audio_config_ = saved_codec_audio_config;
-  memcpy(ota_codec_config_, saved_ota_codec_config, sizeof(ota_codec_config_));
-  memcpy(ota_codec_peer_capability_, saved_ota_codec_peer_capability,
-         sizeof(ota_codec_peer_capability_));
-  memcpy(ota_codec_peer_config_, saved_ota_codec_peer_config, sizeof(ota_codec_peer_config_));
+  ota_codec_config_ = saved_ota_codec_config;
+  ota_codec_peer_capability_ = saved_ota_codec_peer_capability;
+  ota_codec_peer_config_ = saved_ota_codec_peer_config;
   return status;
 }
 
@@ -1307,9 +1303,8 @@ bool A2dpCodecConfigAacBase::setPeerCodecCapabilities(const uint8_t* p_peer_code
 
   // Save the internal state
   btav_a2dp_codec_config_t saved_codec_selectable_capability = codec_selectable_capability_;
-  uint8_t saved_ota_codec_peer_capability[AVDT_CODEC_SIZE];
-  memcpy(saved_ota_codec_peer_capability, ota_codec_peer_capability_,
-         sizeof(ota_codec_peer_capability_));
+  bluetooth::a2dp::MediaCodecCapabilities saved_ota_codec_peer_capability =
+          ota_codec_peer_capability_;
 
   tA2DP_STATUS status = A2DP_ParseInfoAac(&peer_info_cie, p_peer_codec_capabilities, true);
   if (status != A2DP_SUCCESS) {
@@ -1355,22 +1350,20 @@ bool A2dpCodecConfigAacBase::setPeerCodecCapabilities(const uint8_t* p_peer_code
             static_cast<int64_t>(AacEncoderBitrateMode::AACENC_BR_MODE_CBR);
   }
 
-  log::assert_that(
-          A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_capability_),
-          "Failed to build media codec capabilities");
+  log::assert_that(A2DP_BuildInfoAac(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie,
+                                     ota_codec_peer_capability_.data()),
+                   "Failed to build media codec capabilities");
   return true;
 
 fail:
   // Restore the internal state
   codec_selectable_capability_ = saved_codec_selectable_capability;
-  memcpy(ota_codec_peer_capability_, saved_ota_codec_peer_capability,
-         sizeof(ota_codec_peer_capability_));
+  ota_codec_peer_capability_ = saved_ota_codec_peer_capability;
   return false;
 }
 
 A2dpCodecConfigAacSink::A2dpCodecConfigAacSink(btav_a2dp_codec_priority_t codec_priority)
-    : A2dpCodecConfigAacBase(BTAV_A2DP_CODEC_INDEX_SINK_AAC, A2DP_CodecIndexStrAacSink(),
-                             codec_priority, false) {}
+    : A2dpCodecConfigAacBase(BTAV_A2DP_CODEC_INDEX_SINK_AAC, "AAC SINK", codec_priority, false) {}
 
 A2dpCodecConfigAacSink::~A2dpCodecConfigAacSink() {}
 
@@ -1387,4 +1380,8 @@ bool A2dpCodecConfigAacSink::init() {
 bool A2dpCodecConfigAacSink::useRtpHeaderMarkerBit() const {
   // TODO: This method applies only to Source codecs
   return false;
+}
+
+int A2dpCodecConfigAacBase::getTrackBitRate() const {
+  return A2DP_GetBitRateAac(ota_codec_config_.data());
 }

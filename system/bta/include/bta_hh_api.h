@@ -19,12 +19,14 @@
 #define BTA_HH_API_H
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/acl_link_spec.h>
 #include <bluetooth/types/ble_address_with_type.h>
 #include <bluetooth/types/uuid.h>
 
 #include <cstdint>
 #include <string>
 
+#include "hardware/bt_hh.h"
 #include "internal_include/bt_target.h"
 #include "macros.h"
 #include "stack/include/bt_hdr.h"
@@ -118,54 +120,6 @@ typedef uint8_t tBTA_HH_BOOT_RPT_ID;
 #define BTA_HH_DEVT_OTHER 0x80
 typedef uint8_t tBTA_HH_DEVT;
 
-typedef enum : uint8_t {
-  BTA_HH_OK = 0,
-  BTA_HH_HS_HID_NOT_READY,  /* handshake error : device not ready */
-  BTA_HH_HS_INVALID_RPT_ID, /* handshake error : invalid report ID */
-  BTA_HH_HS_TRANS_NOT_SPT,  /* handshake error : transaction not spt */
-  BTA_HH_HS_INVALID_PARAM,  /* handshake error : invalid paremter */
-  BTA_HH_HS_ERROR,          /* handshake error : unspecified HS error */
-  BTA_HH_ERR,               /* general BTA HH error */
-  BTA_HH_ERR_SDP,           /* SDP error */
-  BTA_HH_ERR_PROTO,         /* SET_Protocol error,
-                                only used in BTA_HH_OPEN_EVT callback */
-
-  BTA_HH_ERR_DB_FULL,     /* device database full error, used in
-                             BTA_HH_OPEN_EVT/BTA_HH_ADD_DEV_EVT */
-  BTA_HH_ERR_TOD_UNSPT,   /* type of device not supported */
-  BTA_HH_ERR_NO_RES,      /* out of system resources */
-  BTA_HH_ERR_AUTH_FAILED, /* authentication fail */
-  BTA_HH_ERR_HDL,
-  BTA_HH_ERR_SEC,
-  BTA_HH_HS_SERVICE_CHANGED /* GATT service changed on the peer */
-} tBTA_HH_STATUS;
-
-inline tBTA_HH_STATUS to_bta_hh_status(uint32_t status) {
-  return static_cast<tBTA_HH_STATUS>(status);
-}
-
-inline std::string bta_hh_status_text(const tBTA_HH_STATUS& status) {
-  switch (status) {
-    CASE_RETURN_STRING(BTA_HH_OK);
-    CASE_RETURN_STRING(BTA_HH_HS_HID_NOT_READY);
-    CASE_RETURN_STRING(BTA_HH_HS_INVALID_RPT_ID);
-    CASE_RETURN_STRING(BTA_HH_HS_TRANS_NOT_SPT);
-    CASE_RETURN_STRING(BTA_HH_HS_INVALID_PARAM);
-    CASE_RETURN_STRING(BTA_HH_HS_ERROR);
-    CASE_RETURN_STRING(BTA_HH_ERR);
-    CASE_RETURN_STRING(BTA_HH_ERR_SDP);
-    CASE_RETURN_STRING(BTA_HH_ERR_PROTO);
-    CASE_RETURN_STRING(BTA_HH_ERR_DB_FULL);
-    CASE_RETURN_STRING(BTA_HH_ERR_TOD_UNSPT);
-    CASE_RETURN_STRING(BTA_HH_ERR_NO_RES);
-    CASE_RETURN_STRING(BTA_HH_ERR_AUTH_FAILED);
-    CASE_RETURN_STRING(BTA_HH_ERR_HDL);
-    CASE_RETURN_STRING(BTA_HH_ERR_SEC);
-    CASE_RETURN_STRING(BTA_HH_HS_SERVICE_CHANGED);
-  }
-  RETURN_UNKNOWN_TYPE_STRING(tBTA_HH_STATUS, status);
-}
-
 inline std::string bta_hh_event_text(uint16_t event) {
   switch (event) {
     CASE_RETURN_STRING(BTA_HH_EMPTY_EVT);
@@ -254,8 +208,8 @@ typedef struct {
 
 /* callback event data for BTA_HH_OPEN_EVT */
 typedef struct {
-  tAclLinkSpec link_spec; /* HID device ACL link specification */
-  tBTA_HH_STATUS status;  /* operation status         */
+  AclLinkSpec link_spec;  /* HID device ACL link specification */
+  bthh_status_t status;   /* operation status         */
   uint8_t handle;         /* device handle            */
   bool scps_supported;    /* scan parameter service supported */
   uint8_t sub_class;      /* Cod sub class */
@@ -267,7 +221,7 @@ typedef tBTA_HH_CONN tBTA_HH_DEV_INFO;
 
 /* callback event data */
 typedef struct {
-  tBTA_HH_STATUS status; /* operation status         */
+  bthh_status_t status;  /* operation status         */
   uint8_t handle;        /* device handle            */
 } tBTA_HH_CBDATA;
 
@@ -310,7 +264,7 @@ typedef struct {
 
 /* handshake data */
 typedef struct {
-  tBTA_HH_STATUS status; /* handshake status */
+  bthh_status_t status;  /* handshake status */
   uint8_t handle;        /* device handle    */
   union {
     tBTA_HH_PROTO_MODE proto_mode; /* GET_PROTO_EVT :protocol mode */
@@ -329,7 +283,7 @@ typedef union {
                                 BTA_HH_SET_IDLE_EVT
                                 BTA_HH_UPDATE_SCPP_EVT */
 
-  tBTA_HH_STATUS status;           /* BTA_HH_ENABLE_EVT */
+  bthh_status_t status;            /* BTA_HH_ENABLE_EVT */
   tBTA_HH_DEV_DSCP_INFO dscp_info; /* BTA_HH_GET_DSCP_EVT */
   tBTA_HH_HSDATA hs_data;          /* GET_ transaction callback
                                       BTA_HH_GET_RPT_EVT
@@ -345,10 +299,10 @@ typedef union {
 #define ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID_STRING "8584cbb5-2d58-45a3-ab9d-583e0958b067"
 #define ANDROID_HEADTRACKER_REPORT_CHARAC_UUID_STRING "e66dd173-b2ae-4f5a-ae16-0162af8038ae"
 
-extern const bluetooth::Uuid ANDROID_HEADTRACKER_SERVICE_UUID;
-extern const bluetooth::Uuid ANDROID_HEADTRACKER_VERSION_CHARAC_UUID;
-extern const bluetooth::Uuid ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID;
-extern const bluetooth::Uuid ANDROID_HEADTRACKER_REPORT_CHARAC_UUID;
+extern constinit bluetooth::Uuid ANDROID_HEADTRACKER_SERVICE_UUID;
+extern constinit bluetooth::Uuid ANDROID_HEADTRACKER_VERSION_CHARAC_UUID;
+extern constinit bluetooth::Uuid ANDROID_HEADTRACKER_CONTROL_CHARAC_UUID;
+extern constinit bluetooth::Uuid ANDROID_HEADTRACKER_REPORT_CHARAC_UUID;
 
 /* BTA HH callback function */
 typedef void(tBTA_HH_CBACK)(tBTA_HH_EVT event, tBTA_HH* p_data);
@@ -391,7 +345,18 @@ void BTA_HhDisable(void);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhOpen(const tAclLinkSpec& link_spec, bool direct);
+void BTA_HhOpen(const AclLinkSpec& link_spec, bool direct);
+
+/*******************************************************************************
+ *
+ * Function         BTA_HhOpen
+ *
+ * Description      This function cancels an ongoing connection attempt.
+ *
+ * Returns          void
+ *
+ ******************************************************************************/
+void BTA_HhCancelOpen(const AclLinkSpec& link_spec);
 
 /*******************************************************************************
  *
@@ -402,7 +367,7 @@ void BTA_HhOpen(const tAclLinkSpec& link_spec, bool direct);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhClose(uint8_t dev_handle);
+void BTA_HhClose(uint8_t dev_handle, bthh_status_t status = BTHH_OK);
 
 /*******************************************************************************
  *
@@ -512,7 +477,7 @@ void BTA_HhGetIdle(uint8_t dev_handle);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhSendData(uint8_t dev_handle, const tAclLinkSpec& link_spec, BT_HDR* p_buf);
+void BTA_HhSendData(uint8_t dev_handle, const AclLinkSpec& link_spec, BT_HDR* p_buf);
 
 /*******************************************************************************
  *
@@ -536,7 +501,7 @@ void BTA_HhGetDscpInfo(uint8_t dev_handle);
  * Returns          void
  *
  ******************************************************************************/
-void BTA_HhAddDev(const tAclLinkSpec& link_spec, tBTA_HH_ATTR_MASK attr_mask, uint8_t sub_class,
+void BTA_HhAddDev(const AclLinkSpec& link_spec, tBTA_HH_ATTR_MASK attr_mask, uint8_t sub_class,
                   uint8_t app_id, tBTA_HH_DEV_DSCP_INFO dscp_info);
 /*******************************************************************************
  *
@@ -560,8 +525,4 @@ void BTA_HhRemoveDev(uint8_t dev_handle);
  ******************************************************************************/
 void BTA_HhDump(int fd);
 
-namespace std {
-template <>
-struct formatter<tBTA_HH_STATUS> : enum_formatter<tBTA_HH_STATUS> {};
-}  // namespace std
 #endif /* BTA_HH_API_H */

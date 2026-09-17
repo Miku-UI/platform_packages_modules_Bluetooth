@@ -33,11 +33,6 @@
 #include <cstdint>
 #include <cstring>
 
-#include "avct_api.h"
-#include "avdt_api.h"
-#include "avrc_api.h"
-#include "avrc_defs.h"
-#include "bt_dev_class.h"
 #include "bta/av/bta_av_int.h"
 #include "bta/include/bta_ar_api.h"
 #include "bta/include/utl.h"
@@ -50,21 +45,26 @@
 #include "device/include/device_iot_config.h"
 #include "device/include/interop.h"
 #include "internal_include/bt_target.h"
-#include "l2cap_types.h"
 #include "osi/include/alarm.h"
 #include "osi/include/allocator.h"
 #include "osi/include/list.h"
 #include "osi/include/osi.h"  // UINT_TO_PTR PTR_TO_UINT
 #include "osi/include/properties.h"
-#include "sdpdefs.h"
+#include "stack/include/avct_api.h"
+#include "stack/include/avdt_api.h"
+#include "stack/include/avrc_api.h"
+#include "stack/include/avrc_defs.h"
+#include "stack/include/bt_dev_class.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/l2cap_interface.h"
+#include "stack/include/l2cap_types.h"
 #include "stack/include/sdp_api.h"
+#include "stack/include/sdp_discovery_db.h"
 #include "stack/include/sdp_status.h"
-#include "stack/sdp/sdp_discovery_db.h"
+#include "stack/include/sdpdefs.h"
 
 using namespace bluetooth::legacy::stack::sdp;
 using namespace bluetooth;
@@ -133,7 +133,7 @@ void bta_av_del_rc(tBTA_AV_RCB* p_rcb) {
         p_scb = bta_av_cb.p_scb[p_rcb->shdl - 1];
       }
       if (p_scb) {
-        log::verbose("shdl:{}, srch:{} rc_handle:{}", p_rcb->shdl, p_scb->rc_handle, p_rcb->handle);
+        log::debug("shdl:{}, srch:{} rc_handle:{}", p_rcb->shdl, p_scb->rc_handle, p_rcb->handle);
         if (p_scb->rc_handle == p_rcb->handle) {
           p_scb->rc_handle = BTA_AV_RC_HANDLE_NONE;
         }
@@ -144,8 +144,8 @@ void bta_av_del_rc(tBTA_AV_RCB* p_rcb) {
       }
     }
 
-    log::verbose("handle: {} status=0x{:x}, rc_acp_handle:{}, idx:{}", p_rcb->handle, p_rcb->status,
-                 bta_av_cb.rc_acp_handle, bta_av_cb.rc_acp_idx);
+    log::debug("handle: {} status=0x{:x}, rc_acp_handle:{}, idx:{}", p_rcb->handle, p_rcb->status,
+               bta_av_cb.rc_acp_handle, bta_av_cb.rc_acp_idx);
     rc_handle = p_rcb->handle;
     if (!(p_rcb->status & BTA_AV_RC_CONN_MASK) ||
         ((p_rcb->status & BTA_AV_RC_ROLE_MASK) == BTA_AV_RC_ROLE_INT)) {
@@ -159,8 +159,8 @@ void bta_av_del_rc(tBTA_AV_RCB* p_rcb) {
     if (rc_handle == bta_av_cb.rc_acp_handle) {
       bta_av_cb.rc_acp_handle = BTA_AV_RC_HANDLE_NONE;
     }
-    log::verbose("end del_rc handle: {} status=0x{:x}, rc_acp_handle:{}, lidx:{}", p_rcb->handle,
-                 p_rcb->status, bta_av_cb.rc_acp_handle, p_rcb->lidx);
+    log::debug("end del_rc handle: {} status=0x{:x}, rc_acp_handle:{}, lidx:{}", p_rcb->handle,
+               p_rcb->status, bta_av_cb.rc_acp_handle, p_rcb->lidx);
   }
 }
 
@@ -194,7 +194,7 @@ static void bta_av_close_all_rc(tBTA_AV_CB* p_cb) {
  ******************************************************************************/
 static void bta_av_del_sdp_rec(uint32_t* p_sdp_handle) {
   if (*p_sdp_handle != 0) {
-    if (!get_legacy_stack_sdp_api()->handle.SDP_DeleteRecord(*p_sdp_handle)) {
+    if (!get_legacy_stack_sdp_api()->SDP_DeleteRecord(*p_sdp_handle)) {
       log::warn("Unable to delete SDP record:{}", *p_sdp_handle);
     }
     *p_sdp_handle = 0;
@@ -235,7 +235,7 @@ static void bta_av_rc_ctrl_cback(uint8_t handle, uint8_t event, uint16_t /* resu
     log::warn("not cback legacy cback, and close the handle");
 
     if (event == AVRC_CLOSE_IND_EVT || event == AVRC_OPEN_IND_EVT) {
-      log::verbose("resend close event");
+      log::debug("resend close event");
       tBTA_AV_RC_CONN_CHG* p_msg = (tBTA_AV_RC_CONN_CHG*)osi_malloc(sizeof(tBTA_AV_RC_CONN_CHG));
       p_msg->hdr.event = BTA_AV_AVRC_CLOSE_EVT;
       p_msg->handle = handle;
@@ -245,7 +245,7 @@ static void bta_av_rc_ctrl_cback(uint8_t handle, uint8_t event, uint16_t /* resu
     return;
   }
 
-  log::verbose("handle: {} event=0x{:x}", handle, event);
+  log::debug("handle: {} event=0x{:x}", handle, event);
   if (event == AVRC_OPEN_IND_EVT) {
     /* save handle of opened connection
     bta_av_cb.rc_handle = handle;*/
@@ -281,7 +281,7 @@ static void bta_av_rc_msg_cback(uint8_t handle, uint8_t label, uint8_t opcode, t
   uint8_t* p_data_src = NULL;
   uint16_t data_len = 0;
 
-  log::verbose("handle: {} opcode=0x{:x}", handle, opcode);
+  log::debug("handle: {} opcode=0x{:x}", handle, opcode);
 
   /* Copy avrc packet into BTA message buffer (for sending to BTA state machine)
    */
@@ -388,9 +388,14 @@ uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, tAVCT_ROLE role, uint8_t shdl, uint8_
     return BTA_AV_RC_HANDLE_NONE;
   }
 
-  if (rc_handle != BTA_AV_RC_HANDLE_NONE && rc_handle >= BTA_AV_NUM_RCB) {
-    log::error("rc_handle out of bounds: {}. Closing AVRC.", rc_handle);
-    AVRC_Close(rc_handle);
+  if (rc_handle == BTA_AV_RC_HANDLE_NONE || rc_handle >= BTA_AV_NUM_RCB) {
+    log::error("rc_handle out of bounds or NONE: {}. Cleaning up.", rc_handle);
+
+    // Only call Close if the handle is not NONE
+    if (rc_handle != BTA_AV_RC_HANDLE_NONE) {
+      AVRC_Close(rc_handle);
+    }
+
     return BTA_AV_RC_HANDLE_NONE;
   }
 
@@ -413,10 +418,10 @@ uint8_t bta_av_rc_create(tBTA_AV_CB* p_cb, tAVCT_ROLE role, uint8_t shdl, uint8_
     /* this LIDX is reserved for the AVRCP ACP connection */
     p_cb->rc_acp_handle = p_rcb->handle;
     p_cb->rc_acp_idx = (i + 1);
-    log::verbose("rc_acp_handle:{} idx:{}", p_cb->rc_acp_handle, p_cb->rc_acp_idx);
+    log::debug("rc_acp_handle:{} idx:{}", p_cb->rc_acp_handle, p_cb->rc_acp_idx);
   }
-  log::verbose("create {}, role: {}, shdl:{}, rc_handle:{}, lidx:{}, status:0x{:x}", i,
-               avct_role_text(role), shdl, p_rcb->handle, lidx, p_rcb->status);
+  log::debug("create {}, role: {}, shdl:{}, rc_handle:{}, lidx:{}, status:0x{:x}", i,
+             avct_role_text(role), shdl, p_rcb->handle, lidx, p_rcb->status);
 
   return rc_handle;
 }
@@ -503,14 +508,14 @@ tBTA_AV_LCB* bta_av_find_lcb(const RawAddress& addr, uint8_t op) {
   uint8_t mask;
   tBTA_AV_LCB* p_lcb = NULL;
 
-  log::verbose("address: {} op:{}", addr, op);
+  log::debug("address: {} op:{}", addr, op);
   for (xx = 0; xx < BTA_AV_NUM_LINKS; xx++) {
     mask = 1 << xx; /* the used mask for this lcb */
     if ((mask & p_cb->conn_lcb) && p_cb->lcb[xx].addr == addr) {
       p_lcb = &p_cb->lcb[xx];
       if (op == BTA_AV_LCB_FREE) {
         p_cb->conn_lcb &= ~mask; /* clear the connect mask */
-        log::verbose("conn_lcb: 0x{:x}", p_cb->conn_lcb);
+        log::debug("conn_lcb: 0x{:x}", p_cb->conn_lcb);
       }
       break;
     }
@@ -529,20 +534,26 @@ tBTA_AV_LCB* bta_av_find_lcb(const RawAddress& addr, uint8_t op) {
  ******************************************************************************/
 void bta_av_rc_opened(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
   tBTA_AV_RC_OPEN rc_open;
-  tBTA_AV_SCB* p_scb;
-  int i;
+  tBTA_AV_SCB* p_scb = NULL;
   uint8_t shdl = 0;
   tBTA_AV_LCB* p_lcb;
   tBTA_AV_RCB* p_rcb;
   uint8_t tmp;
   uint8_t disc = 0;
 
-  /* find the SCB & stop the timer */
-  for (i = 0; i < BTA_AV_NUM_STRS; i++) {
+  uint8_t rc_handle = p_data->rc_conn_chg.handle;
+  if (rc_handle >= BTA_AV_NUM_RCB) {
+    log::error("Invalid rc_conn_chg.handle: {} >= BTA_AV_NUM_RCB ({})", rc_handle, BTA_AV_NUM_RCB);
+    AVRC_Close(rc_handle);
+    return;
+  }
+
+  // find the SCB & stop the timer
+  for (int i = 0; i < BTA_AV_NUM_STRS; i++) {
     p_scb = p_cb->p_scb[i];
     if (p_scb && p_scb->PeerAddress() == p_data->rc_conn_chg.peer_addr) {
-      p_scb->rc_handle = p_data->rc_conn_chg.handle;
-      log::verbose("shdl:{}, srch {}", i + 1, p_scb->rc_handle);
+      p_scb->rc_handle = rc_handle;
+      log::debug("shdl:{}, srch {}", i + 1, p_scb->rc_handle);
       shdl = i + 1;
       log::info("allow incoming AVRCP connections:{}", p_scb->use_rc);
       alarm_cancel(p_scb->avrc_ct_timer);
@@ -551,39 +562,48 @@ void bta_av_rc_opened(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
     }
   }
 
-  i = p_data->rc_conn_chg.handle;
-  if (p_cb->rcb[i].handle == BTA_AV_RC_HANDLE_NONE) {
-    log::error("not a valid handle:{} any more", i);
+  if (p_cb->rcb[rc_handle].handle == BTA_AV_RC_HANDLE_NONE) {
+    log::error("not a valid handle:{} any more", rc_handle);
     return;
   }
 
-  log::verbose("local features {} peer features {}", p_cb->features, p_cb->rcb[i].peer_features);
+  log::debug("local features {} peer features {}", p_cb->features,
+             p_cb->rcb[rc_handle].peer_features);
 
-  /* listen to browsing channel when the connection is open,
-   * if peer initiated AVRCP connection and local device supports browsing
-   * channel */
-  AVRC_OpenBrowse(p_data->rc_conn_chg.handle, AVCT_ROLE_ACCEPTOR);
+  // Check whether target or sink have the browse feature bit.
+  // If concurrent target and controller are enabled, the sink feature bits are used.
+  bool browse_supported = (p_cb->features & BTA_AV_FEAT_BROWSE);
+  if (btif_av_both_enable()) {
+    browse_supported = (p_cb->sink_features & BTA_AV_FEAT_BROWSE);
+  }
 
-  if (p_cb->rcb[i].lidx == (BTA_AV_NUM_LINKS + 1) && shdl != 0) {
+  if (browse_supported) {
+    /* listen to browsing channel when the connection is open,
+     * if peer initiated AVRCP connection and local device supports browsing
+     * channel */
+    AVRC_OpenBrowse(rc_handle, AVCT_ROLE_ACCEPTOR);
+  }
+
+  if (p_cb->rcb[rc_handle].lidx == (BTA_AV_NUM_LINKS + 1) && shdl != 0) {
     /* rc is opened on the RC only ACP channel, but is for a specific
      * SCB -> need to switch RCBs */
     p_rcb = bta_av_get_rcb_by_shdl(shdl);
     if (p_rcb) {
-      p_rcb->shdl = p_cb->rcb[i].shdl;
+      p_rcb->shdl = p_cb->rcb[rc_handle].shdl;
       tmp = p_rcb->lidx;
-      p_rcb->lidx = p_cb->rcb[i].lidx;
-      p_cb->rcb[i].lidx = tmp;
+      p_rcb->lidx = p_cb->rcb[rc_handle].lidx;
+      p_cb->rcb[rc_handle].lidx = tmp;
       p_cb->rc_acp_handle = p_rcb->handle;
       p_cb->rc_acp_idx = (p_rcb - p_cb->rcb) + 1;
-      log::verbose("switching RCB rc_acp_handle:{} idx:{}", p_cb->rc_acp_handle, p_cb->rc_acp_idx);
+      log::debug("switching RCB rc_acp_handle:{} idx:{}", p_cb->rc_acp_handle, p_cb->rc_acp_idx);
     }
   }
 
-  p_cb->rcb[i].shdl = shdl;
-  rc_open.rc_handle = i;
-  log::error("rcb[{}] shdl:{} lidx:{}/{}", i, shdl, p_cb->rcb[i].lidx,
+  p_cb->rcb[rc_handle].shdl = shdl;
+  rc_open.rc_handle = rc_handle;
+  log::error("rcb[{}] shdl:{} lidx:{}/{}", rc_handle, shdl, p_cb->rcb[rc_handle].lidx,
              p_cb->lcb[BTA_AV_NUM_LINKS].lidx);
-  p_cb->rcb[i].status |= BTA_AV_RC_CONN_MASK;
+  p_cb->rcb[rc_handle].status |= BTA_AV_RC_CONN_MASK;
 
   if (!shdl && 0 == p_cb->lcb[BTA_AV_NUM_LINKS].lidx) {
     /* no associated SCB -> connected to an RC only device
@@ -591,28 +611,28 @@ void bta_av_rc_opened(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
     p_lcb = &p_cb->lcb[BTA_AV_NUM_LINKS];
     p_lcb->addr = p_data->rc_conn_chg.peer_addr;
     p_lcb->lidx = BTA_AV_NUM_LINKS + 1;
-    p_cb->rcb[i].lidx = p_lcb->lidx;
+    p_cb->rcb[rc_handle].lidx = p_lcb->lidx;
     p_lcb->conn_msk = 1;
-    log::error("bd_addr: {} rcb[{}].lidx={}, lcb.conn_msk=x{:x}", p_lcb->addr, i, p_cb->rcb[i].lidx,
-               p_lcb->conn_msk);
-    disc = p_data->rc_conn_chg.handle | BTA_AV_CHNL_MSK;
+    log::error("bd_addr: {} rcb[{}].lidx={}, lcb.conn_msk=x{:x}", p_lcb->addr, rc_handle,
+               p_cb->rcb[rc_handle].lidx, p_lcb->conn_msk);
+    disc = rc_handle | BTA_AV_CHNL_MSK;
   }
 
   rc_open.peer_addr = p_data->rc_conn_chg.peer_addr;
-  rc_open.peer_features = p_cb->rcb[i].peer_features;
-  rc_open.cover_art_psm = p_cb->rcb[i].cover_art_psm;
+  rc_open.peer_features = p_cb->rcb[rc_handle].peer_features;
+  rc_open.cover_art_psm = p_cb->rcb[rc_handle].cover_art_psm;
   if (btif_av_both_enable()) {
     if (rc_open.peer_addr == p_cb->rc_feature.peer_addr) {
       rc_open.peer_features = p_cb->rc_feature.peer_features;
       rc_open.peer_ct_features = p_cb->rc_feature.peer_ct_features;
       rc_open.peer_tg_features = p_cb->rc_feature.peer_tg_features;
     } else {
-      rc_open.peer_features = p_cb->rcb[i].peer_features;
-      rc_open.peer_ct_features = p_cb->rcb[i].peer_ct_features;
-      rc_open.peer_tg_features = p_cb->rcb[i].peer_tg_features;
+      rc_open.peer_features = p_cb->rcb[rc_handle].peer_features;
+      rc_open.peer_ct_features = p_cb->rcb[rc_handle].peer_ct_features;
+      rc_open.peer_tg_features = p_cb->rcb[rc_handle].peer_tg_features;
     }
     rc_open.status = BTA_AV_SUCCESS;
-    log::verbose(
+    log::debug(
             "local features:0x{:x} peer_features:0x{:x}, peer_ct_feature:0x{:x}, "
             "peer_tg_feature:0x{:x}",
             p_cb->features, rc_open.peer_features, rc_open.peer_ct_features,
@@ -636,19 +656,19 @@ void bta_av_rc_opened(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
      * support
      * browsing channel, open the browsing channel now
      * Some TG would not broadcast browse feature hence check inter-op. */
-    if ((p_cb->features & BTA_AV_FEAT_BROWSE) &&
+    if (browse_supported &&
         ((rc_open.peer_ct_features & BTA_AV_FEAT_BROWSE) ||
          (rc_open.peer_tg_features & BTA_AV_FEAT_BROWSE))) {
-      if ((p_cb->rcb[i].status & BTA_AV_RC_ROLE_MASK) == BTA_AV_RC_ROLE_INT) {
-        log::verbose("opening AVRC Browse channel");
-        AVRC_OpenBrowse(p_data->rc_conn_chg.handle, AVCT_ROLE_INITIATOR);
+      if ((p_cb->rcb[rc_handle].status & BTA_AV_RC_ROLE_MASK) == BTA_AV_RC_ROLE_INT) {
+        log::debug("opening AVRC Browse channel");
+        AVRC_OpenBrowse(rc_handle, AVCT_ROLE_INITIATOR);
       }
     }
     return;
   }
   rc_open.status = BTA_AV_SUCCESS;
-  log::verbose("local features:x{:x} peer_features:x{:x}", p_cb->features, rc_open.peer_features);
-  log::verbose("cover art psm:x{:x}", rc_open.cover_art_psm);
+  log::debug("local features:x{:x} peer_features:x{:x}", p_cb->features, rc_open.peer_features);
+  log::debug("cover art psm:x{:x}", rc_open.cover_art_psm);
   if (rc_open.peer_features == 0) {
     /* we have not done SDP on peer RC capabilities.
      * peer must have initiated the RC connection */
@@ -669,10 +689,10 @@ void bta_av_rc_opened(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
    * browsing channel, open the browsing channel now
    * TODO (sanketa): Some TG would not broadcast browse feature hence check
    * inter-op. */
-  if ((p_cb->features & BTA_AV_FEAT_BROWSE) && (rc_open.peer_features & BTA_AV_FEAT_BROWSE) &&
-      ((p_cb->rcb[i].status & BTA_AV_RC_ROLE_MASK) == BTA_AV_RC_ROLE_INT)) {
-    log::verbose("opening AVRC Browse channel");
-    AVRC_OpenBrowse(p_data->rc_conn_chg.handle, AVCT_ROLE_INITIATOR);
+  if (browse_supported && (rc_open.peer_features & BTA_AV_FEAT_BROWSE) &&
+      ((p_cb->rcb[rc_handle].status & BTA_AV_RC_ROLE_MASK) == BTA_AV_RC_ROLE_INT)) {
+    log::debug("opening AVRC Browse channel");
+    AVRC_OpenBrowse(rc_handle, AVCT_ROLE_INITIATOR);
   }
 }
 
@@ -852,7 +872,7 @@ static void bta_av_proc_rsp(tAVRC_RESPONSE* p_rc_rsp) {
   }
   p_rc_rsp->get_caps.count = p_src_cfg->num_evt_ids;
   memcpy(p_rc_rsp->get_caps.param.event_id, p_src_cfg->p_meta_evt_ids, p_src_cfg->num_evt_ids);
-  log::verbose("ver: 0x{:x}", rc_ver);
+  log::debug("ver: 0x{:x}", rc_ver);
   /* if it's not 1.3, then there should be a absolute volume */
   if (rc_ver != 0x103) {
     uint8_t evt_cnt = p_rc_rsp->get_caps.count;
@@ -867,15 +887,17 @@ static void bta_av_proc_rsp(tAVRC_RESPONSE* p_rc_rsp) {
   }
 }
 
-/*******************************************************************************
+/**
+ * Process an AVRCP metadata command from the peer.
  *
- * Function         bta_av_proc_meta_cmd
- *
- * Description      Process an AVRCP metadata command from the peer.
- *
- * Returns          true to respond immediately
- *
- ******************************************************************************/
+ * @param p_rc_rsp Output parameter for the AVRCP response
+ * @param p_msg    Input parameter for received AVRCP message
+ * @param p_ctype  Output parameter for the response type
+ * @return         The event to be processed by the state machine
+ *                 BTA_AV_META_MSG_EVT to report to the application,
+ *                 or BTA_AV_INVALID_EVT otherwise indicating
+ *                 to reject this packet.
+ */
 static tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE* p_rc_rsp, tBTA_AV_RC_MSG* p_msg,
                                         uint8_t* p_ctype) {
   tBTA_AV_EVT evt = BTA_AV_META_MSG_EVT;
@@ -885,41 +907,37 @@ static tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE* p_rc_rsp, tBTA_AV_RC_MSG
 
   if (p_vendor->vendor_len == 0) {
     p_rc_rsp->rsp.status = AVRC_STS_BAD_PARAM;
-    log::verbose("p_vendor->vendor_len == 0");
-    // the caller of this function assume 0 to be an invalid event
-    return 0;
+    log::debug("p_vendor->vendor_len == 0");
+    return BTA_AV_INVALID_EVT;
   }
 
   pdu = *(p_vendor->p_vendor_data);
   p_rc_rsp->pdu = pdu;
   *p_ctype = AVRC_RSP_REJ;
 
-  /* Check to ansure a  valid minimum meta data length */
+  /* Check to ensure a valid minimum meta data length */
   if ((AVRC_MIN_META_CMD_LEN + p_vendor->vendor_len) > AVRC_META_CMD_BUF_SIZE) {
-    /* reject it */
     p_rc_rsp->rsp.status = AVRC_STS_BAD_PARAM;
     log::error("Invalid meta-command length: {}", p_vendor->vendor_len);
-    return 0;
+    return BTA_AV_INVALID_EVT;
   }
 
   /* Metadata messages only use PANEL sub-unit type */
   if (p_vendor->hdr.subunit_type != AVRC_SUB_PANEL) {
-    log::verbose("SUBUNIT must be PANEL");
-    /* reject it */
-    evt = 0;
+    log::debug("SUBUNIT must be PANEL");
+    evt = BTA_AV_INVALID_EVT;
     p_vendor->hdr.ctype = AVRC_RSP_NOT_IMPL;
     p_vendor->vendor_len = 0;
     p_rc_rsp->rsp.status = AVRC_STS_BAD_PARAM;
   } else if (!AVRC_IsValidAvcType(pdu, p_vendor->hdr.ctype)) {
-    log::verbose("Invalid pdu/ctype: 0x{:x}, {}", pdu, p_vendor->hdr.ctype);
-    /* reject invalid message without reporting to app */
-    evt = 0;
+    log::debug("Invalid pdu/ctype: 0x{:x}, {}", pdu, p_vendor->hdr.ctype);
+    evt = BTA_AV_INVALID_EVT;
     p_rc_rsp->rsp.status = AVRC_STS_BAD_CMD;
   } else {
     switch (pdu) {
       case AVRC_PDU_GET_CAPABILITIES:
         /* process GetCapabilities command without reporting the event to app */
-        evt = 0;
+        evt = BTA_AV_INVALID_EVT;
         if (p_vendor->vendor_len != 5) {
           p_rc_rsp->get_caps.status = AVRC_STS_INTERNAL_ERR;
           break;
@@ -947,7 +965,7 @@ static tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE* p_rc_rsp, tBTA_AV_RC_MSG
             memcpy(p_rc_rsp->get_caps.param.event_id, p_bta_av_cfg->p_meta_evt_ids,
                    p_bta_av_cfg->num_evt_ids);
           } else {
-            log::verbose("Invalid capability ID: 0x{:x}", u8);
+            log::debug("Invalid capability ID: 0x{:x}", u8);
             /* reject - unknown capability ID */
             p_rc_rsp->get_caps.status = AVRC_STS_BAD_PARAM;
           }
@@ -958,7 +976,7 @@ static tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE* p_rc_rsp, tBTA_AV_RC_MSG
         /* make sure the event_id is implemented */
         p_rc_rsp->rsp.status = bta_av_chk_notif_evt_id(p_vendor);
         if (p_rc_rsp->rsp.status != BTA_AV_STS_NO_RSP) {
-          evt = 0;
+          evt = BTA_AV_INVALID_EVT;
         }
         break;
     }
@@ -977,7 +995,7 @@ static tBTA_AV_EVT bta_av_proc_meta_cmd(tAVRC_RESPONSE* p_rc_rsp, tBTA_AV_RC_MSG
  *
  ******************************************************************************/
 void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
-  tBTA_AV_EVT evt = 0;
+  tBTA_AV_EVT evt = BTA_AV_INVALID_EVT;
   tBTA_AV av;
   BT_HDR* p_pkt = NULL;
   tAVRC_MSG_VENDOR* p_vendor = &p_data->rc_msg.msg.vendor;
@@ -993,7 +1011,7 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
     return;
   }
 
-  log::verbose("opcode={:x}, ctype={:x}", p_data->rc_msg.opcode, p_data->rc_msg.msg.hdr.ctype);
+  log::debug("opcode={:x}, ctype={:x}", p_data->rc_msg.opcode, p_data->rc_msg.msg.hdr.ctype);
 
   if (p_data->rc_msg.opcode == AVRC_OP_PASS_THRU) {
     /* if this is a pass thru command */
@@ -1019,7 +1037,7 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
                 bta_av_op_supported(p_data->rc_msg.msg.pass.op_id, is_inquiry);
       }
 
-      log::verbose("ctype {}", p_data->rc_msg.msg.hdr.ctype);
+      log::debug("ctype {}", p_data->rc_msg.msg.hdr.ctype);
 
       /* send response */
       if (p_data->rc_msg.msg.hdr.ctype != AVRC_RSP_INTERIM) {
@@ -1053,7 +1071,7 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
       if ((p_data->rc_msg.msg.pass.op_id == AVRC_ID_VENDOR) &&
           (p_data->rc_msg.msg.pass.pass_len > 0)) {
         av.remote_rsp.p_data = (uint8_t*)osi_malloc(p_data->rc_msg.msg.pass.pass_len);
-        log::verbose("Vendor Unique data len = {}", p_data->rc_msg.msg.pass.pass_len);
+        log::debug("Vendor Unique data len = {}", p_data->rc_msg.msg.pass.pass_len);
         memcpy(av.remote_rsp.p_data, p_data->rc_msg.msg.pass.p_pass_data,
                p_data->rc_msg.msg.pass.pass_len);
       }
@@ -1095,7 +1113,9 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
       if (p_data->rc_msg.msg.vendor.p_vendor_data[0] == AVRC_PDU_INVALID) {
         /* reject it */
         p_data->rc_msg.msg.hdr.ctype = AVRC_RSP_REJ;
-        p_data->rc_msg.msg.vendor.p_vendor_data[4] = AVRC_STS_BAD_CMD;
+        if (p_data->rc_msg.msg.vendor.vendor_len >= 5) {
+          p_data->rc_msg.msg.vendor.p_vendor_data[4] = AVRC_STS_BAD_CMD;
+        }
       } else {
         p_data->rc_msg.msg.hdr.ctype = AVRC_RSP_NOT_IMPL;
       }
@@ -1113,7 +1133,7 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
     evt = BTA_AV_META_MSG_EVT;
   }
 
-  if (evt == 0 && rc_rsp.rsp.status != BTA_AV_STS_NO_RSP) {
+  if (evt == BTA_AV_INVALID_EVT && rc_rsp.rsp.status != BTA_AV_STS_NO_RSP) {
     if (!p_pkt) {
       rc_rsp.rsp.opcode = p_data->rc_msg.opcode;
       AVRC_BldResponse(0, &rc_rsp, &p_pkt);
@@ -1124,7 +1144,7 @@ void bta_av_rc_msg(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
   }
 
   /* call callback */
-  if (evt != 0) {
+  if (evt != BTA_AV_INVALID_EVT) {
     av.remote_cmd.rc_handle = p_data->rc_msg.handle;
     (*p_cb->p_cback)(evt, &av);
     /* If browsing message, then free the browse message buffer */
@@ -1151,7 +1171,7 @@ void bta_av_rc_close(tBTA_AV_CB* p_cb, tBTA_AV_DATA* p_data) {
   if (handle < BTA_AV_NUM_RCB) {
     p_rcb = &p_cb->rcb[handle];
 
-    log::verbose("handle: {}, status=0x{:x}", p_rcb->handle, p_rcb->status);
+    log::debug("handle: {}, status=0x{:x}", p_rcb->handle, p_rcb->status);
     if (p_rcb->handle != BTA_AV_RC_HANDLE_NONE) {
       if (p_rcb->shdl) {
         p_scb = bta_av_cb.p_scb[p_rcb->shdl - 1];
@@ -1200,7 +1220,7 @@ static uint8_t bta_av_get_shdl(tBTA_AV_SCB* p_scb) {
 void bta_av_stream_chg(tBTA_AV_SCB* p_scb, bool started) {
   uint8_t started_msk = BTA_AV_HNDL_TO_MSK(p_scb->hdi);
 
-  log::verbose("peer {} started:{} started_msk:0x{:x}", p_scb->PeerAddress(), started, started_msk);
+  log::debug("peer {} started:{} started_msk:0x{:x}", p_scb->PeerAddress(), started, started_msk);
 
   if (started) {
     /* Let L2CAP know this channel is processed with high priority */
@@ -1256,9 +1276,9 @@ void bta_av_conn_chg(tBTA_AV_DATA* p_data) {
         for (i = 0; i < BTA_AV_NUM_RCB; i++) {
           if (bta_av_cb.rcb[i].lidx == p_lcb->lidx) {
             bta_av_cb.rcb[i].shdl = index + 1;
-            log::verbose("conn_chg up[{}]: {}, status=0x{:x}, shdl:{}, lidx:{}", i,
-                         bta_av_cb.rcb[i].handle, bta_av_cb.rcb[i].status, bta_av_cb.rcb[i].shdl,
-                         bta_av_cb.rcb[i].lidx);
+            log::debug("conn_chg up[{}]: {}, status=0x{:x}, shdl:{}, lidx:{}", i,
+                       bta_av_cb.rcb[i].handle, bta_av_cb.rcb[i].status, bta_av_cb.rcb[i].shdl,
+                       bta_av_cb.rcb[i].lidx);
             break;
           }
         }
@@ -1271,12 +1291,12 @@ void bta_av_conn_chg(tBTA_AV_DATA* p_data) {
         bta_av_cb.audio_open_cnt++;
       }
 
-      log::verbose("rc_acp_handle:{} rc_acp_idx:{}", p_cb->rc_acp_handle, p_cb->rc_acp_idx);
+      log::debug("rc_acp_handle:{} rc_acp_idx:{}", p_cb->rc_acp_handle, p_cb->rc_acp_idx);
       /* check if the AVRCP ACP channel is already connected */
       if (p_lcb && p_cb->rc_acp_handle != BTA_AV_RC_HANDLE_NONE && p_cb->rc_acp_idx) {
         p_lcb_rc = &p_cb->lcb[BTA_AV_NUM_LINKS];
-        log::verbose("rc_acp is connected && conn_chg on same addr p_lcb_rc->conn_msk:x{:x}",
-                     p_lcb_rc->conn_msk);
+        log::debug("rc_acp is connected && conn_chg on same addr p_lcb_rc->conn_msk:x{:x}",
+                   p_lcb_rc->conn_msk);
         /* check if the RC is connected to the scb addr */
         log::info("p_lcb_rc->addr: {} conn_chg.peer_addr: {}", p_lcb_rc->addr,
                   p_data->conn_chg.peer_addr);
@@ -1289,22 +1309,21 @@ void bta_av_conn_chg(tBTA_AV_DATA* p_data) {
           p_scb->rc_handle = p_cb->rc_acp_handle;
           p_rcb = &p_cb->rcb[p_cb->rc_acp_idx - 1];
           p_rcb->shdl = bta_av_get_shdl(p_scb);
-          log::verbose("update rc_acp shdl:{}/{} srch:{}", index + 1, p_rcb->shdl,
-                       p_scb->rc_handle);
+          log::debug("update rc_acp shdl:{}/{} srch:{}", index + 1, p_rcb->shdl, p_scb->rc_handle);
 
           p_rcb2 = bta_av_get_rcb_by_shdl(p_rcb->shdl);
           if (p_rcb2) {
             /* found the RCB that was created to associated with this SCB */
             p_cb->rc_acp_handle = p_rcb2->handle;
             p_cb->rc_acp_idx = (p_rcb2 - p_cb->rcb) + 1;
-            log::verbose("new rc_acp_handle:{}, idx:{}", p_cb->rc_acp_handle, p_cb->rc_acp_idx);
+            log::debug("new rc_acp_handle:{}, idx:{}", p_cb->rc_acp_handle, p_cb->rc_acp_idx);
             p_rcb2->lidx = (BTA_AV_NUM_LINKS + 1);
-            log::verbose("rc2 handle:{} lidx:{}/{}", p_rcb2->handle, p_rcb2->lidx,
-                         p_cb->lcb[p_rcb2->lidx - 1].lidx);
+            log::debug("rc2 handle:{} lidx:{}/{}", p_rcb2->handle, p_rcb2->lidx,
+                       p_cb->lcb[p_rcb2->lidx - 1].lidx);
           }
           p_rcb->lidx = p_lcb->lidx;
-          log::verbose("rc handle:{} lidx:{}/{}", p_rcb->handle, p_rcb->lidx,
-                       p_cb->lcb[p_rcb->lidx - 1].lidx);
+          log::debug("rc handle:{} lidx:{}/{}", p_rcb->handle, p_rcb->lidx,
+                     p_cb->lcb[p_rcb->lidx - 1].lidx);
         }
       }
     }
@@ -1333,11 +1352,10 @@ void bta_av_conn_chg(tBTA_AV_DATA* p_data) {
       }
     }
 
-    log::verbose("shdl:{}", index + 1);
+    log::debug("shdl:{}", index + 1);
     for (i = 0; i < BTA_AV_NUM_RCB; i++) {
-      log::verbose("conn_chg dn[{}]: {}, status=0x{:x}, shdl:{}, lidx:{}", i,
-                   bta_av_cb.rcb[i].handle, bta_av_cb.rcb[i].status, bta_av_cb.rcb[i].shdl,
-                   bta_av_cb.rcb[i].lidx);
+      log::debug("conn_chg dn[{}]: {}, status=0x{:x}, shdl:{}, lidx:{}", i, bta_av_cb.rcb[i].handle,
+                 bta_av_cb.rcb[i].status, bta_av_cb.rcb[i].shdl, bta_av_cb.rcb[i].lidx);
       if (bta_av_cb.rcb[i].shdl == index + 1) {
         bta_av_del_rc(&bta_av_cb.rcb[i]);
         /* since the connection is already down and info was removed, clean
@@ -1359,15 +1377,13 @@ void bta_av_conn_chg(tBTA_AV_DATA* p_data) {
     }
   }
 
-  log::verbose("audio:{:x} up:{} conn_msk:0x{:x} chk_restore:{} audio_open_cnt:{}",
-               p_cb->conn_audio, p_data->conn_chg.is_up, conn_msk, chk_restore,
-               p_cb->audio_open_cnt);
+  log::debug("audio:{:x} up:{} conn_msk:0x{:x} chk_restore:{} audio_open_cnt:{}", p_cb->conn_audio,
+             p_data->conn_chg.is_up, conn_msk, chk_restore, p_cb->audio_open_cnt);
 
   if (chk_restore) {
     if (p_cb->audio_open_cnt == 1) {
       /* one audio channel goes down and there's one audio channel remains open.
        * restore the switch role in default link policy */
-      get_btm_client_interface().link_policy.BTM_default_unblock_role_switch();
       bta_av_restore_switch();
     }
     if (p_cb->audio_open_cnt) {
@@ -1492,7 +1508,7 @@ void bta_av_api_set_latency(tBTA_AV_DATA* p_data) {
  * if no entry is found
  */
 static uint8_t bta_av_find_lcb_index_by_scb_and_address(const RawAddress& peer_address) {
-  log::verbose("peer_address: {} conn_lcb: 0x{:x}", peer_address, bta_av_cb.conn_lcb);
+  log::debug("peer_address: {} conn_lcb: 0x{:x}", peer_address, bta_av_cb.conn_lcb);
 
   // Find the index if there is already SCB entry for the peer address
   for (uint8_t index = 0; index < BTA_AV_NUM_LINKS; index++) {
@@ -1548,9 +1564,9 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
   uint8_t mask;
   tBTA_AV_LCB* p_lcb = NULL;
 
-  log::verbose("event: {}", event);
+  log::debug("event: {}", event);
   if (event == AVDT_CONNECT_IND_EVT) {
-    log::verbose("AVDT_CONNECT_IND_EVT: peer {}", p_data->str_msg.bd_addr);
+    log::debug("AVDT_CONNECT_IND_EVT: peer {}", p_data->str_msg.bd_addr);
 
     p_lcb = bta_av_find_lcb(p_data->str_msg.bd_addr, BTA_AV_LCB_FIND);
     if (!p_lcb) {
@@ -1579,9 +1595,9 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
       }
       /* this entry is not used yet. */
       p_cb->conn_lcb |= mask; /* mark it as used */
-      log::verbose("start sig timer {}", p_data->hdr.offset);
+      log::debug("start sig timer {}", p_data->hdr.offset);
       if (p_data->hdr.offset == static_cast<uint16_t>(tAVDT_ROLE::AVDT_ACP)) {
-        log::verbose("Incoming L2CAP acquired, set state as incoming");
+        log::debug("Incoming L2CAP acquired, set state as incoming");
         p_scb->OnConnected(p_data->str_msg.bd_addr);
         p_scb->use_rc = true; /* allowing RC for incoming connection */
         bta_av_ssm_execute(p_scb, BTA_AV_ACP_CONNECT_EVT, p_data);
@@ -1600,7 +1616,7 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
         hdr.layer_specific = p_scb->hndl;
         bta_av_signalling_timer((tBTA_AV_DATA*)&hdr);
 
-        log::verbose("Re-start timer for AVDTP service");
+        log::debug("Re-start timer for AVDTP service");
         bta_sys_conn_open(BTA_ID_AV, p_scb->app_id, p_scb->PeerAddress());
         /* Possible collision : need to avoid outgoing processing while the
          * timer is running */
@@ -1617,21 +1633,21 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
     alarm_cancel(p_cb->p_scb[scb_index]->link_signalling_timer);
   } else {
     /* disconnected. */
-    log::verbose("bta_av_cb.conn_lcb=0x{:x}", bta_av_cb.conn_lcb);
+    log::debug("bta_av_cb.conn_lcb=0x{:x}", bta_av_cb.conn_lcb);
 
     p_lcb = bta_av_find_lcb(p_data->str_msg.bd_addr, BTA_AV_LCB_FREE);
     if (p_lcb) {
-      log::verbose("conn_msk: 0x{:x}", p_lcb->conn_msk);
+      log::debug("conn_msk: 0x{:x}", p_lcb->conn_msk);
       /* clean up ssm  */
       for (xx = 0; xx < BTA_AV_NUM_STRS; xx++) {
         if (p_cb->p_scb[xx] && p_cb->p_scb[xx]->PeerAddress() == p_data->str_msg.bd_addr) {
           if ((p_cb->p_scb[xx]->state == 1) &&
               alarm_is_scheduled(p_cb->p_scb[xx]->accept_signalling_timer) &&
               interop_match_addr(INTEROP_IGNORE_DISC_BEFORE_SIGNALLING_TIMEOUT,
-                                 &(p_data->str_msg.bd_addr))) {
+                                 p_data->str_msg.bd_addr)) {
             continue;
           }
-          log::verbose("Closing timer for AVDTP service");
+          log::debug("Closing timer for AVDTP service");
           bta_sys_conn_close(BTA_ID_AV, p_cb->p_scb[xx]->app_id, p_cb->p_scb[xx]->PeerAddress());
         }
         mask = 1 << (xx + 1);
@@ -1642,7 +1658,7 @@ void bta_av_sig_chg(tBTA_AV_DATA* p_data) {
       }
     }
   }
-  log::verbose("bta_av_cb.conn_lcb=0x{:x} after sig_chg", p_cb->conn_lcb);
+  log::debug("bta_av_cb.conn_lcb=0x{:x} after sig_chg", p_cb->conn_lcb);
 }
 
 /*******************************************************************************
@@ -1666,16 +1682,16 @@ void bta_av_signalling_timer(tBTA_AV_DATA* p_data) {
   uint8_t mask;
   tBTA_AV_LCB* p_lcb = NULL;
 
-  log::verbose("conn_lcb=0x{:x}", p_cb->conn_lcb);
+  log::debug("conn_lcb=0x{:x}", p_cb->conn_lcb);
   for (xx = 0; xx < BTA_AV_NUM_LINKS; xx++) {
     p_lcb = &p_cb->lcb[xx];
     mask = 1 << xx;
-    log::verbose("index={} conn_lcb=0x{:x} peer={} conn_mask=0x{:x} lidx={}", xx, p_cb->conn_lcb,
-                 p_lcb->addr, p_lcb->conn_msk, p_lcb->lidx);
+    log::debug("index={} conn_lcb=0x{:x} peer={} conn_mask=0x{:x} lidx={}", xx, p_cb->conn_lcb,
+               p_lcb->addr, p_lcb->conn_msk, p_lcb->lidx);
     if (mask & p_cb->conn_lcb) {
       /* this entry is used. check if it is connected */
       if (!p_lcb->conn_msk) {
-        log::verbose("hndl 0x{:x}", p_scb->hndl);
+        log::debug("hndl 0x{:x}", p_scb->hndl);
         bta_sys_start_timer(p_scb->link_signalling_timer, BTA_AV_SIGNALLING_TIMEOUT_MS,
                             BTA_AV_SIGNALLING_TIMER_EVT, hndl);
         tBTA_AV bta_av_data = {
@@ -1684,8 +1700,8 @@ void bta_av_signalling_timer(tBTA_AV_DATA* p_data) {
                                 .bd_addr = p_lcb->addr,
                         },
         };
-        log::verbose("BTA_AV_PENDING_EVT for {} index={} conn_mask=0x{:x} lidx={}", p_lcb->addr, xx,
-                     p_lcb->conn_msk, p_lcb->lidx);
+        log::debug("BTA_AV_PENDING_EVT for {} index={} conn_mask=0x{:x} lidx={}", p_lcb->addr, xx,
+                   p_lcb->conn_msk, p_lcb->lidx);
         (*p_cb->p_cback)(BTA_AV_PENDING_EVT, &bta_av_data);
       }
     }
@@ -1710,13 +1726,13 @@ static void bta_av_accept_signalling_timer_cback(void* data) {
     p_scb = p_cb->p_scb[inx];
   }
   if (p_scb) {
-    log::verbose("coll_mask=0x{:02x}", p_scb->coll_mask);
+    log::debug("coll_mask=0x{:02x}", p_scb->coll_mask);
 
     if (p_scb->coll_mask & BTA_AV_COLL_INC_TMR) {
       p_scb->coll_mask &= ~BTA_AV_COLL_INC_TMR;
 
       if (bta_av_is_scb_opening(p_scb)) {
-        log::verbose("stream state opening: SDP started = {}", p_scb->sdp_discovery_started);
+        log::debug("stream state opening: SDP started = {}", p_scb->sdp_discovery_started);
         if (p_scb->sdp_discovery_started) {
           /* We are still doing SDP. Run the timer again. */
           p_scb->coll_mask |= BTA_AV_COLL_INC_TMR;
@@ -1730,7 +1746,7 @@ static void bta_av_accept_signalling_timer_cback(void* data) {
       } else if (bta_av_is_scb_incoming(p_scb)) {
         /* Stay in incoming state if SNK does not start signalling */
 
-        log::verbose("stream state incoming");
+        log::debug("stream state incoming");
         /* API open was called right after SNK opened L2C connection. */
         if (p_scb->coll_mask & BTA_AV_COLL_API_CALLED) {
           p_scb->coll_mask &= ~BTA_AV_COLL_API_CALLED;
@@ -1750,12 +1766,12 @@ static void bta_av_store_peer_rc_version() {
   tSDP_DISC_REC* p_rec = NULL;
   uint16_t peer_rc_version = 0; /*Assuming Default peer version as 1.3*/
 
-  if ((p_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(
+  if ((p_rec = get_legacy_stack_sdp_api()->SDP_FindServiceInDb(
                p_cb->p_disc_db, UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL)) != NULL) {
-    if ((get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
-                p_rec, ATTR_ID_BT_PROFILE_DESC_LIST)) != NULL) {
+    if ((get_legacy_stack_sdp_api()->SDP_FindAttributeInRec(p_rec, ATTR_ID_BT_PROFILE_DESC_LIST)) !=
+        NULL) {
       /* get profile version (if failure, version parameter is not updated) */
-      if (!get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
+      if (!get_legacy_stack_sdp_api()->SDP_FindProfileVersionInRec(
                   p_rec, UUID_SERVCLASS_AV_REMOTE_CONTROL, &peer_rc_version)) {
         log::warn("Unable to find AVRC profile version in record peer:{}", p_rec->remote_bd_addr);
       }
@@ -1768,12 +1784,12 @@ static void bta_av_store_peer_rc_version() {
   }
 
   peer_rc_version = 0;
-  if ((p_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(
+  if ((p_rec = get_legacy_stack_sdp_api()->SDP_FindServiceInDb(
                p_cb->p_disc_db, UUID_SERVCLASS_AV_REM_CTRL_TARGET, NULL)) != NULL) {
-    if ((get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
-                p_rec, ATTR_ID_BT_PROFILE_DESC_LIST)) != NULL) {
+    if ((get_legacy_stack_sdp_api()->SDP_FindAttributeInRec(p_rec, ATTR_ID_BT_PROFILE_DESC_LIST)) !=
+        NULL) {
       /* get profile version (if failure, version parameter is not updated) */
-      if (!get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
+      if (!get_legacy_stack_sdp_api()->SDP_FindProfileVersionInRec(
                   p_rec, UUID_SERVCLASS_AV_REMOTE_CONTROL, &peer_rc_version)) {
         log::warn("Unable to find SDP profile version in record peer:{}", p_rec->remote_bd_addr);
       }
@@ -1804,37 +1820,36 @@ static tBTA_AV_FEAT bta_av_check_peer_features(uint16_t service_uuid) {
   uint16_t peer_rc_version = 0;
   uint16_t categories = 0;
 
-  log::verbose("service_uuid:x{:x}", service_uuid);
+  log::debug("service_uuid:x{:x}", service_uuid);
   /* loop through all records we found */
   while (true) {
     /* get next record; if none found, we're done */
-    p_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(p_cb->p_disc_db, service_uuid,
-                                                               p_rec);
+    p_rec = get_legacy_stack_sdp_api()->SDP_FindServiceInDb(p_cb->p_disc_db, service_uuid, p_rec);
     if (p_rec == NULL) {
       break;
     }
 
-    if ((get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
+    if ((get_legacy_stack_sdp_api()->SDP_FindAttributeInRec(
                 p_rec, ATTR_ID_SERVICE_CLASS_ID_LIST)) != NULL) {
       /* find peer features */
-      if (get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(
-                  p_cb->p_disc_db, UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL)) {
+      if (get_legacy_stack_sdp_api()->SDP_FindServiceInDb(p_cb->p_disc_db,
+                                                          UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL)) {
         peer_features |= BTA_AV_FEAT_RCCT;
       }
-      if (get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(
+      if (get_legacy_stack_sdp_api()->SDP_FindServiceInDb(
                   p_cb->p_disc_db, UUID_SERVCLASS_AV_REM_CTRL_TARGET, NULL)) {
         peer_features |= BTA_AV_FEAT_RCTG;
       }
     }
 
-    if ((get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
-                p_rec, ATTR_ID_BT_PROFILE_DESC_LIST)) != NULL) {
+    if ((get_legacy_stack_sdp_api()->SDP_FindAttributeInRec(p_rec, ATTR_ID_BT_PROFILE_DESC_LIST)) !=
+        NULL) {
       /* get profile version (if failure, version parameter is not updated) */
-      if (!get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
+      if (!get_legacy_stack_sdp_api()->SDP_FindProfileVersionInRec(
                   p_rec, UUID_SERVCLASS_AV_REMOTE_CONTROL, &peer_rc_version)) {
         log::warn("Unable to find AVRC profile version in record peer:{}", p_rec->remote_bd_addr);
       }
-      log::verbose("peer_rc_version 0x{:x}", peer_rc_version);
+      log::debug("peer_rc_version 0x{:x}", peer_rc_version);
 
       if (peer_rc_version >= AVRC_REV_1_3) {
         peer_features |= (BTA_AV_FEAT_VENDOR | BTA_AV_FEAT_METADATA);
@@ -1842,8 +1857,8 @@ static tBTA_AV_FEAT bta_av_check_peer_features(uint16_t service_uuid) {
 
       if (peer_rc_version >= AVRC_REV_1_4) {
         /* get supported categories */
-        p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
-                p_rec, ATTR_ID_SUPPORTED_FEATURES);
+        p_attr = get_legacy_stack_sdp_api()->SDP_FindAttributeInRec(p_rec,
+                                                                    ATTR_ID_SUPPORTED_FEATURES);
         if (p_attr != NULL && SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) == UINT_DESC_TYPE &&
             SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 2) {
           categories = p_attr->attr_value.v.u16;
@@ -1857,7 +1872,7 @@ static tBTA_AV_FEAT bta_av_check_peer_features(uint16_t service_uuid) {
       }
     }
   }
-  log::verbose("peer_features:x{:x}", peer_features);
+  log::debug("peer_features:x{:x}", peer_features);
   return peer_features;
 }
 
@@ -1875,42 +1890,42 @@ static tBTA_AV_FEAT bta_avk_check_peer_features(uint16_t service_uuid) {
   tBTA_AV_FEAT peer_features = 0;
   tBTA_AV_CB* p_cb = &bta_av_cb;
 
-  log::verbose("service_uuid:x{:x}", service_uuid);
+  log::debug("service_uuid:x{:x}", service_uuid);
 
   /* loop through all records we found */
   tSDP_DISC_REC* p_rec =
-          get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(p_cb->p_disc_db, service_uuid, NULL);
+          get_legacy_stack_sdp_api()->SDP_FindServiceInDb(p_cb->p_disc_db, service_uuid, NULL);
   while (p_rec) {
-    log::verbose("found Service record for x{:x}", service_uuid);
+    log::debug("found Service record for x{:x}", service_uuid);
 
-    if ((get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
+    if ((get_legacy_stack_sdp_api()->SDP_FindAttributeInRec(
                 p_rec, ATTR_ID_SERVICE_CLASS_ID_LIST)) != NULL) {
       /* find peer features */
-      if (get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(
-                  p_cb->p_disc_db, UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL)) {
+      if (get_legacy_stack_sdp_api()->SDP_FindServiceInDb(p_cb->p_disc_db,
+                                                          UUID_SERVCLASS_AV_REMOTE_CONTROL, NULL)) {
         peer_features |= BTA_AV_FEAT_RCCT;
       }
-      if (get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(
+      if (get_legacy_stack_sdp_api()->SDP_FindServiceInDb(
                   p_cb->p_disc_db, UUID_SERVCLASS_AV_REM_CTRL_TARGET, NULL)) {
         peer_features |= BTA_AV_FEAT_RCTG;
       }
     }
 
-    if ((get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
-                p_rec, ATTR_ID_BT_PROFILE_DESC_LIST)) != NULL) {
+    if ((get_legacy_stack_sdp_api()->SDP_FindAttributeInRec(p_rec, ATTR_ID_BT_PROFILE_DESC_LIST)) !=
+        NULL) {
       /* get profile version (if failure, version parameter is not updated) */
       uint16_t peer_rc_version = 0;
-      bool val = get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
+      bool val = get_legacy_stack_sdp_api()->SDP_FindProfileVersionInRec(
               p_rec, UUID_SERVCLASS_AV_REMOTE_CONTROL, &peer_rc_version);
-      log::verbose("peer_rc_version for TG 0x{:x}, profile_found {}", peer_rc_version, val);
+      log::debug("peer_rc_version for TG 0x{:x}, profile_found {}", peer_rc_version, val);
 
       if (peer_rc_version >= AVRC_REV_1_3) {
         peer_features |= (BTA_AV_FEAT_VENDOR | BTA_AV_FEAT_METADATA);
       }
 
       /* Get supported features */
-      tSDP_DISC_ATTR* p_attr = get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
-              p_rec, ATTR_ID_SUPPORTED_FEATURES);
+      tSDP_DISC_ATTR* p_attr =
+              get_legacy_stack_sdp_api()->SDP_FindAttributeInRec(p_rec, ATTR_ID_SUPPORTED_FEATURES);
       if (p_attr != NULL && SDP_DISC_ATTR_TYPE(p_attr->attr_len_type) == UINT_DESC_TYPE &&
           SDP_DISC_ATTR_LEN(p_attr->attr_len_type) >= 2) {
         uint16_t categories = p_attr->attr_value.v.u16;
@@ -1942,10 +1957,9 @@ static tBTA_AV_FEAT bta_avk_check_peer_features(uint16_t service_uuid) {
       }
     }
     /* get next record; if none found, we're done */
-    p_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(p_cb->p_disc_db, service_uuid,
-                                                               p_rec);
+    p_rec = get_legacy_stack_sdp_api()->SDP_FindServiceInDb(p_cb->p_disc_db, service_uuid, p_rec);
   }
-  log::verbose("peer_features:x{:x}", peer_features);
+  log::debug("peer_features:x{:x}", peer_features);
   return peer_features;
 }
 
@@ -1961,13 +1975,13 @@ static tBTA_AV_FEAT bta_avk_check_peer_features(uint16_t service_uuid) {
  *
  *****************************************************************************/
 static uint16_t bta_avk_get_cover_art_psm() {
-  log::verbose("searching for cover art psm");
+  log::debug("searching for cover art psm");
   /* Cover Art L2CAP PSM is only available on a target device */
   tBTA_AV_CB* p_cb = &bta_av_cb;
-  tSDP_DISC_REC* p_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(
+  tSDP_DISC_REC* p_rec = get_legacy_stack_sdp_api()->SDP_FindServiceInDb(
           p_cb->p_disc_db, UUID_SERVCLASS_AV_REM_CTRL_TARGET, NULL);
   while (p_rec) {
-    tSDP_DISC_ATTR* p_attr = (get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
+    tSDP_DISC_ATTR* p_attr = (get_legacy_stack_sdp_api()->SDP_FindAttributeInRec(
             p_rec, ATTR_ID_ADDITION_PROTO_DESC_LISTS));
     /*
      * If we have the Additional Protocol Description Lists attribute then we
@@ -2024,7 +2038,7 @@ static uint16_t bta_avk_get_cover_art_psm() {
             }
             // If this protocol has l2cap and obex then we're found the BIP PSM
             if (protocol_has_l2cap && protocol_has_obex) {
-              log::verbose("found psm 0x{:x}", psm);
+              log::debug("found psm 0x{:x}", psm);
               return psm;
             }
             p_protocol = p_protocol->p_next_attr;  // next protocol element
@@ -2034,11 +2048,11 @@ static uint16_t bta_avk_get_cover_art_psm() {
       }
     }
     /* get next record; if none found, we're done */
-    p_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(
+    p_rec = get_legacy_stack_sdp_api()->SDP_FindServiceInDb(
             p_cb->p_disc_db, UUID_SERVCLASS_AV_REM_CTRL_TARGET, p_rec);
   }
   /* L2CAP PSM range is 0x1000-0xFFFF so 0x0000 is safe default invalid */
-  log::verbose("could not find a BIP psm");
+  log::debug("could not find a BIP psm");
   return 0x0000;
 }
 
@@ -2051,7 +2065,7 @@ static void bta_av_rc_disc_done_all(tBTA_AV_DATA* /* p_data */) {
   tBTA_AV_FEAT peer_ct_features = 0;
   uint16_t cover_art_psm = 0x0000;
 
-  log::verbose("bta_av_rc_disc_done disc:x{:x}", p_cb->disc);
+  log::debug("bta_av_rc_disc_done disc:x{:x}", p_cb->disc);
   if (!p_cb->disc) {
     return;
   }
@@ -2063,7 +2077,7 @@ static void bta_av_rc_disc_done_all(tBTA_AV_DATA* /* p_data */) {
   } else {
     /* Validate array index*/
     if (((p_cb->disc & BTA_AV_HNDL_MSK) - 1) < BTA_AV_NUM_STRS) {
-      log::verbose("wrong data bta_av_rc_disc_done disc:x{:x}", p_cb->disc);
+      log::debug("wrong data bta_av_rc_disc_done disc:x{:x}", p_cb->disc);
       p_scb = p_cb->p_scb[(p_cb->disc & BTA_AV_HNDL_MSK) - 1];
     }
     if (p_scb) {
@@ -2079,11 +2093,11 @@ static void bta_av_rc_disc_done_all(tBTA_AV_DATA* /* p_data */) {
     return;
   }
 
-  log::verbose("rc_handle {}", rc_handle);
+  log::debug("rc_handle {}", rc_handle);
   if (p_cb->sdp_a2dp_snk_handle) {
     /* This is Sink + CT + TG(Abs Vol) */
     peer_tg_features = bta_avk_check_peer_features(UUID_SERVCLASS_AV_REM_CTRL_TARGET);
-    log::verbose("populating rem ctrl target features {}", peer_tg_features);
+    log::debug("populating rem ctrl target features {}", peer_tg_features);
     if (BTA_AV_FEAT_ADV_CTRL & bta_avk_check_peer_features(UUID_SERVCLASS_AV_REMOTE_CONTROL)) {
       peer_tg_features |= (BTA_AV_FEAT_ADV_CTRL | BTA_AV_FEAT_RCCT);
     }
@@ -2092,7 +2106,7 @@ static void bta_av_rc_disc_done_all(tBTA_AV_DATA* /* p_data */) {
       cover_art_psm = bta_avk_get_cover_art_psm();
     }
 
-    log::verbose("populating rem ctrl target bip psm 0x{:x}", cover_art_psm);
+    log::debug("populating rem ctrl target bip psm 0x{:x}", cover_art_psm);
   } else if (p_cb->sdp_a2dp_handle) {
     /* check peer version and whether support CT and TG role */
     peer_ct_features = bta_av_check_peer_features(UUID_SERVCLASS_AV_REMOTE_CONTROL);
@@ -2106,18 +2120,18 @@ static void bta_av_rc_disc_done_all(tBTA_AV_DATA* /* p_data */) {
 
     /* Change our features if the remote AVRCP version is 1.3 or less */
     tSDP_DISC_REC* p_rec = nullptr;
-    p_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(
+    p_rec = get_legacy_stack_sdp_api()->SDP_FindServiceInDb(
             p_cb->p_disc_db, UUID_SERVCLASS_AV_REMOTE_CONTROL, p_rec);
-    if (p_rec != NULL && get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
+    if (p_rec != NULL && get_legacy_stack_sdp_api()->SDP_FindAttributeInRec(
                                  p_rec, ATTR_ID_BT_PROFILE_DESC_LIST) != NULL) {
       /* get profile version (if failure, version parameter is not updated) */
       uint16_t peer_rc_version = 0xFFFF;  // Don't change the AVRCP version
-      if (!get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
+      if (!get_legacy_stack_sdp_api()->SDP_FindProfileVersionInRec(
                   p_rec, UUID_SERVCLASS_AV_REMOTE_CONTROL, &peer_rc_version)) {
         log::warn("Unable to find SDP in record peer:{}", p_rec->remote_bd_addr);
       }
       if (peer_rc_version <= AVRC_REV_1_3) {
-        log::verbose("Using AVRCP 1.3 Capabilities with remote device");
+        log::debug("Using AVRCP 1.3 Capabilities with remote device");
         p_bta_av_cfg = &bta_av_cfg_compatibility;
       }
     }
@@ -2132,8 +2146,8 @@ static void bta_av_rc_disc_done_all(tBTA_AV_DATA* /* p_data */) {
     p_cb->rc_feature.peer_addr = p_scb->PeerAddress();
   }
 
-  log::verbose("peer_tg_features 0x{:x}, peer_ct_features 0x{:x}, features 0x{:x}",
-               peer_tg_features, peer_ct_features, p_cb->features);
+  log::debug("peer_tg_features 0x{:x}, peer_ct_features 0x{:x}, features 0x{:x}", peer_tg_features,
+             peer_ct_features, p_cb->features);
 
   /* if we have no rc connection */
   if (rc_handle == BTA_AV_RC_HANDLE_NONE) {
@@ -2212,7 +2226,7 @@ static void bta_av_rc_disc_done_all(tBTA_AV_DATA* /* p_data */) {
     (*p_cb->p_cback)(BTA_AV_RC_FEAT_EVT, &bta_av_feat);
 
     // Send PSM data
-    log::verbose("Send PSM data. rc_psm = {:#x}", cover_art_psm);
+    log::debug("Send PSM data. rc_psm = {:#x}", cover_art_psm);
     p_cb->rcb[rc_handle].cover_art_psm = cover_art_psm;
     tBTA_AV bta_av_psm = {
             .rc_cover_art_psm =
@@ -2249,7 +2263,7 @@ void bta_av_rc_disc_done(tBTA_AV_DATA* p_data) {
     return;
   }
 
-  log::verbose("bta_av_rc_disc_done disc:x{:x}", p_cb->disc);
+  log::debug("bta_av_rc_disc_done disc:x{:x}", p_cb->disc);
   if (!p_cb->disc) {
     return;
   }
@@ -2270,11 +2284,11 @@ void bta_av_rc_disc_done(tBTA_AV_DATA* p_data) {
     }
   }
 
-  log::verbose("rc_handle {}", rc_handle);
+  log::debug("rc_handle {}", rc_handle);
   if (p_cb->sdp_a2dp_snk_handle) {
     /* This is Sink + CT + TG(Abs Vol) */
     peer_features = bta_avk_check_peer_features(UUID_SERVCLASS_AV_REM_CTRL_TARGET);
-    log::verbose("populating rem ctrl target features {}", peer_features);
+    log::debug("populating rem ctrl target features {}", peer_features);
     if (BTA_AV_FEAT_ADV_CTRL & bta_avk_check_peer_features(UUID_SERVCLASS_AV_REMOTE_CONTROL)) {
       peer_features |= (BTA_AV_FEAT_ADV_CTRL | BTA_AV_FEAT_RCCT);
     }
@@ -2283,7 +2297,7 @@ void bta_av_rc_disc_done(tBTA_AV_DATA* p_data) {
       cover_art_psm = bta_avk_get_cover_art_psm();
     }
 
-    log::verbose("populating rem ctrl target bip psm 0x{:x}", cover_art_psm);
+    log::debug("populating rem ctrl target bip psm 0x{:x}", cover_art_psm);
   } else if (p_cb->sdp_a2dp_handle) {
     /* check peer version and whether support CT and TG role */
     peer_features = bta_av_check_peer_features(UUID_SERVCLASS_AV_REMOTE_CONTROL);
@@ -2296,18 +2310,18 @@ void bta_av_rc_disc_done(tBTA_AV_DATA* p_data) {
 
     /* Change our features if the remote AVRCP version is 1.3 or less */
     tSDP_DISC_REC* p_rec = nullptr;
-    p_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(
+    p_rec = get_legacy_stack_sdp_api()->SDP_FindServiceInDb(
             p_cb->p_disc_db, UUID_SERVCLASS_AV_REMOTE_CONTROL, p_rec);
-    if (p_rec != NULL && get_legacy_stack_sdp_api()->record.SDP_FindAttributeInRec(
+    if (p_rec != NULL && get_legacy_stack_sdp_api()->SDP_FindAttributeInRec(
                                  p_rec, ATTR_ID_BT_PROFILE_DESC_LIST) != NULL) {
       /* get profile version (if failure, version parameter is not updated) */
       uint16_t peer_rc_version = 0xFFFF;  // Don't change the AVRCP version
-      if (!get_legacy_stack_sdp_api()->record.SDP_FindProfileVersionInRec(
+      if (!get_legacy_stack_sdp_api()->SDP_FindProfileVersionInRec(
                   p_rec, UUID_SERVCLASS_AV_REMOTE_CONTROL, &peer_rc_version)) {
         log::warn("Unable to find AVRCP version peer:{}", p_rec->remote_bd_addr);
       }
       if (peer_rc_version <= AVRC_REV_1_3) {
-        log::verbose("Using AVRCP 1.3 Capabilities with remote device");
+        log::debug("Using AVRCP 1.3 Capabilities with remote device");
         p_bta_av_cfg = &bta_av_cfg_compatibility;
       }
     }
@@ -2318,7 +2332,7 @@ void bta_av_rc_disc_done(tBTA_AV_DATA* p_data) {
   p_cb->disc = 0;
   osi_free_and_reset((void**)&p_cb->p_disc_db);
 
-  log::verbose("peer_features 0x{:x}, features 0x{:x}", peer_features, p_cb->features);
+  log::debug("peer_features 0x{:x}, features 0x{:x}", peer_features, p_cb->features);
 
   /* if we have no rc connection */
   if (rc_handle == BTA_AV_RC_HANDLE_NONE) {
@@ -2373,6 +2387,12 @@ void bta_av_rc_disc_done(tBTA_AV_DATA* p_data) {
       }
     }
   } else {
+    if (rc_handle >= BTA_AV_NUM_RCB) {
+      log::error("Invalid rc_handle: {} >= BTA_AV_NUM_RCB ({})", rc_handle, BTA_AV_NUM_RCB);
+      AVRC_Close(rc_handle);
+      return;
+    }
+
     tBTA_AV_RC_FEAT rc_feat;
     p_cb->rcb[rc_handle].peer_features = peer_features;
     rc_feat.rc_handle = rc_handle;
@@ -2398,7 +2418,7 @@ void bta_av_rc_disc_done(tBTA_AV_DATA* p_data) {
     }
 
     // Send PSM data
-    log::verbose("Send PSM data");
+    log::debug("Send PSM data");
     tBTA_AV_RC_PSM rc_psm;
     p_cb->rcb[rc_handle].cover_art_psm = cover_art_psm;
     rc_psm.rc_handle = rc_handle;
@@ -2409,7 +2429,7 @@ void bta_av_rc_disc_done(tBTA_AV_DATA* p_data) {
       rc_psm.peer_addr = p_scb->PeerAddress();
     }
 
-    log::verbose("rc_psm = 0x{:x}", rc_psm.cover_art_psm);
+    log::debug("rc_psm = 0x{:x}", rc_psm.cover_art_psm);
 
     tBTA_AV bta_av_psm;
     bta_av_psm.rc_cover_art_psm = rc_psm;
@@ -2439,17 +2459,17 @@ void bta_av_rc_closed(tBTA_AV_DATA* p_data) {
   rc_close.rc_handle = BTA_AV_RC_HANDLE_NONE;
   rc_close.peer_addr = RawAddress::kEmpty;
   p_scb = NULL;
-  log::verbose("rc_handle:{}, address:{}", p_msg->handle, p_msg->peer_addr);
+  log::debug("rc_handle:{}, address:{}", p_msg->handle, p_msg->peer_addr);
   for (i = 0; i < BTA_AV_NUM_RCB; i++) {
     p_rcb = &p_cb->rcb[i];
-    log::verbose("rcb[{}] rc_handle:{}, status=0x{:x}, shdl:{}, lidx:{}", i, p_rcb->handle,
-                 p_rcb->status, p_rcb->shdl, p_rcb->lidx);
+    log::debug("rcb[{}] rc_handle:{}, status=0x{:x}, shdl:{}, lidx:{}", i, p_rcb->handle,
+               p_rcb->status, p_rcb->shdl, p_rcb->lidx);
     if (p_rcb->handle == p_msg->handle) {
       if (btif_av_src_sink_coexist_enabled() && p_rcb->shdl &&
           (p_rcb->shdl - 1) < BTA_AV_NUM_STRS) {
         p_scb = bta_av_cb.p_scb[p_rcb->shdl - 1];
         if (p_scb && !(p_scb->PeerAddress() == p_msg->peer_addr)) {
-          log::verbose("handle{} {} error p_scb or addr", i, p_scb->PeerAddress());
+          log::debug("handle{} {} error p_scb or addr", i, p_scb->PeerAddress());
           conn = true;
           continue;
         }
@@ -2461,7 +2481,7 @@ void bta_av_rc_closed(tBTA_AV_DATA* p_data) {
       p_rcb->peer_ct_features = 0;
       p_rcb->peer_tg_features = 0;
       p_cb->rc_feature = {};
-      log::verbose("shdl:{}, lidx:{}", p_rcb->shdl, p_rcb->lidx);
+      log::debug("shdl:{}, lidx:{}", p_rcb->shdl, p_rcb->lidx);
       if (p_rcb->shdl) {
         if ((p_rcb->shdl - 1) < BTA_AV_NUM_STRS) {
           p_scb = bta_av_cb.p_scb[p_rcb->shdl - 1];
@@ -2471,7 +2491,7 @@ void bta_av_rc_closed(tBTA_AV_DATA* p_data) {
           if (p_scb->rc_handle == p_rcb->handle) {
             p_scb->rc_handle = BTA_AV_RC_HANDLE_NONE;
           }
-          log::verbose("shdl:{}, srch:{}", p_rcb->shdl, p_scb->rc_handle);
+          log::debug("shdl:{}, srch:{}", p_rcb->shdl, p_scb->rc_handle);
         }
         p_rcb->shdl = 0;
       } else if (p_rcb->lidx == (BTA_AV_NUM_LINKS + 1)) {
@@ -2587,7 +2607,7 @@ void bta_av_rc_disc(uint8_t disc) {
   RawAddress peer_addr = RawAddress::kEmpty;
   uint8_t rc_handle;
 
-  log::verbose("disc: 0x{:x}, bta_av_cb.disc: 0x{:x}", disc, bta_av_cb.disc);
+  log::debug("disc: 0x{:x}, bta_av_cb.disc: 0x{:x}", disc, bta_av_cb.disc);
   if ((bta_av_cb.disc != 0) || (disc == 0)) {
     return;
   }
@@ -2603,7 +2623,7 @@ void bta_av_rc_disc(uint8_t disc) {
     p_scb = p_cb->p_scb[hdi];
 
     if (p_scb) {
-      log::verbose("rc_handle {}", p_scb->rc_handle);
+      log::debug("rc_handle {}", p_scb->rc_handle);
       peer_addr = p_scb->PeerAddress();
     }
   }
@@ -2624,7 +2644,7 @@ void bta_av_rc_disc(uint8_t disc) {
     if (AVRC_FindService(UUID_SERVCLASS_AV_REMOTE_CONTROL, peer_addr, &db_params,
                          base::Bind(bta_av_avrc_sdp_cback)) == AVRC_SUCCESS) {
       p_cb->disc = disc;
-      log::verbose("disc 0x{:x}", p_cb->disc);
+      log::debug("disc 0x{:x}", p_cb->disc);
     }
   }
 }
@@ -2654,7 +2674,7 @@ void bta_av_dereg_comp(tBTA_AV_DATA* p_data) {
   p_scb = bta_av_hndl_to_scb(p_data->hdr.layer_specific);
 
   if (p_scb) {
-    log::verbose("deregistered {}(h{})", p_scb->chnl, p_scb->hndl);
+    log::debug("deregistered {}(h{})", p_scb->chnl, p_scb->hndl);
     mask = BTA_AV_HNDL_TO_MSK(p_scb->hdi);
     p_cb->reg_audio &= ~mask;
     if ((p_cb->conn_audio & mask) && p_cb->audio_open_cnt) {
@@ -2676,10 +2696,10 @@ void bta_av_dereg_comp(tBTA_AV_DATA* p_data) {
     if (!p_cb->reg_audio) {
       /* Only remove the SDP record if we're the ones that created it */
       if (is_new_avrcp_enabled()) {
-        log::verbose(
+        log::debug(
                 "newavrcp is the owner of the AVRCP Target SDP record. Don't dereg the SDP record");
       } else {
-        log::verbose("newavrcp is not enabled. Remove SDP record");
+        log::debug("newavrcp is not enabled. Remove SDP record");
         bta_ar_dereg_avrc(UUID_SERVCLASS_AV_REMOTE_CONTROL);
       }
 
@@ -2699,7 +2719,7 @@ void bta_av_dereg_comp(tBTA_AV_DATA* p_data) {
     bta_av_free_scb(p_scb);
   }
 
-  log::verbose("audio 0x{:x}, disable:{}", p_cb->reg_audio, p_cb->disabling);
+  log::debug("audio 0x{:x}, disable:{}", p_cb->reg_audio, p_cb->disabling);
   /* if no stream control block is active */
   if (p_cb->reg_audio == 0) {
     /* deregister from AVDT */

@@ -21,7 +21,7 @@ import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
-import static com.android.bluetooth.Utils.checkCallerTargetSdk;
+import static com.android.bluetooth.Util.checkCallerTargetSdk;
 
 import static java.util.Objects.requireNonNull;
 
@@ -36,8 +36,9 @@ import android.bluetooth.IBluetoothA2dp;
 import android.content.AttributionSource;
 import android.os.Build;
 
+import com.android.bluetooth.Util;
 import com.android.bluetooth.Utils;
-import com.android.bluetooth.btservice.ProfileService.IProfileServiceBinder;
+import com.android.bluetooth.profile.ProfileService.IProfileServiceBinder;
 
 import java.util.Collections;
 import java.util.List;
@@ -59,12 +60,12 @@ class A2dpServiceBinder extends IBluetoothA2dp.Stub implements IProfileServiceBi
     private A2dpService getService() {
         A2dpService service = mService;
 
-        if (Utils.isInstrumentationTestMode()) {
+        if (Util.isInstrumentationTestMode()) {
             return service;
         }
 
-        if (!Utils.checkServiceAvailable(service, TAG)
-                || !Utils.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)) {
+        if (!Util.checkProfileAvailable(service, TAG)
+                || !Util.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)) {
             return null;
         }
         return service;
@@ -72,15 +73,27 @@ class A2dpServiceBinder extends IBluetoothA2dp.Stub implements IProfileServiceBi
 
     @RequiresPermission(BLUETOOTH_CONNECT)
     private A2dpService getServiceAndEnforceConnect(AttributionSource source) {
+        return getServiceAndEnforceConnectInternal(source, false);
+    }
+
+    @RequiresPermission(BLUETOOTH_CONNECT)
+    private A2dpService getServiceAndEnforceConnectAllowPcc(AttributionSource source) {
+        return getServiceAndEnforceConnectInternal(source, true);
+    }
+
+    @RequiresPermission(BLUETOOTH_CONNECT)
+    private A2dpService getServiceAndEnforceConnectInternal(
+            AttributionSource source, boolean allowPccBypass) {
         A2dpService service = mService;
 
-        if (Utils.isInstrumentationTestMode()) {
+        if (Util.isInstrumentationTestMode()) {
             return service;
         }
 
-        if (!Utils.checkServiceAvailable(service, TAG)
-                || !Utils.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
-                || !Utils.checkConnectPermissionForDataDelivery(service, source, TAG)) {
+        if (!Util.checkProfileAvailable(service, TAG)
+                || !Util.checkCallerIsSystemOrActiveOrManagedUser(service, TAG)
+                || !Util.enforceConnectPermissionForDataDelivery(
+                        service, source, TAG, null, allowPccBypass)) {
             return null;
         }
         return service;
@@ -106,7 +119,7 @@ class A2dpServiceBinder extends IBluetoothA2dp.Stub implements IProfileServiceBi
 
     @Override
     public List<BluetoothDevice> getConnectedDevices(AttributionSource source) {
-        A2dpService service = getServiceAndEnforceConnect(source);
+        A2dpService service = getServiceAndEnforceConnectAllowPcc(source);
         if (service == null) {
             return Collections.emptyList();
         }
@@ -148,7 +161,7 @@ class A2dpServiceBinder extends IBluetoothA2dp.Stub implements IProfileServiceBi
 
     @Override
     public BluetoothDevice getActiveDevice(AttributionSource source) {
-        A2dpService service = getServiceAndEnforceConnect(source);
+        A2dpService service = getServiceAndEnforceConnectAllowPcc(source);
         if (service == null) {
             return null;
         }
@@ -245,7 +258,7 @@ class A2dpServiceBinder extends IBluetoothA2dp.Stub implements IProfileServiceBi
             return;
         }
 
-        if (checkCallerTargetSdk(mService, source.getPackageName(), Build.VERSION_CODES.TIRAMISU)) {
+        if (checkCallerTargetSdk(mService, source, Build.VERSION_CODES.TIRAMISU)) {
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
         }
         service.enableOptionalCodecs(device);
@@ -258,7 +271,7 @@ class A2dpServiceBinder extends IBluetoothA2dp.Stub implements IProfileServiceBi
             return;
         }
 
-        if (checkCallerTargetSdk(mService, source.getPackageName(), Build.VERSION_CODES.TIRAMISU)) {
+        if (checkCallerTargetSdk(mService, source, Build.VERSION_CODES.TIRAMISU)) {
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
         }
         service.disableOptionalCodecs(device);
@@ -271,7 +284,7 @@ class A2dpServiceBinder extends IBluetoothA2dp.Stub implements IProfileServiceBi
             return BluetoothA2dp.OPTIONAL_CODECS_SUPPORT_UNKNOWN;
         }
 
-        if (checkCallerTargetSdk(mService, source.getPackageName(), Build.VERSION_CODES.TIRAMISU)) {
+        if (checkCallerTargetSdk(mService, source, Build.VERSION_CODES.TIRAMISU)) {
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
         }
         return service.getSupportsOptionalCodecs(device);
@@ -284,7 +297,7 @@ class A2dpServiceBinder extends IBluetoothA2dp.Stub implements IProfileServiceBi
             return BluetoothA2dp.OPTIONAL_CODECS_PREF_UNKNOWN;
         }
 
-        if (checkCallerTargetSdk(mService, source.getPackageName(), Build.VERSION_CODES.TIRAMISU)) {
+        if (checkCallerTargetSdk(mService, source, Build.VERSION_CODES.TIRAMISU)) {
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
         }
         return service.getOptionalCodecsEnabled(device);
@@ -298,7 +311,7 @@ class A2dpServiceBinder extends IBluetoothA2dp.Stub implements IProfileServiceBi
             return;
         }
 
-        if (checkCallerTargetSdk(mService, source.getPackageName(), Build.VERSION_CODES.TIRAMISU)) {
+        if (checkCallerTargetSdk(mService, source, Build.VERSION_CODES.TIRAMISU)) {
             service.enforceCallingOrSelfPermission(BLUETOOTH_PRIVILEGED, null);
         }
         service.setOptionalCodecsEnabled(device, value);

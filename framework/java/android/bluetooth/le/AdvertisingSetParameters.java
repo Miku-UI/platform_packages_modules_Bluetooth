@@ -18,6 +18,8 @@ package android.bluetooth.le;
 
 import static java.util.Objects.requireNonNull;
 
+import android.annotation.FlaggedApi;
+import android.annotation.Hide;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -28,6 +30,8 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothDevice.AddressType;
 import android.os.Parcel;
 import android.os.Parcelable;
+
+import com.android.bluetooth.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -85,10 +89,23 @@ public final class AdvertisingSetParameters implements Parcelable {
     /** Minimum value for TX power. */
     public static final int TX_POWER_MIN = -127;
 
-    /** Maximum value for TX power. */
+    /**
+     * Maximum value for TX power.
+     *
+     * @deprecated Use {@link #TX_POWER_MAX_AVAILABLE}
+     */
+    @FlaggedApi(Flags.FLAG_MAX_ADVERTISING_POWER)
+    @Deprecated
     public static final int TX_POWER_MAX = 1;
 
-    /** @hide */
+    /** Use the maximum available power for TX. */
+    @FlaggedApi(Flags.FLAG_MAX_ADVERTISING_POWER)
+    public static final int TX_POWER_MAX_AVAILABLE = 20;
+
+    // TODO(b/464003245): Remove when flag is cleaned up.
+    private static final int MAX_TX_POWER_VALUE = 20;
+
+    @Hide
     @IntDef(
             prefix = "ADDRESS_TYPE_",
             value = {
@@ -100,33 +117,17 @@ public final class AdvertisingSetParameters implements Parcelable {
     @Retention(RetentionPolicy.SOURCE)
     public @interface AddressTypeStatus {}
 
-    /**
-     * Advertise own address type that corresponds privacy settings of the device.
-     *
-     * @hide
-     */
-    @SystemApi public static final int ADDRESS_TYPE_DEFAULT = -1;
+    /** Advertise own address type that corresponds privacy settings of the device. */
+    @Hide @SystemApi public static final int ADDRESS_TYPE_DEFAULT = -1;
 
-    /**
-     * Advertise own public address type.
-     *
-     * @hide
-     */
-    @SystemApi public static final int ADDRESS_TYPE_PUBLIC = 0;
+    /** Advertise own public address type. */
+    @Hide @SystemApi public static final int ADDRESS_TYPE_PUBLIC = 0;
 
-    /**
-     * Generate and advertise own resolvable private address.
-     *
-     * @hide
-     */
-    @SystemApi public static final int ADDRESS_TYPE_RANDOM = 1;
+    /** Generate and advertise own resolvable private address. */
+    @Hide @SystemApi public static final int ADDRESS_TYPE_RANDOM = 1;
 
-    /**
-     * Generate and advertise on non-resolvable private address.
-     *
-     * @hide
-     */
-    @SystemApi public static final int ADDRESS_TYPE_RANDOM_NON_RESOLVABLE = 2;
+    /** Generate and advertise on non-resolvable private address. */
+    @Hide @SystemApi public static final int ADDRESS_TYPE_RANDOM_NON_RESOLVABLE = 2;
 
     private final boolean mIsLegacy;
     private final boolean mIsAnonymous;
@@ -257,8 +258,8 @@ public final class AdvertisingSetParameters implements Parcelable {
 
     /**
      * @return the own address type for advertising
-     * @hide
      */
+    @Hide
     @SystemApi
     @RequiresNoPermission
     public @AddressTypeStatus int getOwnAddressType() {
@@ -267,9 +268,10 @@ public final class AdvertisingSetParameters implements Parcelable {
 
     /**
      * @return Whether the advertisement is directed
-     * @hide This API is not publicly available as it is mainly intended for accessory devices
-     *     running Android to broadcast their availability and which can thus leverage system APIs.
      */
+    // This API is not publicly available as it is mainly intended for accessory devices running
+    // Android to broadcast their availability and which can thus leverage system APIs.
+    @Hide
     @SystemApi
     @RequiresNoPermission
     public boolean isDirected() {
@@ -278,9 +280,10 @@ public final class AdvertisingSetParameters implements Parcelable {
 
     /**
      * @return Whether the advertisement is high duty cycle or not
-     * @hide This API is not publicly available as it is mainly intended for accessory devices
-     *     running Android to broadcast their availability and which can thus leverage system APIs.
      */
+    // This API is not publicly available as it is mainly intended for accessory devices running
+    // Android to broadcast their availability and which can thus leverage system APIs.
+    @Hide
     @SystemApi
     @RequiresNoPermission
     public boolean isHighDutyCycle() {
@@ -289,9 +292,10 @@ public final class AdvertisingSetParameters implements Parcelable {
 
     /**
      * @return Peer address for directed advertising
-     * @hide This API is not publicly available as it is mainly intended for accessory devices
-     *     running Android to broadcast their availability and which can thus leverage system APIs.
      */
+    // This API is not publicly available as it is mainly intended for accessory devices running
+    // Android to broadcast their availability and which can thus leverage system APIs.
+    @Hide
     @SystemApi
     @RequiresNoPermission
     public @Nullable String getPeerAddress() {
@@ -300,9 +304,10 @@ public final class AdvertisingSetParameters implements Parcelable {
 
     /**
      * @return Peer address type for directed advertising
-     * @hide This API is not publicly available as it is mainly intended for accessory devices
-     *     running Android to broadcast their availability and which can thus leverage system APIs.
      */
+    // This API is not publicly available as it is mainly intended for accessory devices running
+    // Android to broadcast their availability and which can thus leverage system APIs.
+    @Hide
     @SystemApi
     @RequiresNoPermission
     public @AddressType int getPeerAddressType() {
@@ -311,35 +316,20 @@ public final class AdvertisingSetParameters implements Parcelable {
 
     @Override
     public String toString() {
-        return "AdvertisingSetParameters [connectable="
-                + mConnectable
-                + ", discoverable="
-                + mDiscoverable
-                + ", isLegacy="
-                + mIsLegacy
-                + ", isAnonymous="
-                + mIsAnonymous
-                + ", includeTxPower="
-                + mIncludeTxPower
-                + ", primaryPhy="
-                + mPrimaryPhy
-                + ", secondaryPhy="
-                + mSecondaryPhy
-                + ", interval="
-                + mInterval
-                + ", txPowerLevel="
-                + mTxPowerLevel
-                + ", ownAddressType="
-                + mOwnAddressType
-                + ", isDirected="
-                + mIsDirected
-                + ", isHighDutyCycle="
-                + mIsHighDutyCycle
-                + ", peerAddress="
-                + mPeerAddress
-                + ", peerAddressType="
-                + mPeerAddressType
-                + "]";
+        return ("AdvertisingSetParameters [connectable=" + mConnectable)
+                + (", discoverable=" + mDiscoverable)
+                + (", isLegacy=" + mIsLegacy)
+                + (", isAnonymous=" + mIsAnonymous)
+                + (", includeTxPower=" + mIncludeTxPower)
+                + (", primaryPhy=" + mPrimaryPhy)
+                + (", secondaryPhy=" + mSecondaryPhy)
+                + (", interval=" + mInterval)
+                + (", txPowerLevel=" + mTxPowerLevel)
+                + (", ownAddressType=" + mOwnAddressType)
+                + (", isDirected=" + mIsDirected)
+                + (", isHighDutyCycle=" + mIsHighDutyCycle)
+                + (", peerAddress=" + mPeerAddress)
+                + (", peerAddressType=" + mPeerAddressType + "]");
     }
 
     @Override
@@ -547,7 +537,7 @@ public final class AdvertisingSetParameters implements Parcelable {
          * Set the transmission power level for the advertising.
          *
          * @param txPowerLevel Transmission power of Bluetooth LE Advertising, in dBm. The valid
-         *     range is [-127, 1] Recommended values are: {@link
+         *     range is [-127, 20] Recommended values are: {@link
          *     AdvertisingSetParameters#TX_POWER_ULTRA_LOW}, {@link
          *     AdvertisingSetParameters#TX_POWER_LOW}, {@link
          *     AdvertisingSetParameters#TX_POWER_MEDIUM}, or {@link
@@ -556,7 +546,7 @@ public final class AdvertisingSetParameters implements Parcelable {
          */
         @RequiresNoPermission
         public Builder setTxPowerLevel(int txPowerLevel) {
-            if (txPowerLevel < TX_POWER_MIN || txPowerLevel > TX_POWER_MAX) {
+            if (txPowerLevel < TX_POWER_MIN || txPowerLevel > MAX_TX_POWER_VALUE) {
                 throw new IllegalArgumentException("unknown txPowerLevel " + txPowerLevel);
             }
             mTxPowerLevel = txPowerLevel;
@@ -570,8 +560,8 @@ public final class AdvertisingSetParameters implements Parcelable {
          * starting advertising.
          *
          * @throws IllegalArgumentException If the {@code ownAddressType} is invalid
-         * @hide
          */
+        @Hide
         @SystemApi
         @RequiresNoPermission
         public @NonNull Builder setOwnAddressType(@AddressTypeStatus int ownAddressType) {
@@ -588,10 +578,10 @@ public final class AdvertisingSetParameters implements Parcelable {
          * Set whether the advertising is a directed advertising.
          *
          * @param isDirected Controls whether the advertising is directed or not
-         * @hide This API is not publicly available as it is mainly intended for accessory devices
-         *     running Android to broadcast their availability and which can thus leverage system
-         *     APIs.
          */
+        // This API is not publicly available as it is mainly intended for accessory devices running
+        // Android to broadcast their availability and which can thus leverage system APIs.
+        @Hide
         @SystemApi
         @RequiresNoPermission
         public @NonNull Builder setDirected(boolean isDirected) {
@@ -603,10 +593,10 @@ public final class AdvertisingSetParameters implements Parcelable {
          * Set whether the advertising is high duty cycle or not.
          *
          * @param isHighDutyCycle Controls whether the advertising high duty cycle or not
-         * @hide This API is not publicly available as it is mainly intended for accessory devices
-         *     running Android to broadcast their availability and which can thus leverage system
-         *     APIs.
          */
+        // This API is not publicly available as it is mainly intended for accessory devices running
+        // Android to broadcast their availability and which can thus leverage system APIs.
+        @Hide
         @SystemApi
         @RequiresNoPermission
         public @NonNull Builder setHighDutyCycle(boolean isHighDutyCycle) {
@@ -619,10 +609,10 @@ public final class AdvertisingSetParameters implements Parcelable {
          *
          * @param peerAddress peer address for the directed advertising
          * @throws IllegalArgumentException peer address is invalid
-         * @hide This API is not publicly available as it is mainly intended for accessory devices
-         *     running Android to broadcast their availability and which can thus leverage system
-         *     APIs.
          */
+        // This API is not publicly available as it is mainly intended for accessory devices running
+        // Android to broadcast their availability and which can thus leverage system APIs.
+        @Hide
         @SystemApi
         @RequiresNoPermission
         public @NonNull Builder setPeerAddress(@NonNull String peerAddress) {
@@ -640,10 +630,10 @@ public final class AdvertisingSetParameters implements Parcelable {
          *
          * @param peerAddressType peer address type for the directed advertising
          * @throws IllegalArgumentException if {@code peerAddressType} is invalid
-         * @hide This API is not publicly available as it is mainly intended for accessory devices
-         *     running Android to broadcast their availability and which can thus leverage system
-         *     APIs.
          */
+        // This API is not publicly available as it is mainly intended for accessory devices running
+        // Android to broadcast their availability and which can thus leverage system APIs.
+        @Hide
         @SystemApi
         @RequiresNoPermission
         public @NonNull Builder setPeerAddressType(@AddressType int peerAddressType) {

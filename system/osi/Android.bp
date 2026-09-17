@@ -14,7 +14,6 @@ cc_defaults {
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/gd",
-        "packages/modules/Bluetooth/system/stack/include",
     ],
 }
 
@@ -58,7 +57,6 @@ cc_library_static {
         "src/socket.cc",
         "src/socket_utils/socket_local_client.cc",
         "src/socket_utils/socket_local_server.cc",
-        "src/stack_power_telemetry.cc",
         "src/thread.cc",
         "src/wakelock.cc",
 
@@ -115,7 +113,6 @@ cc_test {
         "test/list_test.cc",
         "test/properties_test.cc",
         "test/reactor_test.cc",
-        "test/stack_power_telemetry_test.cc",
         "test/thread_test.cc",
         "test/wakelock_test.cc", // test internal sources only used inside the libosi
 
@@ -152,11 +149,20 @@ cc_test {
             shared_libs: [
                 "libstatssocket",
             ],
+            sanitize: {
+                address: false, // TODO(b/481480264) - Mts can't run with asan
+            },
+        },
+        host: {
+            sanitize: {
+                address: true,
+            },
         },
     },
     sanitize: {
-        address: true,
-        cfi: false,
+        // address: See above
+        cfi: true,
+        misc_undefined: ["bounds"],
     },
     header_libs: ["libbluetooth_headers"],
 }

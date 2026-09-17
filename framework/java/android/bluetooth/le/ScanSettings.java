@@ -16,7 +16,7 @@
 
 package android.bluetooth.le;
 
-import android.annotation.FlaggedApi;
+import android.annotation.Hide;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.RequiresNoPermission;
@@ -28,8 +28,6 @@ import android.compat.annotation.EnabledSince;
 import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
-
-import com.android.bluetooth.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -69,27 +67,21 @@ public final class ScanSettings implements Parcelable {
      * Perform Bluetooth LE scan in ambient discovery mode. This mode has lower duty cycle and more
      * aggressive scan interval than balanced mode that provides a good trade-off between scan
      * latency and power consumption.
-     *
-     * @hide
      */
-    @SystemApi public static final int SCAN_MODE_AMBIENT_DISCOVERY = 3;
+    @Hide @SystemApi public static final int SCAN_MODE_AMBIENT_DISCOVERY = 3;
 
     /**
      * Default Bluetooth LE scan mode when the screen is off. This mode has the low duty cycle and
      * long scan interval which results in the lowest power consumption among all modes. It is for
      * the framework internal use only.
-     *
-     * @hide
      */
-    public static final int SCAN_MODE_SCREEN_OFF = 4;
+    @Hide public static final int SCAN_MODE_SCREEN_OFF = 4;
 
     /**
      * Balanced Bluetooth LE scan mode for foreground service when the screen is off. It is for the
      * framework internal use only.
-     *
-     * @hide
      */
-    public static final int SCAN_MODE_SCREEN_OFF_BALANCED = 5;
+    @Hide public static final int SCAN_MODE_SCREEN_OFF_BALANCED = 5;
 
     /**
      * Trigger a callback for every Bluetooth advertisement found that matches the filter criteria.
@@ -155,20 +147,16 @@ public final class ScanSettings implements Parcelable {
     /**
      * Request full scan results which contain the device, rssi, advertising data, scan response as
      * well as the scan timestamp.
-     *
-     * @hide
      */
-    @SystemApi public static final int SCAN_RESULT_TYPE_FULL = 0;
+    @Hide @SystemApi public static final int SCAN_RESULT_TYPE_FULL = 0;
 
     /**
      * Request abbreviated scan results which contain the device, rssi and scan timestamp.
      *
      * <p><b>Note:</b> It is possible for an application to get more scan results than it asked for,
      * if there are multiple apps using this type.
-     *
-     * @hide
      */
-    @SystemApi public static final int SCAN_RESULT_TYPE_ABBREVIATED = 1;
+    @Hide @SystemApi public static final int SCAN_RESULT_TYPE_ABBREVIATED = 1;
 
     /**
      * Use all supported PHYs for scanning. This will check the controller capabilities, and start
@@ -177,18 +165,15 @@ public final class ScanSettings implements Parcelable {
     public static final int PHY_LE_ALL_SUPPORTED = 255;
 
     /** Scan type is unknown. */
-    @FlaggedApi(Flags.FLAG_SUPPORT_PASSIVE_SCANNING)
     public static final int SCAN_TYPE_UNKNOWN = 0;
 
     /** Does passive scanning, scan responses are ignored. */
-    @FlaggedApi(Flags.FLAG_SUPPORT_PASSIVE_SCANNING)
     public static final int SCAN_TYPE_PASSIVE = 1;
 
     /** Does active scanning, scan results are delivered upon scan responses arrive. */
-    @FlaggedApi(Flags.FLAG_SUPPORT_PASSIVE_SCANNING)
     public static final int SCAN_TYPE_ACTIVE = 2;
 
-    /** @hide */
+    @Hide
     @IntDef(
             prefix = "SCAN_TYPE_",
             value = {
@@ -253,13 +238,13 @@ public final class ScanSettings implements Parcelable {
         return mReportDelayMillis;
     }
 
-    /** @hide */
+    @Hide
     @RequiresNoPermission
     public int getMatchMode() {
         return mMatchMode;
     }
 
-    /** @hide */
+    @Hide
     @RequiresNoPermission
     public int getNumOfMatches() {
         return mNumOfMatchesPerFilter;
@@ -280,13 +265,11 @@ public final class ScanSettings implements Parcelable {
         return mPhy;
     }
 
-    @FlaggedApi(Flags.FLAG_RSSI_SCAN_FILTER)
     @RequiresNoPermission
     public int getRssiThreshold() {
         return mRssiThreshold;
     }
 
-    @FlaggedApi(Flags.FLAG_SUPPORT_PASSIVE_SCANNING)
     @RequiresNoPermission
     public @ScanType int getScanType() {
         return mScanType;
@@ -371,7 +354,7 @@ public final class ScanSettings implements Parcelable {
         private boolean mLegacy = true;
         private int mPhy = BluetoothDevice.PHY_LE_1M;
         private int mRssiThreshold = Byte.MIN_VALUE;
-        private int mScanType = Flags.supportPassiveScanning() ? SCAN_TYPE_ACTIVE : 2;
+        private int mScanType = SCAN_TYPE_ACTIVE;
 
         // Instance initializer for mNumOfMatchesPerFilter
         {
@@ -414,7 +397,6 @@ public final class ScanSettings implements Parcelable {
          */
         @RequiresNoPermission
         public Builder setCallbackType(int callbackType) {
-
             if (!isValidCallbackType(callbackType)) {
                 throw new IllegalArgumentException("invalid callback type - " + callbackType);
             }
@@ -440,8 +422,8 @@ public final class ScanSettings implements Parcelable {
          *     ScanSettings#SCAN_RESULT_TYPE_FULL} or {@link
          *     ScanSettings#SCAN_RESULT_TYPE_ABBREVIATED}.
          * @throws IllegalArgumentException If the {@code scanResultType} is invalid.
-         * @hide
          */
+        @Hide
         @SystemApi
         @RequiresNoPermission
         public Builder setScanResultType(int scanResultType) {
@@ -543,7 +525,6 @@ public final class ScanSettings implements Parcelable {
          * @param rssiThreshold the high threshold of RSSI value. The valid range is [-127, 126].
          * @return this builder
          */
-        @FlaggedApi(Flags.FLAG_RSSI_SCAN_FILTER)
         @RequiresNoPermission
         public @NonNull Builder setRssiThreshold(int rssiThreshold) {
             mRssiThreshold = rssiThreshold;
@@ -559,7 +540,6 @@ public final class ScanSettings implements Parcelable {
          *     receiving an advertising report, without waiting for scan responses.
          * @throws IllegalArgumentException if invalid scan type is given.
          */
-        @FlaggedApi(Flags.FLAG_SUPPORT_PASSIVE_SCANNING)
         @RequiresNoPermission
         public @NonNull Builder setScanType(@ScanType int scanType) {
             if (scanType != SCAN_TYPE_PASSIVE && scanType != SCAN_TYPE_ACTIVE) {
@@ -594,24 +574,5 @@ public final class ScanSettings implements Parcelable {
                     mRssiThreshold,
                     mScanType);
         }
-    }
-
-    /**
-     * Converts scan mode integer into string. For internal use only when logging.
-     *
-     * @hide
-     */
-    @RequiresNoPermission
-    public static String getScanModeString(int scanMode) {
-        return switch (scanMode) {
-            case SCAN_MODE_OPPORTUNISTIC -> "SCAN_MODE_OPPORTUNISTIC";
-            case SCAN_MODE_LOW_POWER -> "SCAN_MODE_LOW_POWER";
-            case SCAN_MODE_BALANCED -> "SCAN_MODE_BALANCED";
-            case SCAN_MODE_LOW_LATENCY -> "SCAN_MODE_LOW_LATENCY";
-            case SCAN_MODE_AMBIENT_DISCOVERY -> "SCAN_MODE_AMBIENT_DISCOVERY";
-            case SCAN_MODE_SCREEN_OFF -> "SCAN_MODE_SCREEN_OFF";
-            case SCAN_MODE_SCREEN_OFF_BALANCED -> "SCAN_MODE_SCREEN_OFF_BALANCED";
-            default -> "UNKNOWN value=" + scanMode;
-        };
     }
 }

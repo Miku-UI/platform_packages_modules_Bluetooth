@@ -21,9 +21,9 @@
 #ifndef A2DP_VENDOR_OPUS_H
 #define A2DP_VENDOR_OPUS_H
 
-#include "a2dp_codec_api.h"
-#include "a2dp_vendor_opus_constants.h"
-#include "avdt_api.h"
+#include "stack/include/a2dp_codec_api.h"
+#include "stack/include/a2dp_vendor_opus_constants.h"
+#include "stack/include/avdt_api.h"
 
 class A2dpCodecConfigOpusBase : public A2dpCodecConfig {
 protected:
@@ -34,6 +34,7 @@ protected:
   tA2DP_STATUS setCodecConfig(const uint8_t* p_peer_codec_info, bool is_capability,
                               uint8_t* p_result_codec_config) override;
   bool setPeerCodecCapabilities(const uint8_t* p_peer_codec_capabilities) override;
+  int getTrackBitRate() const override;
 
 private:
   [[maybe_unused]] bool is_source_;  // True if local is Source
@@ -80,9 +81,6 @@ tA2DP_STATUS A2DP_IsVendorSinkCodecSupportedOpus(const uint8_t* p_codec_info);
 // Returns true if the A2DP data packets should contain RTP header, otherwise
 // false.
 bool A2DP_VendorUsesRtpHeaderOpus(bool content_protection_enabled, const uint8_t* p_codec_info);
-
-// Gets the A2DP Opus codec name for a given |p_codec_info|.
-const char* A2DP_VendorCodecNameOpus(const uint8_t* p_codec_info);
 
 // Checks whether two A2DP Opus codecs |p_codec_info_a| and |p_codec_info_b|
 // have the same type.
@@ -179,22 +177,6 @@ const tA2DP_DECODER_INTERFACE* A2DP_VendorGetDecoderInterfaceOpus(const uint8_t*
 // |p_codec_info| contains the codec information to adjust.
 // Returns true if |p_codec_info| is valid and supported, otherwise false.
 bool A2DP_VendorAdjustCodecOpus(uint8_t* p_codec_info);
-
-// Gets the A2DP Opus Source codec index for a given |p_codec_info|.
-// Returns the corresponding |btav_a2dp_codec_index_t| on success,
-// otherwise |BTAV_A2DP_CODEC_INDEX_MAX|.
-btav_a2dp_codec_index_t A2DP_VendorSourceCodecIndexOpus(const uint8_t* p_codec_info);
-
-// Gets the A2DP Opus Sink codec index for a given |p_codec_info|.
-// Returns the corresponding |btav_a2dp_codec_index_t| on success,
-// otherwise |BTAV_A2DP_CODEC_INDEX_MAX|.
-btav_a2dp_codec_index_t A2DP_VendorSinkCodecIndexOpus(const uint8_t* p_codec_info);
-
-// Gets the A2DP Opus Source codec name.
-const char* A2DP_VendorCodecIndexStrOpus(void);
-
-// Gets the A2DP Opus Sink codec name.
-const char* A2DP_VendorCodecIndexStrOpusSink(void);
 
 // Initializes A2DP Opus Source codec information into |AvdtpSepConfig|
 // configuration entry pointed by |p_cfg|.

@@ -17,15 +17,16 @@
 package android.bluetooth;
 
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.IBluetoothGattCallback;
 import android.bluetooth.IBluetoothGattServerCallback;
+import android.bluetooth.GattOffloadSession;
 import android.content.AttributionSource;
 import android.os.ParcelUuid;
-/**
- * API for interacting with BLE / GATT
- * @hide
- */
+
+/** Binder method for GATT interaction */
+@JavaPassthrough(annotation="@android.annotation.Hide")
 interface IBluetoothGatt {
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     List<BluetoothDevice> getDevicesMatchingConnectionStates(in int[] states, in AttributionSource attributionSource);
@@ -36,7 +37,7 @@ interface IBluetoothGatt {
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     void unregisterClient(in IBluetoothGattCallback callback, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
-    void clientConnect(in IBluetoothGattCallback callback, in BluetoothDevice device, in int addressType, in boolean isDirect, in int transport, in boolean opportunistic, in int phy, in AttributionSource attributionSource);
+    void clientConnect(in IBluetoothGattCallback callback, in BluetoothDevice device, in int addressType, in boolean isDirect, in int transport, in boolean opportunistic, in boolean isAutoMtuEnabled, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     void clientDisconnect(in IBluetoothGattCallback callback, in BluetoothDevice device, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
@@ -69,7 +70,7 @@ interface IBluetoothGatt {
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     void endReliableWrite(in IBluetoothGattCallback callback, in BluetoothDevice device, in boolean execute, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
-    void readRemoteRssi(in IBluetoothGattCallback callback, in BluetoothDevice device, in AttributionSource attributionSource);
+    boolean readRemoteRssi(in IBluetoothGattCallback callback, in BluetoothDevice device, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     void configureMTU(in IBluetoothGattCallback callback, in BluetoothDevice device, in int mtu, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
@@ -80,7 +81,7 @@ interface IBluetoothGatt {
                             int minConnectionEventLen, int maxConnectionEventLen, in AttributionSource attributionSource);
 
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
-    void registerServer(in ParcelUuid appId, in IBluetoothGattServerCallback callback, boolean eatt_support, in int transport, in AttributionSource attributionSource);
+    void registerServer(in IBluetoothGattServerCallback callback, boolean eatt_support, in int transport, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
     void unregisterServer(in IBluetoothGattServerCallback callback, in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)")
@@ -107,4 +108,12 @@ interface IBluetoothGatt {
     void disconnectAll(in AttributionSource attributionSource);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED}, conditional=true)")
     int subrateModeRequest(in IBluetoothGattCallback callback, in BluetoothDevice device, in int subrateMode, in AttributionSource attributionSource);
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
+    GattOffloadSession.InnerParcel offloadClientCharacteristics(in IBluetoothGattCallback callback, in BluetoothDevice device, in BluetoothGattService service, in List<BluetoothGattCharacteristic> characteristics, in long endpointId, in long hubId, in AttributionSource attributionSource);
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
+    void unoffloadClientCharacteristics(in IBluetoothGattCallback callback, in BluetoothDevice device, in int sessionId, in AttributionSource attributionSource);
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
+    GattOffloadSession.InnerParcel offloadServerCharacteristics(in IBluetoothGattServerCallback callback, in BluetoothDevice device, in BluetoothGattService service, in List<BluetoothGattCharacteristic> characteristics, in long endpointId, in long hubId, in AttributionSource attributionSource);
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf={android.Manifest.permission.BLUETOOTH_CONNECT,android.Manifest.permission.BLUETOOTH_PRIVILEGED})")
+    void unoffloadServerCharacteristics(in IBluetoothGattServerCallback callback, in BluetoothDevice device, in int sessionId, in AttributionSource attributionSource);
 }

@@ -147,23 +147,6 @@ void BTM_WriteVoiceSettings(uint16_t settings);
 
 /*******************************************************************************
  *
- * Function         BTM_EnableTestMode
- *
- * Description      Send HCI the enable device under test command.
- *
- *                  Note: Controller can only be taken out of this mode by
- *                      resetting the controller.
- *
- * Returns
- *      tBTM_STATUS::BTM_SUCCESS         Command sent.
- *      tBTM_STATUS::BTM_NO_RESOURCES    If out of resources to send the command.
- *
- *
- ******************************************************************************/
-[[nodiscard]] tBTM_STATUS BTM_EnableTestMode(void);
-
-/*******************************************************************************
- *
  * Function         BTM_IsRemoteVersionReceived
  *
  * Returns          Returns true if "LE Read remote version info" was already
@@ -277,7 +260,7 @@ void BTM_WriteVoiceSettings(uint16_t settings);
  ******************************************************************************/
 [[nodiscard]] tBTM_STATUS BTM_CreateSco(const RawAddress* remote_bda, bool is_orig,
                                         uint16_t pkt_types, uint16_t* p_sco_inx,
-                                        tBTM_SCO_CB* p_conn_cb, tBTM_SCO_CB* p_disc_cb);
+                                        tBTM_SCO_CB* p_conn_cb, tBTM_SCO_WITH_REASON_CB* p_disc_cb);
 
 /*******************************************************************************
  *

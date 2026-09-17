@@ -2,84 +2,6 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "allow_switching_hid_and_hogp"
-    is_exported: true
-    namespace: "bluetooth"
-    description: "Allow switching between HID and HOGP supported on the same device"
-    bug: "320762367"
-}
-
-flag {
-    name: "early_incoming_hid_connection"
-    namespace: "bluetooth"
-    description: "Allow early incoming HID connection"
-    bug: "398105207"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "hh_state_update_race_fix"
-    namespace: "bluetooth"
-    description: "Fix stuck in connecting state due to race when updating state"
-    bug: "403420458"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "simpler_hid_connection_policy"
-    namespace: "bluetooth"
-    description: "Simplify native HID host connection policy enforcement"
-    bug: "404590499"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "hogp_encryption_collision"
-    namespace: "bluetooth"
-    description: "HOGP host may not be able to proceed with connection if the link is getting encrypted"
-    bug: "405437978"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "reconnect_on_hogp_connection_failure"
-    namespace: "bluetooth"
-    description: "Put the added HOGP device in the background connection list if the connection attempt failed"
-    bug: "406399172"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "wait_hid_disconnect_before_marking_unused"
-    namespace: "bluetooth"
-    description: "Mark device unused only after it's properly disconnected"
-    bug: "412876005"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "hogp_direct_connection_upgrade"
-    namespace: "bluetooth"
-    description: "Allow background connection requests to be upgraded to direct connections"
-    bug: "430179438"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "reset_state_when_removing_non_connected_hid_device"
     namespace: "bluetooth"
     description: "When removing a not-yet-connected HID device, set conn_state to UNUSED and CID to 0"
@@ -110,10 +32,91 @@ flag {
 }
 
 flag {
-    name: "hid_connection_timeout_in_jni_thread"
+    name: "hidd_bump_version_to_111"
     namespace: "bluetooth"
-    description: "Handle incoming HID connection timeout in JNI thread"
-    bug: "440091360"
+    description: "Set HID Device version to v1.1.1 on SDP record"
+    bug: "443625090"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "hogp_cancel_gatt_if_policy_forbidden"
+    namespace: "bluetooth"
+    description: "Take out the bonded-but-not-connected HoGP device from the accept list when policy is changed to forbidden"
+    bug: "459303232"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "le_hid_connection_policy_suspend"
+    namespace: "bluetooth"
+    description: "Change connection policy for LE hid to forbid reconnect and restore the policy after resume"
+    bug: "459908685"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "hid_always_unbond_on_virtual_unplug"
+    namespace: "bluetooth"
+    description: "Don't do additional checks of whether CoD is HID device when unbonding from VUP"
+    bug: "460703858"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "headtracker_connection_policy"
+    namespace: "bluetooth"
+    description: "Link Android Headtracker Service connection policy to the LE Audio connection policy"
+    bug: "462191804"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "hid_propagate_idle_handshake"
+    namespace: "bluetooth"
+    description: "Propagate the handshake reply of get_idle and set_idle to the java layer"
+    bug: "464973851"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "hid_default_preferred_transport"
+    namespace: "bluetooth"
+    description: "Link default HID preferred transport to LE Audio system property"
+    bug: "467386258"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "ignore_duplicate_hid_connect_request"
+    namespace: "bluetooth"
+    description: "Ignore duplicate HID connection requests"
+    bug: "467422920"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+
+flag {
+    name: "hogp_host_mtu_exchange"
+    namespace: "bluetooth"
+    description: "HOGP host must exchange ATT MTU on GATT connection"
+    bug: "473936218"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

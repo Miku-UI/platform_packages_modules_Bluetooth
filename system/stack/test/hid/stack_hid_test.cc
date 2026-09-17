@@ -28,8 +28,8 @@
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/main_thread.h"
+#include "stack/mock/mock_stack_l2cap_interface.h"
 #include "test/common/mock_functions.h"
-#include "test/mock/mock_stack_l2cap_interface.h"
 
 bluetooth::common::MessageLoopThread* get_main_thread() { return nullptr; }
 tHCI_REASON btm_get_acl_disc_reason_code(void) { return HCI_SUCCESS; }
@@ -53,7 +53,7 @@ std::array<uint8_t, 32> data32 = {
         0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
         0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
 };
-const RawAddress kRawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+const RawAddress kRawAddress("11:22:33:44:55:66");
 
 class StackHidTest : public Test {
 public:

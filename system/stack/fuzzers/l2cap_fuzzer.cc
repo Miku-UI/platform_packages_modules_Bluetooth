@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include "bt_status.h"
 #include "btif/include/stack_manager_t.h"
 #include "common/message_loop_thread.h"
 #include "hal/snoop_logger.h"
@@ -38,10 +39,11 @@
 #include "stack/include/l2cap_module.h"
 #include "stack/include/l2cdefs.h"
 #include "stack/l2cap/l2c_int.h"
+#include "stack/mock/mock_stack_acl.h"
+#include "stack/mock/mock_stack_btm_devctl.h"
+#include "stack/mock/mock_stack_btm_interface.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_main_shim_entry.h"
-#include "test/mock/mock_stack_acl.h"
-#include "test/mock/mock_stack_btm_devctl.h"
 
 using bluetooth::Uuid;
 using testing::Return;
@@ -57,12 +59,12 @@ static void ConsumeData(const uint8_t* data, size_t size) {
 
 tBTM_CB btm_cb;
 
-bt_status_t do_in_main_thread(base::OnceCallback<void()>) {
+BtStatus do_in_main_thread(base::OnceCallback<void()>) {
   // this is not properly mocked, so we use abort to catch if this is used in
   // any test cases
   abort();
 }
-bt_status_t do_in_main_thread_delayed(base::OnceCallback<void()>, std::chrono::microseconds) {
+BtStatus do_in_main_thread_delayed(base::OnceCallback<void()>, std::chrono::microseconds) {
   // this is not properly mocked, so we use abort to catch if this is used in
   // any test cases
   abort();
@@ -102,6 +104,13 @@ bool direct_connect_add(uint8_t /* id */, const RawAddress& /* bd_addr */,
                         tBLE_ADDR_TYPE /* addr_type */, bool /* prefer_relax_mode */) {
   return true;
 }
+
+bool direct_connect_remove(uint8_t /* app_id */, const RawAddress& /* address */,
+                           bool connection_timeout = false) {
+  return true;
+}
+
+void on_connection_complete(const RawAddress& /* address */) {}
 }  // namespace connection_manager
 
 namespace {
@@ -139,9 +148,15 @@ public:
     ON_CALL(*bluetooth::hci::testing::mock_controller_, SupportsBle).WillByDefault(Return(true));
     ON_CALL(*bluetooth::hci::testing::mock_controller_, GetAclPacketLength)
             .WillByDefault(Return(512));
+
+    set_mock_btm_client_interface(&mock_btm_client_interface_);
+    ON_CALL(mock_btm_client_interface_, BTM_IsDeviceUp()).WillByDefault(Return(true));
   }
 
+  MockBtmClientInterface mock_btm_client_interface_;
+
   ~FakeBtStack() {
+    reset_mock_btm_client_interface();
     test::mock::stack_acl::acl_send_data_packet_br_edr = {};
     test::mock::stack_acl::acl_send_data_packet_ble = {};
     bluetooth::hci::testing::mock_controller_.reset();
@@ -156,12 +171,12 @@ public:
 
 }  // namespace
 
-constexpr RawAddress kAttAddr({0x11, 0x78, 0x78, 0x78, 0x78, 0x78});
+constexpr RawAddress kAttAddr("11:78:78:78:78:78");
 constexpr uint16_t kAttHndl = 0x0111;
 
-constexpr RawAddress kEattAddr({0x22, 0x78, 0x78, 0x78, 0x78, 0x78});
+constexpr RawAddress kEattAddr("22:78:78:78:78:78");
 
-constexpr RawAddress kSmpBrAddr({0x33, 0x78, 0x78, 0x78, 0x78, 0x78});
+constexpr RawAddress kSmpBrAddr("33:78:78:78:78:78");
 constexpr uint16_t kSmpBrHndl = 0x0222;
 
 constexpr uint16_t kNumClassicAclBuffer = 100;

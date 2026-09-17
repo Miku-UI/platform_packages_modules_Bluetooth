@@ -33,10 +33,10 @@
 
 #include "audio_hal_interface/hearing_aid_software_encoding.h"
 #include "bta/include/bta_hearing_aid_api.h"
+#include "btif_status.h"
 #include "common/message_loop_thread.h"
 #include "common/repeating_timer.h"
 #include "common/time_util.h"
-#include "hardware/bluetooth.h"
 #include "hardware/bt_av.h"
 #include "osi/include/wakelock.h"
 #include "stack/include/main_thread.h"
@@ -99,7 +99,7 @@ void start_audio_ticks() {
     log::fatal("Unsupported data interval: {}", data_interval_ms);
   }
 
-  if (!com_android_bluetooth_flags_ref_counted_native_wakelock() || !audio_timer.IsScheduled()) {
+  if (!audio_timer.IsScheduled()) {
     wakelock_acquire();
   }
   audio_timer.SchedulePeriodic(get_main_thread(),
@@ -110,7 +110,7 @@ void start_audio_ticks() {
 
 void stop_audio_ticks() {
   log::info("stopped");
-  if (!com_android_bluetooth_flags_ref_counted_native_wakelock() || audio_timer.IsScheduled()) {
+  if (audio_timer.IsScheduled()) {
     audio_timer.CancelAndWait();
     wakelock_release();
   }
@@ -121,7 +121,7 @@ bool hearing_aid_on_resume_req(bool start_media_task) {
     log::error("HEARING_AID_CTRL_CMD_START: audio receiver not started");
     return false;
   }
-  bt_status_t status;
+  BtStatus status = BtifStatus();
   if (start_media_task) {
     status = do_in_main_thread(base::BindOnce(&HearingAidAudioReceiver::OnAudioResume,
                                               base::Unretained(localAudioReceiver),
@@ -132,7 +132,7 @@ bool hearing_aid_on_resume_req(bool start_media_task) {
                                               base::Unretained(localAudioReceiver),
                                               start_dummy_ticks));
   }
-  if (status != BT_STATUS_SUCCESS) {
+  if (!status) {
     log::error("HEARING_AID_CTRL_CMD_START: do_in_main_thread err={}", status);
     return false;
   }
@@ -144,10 +144,10 @@ bool hearing_aid_on_suspend_req() {
     log::error("HEARING_AID_CTRL_CMD_SUSPEND: audio receiver not started");
     return false;
   }
-  bt_status_t status =
+  BtStatus status =
           do_in_main_thread(base::BindOnce(&HearingAidAudioReceiver::OnAudioSuspend,
                                            base::Unretained(localAudioReceiver), stop_audio_ticks));
-  if (status != BT_STATUS_SUCCESS) {
+  if (!status) {
     log::error("HEARING_AID_CTRL_CMD_SUSPEND: do_in_main_thread err={}", status);
     return false;
   }

@@ -30,13 +30,16 @@
 
 #include <algorithm>
 
+#include "btif/include/btif_storage.h"
 #include "hal/snoop_logger.h"
 #include "hci/controller.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/acl_api.h"
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
+#include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_sec.h"
+#include "stack/connection_manager/connection_manager.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
@@ -44,7 +47,6 @@
 #include "stack/include/btm_status.h"
 #include "stack/include/hci_error_code.h"
 #include "stack/include/hcidefs.h"
-#include "stack/include/l2cap_acl_interface.h"
 #include "stack/include/l2cap_controller_interface.h"
 #include "stack/include/l2cap_hci_link_interface.h"
 #include "stack/include/l2cap_interface.h"
@@ -1574,7 +1576,7 @@ void l2cu_release_ccb(tL2C_CCB* p_ccb) {
   }
 
   if (p_rcb && (p_rcb->psm != p_rcb->real_psm)) {
-    BTM_SecClrServiceByPsm(p_rcb->psm);
+    get_security_client_interface().BTM_SecClrServiceByPsm(p_rcb->psm);
   }
 
   /* Free the timer */
@@ -1641,6 +1643,21 @@ void l2cu_release_ccb(tL2C_CCB* p_ccb) {
         if (p_lcb->transport == BT_TRANSPORT_LE && p_ccb->local_cid == L2CAP_ATT_CID) {
           log::warn("disconnecting the LE link");
           l2cu_no_dynamic_ccbs(p_lcb);
+        }
+        log::verbose("l2cu_release_ccb: triggered_le_acl_conn: {}",
+                p_lcb->triggered_le_acl_conn);
+        if (p_lcb->triggered_le_acl_conn > 0) {
+          p_lcb->triggered_le_acl_conn--;
+          if (com_android_bluetooth_flags_cancel_pending_le_conn_on_socket_close() &&
+                p_lcb->triggered_le_acl_conn == 0) {
+            if (!connection_manager::direct_connect_remove(CONN_MGR_ID_L2CAP,
+                                                           p_lcb->remote_bd_addr)) {
+              log::debug("Error removing direct connect entry for {}", p_lcb->remote_bd_addr);
+            } else {
+              // On Successful removal, clean up the LCB
+              l2cu_release_lcb(p_lcb);
+            }
+          }
         }
       }
     }
@@ -1793,7 +1810,7 @@ void l2cu_release_ble_rcb(tL2C_RCB* p_rcb) {
 void l2cu_disconnect_chnl(tL2C_CCB* p_ccb) {
   uint16_t local_cid = p_ccb->local_cid;
 
-  if (local_cid >= L2CAP_BASE_APPL_CID) {
+  if (p_ccb->p_rcb != nullptr && local_cid >= L2CAP_BASE_APPL_CID) {
     tL2CA_DISCONNECT_IND_CB* p_disc_cb = p_ccb->p_rcb->api.pL2CA_DisconnectInd_Cb;
 
     log::warn("L2CAP - disconnect_chnl CID: 0x{:04x}", local_cid);
@@ -1907,6 +1924,12 @@ uint8_t l2cu_process_peer_cfg_req(tL2C_CCB* p_ccb, tL2CAP_CFG_INFO* p_cfg) {
   bool flush_to_ok = true;
   bool fcr_ok = true;
   uint8_t fcr_status;
+
+  if (p_ccb->p_rcb == nullptr) {
+    log::error("p_ccb->p_rcb is NULL");
+    return L2CAP_PEER_CFG_DISCONNECT;
+  }
+
   uint16_t required_remote_mtu =
           std::max<uint16_t>(L2CAP_MIN_MTU, p_ccb->p_rcb->required_remote_mtu);
 
@@ -2213,7 +2236,8 @@ void l2cu_create_conn_br_edr(tL2C_LCB* p_lcb) {
  *
  ******************************************************************************/
 void l2cu_create_conn_after_switch(tL2C_LCB* p_lcb) {
-  bluetooth::shim::ACL_CreateClassicConnection(p_lcb->remote_bd_addr);
+  uint16_t clock_offset = BTM_GetCachedClockOffset(p_lcb->remote_bd_addr);
+  bluetooth::shim::ACL_CreateClassicConnection(p_lcb->remote_bd_addr, clock_offset);
 
   alarm_set_on_mloop(p_lcb->l2c_lcb_timer, L2CAP_LINK_CONNECT_TIMEOUT_MS, l2c_lcb_timer_timeout,
                      p_lcb);
@@ -2296,9 +2320,15 @@ bool l2cu_lcb_disconnecting(void) {
 
 static void l2cu_set_acl_priority_latency_brcm(tL2C_LCB* p_lcb, tL2CAP_PRIORITY priority) {
   uint8_t vs_param;
+  log::info("acl_priority: {}, preset_acl_latency: {}, rate_control_enabled: {}",
+            p_lcb->acl_priority, p_lcb->acl_latency, p_lcb->rate_control_enabled);
+
   if (priority == L2CAP_PRIORITY_HIGH) {
-    // priority to high, if using latency mode check preset latency
-    if (p_lcb->use_latency_mode && p_lcb->preset_acl_latency == L2CAP_LATENCY_LOW) {
+    if (!p_lcb->rate_control_enabled) {
+      log::info("Set ACL priority: High Priority and Disable Rate Control");
+      vs_param = HCI_BRCM_ACL_HIGH_PRIORITY_DISABLE_RATE_CONTROL;
+    } else if (p_lcb->use_latency_mode && p_lcb->preset_acl_latency == L2CAP_LATENCY_LOW) {
+      // priority to high, if using latency mode check preset latency
       log::info("Set ACL priority: High Priority and Low Latency Mode");
       vs_param = HCI_BRCM_ACL_HIGH_PRIORITY_LOW_LATENCY;
       p_lcb->set_latency(L2CAP_LATENCY_LOW);
@@ -2570,6 +2600,31 @@ bool l2cu_set_acl_latency(const RawAddress& bd_addr, tL2CAP_LATENCY latency) {
   return true;
 }
 
+/*******************************************************************************
+ *
+ * Function         L2CA_DisableRateControl
+ *
+ * Description      Disable rate control algorithm for a channel.
+ *
+ * Returns          true if a valid channel, else false
+ *
+ ******************************************************************************/
+
+bool l2cu_set_rate_control_enabled(const RawAddress& bd_addr, bool enabled) {
+  log::info("enabled={}", enabled);
+
+  tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(bd_addr, BT_TRANSPORT_BR_EDR);
+
+  if (p_lcb == nullptr) {
+    log::warn("Set rate control in use failed: LCB is null");
+    return false;
+  }
+
+  p_lcb->set_rate_control_enabled(enabled);
+
+  return true;
+}
+
 /******************************************************************************
  *
  * Function         l2cu_set_non_flushable_pbf
@@ -2810,8 +2865,7 @@ void l2cu_no_dynamic_ccbs(tL2C_LCB* p_lcb) {
       l2cu_process_fixed_disc_cback(p_lcb);
       /* BTM SEC will make sure that link is release (probably after pairing is
        * done) */
-      if (com_android_bluetooth_flags_l2c_not_cancel_timeout() &&
-          p_lcb->link_state == LST_CONNECTING) {
+      if (p_lcb->link_state == LST_CONNECTING) {
         // If connecting, trigger alarm to release lcb right now since no callbacks are expected.
         start_timeout = true;
       } else {
@@ -3664,13 +3718,26 @@ void l2c_acl_flush(uint16_t handle) { btm_acl_flush(handle); }
 void l2cu_update_outstanding_packets_lcb(tL2C_LCB* p_lcb, uint16_t num_sent) {
   p_lcb->update_outstanding_packets(num_sent);
 
-  if (com_android_bluetooth_flags_delay_offload_le_coc_connection_ind()) {
-    for (tL2C_CCB* p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb; p_ccb = p_ccb->p_next_ccb) {
-      if (p_ccb->tx_packet_complete_cb) {
-        log::debug("handle:0x{:04x}, num_sent:{}, CCB CID:0x{:04x}", p_lcb->Handle(), num_sent,
-                   p_ccb->local_cid);
-        p_ccb->tx_packet_complete_cb(p_ccb, num_sent);
-      }
+  for (tL2C_CCB* p_ccb = p_lcb->ccb_queue.p_first_ccb; p_ccb; p_ccb = p_ccb->p_next_ccb) {
+    if (p_ccb->tx_packet_complete_cb) {
+      log::debug("handle:0x{:04x}, num_sent:{}, CCB CID:0x{:04x}", p_lcb->Handle(), num_sent,
+                 p_ccb->local_cid);
+      p_ccb->tx_packet_complete_cb(p_ccb, num_sent);
     }
   }
+}
+
+/*******************************************************************************
+ *
+ * Function        l2c_should_skip_ertm
+ *
+ * Description     checks if remote should skip ERTM
+ *
+ * Returns         true/false if ERTM checks need to be skipped or not.
+ *
+ *******************************************************************************/
+bool l2c_should_skip_ertm(const RawAddress& bd_addr) {
+  const Uuid RMT_CUSTOM_UUID = Uuid("74ec2172-0bad-4d01-8f77-997b2be0722a");
+  std::vector<bluetooth::Uuid> remote_uuids = btif_storage_get_services(bd_addr);
+  return std::find(remote_uuids.begin(), remote_uuids.end(), RMT_CUSTOM_UUID) != remote_uuids.end();
 }

@@ -15,18 +15,16 @@
  */
 #pragma once
 
+#include <bluetooth/types/string_helpers.h>
+
 #include <cstdint>
 #include <limits>
 #include <optional>
 #include <type_traits>
 
 #include "common/numbers.h"
-#include "common/strings.h"
-#include "common/type_helper.h"
 #include "hci/enum_helper.h"
 #include "storage/config_cache.h"
-#include "storage/mutation_entry.h"
-#include "storage/serializable.h"
 
 namespace bluetooth {
 namespace storage {
@@ -104,16 +102,6 @@ public:
     return GetBool(section, property);
   }
 
-  template <typename T,
-            typename std::enable_if<std::is_base_of_v<Serializable<T>, T>, int>::type = 0>
-  std::optional<T> Get(const std::string& section, const std::string& property) {
-    auto value = config_cache_.GetProperty(section, property);
-    if (!value) {
-      return std::nullopt;
-    }
-    return T::FromLegacyConfigString(*value);
-  }
-
   template <typename T, typename std::enable_if<std::is_enum_v<T>, int>::type = 0>
   std::optional<T> Get(const std::string& section, const std::string& property) {
     auto value = config_cache_.GetProperty(section, property);
@@ -121,29 +109,6 @@ public:
       return std::nullopt;
     }
     return bluetooth::FromLegacyConfigString<T>(*value);
-  }
-
-  template <typename T, typename std::enable_if<
-                                bluetooth::common::is_specialization_of<T, std::vector>::value &&
-                                        std::is_base_of_v<Serializable<typename T::value_type>,
-                                                          typename T::value_type>,
-                                int>::type = 0>
-  std::optional<T> Get(const std::string& section, const std::string& property) {
-    auto value = config_cache_.GetProperty(section, property);
-    if (!value) {
-      return std::nullopt;
-    }
-    auto values = common::StringSplit(*value, " ");
-    T result;
-    result.reserve(values.size());
-    for (const auto& str : values) {
-      auto v = T::value_type::FromLegacyConfigString(str);
-      if (!v) {
-        return std::nullopt;
-      }
-      result.push_back(*v);
-    }
-    return result;
   }
 
 private:

@@ -46,9 +46,9 @@ import android.os.UserManager;
 import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
-import com.android.bluetooth.Utils;
+import com.android.bluetooth.Util;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.ConnectableProfile;
+import com.android.bluetooth.profile.ConnectableProfile;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.modules.utils.HandlerExecutor;
 
@@ -73,6 +73,7 @@ public class PanService extends ConnectableProfile {
             new ConcurrentHashMap<>();
 
     private final Map<String, IBluetoothPanCallback> mBluetoothTetheringCallbacks = new HashMap<>();
+    private final PanNativeCallback mNativeCallback;
     private final PanNativeInterface mNativeInterface;
     private final TetheringManager mTetheringManager;
     private final UserManager mUserManager;
@@ -93,7 +94,7 @@ public class PanService extends ConnectableProfile {
                         Log.e(TAG, "Error setting up tether interface: " + error);
                         for (BluetoothDevice device : mPanDevices.keySet()) {
                             mNativeInterface.disconnect(
-                                    Utils.getByteBrEdrAddress(mAdapterService, device));
+                                    getAdapterService().getByteBrEdrAddress(device));
                         }
                         mPanDevices.clear();
                         mIsTethering = false;
@@ -102,18 +103,23 @@ public class PanService extends ConnectableProfile {
             };
 
     public PanService(AdapterService adapterService, UserManager userManager) {
-        this(adapterService, null, userManager, Looper.getMainLooper());
+        this(adapterService, null, null, userManager, Looper.getMainLooper());
     }
 
     @VisibleForTesting
     PanService(
             AdapterService adapterService,
+            PanNativeCallback nativeCallback,
             PanNativeInterface nativeInterface,
             UserManager userManager,
             Looper looper) {
-        super(BluetoothProfile.PAN, requireNonNull(adapterService));
+        super(BluetoothProfile.PAN, adapterService);
+        mNativeCallback =
+                requireNonNullElseGet(
+                        nativeCallback, () -> new PanNativeCallback(getAdapterService(), this));
         mNativeInterface =
-                requireNonNullElseGet(nativeInterface, () -> new PanNativeInterface(this));
+                requireNonNullElseGet(
+                        nativeInterface, () -> new PanNativeInterface(mNativeCallback));
         mUserManager = userManager;
         mTetheringManager = requireNonNull(obtainSystemService(TetheringManager.class));
         mHandler = new PanServiceHandler(looper);
@@ -140,7 +146,7 @@ public class PanService extends ConnectableProfile {
     }
 
     @Override
-    public IProfileServiceBinder initBinder() {
+    protected IProfileServiceBinder initBinder() {
         return new PanServiceBinder(this);
     }
 
@@ -186,7 +192,7 @@ public class PanService extends ConnectableProfile {
                 case MESSAGE_CONNECT -> {
                     BluetoothDevice connectDevice = (BluetoothDevice) msg.obj;
                     if (!mNativeInterface.connect(
-                            Utils.getByteBrEdrAddress(mAdapterService, connectDevice))) {
+                            getAdapterService().getByteBrEdrAddress(connectDevice))) {
                         handlePanDeviceStateChange(
                                 connectDevice,
                                 null,
@@ -204,7 +210,7 @@ public class PanService extends ConnectableProfile {
                 case MESSAGE_DISCONNECT -> {
                     BluetoothDevice disconnectDevice = (BluetoothDevice) msg.obj;
                     if (!mNativeInterface.disconnect(
-                            Utils.getByteBrEdrAddress(mAdapterService, disconnectDevice))) {
+                            getAdapterService().getByteBrEdrAddress(disconnectDevice))) {
                         handlePanDeviceStateChange(
                                 disconnectDevice,
                                 mPanIfName,
@@ -221,7 +227,7 @@ public class PanService extends ConnectableProfile {
                 }
                 case MESSAGE_CONNECT_STATE_CHANGED -> {
                     ConnectState cs = (ConnectState) msg.obj;
-                    final BluetoothDevice device = mAdapterService.getDeviceFromByte(cs.addr);
+                    final BluetoothDevice device = getAdapterService().getDeviceFromByte(cs.addr);
                     // TBD get iface from the msg
                     Log.d(TAG, "MESSAGE_CONNECT_STATE_CHANGED: " + device + " state: " + cs.state);
                     // It could be null if the connection up is coming when the
@@ -314,7 +320,7 @@ public class PanService extends ConnectableProfile {
             intent.putExtra(
                     BluetoothPan.EXTRA_TETHERING_STATE,
                     mTetherOn ? BluetoothPan.TETHERING_STATE_ON : BluetoothPan.TETHERING_STATE_OFF);
-            sendBroadcast(intent, null, Utils.getTempBroadcastBundle());
+            sendBroadcast(intent, null, Util.getTempBroadcastBundle());
         }
     }
 
@@ -336,9 +342,7 @@ public class PanService extends ConnectableProfile {
     public boolean setConnectionPolicy(BluetoothDevice device, int connectionPolicy) {
         Log.d(TAG, "Saved connectionPolicy " + device + " = " + connectionPolicy);
 
-        if (!mAdapterService.setProfileConnectionPolicy(device, mProfileId, connectionPolicy)) {
-            return false;
-        }
+        getAdapterService().setProfileConnectionPolicy(device, getProfileId(), connectionPolicy);
         if (connectionPolicy == CONNECTION_POLICY_ALLOWED) {
             connect(device);
         } else if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
@@ -462,7 +466,7 @@ public class PanService extends ConnectableProfile {
                             "handlePanDeviceStateChange BT tethering is off/Local role"
                                     + " is PANU drop the connection");
                     mPanDevices.remove(device);
-                    mNativeInterface.disconnect(Utils.getByteBrEdrAddress(mAdapterService, device));
+                    mNativeInterface.disconnect(getAdapterService().getByteBrEdrAddress(device));
                     return;
                 }
                 Log.d(TAG, "handlePanDeviceStateChange LOCAL_NAP_ROLE:REMOTE_PANU_ROLE");
@@ -515,8 +519,8 @@ public class PanService extends ConnectableProfile {
             }
         }
 
-        mAdapterService.updateProfileConnectionAdapterProperties(
-                device, mProfileId, state, prevState);
+        getAdapterService()
+                .updateProfileConnectionAdapterProperties(device, getProfileId(), state, prevState);
 
         /* Notifying the connection state change of the profile before sending the intent for
         connection state change, as it was causing a race condition, with the UI not being

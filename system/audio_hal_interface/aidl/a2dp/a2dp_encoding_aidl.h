@@ -20,12 +20,12 @@
 
 #include <vector>
 
-#include "a2dp_constants.h"
 #include "a2dp_encoding.h"
-#include "a2dp_sbc_constants.h"
 #include "common/message_loop_thread.h"
 #include "hardware/bt_av.h"
 #include "osi/include/properties.h"
+#include "stack/include/a2dp_constants.h"
+#include "stack/include/a2dp_sbc_constants.h"
 
 namespace bluetooth {
 namespace audio {
@@ -53,6 +53,12 @@ bool init(bluetooth::common::MessageLoopThread* message_loop,
           bluetooth::audio::a2dp::StreamCallbacks const* stream_callbacks, bool offload_enabled);
 
 /***
+ * Initialize BluetoothAudio HAL for decoding session
+ ***/
+bool init_decoder(bluetooth::audio::a2dp::StreamCallbacks const* stream_callbacks,
+                  bool offload_enabled);
+
+/***
  * Clean up BluetoothAudio HAL
  ***/
 void cleanup();
@@ -75,6 +81,7 @@ void ack_stream_suspended(::bluetooth::audio::a2dp::Status status);
  * Read from the FMQ of BluetoothAudio HAL
  ***/
 size_t read(uint8_t* p_buf, uint32_t len);
+void flush_source();
 
 /***
  * Update A2DP delay report to BluetoothAudio HAL
@@ -133,7 +140,7 @@ std::optional<::bluetooth::audio::a2dp::provider::a2dp_configuration> get_a2dp_c
         std::vector<::bluetooth::audio::a2dp::provider::a2dp_remote_capabilities> const&
                 remote_seps,
         btav_a2dp_codec_config_t const& user_preferences,
-        ::bluetooth::a2dp::CodecId user_preferred_codec_id);
+        std::optional<::bluetooth::a2dp::CodecId> user_preferred_codec_id, bool is_source);
 
 /***
  * Query the codec parameters from the audio HAL.

@@ -16,7 +16,6 @@ cc_library_static {
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/gd",
-        "packages/modules/Bluetooth/system/stack/include",
     ],
     export_include_dirs: ["./"],
     srcs: [
@@ -28,6 +27,7 @@ cc_library_static {
     static_libs: [
         "bluetooth_flags_c_lib",
         "lib-bt-packets",
+        "libbluetooth_hci_pdl",
         "libbluetooth_log",
         "libbluetooth_types",
         "libosi",
@@ -57,7 +57,6 @@ cc_test {
     include_dirs: [
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/gd",
-        "packages/modules/Bluetooth/system/stack/include",
     ],
     srcs: [
         "tests/avrcp_connection_handler_test.cc",
@@ -77,6 +76,8 @@ cc_test {
         "libbluetooth_gd",
         "libbluetooth_log",
         "libbluetooth_types",
+        "libbt-btu-main-thread",
+        "libbt-common",
         "libbtdevice",
         "libchrome",
         "libcom.android.sysprop.bluetooth.wrapped",
@@ -108,7 +109,6 @@ cc_fuzz {
         "packages/modules/Bluetooth/system",
         "packages/modules/Bluetooth/system/gd",
         "packages/modules/Bluetooth/system/packet/tests",
-        "packages/modules/Bluetooth/system/stack/include",
     ],
     shared_libs: [
         "libaconfig_storage_read_api_cc",
@@ -124,6 +124,8 @@ cc_fuzz {
         "libbluetooth_gd",
         "libbluetooth_log",
         "libbluetooth_types",
+        "libbt-btu-main-thread",
+        "libbt-common",
         "libchrome",
         "libcutils",
         "libevent",

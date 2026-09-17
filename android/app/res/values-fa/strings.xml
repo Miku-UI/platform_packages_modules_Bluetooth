@@ -21,6 +21,8 @@
     <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"‏به برنامه برای دسترسی به مدیر BluetoothShare و استفاده از آن برای انتقال فایل‌ها اجازه می‌دهد."</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"مجاز کردن دسترسی به دستگاه بلوتوثی."</string>
     <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"به برنامه اجازه می‌دهد موقتاً یک دستگاه بلوتوث را در فهرست مجاز قرار دهد؛ با این کار دستگاه موردنظر مجاز خواهد بود بدون تأیید کاربر برای این دستگاه فایل ارسال کند."</string>
+    <string name="permlab_bluetoothBackup" msgid="49451988877877942">"مجاز کردن همه‌فرستی‌های «پشتیبان‌گیری بلوتوث»."</string>
+    <string name="permdesc_bluetoothBackup" msgid="2871500153259509669">"به برنامه بلوتوث اجازه می‌دهد همه‌فرستی‌ها را برای راه‌اندازی پشتیبان‌گیری از داده‌های تنظیمات بپذیرد"</string>
     <string name="bt_share_picker_label" msgid="7464438494743777696">"بلوتوث"</string>
     <string name="unknown_device" msgid="2317679521750821654">"دستگاه ناشناس"</string>
     <string name="unknownNumber" msgid="1245183329830158661">"ناشناس"</string>
@@ -33,7 +35,7 @@
     <string name="bt_enable_cancel" msgid="6770180540581977614">"لغو"</string>
     <string name="bt_enable_ok" msgid="4224374055813566166">"روشن کردن"</string>
     <string name="incoming_file_confirm_content" msgid="6573502088511901157">"فایل ورودی پذیرفته شود؟"</string>
-    <string name="incoming_file_confirm_cancel" msgid="9205906062663982692">"نپذیرفتن"</string>
+    <string name="incoming_file_confirm_cancel" msgid="9205906062663982692">"رد کردن"</string>
     <string name="incoming_file_confirm_ok" msgid="5046926299036238623">"پذیرفتن"</string>
     <string name="incoming_file_confirm_timeout_ok" msgid="8612187577686515660">"تأیید"</string>
     <string name="incoming_file_confirm_timeout_content" msgid="3221412098281076974">"هنگام پذیرش یک فایل ورودی از \"<xliff:g id="SENDER">%1$s</xliff:g>\" درنگ پیش آمد"</string>
@@ -50,7 +52,7 @@
     <string name="download_line3" msgid="6722284930665532816">"اندازه فایل: <xliff:g id="SIZE">%1$s</xliff:g>"</string>
     <string name="download_line4" msgid="5234701398884321314"></string>
     <string name="download_line5" msgid="4124272066218470715">"درحال دریافت فایل…"</string>
-    <string name="download_cancel" msgid="1705762428762702342">"متوقف کردن"</string>
+    <string name="download_cancel" msgid="1705762428762702342">"ایست"</string>
     <string name="download_ok" msgid="2404442707314575833">"پنهان کردن"</string>
     <string name="incoming_line1" msgid="6342300988329482408">"از"</string>
     <string name="incoming_line2" msgid="2199520895444457585">"نام فایل"</string>
@@ -96,7 +98,7 @@
     <string name="status_no_sd_card_default" msgid="8878262565692541241">"‏هیچ کارت SD موجود نیست. برای ذخیره فایل‌های منتقل‌شده، کارت SD در گوشی قرار دهید."</string>
     <string name="status_connection_error" msgid="8253709700568062220">"اتصال ناموفق بود."</string>
     <string name="status_protocol_error" msgid="3231573735130475654">"درخواست به درستی انجام نمی‌شود."</string>
-    <string name="status_unknown_error" msgid="314676481744304866">"خطای ناشناس."</string>
+    <string name="status_unknown_error" msgid="314676481744304866">"خطای ناشناخته."</string>
     <string name="opp_notification_group" msgid="150067508422520653">"اشتراکگذاری بلوتوث"</string>
     <string name="download_success" msgid="3438268368708549686">"<xliff:g id="FILE_SIZE">%1$s</xliff:g> دریافت کامل شد."</string>
     <string name="upload_success" msgid="143787470859042049">"<xliff:g id="FILE_SIZE">%1$s</xliff:g> ارسال کامل شد."</string>
@@ -112,10 +114,10 @@
     <string name="transfer_menu_open" msgid="5193344638774400131">"باز کردن"</string>
     <string name="transfer_menu_clear" msgid="7213491281898188730">"پاک کردن از فهرست"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"پاک کردن"</string>
-    <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"درحال پخش"</string>
+    <string name="bluetooth_media_audio_app_name" msgid="2389937877819723460">"بلوتوث صوتی"</string>
+    <string name="bluetooth_media_audio_queue_name" msgid="2327164681598379428">"درحال پخش"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"نماد برنامه"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"ارتباط بلوتوث صوتی قطع شد"</string>
-    <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"بلوتوث‌ صوتی"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"فایل‌های بزرگ‌تر از ۴ گیگابایت نمی‌توانند منتقل شوند"</string>
     <string name="bluetooth_connect_action" msgid="2319449093046720209">"اتصال به بلوتوث"</string>
     <string name="bluetooth_enabled_apm_title" msgid="6914461147844949044">"بلوتوث در «حالت هواپیما» روشن باشد"</string>
@@ -130,4 +132,13 @@
     <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"«بلوتوث» دوباره روشن شد"</string>
     <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"هرزمان خواستید می‌توانید این تنظیم را در «تنظیمات» تغییر دهید"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"تغییر خودکار وضعیت بلوتوث"</string>
+    <string name="auracast_notification_channel" msgid="5159181425358316696">"Auracast"</string>
+    <string name="auracast_notification_title" msgid="3101708313009368939">"جاری‌سازی <xliff:g id="STREAM_NAME">%1$s</xliff:g> صوتی دردسترس است"</string>
+    <string name="auracast_notification_subtext" msgid="4696155233480316395">"LE Audio"</string>
+    <string name="auracast_connect_device_message" msgid="4461776363082532493">"‏برای شروع گوش دادن، دستگاه LE Audio را متصل کنید"</string>
+    <string name="auracast_listen_on_device_message" msgid="3719491065367993094">"به جاری‌سازی صوتی <xliff:g id="STREAM_NAME">%1$s</xliff:g> در <xliff:g id="DEVICE_NAME">%2$s</xliff:g> گوش کنید"</string>
+    <string name="auracast_connect_action" msgid="7157544449029291355">"متصل کردن"</string>
+    <string name="auracast_connection_failed_message" msgid="6490085541428198952">"اتصال به جاری‌سازی صوتی <xliff:g id="STREAM_NAME">%1$s</xliff:g> در <xliff:g id="DEVICE_NAME">%2$s</xliff:g> شما ناموفق بود."</string>
+    <string name="auracast_default_stream_name" msgid="2824625871526576239">"اطراف"</string>
+    <string name="auracast_default_device_name" msgid="15748131701036354">"دستگاه‌ها"</string>
 </resources>

@@ -22,6 +22,8 @@
 #include <bluetooth/types/address.h>
 #include <com_android_bluetooth_flags.h>
 
+#include <algorithm>
+
 #include "abstract_message_loop.h"
 #include "array_utils.h"
 #include "avrcp_common.h"
@@ -37,6 +39,8 @@
 #include "packet/avrcp/set_absolute_volume.h"
 #include "packet/avrcp/set_addressed_player.h"
 #include "packet/avrcp/set_player_application_setting_value.h"
+#include "stack/include/avrc_defs.h"
+#include "stack/include/main_thread.h"
 
 template <>
 struct std::formatter<bluetooth::avrcp::PlayState> : enum_formatter<bluetooth::avrcp::PlayState> {};
@@ -52,8 +56,7 @@ Device::Device(const RawAddress& bdaddr, bool avrcp13_compatibility,
                                             std::unique_ptr<::bluetooth::PacketBuilder> message)>
                        send_msg_cb,
                uint16_t ctrl_mtu, uint16_t browse_mtu)
-    : weak_ptr_factory_(this),
-      address_(bdaddr),
+    : address_(bdaddr),
       avrcp13_compatibility_(avrcp13_compatibility),
       send_message_cb_(send_msg_cb),
       ctrl_mtu_(ctrl_mtu),
@@ -129,6 +132,9 @@ void Device::VendorPacketHandler(uint8_t label, std::shared_ptr<VendorPacket> pk
                   RejectBuilder::MakeBuilder(pkt->GetCommandPdu(), Status::INVALID_PARAMETER);
           send_message(label, false, std::move(response));
           active_labels_.erase(label);
+          if (com_android_bluetooth_flags_avrcp_volumechanged_wait_for_interim()) {
+            pending_interim_labels_.erase(label);
+          }
           volume_interface_ = nullptr;
           volume_ = VOL_REGISTRATION_FAILED;
           return;
@@ -202,9 +208,9 @@ void Device::VendorPacketHandler(uint8_t label, std::shared_ptr<VendorPacket> pk
         send_message(label, false, std::move(response));
         return;
       }
-      media_interface_->GetSongInfo(base::Bind(&Device::GetElementAttributesResponse,
-                                               weak_ptr_factory_.GetWeakPtr(), label,
-                                               get_element_attributes_request_pkt));
+      media_interface_->GetSongInfo(
+              "", base::Bind(&Device::GetElementAttributesResponse, weak_ptr_factory_.GetWeakPtr(),
+                             label, get_element_attributes_request_pkt));
     } break;
 
     case CommandPdu::GET_PLAY_STATUS: {
@@ -263,7 +269,7 @@ void Device::VendorPacketHandler(uint8_t label, std::shared_ptr<VendorPacket> pk
       }
 
       PlayerAttribute attribute = list_player_setting_values_request->GetRequestedAttribute();
-      if (attribute < PlayerAttribute::EQUALIZER || attribute > PlayerAttribute::SCAN) {
+      if (attribute < PlayerAttribute::REPEAT || attribute > PlayerAttribute::SHUFFLE) {
         log::warn("{}: Player Setting Attribute is not valid", address_);
         auto response = RejectBuilder::MakeBuilder(pkt->GetCommandPdu(), Status::INVALID_PARAMETER);
         send_message(label, false, std::move(response));
@@ -296,7 +302,7 @@ void Device::VendorPacketHandler(uint8_t label, std::shared_ptr<VendorPacket> pk
       std::vector<PlayerAttribute> attributes =
               get_current_player_setting_value_request->GetRequestedAttributes();
       for (auto attribute : attributes) {
-        if (attribute < PlayerAttribute::EQUALIZER || attribute > PlayerAttribute::SCAN) {
+        if (attribute < PlayerAttribute::REPEAT || attribute > PlayerAttribute::SHUFFLE) {
           log::warn("{}: Player Setting Attribute is not valid PDU: {} attribute: {}", address_,
                     pkt->GetCommandPdu(), (int)attribute);
           auto response =
@@ -336,7 +342,7 @@ void Device::VendorPacketHandler(uint8_t label, std::shared_ptr<VendorPacket> pk
 
       bool invalid_request = false;
       for (size_t i = 0; i < attributes.size(); i++) {
-        if (attributes[i] < PlayerAttribute::EQUALIZER || attributes[i] > PlayerAttribute::SCAN) {
+        if (attributes[i] < PlayerAttribute::REPEAT || attributes[i] > PlayerAttribute::SHUFFLE) {
           log::warn("{}: Player Setting Attribute is not valid PDU: {} attributes[i] = {}",
                     address_, pkt->GetCommandPdu(), (int)attributes[i]);
           invalid_request = true;
@@ -430,8 +436,20 @@ void Device::HandleGetCapabilities(uint8_t label,
   }
 }
 
+void Device::SetRcFeatures(RcFeature feature) {
+  log::info("feature={}", static_cast<std::underlying_type_t<RcFeature>>(feature));
+  peer_feature_ = feature;
+}
+
 void Device::HandleNotification(uint8_t label,
                                 const std::shared_ptr<RegisterNotificationRequest>& pkt) {
+  if (pkt->GetLength() == 0) {
+    log::error("invalid param length");
+    auto response =
+            RejectBuilder::MakeBuilder((CommandPdu)pkt->GetCommandPdu(), Status::INTERNAL_ERROR);
+    send_message(label, false, std::move(response));
+    return;
+  }
   if (!pkt->IsValid()) {
     log::warn("{}: Request packet is not valid", address_);
     auto response = RejectBuilder::MakeBuilder(pkt->GetCommandPdu(), Status::INVALID_PARAMETER);
@@ -465,9 +483,7 @@ void Device::HandleNotification(uint8_t label,
         send_message(label, false, std::move(response));
         return;
       }
-      std::vector<PlayerAttribute> attributes = {PlayerAttribute::EQUALIZER,
-                                                 PlayerAttribute::REPEAT, PlayerAttribute::SHUFFLE,
-                                                 PlayerAttribute::SCAN};
+      std::vector<PlayerAttribute> attributes = {PlayerAttribute::REPEAT, PlayerAttribute::SHUFFLE};
       player_settings_interface_->GetCurrentPlayerSettingValue(
               attributes, base::Bind(&Device::PlayerSettingChangedNotificationResponse,
                                      weak_ptr_factory_.GetWeakPtr(), label, true));
@@ -528,12 +544,17 @@ void Device::RegisterVolumeChanged() {
     if (active_labels_.find(i) == active_labels_.end()) {
       active_labels_.insert(i);
       label = i;
+      if (com_android_bluetooth_flags_avrcp_volumechanged_wait_for_interim()) {
+        pending_interim_labels_.insert(i);
+      }
       break;
     }
   }
 
   if (label == MAX_TRANSACTION_LABEL) {
-    log::fatal("{}: Abandon all hope, something went catastrophically wrong", address_);
+    log::error("{}: No available transaction labels, dropping volume change registration",
+               address_);
+    return;
   }
 
   send_message_cb_.Run(label, false, std::move(request));
@@ -552,6 +573,9 @@ void Device::HandleVolumeChanged(uint8_t label,
   if (pkt->GetCType() == CType::REJECTED) {
     // Disable Absolute Volume
     active_labels_.erase(label);
+    if (com_android_bluetooth_flags_avrcp_volumechanged_wait_for_interim()) {
+      pending_interim_labels_.erase(label);
+    }
     volume_ = VOL_REGISTRATION_FAILED;
     volume_interface_->DeviceConnected(GetAddress());
     return;
@@ -559,9 +583,20 @@ void Device::HandleVolumeChanged(uint8_t label,
 
   // We only update on interim and just re-register on changes.
   if (!pkt->IsInterim()) {
+    if (com_android_bluetooth_flags_avrcp_volumechanged_wait_for_interim() &&
+        pending_interim_labels_.find(label) != pending_interim_labels_.end()) {
+      log::warn("{}: received Changed event before Interim", address_);
+      return;
+    }
+
     active_labels_.erase(label);
     RegisterVolumeChanged();
     return;
+  }
+
+  // Remove label from pending_interim_labels_
+  if (com_android_bluetooth_flags_avrcp_volumechanged_wait_for_interim()) {
+    pending_interim_labels_.erase(label);
   }
 
   // Handle the first volume update.
@@ -682,6 +717,12 @@ void Device::TrackChangedNotificationResponse(uint8_t label, bool interim, std::
 
   auto response = RegisterNotificationResponseBuilder::MakeTrackChangedBuilder(interim, uid);
   send_message_cb_.Run(label, false, std::move(response));
+
+  // Send pending track changed Changed notification
+  if (interim && pending_track_changed_) {
+    log::warn("{}: Sending pending TrackChange notification", address_);
+    HandleTrackUpdate();
+  }
 }
 
 void Device::PlaybackStatusNotificationResponse(uint8_t label, bool interim, PlayStatus status) {
@@ -707,6 +748,21 @@ void Device::PlaybackStatusNotificationResponse(uint8_t label, bool interim, Pla
   if (!interim && state_to_send == last_play_status_.state) {
     log::verbose("Not sending notification due to no state update {}", address_);
     return;
+  }
+
+  log::verbose("last playstate: {}, new playstate: {}, interim: {}", last_play_status_.state,
+               state_to_send, interim);
+
+  // If the state has changed after the last changed event and before the interim, send the last
+  // state as interim and the new state as changed.
+  if (interim && last_play_status_.state != state_to_send &&
+      (last_play_status_.state == PlayState::PAUSED ||
+       last_play_status_.state == PlayState::PLAYING)) {
+    log::verbose("Sending interim with last state and changed with new state");
+    auto lastresponse = RegisterNotificationResponseBuilder::MakePlaybackStatusBuilder(
+            interim, last_play_status_.state);
+    send_message_cb_.Run(label, false, std::move(lastresponse));
+    interim = false;
   }
 
   last_play_status_.state = state_to_send;
@@ -754,6 +810,19 @@ void Device::PlaybackPosNotificationResponse(uint8_t label, bool interim, PlaySt
     log::verbose("Queue next play position update");
     play_pos_update_cb_.Reset(
             base::Bind(&Device::HandlePlayPosUpdate, weak_ptr_factory_.GetWeakPtr()));
+    if (com_android_bluetooth_flags_replace_message_loop_thread_with_gd_handler()) {
+      /**
+       * The `replace_message_loop_thread_with_gd_handler` flag converts libchrome `base::Thread`
+       * usage to `GdThread`. This makes `btbase::AbstractMessageLoop::current_task_runner()` return
+       * `NULL`, so we must post delayed tasks directly to the main thread.
+       *
+       * Considering `play_pos_interval_` is in `seconds` unit.
+       */
+      do_in_main_thread_delayed(play_pos_update_cb_.callback(),
+                                std::chrono::microseconds(play_pos_interval_ * 1000000));
+      return;
+    }
+
     btbase::AbstractMessageLoop::current_task_runner()->PostDelayedTask(
             FROM_HERE, play_pos_update_cb_.callback(),
 #if BASE_VER < 931007
@@ -908,8 +977,7 @@ void Device::MessageReceived(uint8_t label, std::shared_ptr<Packet> pkt) {
               pass_through_packet->GetOperationId());
       send_message(label, false, std::move(response));
 
-      // TODO (apanicke): Use an enum for media key ID's
-      if (pass_through_packet->GetOperationId() == 0x44 &&
+      if (pass_through_packet->GetOperationId() == AVRC_ID_PLAY &&
           pass_through_packet->GetKeyState() == KeyState::PUSHED) {
         // We need to get the play status since we need to know
         // what the actual playstate is without being modified
@@ -930,7 +998,7 @@ void Device::MessageReceived(uint8_t label, std::shared_ptr<Packet> pkt) {
                     }
                   }
 
-                  d->media_interface_->SendKeyEvent(d->address_, 0x44, KeyState::PUSHED);
+                  d->media_interface_->SendKeyEvent(d->address_, AVRC_ID_PLAY, KeyState::PUSHED);
                 },
                 weak_ptr_factory_.GetWeakPtr()));
         return;
@@ -952,6 +1020,16 @@ void Device::HandlePlayItem(uint8_t label, std::shared_ptr<PlayItemRequest> pkt)
   if (!pkt->IsValid()) {
     log::warn("{}: Request packet is not valid", address_);
     auto response = RejectBuilder::MakeBuilder(pkt->GetCommandPdu(), Status::INVALID_PARAMETER);
+    send_message(label, false, std::move(response));
+    return;
+  }
+
+  if (com_android_bluetooth_flags_fix_play_item_non_playable_folder() &&
+      pkt->GetScope() == Scope::VFS &&
+      non_playable_vfs_uids_.find(pkt->GetUid()) != non_playable_vfs_uids_.end()) {
+    log::warn("{}: Request to play non-playable folder", address_);
+    auto response =
+            RejectBuilder::MakeBuilder(pkt->GetCommandPdu(), Status::FOLDER_ITEM_NOT_PLAYABLE);
     send_message(label, false, std::move(response));
     return;
   }
@@ -1165,11 +1243,18 @@ void Device::HandleGetTotalNumberOfItems(uint8_t label,
                                        base::Bind(&Device::GetTotalNumberOfItemsVFSResponse,
                                                   weak_ptr_factory_.GetWeakPtr(), label));
       break;
-    case Scope::NOW_PLAYING:
-      media_interface_->GetNowPlayingList(
-              base::Bind(&Device::GetTotalNumberOfItemsNowPlayingResponse,
-                         weak_ptr_factory_.GetWeakPtr(), label));
+    case Scope::NOW_PLAYING: {
+      if (curr_addressed_player_id_ == -1) {
+        auto response = GetTotalNumberOfItemsResponseBuilder::MakeBuilder(
+                Status::NO_AVAILABLE_PLAYERS, 0x0000, 0);
+        send_message(label, true, std::move(response));
+        break;
+      }
+      auto builder = GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_ERROR, 0x0000,
+                                                                       now_playing_ids_.size());
+      send_message(label, true, std::move(builder));
       break;
+    }
     default:
       log::error("{}: scope={}", address_, pkt->GetScope());
       break;
@@ -1200,22 +1285,6 @@ void Device::GetTotalNumberOfItemsVFSResponse(uint8_t label, std::vector<ListIte
   send_message(label, true, std::move(builder));
 }
 
-void Device::GetTotalNumberOfItemsNowPlayingResponse(uint8_t label, std::string /*curr_song_id*/,
-                                                     std::vector<SongInfo> list) {
-  log::verbose("num_items={}", list.size());
-
-  if (curr_addressed_player_id_ == -1) {
-    auto response = GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_AVAILABLE_PLAYERS,
-                                                                      0x0000, 0);
-    send_message(label, true, std::move(response));
-    return;
-  }
-
-  auto builder =
-          GetTotalNumberOfItemsResponseBuilder::MakeBuilder(Status::NO_ERROR, 0x0000, list.size());
-  send_message(label, true, std::move(builder));
-}
-
 void Device::HandleChangePath(uint8_t label, std::shared_ptr<ChangePathRequest> pkt) {
   if (!pkt->IsValid()) {
     log::warn("{}: Request packet is not valid", address_);
@@ -1226,14 +1295,20 @@ void Device::HandleChangePath(uint8_t label, std::shared_ptr<ChangePathRequest> 
 
   log::verbose("direction={} uid=0x{:x}", pkt->GetDirection(), pkt->GetUid());
 
-  if (pkt->GetDirection() == Direction::DOWN && vfs_ids_.get_media_id(pkt->GetUid()) == "") {
-    log::error("{}: No item found for UID={}", address_, pkt->GetUid());
-    auto builder = ChangePathResponseBuilder::MakeBuilder(Status::DOES_NOT_EXIST, 0);
-    send_message(label, true, std::move(builder));
-    return;
-  }
-
   if (pkt->GetDirection() == Direction::DOWN) {
+    std::string media_id = vfs_ids_.get_media_id(pkt->GetUid());
+    if (media_id.empty()) {
+      log::error("{}: No item found for UID={}", address_, pkt->GetUid());
+      auto builder = ChangePathResponseBuilder::MakeBuilder(Status::DOES_NOT_EXIST, 0);
+      send_message(label, true, std::move(builder));
+      return;
+    } else if (com_android_bluetooth_flags_fix_play_item_non_playable_folder() &&
+               non_playable_vfs_uids_.find(pkt->GetUid()) == non_playable_vfs_uids_.end()) {
+      log::error("invalid folder");
+      auto builder = ChangePathResponseBuilder::MakeBuilder(Status::NOT_A_DIRECTORY, 0);
+      send_message(label, true, std::move(builder));
+      return;
+    }
     current_path_.push(vfs_ids_.get_media_id(pkt->GetUid()));
     log::verbose("Pushing Path to stack: \"{}\"", CurrentFolder());
   } else {
@@ -1257,8 +1332,18 @@ void Device::HandleChangePath(uint8_t label, std::shared_ptr<ChangePathRequest> 
 
 void Device::ChangePathResponse(uint8_t label, std::shared_ptr<ChangePathRequest> /*pkt*/,
                                 std::vector<ListItem> list) {
-  // TODO (apanicke): Reconstruct the VFS ID's here. Right now it gets
-  // reconstructed in GetFolderItemsVFS
+  for (const auto& item : list) {
+    if (item.type == ListItem::FOLDER) {
+      uint64_t item_uid = vfs_ids_.insert(item.folder.media_id);
+      if (com_android_bluetooth_flags_fix_play_item_non_playable_folder() &&
+          !item.folder.is_playable) {
+        non_playable_vfs_uids_.insert(item_uid);
+      }
+    } else if (item.type == ListItem::SONG) {
+      vfs_ids_.insert(item.song.media_id);
+    }
+  }
+
   auto builder = ChangePathResponseBuilder::MakeBuilder(Status::NO_ERROR, list.size());
   send_message(label, true, std::move(builder));
 }
@@ -1283,8 +1368,10 @@ void Device::HandleGetItemAttributes(uint8_t label, std::shared_ptr<GetItemAttri
 
   switch (pkt->GetScope()) {
     case Scope::NOW_PLAYING: {
-      media_interface_->GetNowPlayingList(base::Bind(&Device::GetItemAttributesNowPlayingResponse,
-                                                     weak_ptr_factory_.GetWeakPtr(), label, pkt));
+      auto media_id = now_playing_ids_.get_media_id(pkt->GetUid());
+      media_interface_->GetSongInfo(media_id,
+                                    base::Bind(&Device::GetItemAttributesNowPlayingResponse,
+                                               weak_ptr_factory_.GetWeakPtr(), label, pkt));
     } break;
     case Scope::VFS:
       // TODO (apanicke): Check the vfs_ids_ here. If the item doesn't exist
@@ -1303,29 +1390,9 @@ void Device::HandleGetItemAttributes(uint8_t label, std::shared_ptr<GetItemAttri
 
 void Device::GetItemAttributesNowPlayingResponse(uint8_t label,
                                                  std::shared_ptr<GetItemAttributesRequest> pkt,
-                                                 std::string curr_media_id,
-                                                 std::vector<SongInfo> song_list) {
+                                                 SongInfo info) {
   log::verbose("uid=0x{:x}", pkt->GetUid());
   auto builder = GetItemAttributesResponseBuilder::MakeBuilder(Status::NO_ERROR, browse_mtu_);
-
-  auto media_id = now_playing_ids_.get_media_id(pkt->GetUid());
-  if (media_id == "") {
-    media_id = curr_media_id;
-  }
-
-  log::verbose("media_id=\"{}\"", media_id);
-
-  SongInfo info;
-  if (song_list.size() == 1) {
-    log::verbose("Send out the only song in the queue as now playing song.");
-    info = song_list.front();
-  } else {
-    for (const auto& temp : song_list) {
-      if (temp.media_id == media_id) {
-        info = temp;
-      }
-    }
-  }
 
   // Filter out DEFAULT_COVER_ART handle if this device has no client
   if (!HasBipClient()) {
@@ -1441,11 +1508,25 @@ void Device::GetItemAttributesVFSResponse(uint8_t label,
 void Device::GetMediaPlayerListResponse(uint8_t label, std::shared_ptr<GetFolderItemsRequest> pkt,
                                         uint16_t curr_player,
                                         std::vector<MediaPlayerInfo> players) {
-  log::verbose("");
+  log::info("");
 
   if (players.size() == 0) {
     auto no_items_rsp = GetFolderItemsResponseBuilder::MakePlayerListBuilder(
+            Status::NO_AVAILABLE_PLAYERS, 0x0000, browse_mtu_);
+    send_message(label, true, std::move(no_items_rsp));
+    return;
+  } else if (pkt->GetStartItem() >= players.size()) {
+    auto no_items_rsp = GetFolderItemsResponseBuilder::MakePlayerListBuilder(
             Status::RANGE_OUT_OF_BOUNDS, 0x0000, browse_mtu_);
+    send_message(label, true, std::move(no_items_rsp));
+    return;
+  }
+
+  if (RcFeature::RC_FEAT_UNDEFINED != peer_feature_ &&
+      RcFeature::RC_FEAT_NONE == (peer_feature_ & RcFeature::RC_FEAT_BROWSE)) {
+    log::warn("Browsing is not supported, respond with No Available Players.");
+    auto no_items_rsp = GetFolderItemsResponseBuilder::MakePlayerListBuilder(
+            Status::NO_AVAILABLE_PLAYERS, 0x0000, browse_mtu_);
     send_message(label, true, std::move(no_items_rsp));
     return;
   }
@@ -1499,7 +1580,11 @@ void Device::GetVFSListResponse(uint8_t label, std::shared_ptr<GetFolderItemsReq
   // an operation.
   for (const auto& item : items) {
     if (item.type == ListItem::FOLDER) {
-      vfs_ids_.insert(item.folder.media_id);
+      uint64_t item_uid = vfs_ids_.insert(item.folder.media_id);
+      if (com_android_bluetooth_flags_fix_play_item_non_playable_folder() &&
+          !item.folder.is_playable) {
+        non_playable_vfs_uids_.insert(item_uid);
+      }
     } else if (item.type == ListItem::SONG) {
       vfs_ids_.insert(item.song.media_id);
     }
@@ -1599,8 +1684,10 @@ void Device::HandleSetBrowsedPlayer(uint8_t label, std::shared_ptr<SetBrowsedPla
     return;
   }
 
-  log::verbose("player_id={}", pkt->GetPlayerId());
-  media_interface_->SetBrowsedPlayer(pkt->GetPlayerId(), CurrentFolder(),
+  uint16_t player_id = pkt->GetPlayerId();
+  log::verbose("player_id={}", player_id);
+
+  media_interface_->SetBrowsedPlayer(player_id, CurrentFolder(),
                                      base::Bind(&Device::SetBrowsedPlayerResponse,
                                                 weak_ptr_factory_.GetWeakPtr(), label, pkt));
 }
@@ -1630,8 +1717,10 @@ void Device::SetBrowsedPlayerResponse(uint8_t label, std::shared_ptr<SetBrowsedP
   current_path_ = std::stack<std::string>();
   current_path_.push(current_path);
 
+  uint8_t folder_depth = std::max<uint8_t>(current_path_.size() - 1, 0);
+
   auto response = SetBrowsedPlayerResponseBuilder::MakeBuilder(Status::NO_ERROR, 0x0000, num_items,
-                                                               0, current_path);
+                                                               folder_depth, current_path);
   send_message(label, true, std::move(response));
 }
 
@@ -1675,9 +1764,11 @@ void Device::HandleTrackUpdate() {
   log::verbose("");
   if (!track_changed_.first) {
     log::warn("Device is not registered for track changed updates");
+    pending_track_changed_ = true;
     return;
   }
 
+  pending_track_changed_ = false;
   media_interface_->GetNowPlayingList(base::Bind(&Device::TrackChangedNotificationResponse,
                                                  weak_ptr_factory_.GetWeakPtr(),
                                                  track_changed_.second, false));
@@ -1845,6 +1936,8 @@ void Device::DeviceDisconnected() {
   // to reset the local volume var to be sure we send the correct value
   // to the remote device on the next connection.
   volume_ = VOL_NOT_SUPPORTED;
+
+  pending_track_changed_ = false;
 }
 
 static std::string volumeToStr(int8_t volume) {
@@ -1891,7 +1984,7 @@ std::ostream& operator<<(std::ostream& out, const Device& d) {
   if (d.uids_changed_.first) {
     out << "        UIDs Changed\n";
   }
-  out << "    Last Play State: " << d.last_play_status_.state << std::endl;
+  out << "    Last Play State: " << static_cast<int>(d.last_play_status_.state) << std::endl;
   out << "    Last Song Sent ID: \"" << d.last_song_info_.media_id << "\"\n";
   out << "    Current Folder: \"" << d.CurrentFolder() << "\"\n";
   out << "    MTU Sizes: CTRL=" << d.ctrl_mtu_ << " BROWSE=" << d.browse_mtu_ << std::endl;

@@ -28,12 +28,12 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
 #include "stack/include/l2cdefs.h"
-#include "stack/test/common/mock_btm_api_layer.h"
+#include "stack/mock/mock_stack_btm_interface.h"
+#include "stack/mock/mock_stack_l2cap_interface.h"
+#include "stack/mock/mock_stack_security_client_interface.h"
 #include "stack/test/common/mock_eatt.h"
 #include "stack/test/common/mock_gatt_layer.h"
-#include "stack/test/common/mock_l2cap_layer.h"
 #include "test/mock/mock_main_shim_entry.h"
-#include "test/mock/mock_stack_l2cap_interface.h"
 
 using testing::_;
 using testing::DoAll;
@@ -63,7 +63,7 @@ tGATT_TCB* gatt_find_tcb_by_addr(const RawAddress& /*bda*/, tBT_TRANSPORT /*tran
 }
 
 namespace {
-const RawAddress test_address({0x11, 0x11, 0x11, 0x11, 0x11, 0x11});
+const RawAddress test_address("11:11:11:11:11:11");
 std::vector<uint16_t> test_local_cids{61, 62, 63, 64, 65};
 
 class EattTest : public ::testing::Test {
@@ -222,9 +222,8 @@ protected:
             std::make_unique<bluetooth::hci::testing::MockController>();
     EXPECT_CALL(*bluetooth::hci::testing::mock_controller_, GetLeBufferSize)
             .WillRepeatedly(Return(le_buffer_size_));
-    bluetooth::l2cap::SetMockInterface(&l2cap_interface_);
-    bluetooth::manager::SetMockBtmApiInterface(&btm_api_interface_);
     bluetooth::gatt::SetMockGattInterface(&gatt_interface_);
+    set_security_client_interface(mock_btm_security_);
 
     // Clear the static memory for each test case
     memset(&test_tcb, 0, sizeof(test_tcb));
@@ -233,8 +232,6 @@ protected:
             .WillOnce(DoAll(SaveArg<1>(&l2cap_app_info_), ::testing::ReturnArg<0>()));
 
     hci_role_ = HCI_ROLE_CENTRAL;
-
-    EXPECT_CALL(l2cap_interface_, LeCreditDefault()).WillRepeatedly(DoAll(Return(0xfff)));
 
     EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_GetBleConnRole(_))
             .WillRepeatedly(DoAll(Return(hci_role_)));
@@ -246,7 +243,7 @@ protected:
   }
 
   void TearDown() override {
-    com::android::bluetooth::flags::provider_->reset_flags();
+    com_android_bluetooth_flags_reset_flags();
 
     EXPECT_CALL(mock_stack_l2cap_interface_, L2CA_DeregisterLECoc(BT_PSM_EATT)).Times(1);
 
@@ -256,20 +253,18 @@ protected:
     connected_cids_.clear();
 
     bluetooth::gatt::SetMockGattInterface(nullptr);
-    bluetooth::l2cap::SetMockInterface(nullptr);
     bluetooth::testing::stack::l2cap::reset_interface();
-    bluetooth::manager::SetMockBtmApiInterface(nullptr);
     bluetooth::hci::testing::mock_controller_.reset();
+    reset_mock_btm_client_interface();
 
     Test::TearDown();
   }
 
   tL2CAP_APPL_INFO reg_info_;
 
-  bluetooth::manager::MockBtmApiInterface btm_api_interface_;
-  bluetooth::l2cap::MockL2capInterface l2cap_interface_;
   bluetooth::testing::stack::l2cap::Mock mock_stack_l2cap_interface_;
   bluetooth::gatt::MockGattInterface gatt_interface_;
+  NiceMock<MockSecurityClientInterface> mock_btm_security_;
   bluetooth::hci::LeBufferSize le_buffer_size_;
 
   tL2CAP_APPL_INFO l2cap_app_info_;
@@ -286,9 +281,7 @@ TEST_F(EattTest, ConnectSucceed) {
 TEST_F(EattTest, IncomingEattConnectionByUnknownDevice) {
   std::vector<uint16_t> incoming_cids{71, 72, 73, 74, 75};
 
-  ON_CALL(btm_api_interface_, IsEncrypted)
-          .WillByDefault(
-                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return true; });
+  ON_CALL(mock_btm_security_, BTM_IsEncrypted(_, _)).WillByDefault(Return(true));
   EXPECT_CALL(mock_stack_l2cap_interface_,
               L2CA_ConnectCreditBasedRsp(test_address, 1, incoming_cids,
                                          tL2CAP_LE_RESULT_CODE::L2CAP_LE_RESULT_CONN_OK, _))
@@ -302,9 +295,7 @@ TEST_F(EattTest, IncomingEattConnectionByUnknownDevice) {
 
 TEST_F(EattTest, IncomingEattConnectionByKnownDevice) {
   hci_role_ = HCI_ROLE_PERIPHERAL;
-  ON_CALL(btm_api_interface_, IsEncrypted)
-          .WillByDefault(
-                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return true; });
+  ON_CALL(mock_btm_security_, BTM_IsEncrypted(_, _)).WillByDefault(Return(true));
   ON_CALL(gatt_interface_, ClientReadSupportedFeatures)
           .WillByDefault([](const RawAddress& addr,
                             base::OnceCallback<void(const RawAddress&, uint8_t)> cb) {
@@ -333,12 +324,8 @@ TEST_F(EattTest, IncomingEattConnectionByKnownDevice) {
 
 TEST_F(EattTest, IncomingEattConnectionByKnownDeviceEncryptionOff) {
   hci_role_ = HCI_ROLE_PERIPHERAL;
-  ON_CALL(btm_api_interface_, IsEncrypted)
-          .WillByDefault(
-                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return false; });
-  ON_CALL(btm_api_interface_, IsDeviceBonded)
-          .WillByDefault(
-                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return true; });
+  ON_CALL(mock_btm_security_, BTM_IsEncrypted(_, _)).WillByDefault(Return(false));
+  ON_CALL(mock_btm_security_, BTM_IsBonded(_, _)).WillByDefault(Return(true));
   ON_CALL(gatt_interface_, ClientReadSupportedFeatures)
           .WillByDefault([](const RawAddress& addr,
                             base::OnceCallback<void(const RawAddress&, uint8_t)> cb) {
@@ -367,12 +354,8 @@ TEST_F(EattTest, IncomingEattConnectionByKnownDeviceEncryptionOff) {
 TEST_F(EattTest, IncomingEattConnectionByUnknownDeviceEncryptionOff) {
   std::vector<uint16_t> incoming_cids{71, 72, 73, 74, 75};
 
-  ON_CALL(btm_api_interface_, IsEncrypted)
-          .WillByDefault(
-                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return false; });
-  ON_CALL(btm_api_interface_, IsDeviceBonded)
-          .WillByDefault(
-                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return false; });
+  ON_CALL(mock_btm_security_, BTM_IsEncrypted(_, _)).WillByDefault(Return(false));
+  ON_CALL(mock_btm_security_, BTM_IsBonded(_, _)).WillByDefault(Return(false));
   EXPECT_CALL(mock_stack_l2cap_interface_,
               L2CA_ConnectCreditBasedRsp(
                       test_address, 1, _,
@@ -388,9 +371,7 @@ TEST_F(EattTest, ReconnectInitiatedByRemoteSucceed) {
   DisconnectEattDevice(connected_cids_);
   std::vector<uint16_t> incoming_cids{71, 72, 73, 74, 75};
 
-  ON_CALL(btm_api_interface_, IsEncrypted)
-          .WillByDefault(
-                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return true; });
+  ON_CALL(mock_btm_security_, BTM_IsEncrypted(_, _)).WillByDefault(Return(true));
 
   EXPECT_CALL(mock_stack_l2cap_interface_,
               L2CA_ConnectCreditBasedRsp(test_address, 1, incoming_cids,
@@ -404,9 +385,7 @@ TEST_F(EattTest, ReconnectInitiatedByRemoteSucceed) {
 }
 
 TEST_F(EattTest, ConnectInitiatedWhenRemoteConnects) {
-  ON_CALL(btm_api_interface_, IsEncrypted)
-          .WillByDefault(
-                  [](const RawAddress& /*addr*/, tBT_TRANSPORT /*transport*/) { return true; });
+  ON_CALL(mock_btm_security_, BTM_IsEncrypted(_, _)).WillByDefault(Return(true));
 
   std::vector<uint16_t> incoming_cids{71, 72, 73, 74};
   ConnectDeviceBothSides(1, incoming_cids);

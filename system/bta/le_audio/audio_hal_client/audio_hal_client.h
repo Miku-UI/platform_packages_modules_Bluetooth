@@ -22,8 +22,8 @@
 #include <vector>
 
 #include "audio_hal_interface/le_audio_software.h"
-#include "le_audio/codec_manager.h"
-#include "le_audio/le_audio_types.h"
+#include "bta/le_audio/codec_manager.h"
+#include "bta/le_audio/le_audio_types.h"
 
 namespace bluetooth::le_audio {
 /* Represents configuration used to configure the local audio sessions and
@@ -103,7 +103,7 @@ public:
 /* Used by the local BLE Audio Sink device to pass the audio data
  * received from a remote BLE Audio Source to the Audio HAL.
  */
-class LeAudioSinkAudioHalClient {
+class LeAudioSinkAudioHalClient : public LeAudioCommonAudioHalClient {
 public:
   class Callbacks {
   public:
@@ -114,6 +114,9 @@ public:
     virtual void OnAudioMetadataUpdate(
             const std::vector<struct record_track_metadata_v7> sink_metadata) = 0;
 
+    // Member variables should appear before the WeakPtrFactory, to ensure
+    // that any WeakPtrs are invalidated before its members
+    // variable's destructors are executed, rendering them invalid.
     base::WeakPtrFactory<Callbacks> weak_factory_{this};
   };
 
@@ -130,11 +133,14 @@ public:
   virtual void UpdateAudioConfigToHal(const ::bluetooth::le_audio::stream_config& config) = 0;
   virtual void SetCodecPriority(const ::bluetooth::le_audio::types::LeAudioCodecId& codecId,
                                 int32_t priority) = 0;
+  virtual void UpdateBroadcastAudioConfigToHal(
+          const ::bluetooth::le_audio::broadcast_offload_config& config) = 0;
   virtual void SuspendedForReconfiguration() = 0;
   virtual void ReconfigurationComplete() = 0;
   virtual void StreamSuspended() = 0;
 
   static std::unique_ptr<LeAudioSinkAudioHalClient> AcquireUnicast();
+  static std::unique_ptr<LeAudioSinkAudioHalClient> AcquireBroadcast();
   static void DebugDump(int fd);
 
 protected:
@@ -157,6 +163,9 @@ public:
             const std::vector<struct playback_track_metadata_v7> source_metadata,
             DsaMode dsa_mode) = 0;
 
+    // Member variables should appear before the WeakPtrFactory, to ensure
+    // that any WeakPtrs are invalidated before its members
+    // variable's destructors are executed, rendering them invalid.
     base::WeakPtrFactory<Callbacks> weak_factory_{this};
   };
 

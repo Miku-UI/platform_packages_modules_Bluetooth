@@ -32,7 +32,6 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
-#include <ostream>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -313,11 +312,10 @@ void sdpu_log_attribute_metrics(const RawAddress& bda, tSDP_DISCOVERY_DB* p_db) 
  *
  ******************************************************************************/
 tCONN_CB* sdpu_find_ccb_by_cid(uint16_t cid) {
-  uint16_t xx;
-  tCONN_CB* p_ccb{};
+  tCONN_CB* p_ccb = sdp_cb.ccb;
 
   /* Look through each connection control block */
-  for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
+  for (uint16_t xx = 0; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
     if ((p_ccb->con_state != tSDP_STATE::IDLE) && (p_ccb->con_state != tSDP_STATE::CONN_PEND) &&
         (p_ccb->connection_id == cid)) {
       return p_ccb;
@@ -339,12 +337,11 @@ tCONN_CB* sdpu_find_ccb_by_cid(uint16_t cid) {
  *
  ******************************************************************************/
 tCONN_CB* sdpu_find_ccb_by_db(const tSDP_DISCOVERY_DB* p_db) {
-  uint16_t xx;
-  tCONN_CB* p_ccb{};
+  tCONN_CB* p_ccb = sdp_cb.ccb;
 
   if (p_db) {
     /* Look through each connection control block */
-    for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
+    for (uint16_t xx = 0; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
       if ((p_ccb->con_state != tSDP_STATE::IDLE) && (p_ccb->p_db == p_db)) {
         return p_ccb;
       }
@@ -364,11 +361,10 @@ tCONN_CB* sdpu_find_ccb_by_db(const tSDP_DISCOVERY_DB* p_db) {
  *
  ******************************************************************************/
 tCONN_CB* sdpu_allocate_ccb(void) {
-  uint16_t xx;
-  tCONN_CB* p_ccb{};
+  tCONN_CB* p_ccb = sdp_cb.ccb;
 
   /* Look through each connection control block for a free one */
-  for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
+  for (uint16_t xx = 0; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
     if (p_ccb->con_state == tSDP_STATE::IDLE) {
       alarm_t* alarm = p_ccb->sdp_conn_timer;
       *p_ccb = {};
@@ -432,10 +428,9 @@ void sdpu_release_ccb(tCONN_CB& ccb) {
  *
  ******************************************************************************/
 void sdpu_dump_all_ccb() {
-  uint16_t xx{};
-  tCONN_CB* p_ccb{};
+  tCONN_CB* p_ccb = sdp_cb.ccb;
 
-  for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
+  for (uint16_t xx = 0; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
     log::info("peer:{} cid:{} state:{} flags:{} ", p_ccb->device_address, p_ccb->connection_id,
               sdp_state_text(p_ccb->con_state), sdp_flags_text(p_ccb->con_flags));
   }
@@ -454,11 +449,10 @@ void sdpu_dump_all_ccb() {
  *
  ******************************************************************************/
 uint16_t sdpu_get_active_ccb_cid(const RawAddress& bd_addr) {
-  uint16_t xx;
-  tCONN_CB* p_ccb{};
+  tCONN_CB* p_ccb = sdp_cb.ccb;
 
   // Look through each connection control block for active sdp on given remote
-  for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
+  for (uint16_t xx = 0; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
     if ((p_ccb->con_state == tSDP_STATE::CONN_SETUP) ||
         (p_ccb->con_state == tSDP_STATE::CFG_SETUP) ||
         (p_ccb->con_state == tSDP_STATE::CONNECTED)) {
@@ -485,11 +479,10 @@ uint16_t sdpu_get_active_ccb_cid(const RawAddress& bd_addr) {
  *
  ******************************************************************************/
 bool sdpu_process_pend_ccb_same_cid(const tCONN_CB& ccb) {
-  uint16_t xx;
-  tCONN_CB* p_ccb{};
+  tCONN_CB* p_ccb = sdp_cb.ccb;
 
   // Look through each connection control block for active sdp on given remote
-  for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
+  for (uint16_t xx = 0; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
     if ((p_ccb->con_state == tSDP_STATE::CONN_PEND) &&
         (p_ccb->connection_id == ccb.connection_id) && (p_ccb->con_flags & SDP_FLAGS_IS_ORIG)) {
       p_ccb->con_state = tSDP_STATE::CONNECTED;
@@ -514,13 +507,12 @@ bool sdpu_process_pend_ccb_same_cid(const tCONN_CB& ccb) {
  *
  ******************************************************************************/
 bool sdpu_process_pend_ccb_new_cid(const tCONN_CB& ccb) {
-  uint16_t xx;
-  tCONN_CB* p_ccb{};
+  tCONN_CB* p_ccb = sdp_cb.ccb;
   uint16_t new_cid = 0;
   bool new_conn = false;
 
   // Look through each ccb to replace the obsolete cid with a new one.
-  for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
+  for (uint16_t xx = 0; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
     if ((p_ccb->con_state == tSDP_STATE::CONN_PEND) &&
         (p_ccb->connection_id == ccb.connection_id) && (p_ccb->con_flags & SDP_FLAGS_IS_ORIG)) {
       if (!new_conn) {
@@ -555,11 +547,10 @@ bool sdpu_process_pend_ccb_new_cid(const tCONN_CB& ccb) {
  *
  ******************************************************************************/
 void sdpu_clear_pend_ccb(const tCONN_CB& ccb) {
-  uint16_t xx;
-  tCONN_CB* p_ccb{};
+  tCONN_CB* p_ccb = sdp_cb.ccb;
 
   // Look through each connection control block for active sdp on given remote
-  for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
+  for (uint16_t xx = 0; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
     if ((p_ccb->con_state == tSDP_STATE::CONN_PEND) &&
         (p_ccb->connection_id == ccb.connection_id) && (p_ccb->con_flags & SDP_FLAGS_IS_ORIG)) {
       sdpu_callback(*p_ccb, tSDP_STATUS::SDP_CONN_FAILED);
@@ -581,11 +572,10 @@ void sdpu_clear_pend_ccb(const tCONN_CB& ccb) {
  *
  ******************************************************************************/
 void sdpu_clear_all_ccbs_for_cid(uint16_t cid) {
-  uint16_t xx;
-  tCONN_CB* p_ccb{};
+  tCONN_CB* p_ccb = sdp_cb.ccb;
 
   // Look through each connection control block for active sdp on given cid
-  for (xx = 0, p_ccb = sdp_cb.ccb; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
+  for (uint16_t xx = 0; xx < SDP_MAX_CONNECTIONS; xx++, p_ccb++) {
     if ((p_ccb->connection_id == cid) && (p_ccb->con_flags & SDP_FLAGS_IS_ORIG)) {
       sdpu_callback(*p_ccb, tSDP_STATUS::SDP_CONN_FAILED);
       sdpu_release_ccb(*p_ccb);
@@ -605,23 +595,36 @@ void sdpu_clear_all_ccbs_for_cid(uint16_t cid) {
  * Returns          Pointer to next byte in the output buffer.
  *
  ******************************************************************************/
-uint8_t* sdpu_build_attrib_seq(uint8_t* p_out, uint16_t* p_attr, uint16_t num_attrs) {
-  uint16_t xx;
+uint8_t* sdpu_build_attrib_seq(uint8_t* p_out, uint16_t* p_attr, uint16_t num_attrs,
+                               uint16_t& bytes_left) {
+  int content_len, header_len;
 
-  /* First thing is the data element header. See if the length fits 1 byte */
   /* If no attributes, assume a 4-byte wildcard */
   if (!p_attr) {
-    xx = 5;
+    content_len = 5;
   } else {
-    xx = num_attrs * 3;
+    content_len = num_attrs * 3;
   }
 
-  if (xx > 255) {
+  /* First thing is the data element header. See if the length fits 1 byte */
+  if (content_len > 255) {
+    header_len = 3;
+  } else {
+    header_len = 2;
+  }
+
+  if (bytes_left < content_len + header_len) {
+    DCHECK(0) << "SDP: No space for attrib seq";
+    return p_out;
+  }
+  bytes_left -= (header_len + content_len);
+
+  if (content_len > 255) {
     UINT8_TO_BE_STREAM(p_out, (DATA_ELE_SEQ_DESC_TYPE << 3) | SIZE_IN_NEXT_WORD);
-    UINT16_TO_BE_STREAM(p_out, xx);
+    UINT16_TO_BE_STREAM(p_out, content_len);
   } else {
     UINT8_TO_BE_STREAM(p_out, (DATA_ELE_SEQ_DESC_TYPE << 3) | SIZE_IN_NEXT_BYTE);
-    UINT8_TO_BE_STREAM(p_out, xx);
+    UINT8_TO_BE_STREAM(p_out, content_len);
   }
 
   /* If there are no attributes specified, assume caller wants wildcard */
@@ -631,7 +634,7 @@ uint8_t* sdpu_build_attrib_seq(uint8_t* p_out, uint16_t* p_attr, uint16_t num_at
     UINT16_TO_BE_STREAM(p_out, 0xFFFF);
   } else {
     /* Loop through and put in all the attributes(s) */
-    for (xx = 0; xx < num_attrs; xx++, p_attr++) {
+    for (uint16_t xx = 0; xx < num_attrs; xx++, p_attr++) {
       UINT8_TO_BE_STREAM(p_out, (UINT_DESC_TYPE << 3) | SIZE_TWO_BYTES);
       UINT16_TO_BE_STREAM(p_out, *p_attr);
     }
@@ -1050,18 +1053,14 @@ uint8_t* sdpu_extract_attr_seq(uint8_t* p, uint16_t param_len, tSDP_ATTR_SEQ* p_
  *
  ******************************************************************************/
 uint8_t* sdpu_get_len_from_type(uint8_t* p, uint8_t* p_end, uint8_t type, uint32_t* p_len) {
-  uint8_t u8;
-  uint16_t u16;
-  uint32_t u32;
+  if (com_android_bluetooth_flags_stack_sdp_detect_nil_property_type_v2() && type == 0) {
+    *p_len = 0;
+    return nullptr;
+  }
 
   switch (type & 7) {
     case SIZE_ONE_BYTE:
-      if (com_android_bluetooth_flags_stack_sdp_detect_nil_property_type()) {
-        // Return NIL type if appropriate
-        *p_len = (type == 0) ? 0 : sizeof(uint8_t);
-      } else {
-        *p_len = 1;
-      }
+      *p_len = 1;
       break;
     case SIZE_TWO_BYTES:
       *p_len = 2;
@@ -1078,24 +1077,27 @@ uint8_t* sdpu_get_len_from_type(uint8_t* p, uint8_t* p_end, uint8_t type, uint32
     case SIZE_IN_NEXT_BYTE:
       if (p + 1 > p_end) {
         *p_len = 0;
-        return NULL;
+        return nullptr;
       }
+      uint8_t u8;
       BE_STREAM_TO_UINT8(u8, p);
       *p_len = u8;
       break;
     case SIZE_IN_NEXT_WORD:
       if (p + 2 > p_end) {
         *p_len = 0;
-        return NULL;
+        return nullptr;
       }
+      uint16_t u16;
       BE_STREAM_TO_UINT16(u16, p);
       *p_len = u16;
       break;
     case SIZE_IN_NEXT_LONG:
       if (p + 4 > p_end) {
         *p_len = 0;
-        return NULL;
+        return nullptr;
       }
+      uint32_t u32;
       BE_STREAM_TO_UINT32(u32, p);
       *p_len = (uint16_t)u32;
       break;
@@ -1115,9 +1117,7 @@ uint8_t* sdpu_get_len_from_type(uint8_t* p, uint8_t* p_end, uint8_t type, uint32
  *
  ******************************************************************************/
 bool sdpu_is_base_uuid(uint8_t* p_uuid) {
-  uint16_t xx;
-
-  for (xx = 4; xx < Uuid::kNumBytes128; xx++) {
+  for (uint16_t xx = 4; xx < Uuid::kNumBytes128; xx++) {
     if (p_uuid[xx] != sdp_base_uuid[xx]) {
       return false;
     }
@@ -1328,11 +1328,10 @@ uint16_t sdpu_get_list_len(tSDP_UUID_SEQ* uid_seq, tSDP_ATTR_SEQ* attr_seq) {
 uint16_t sdpu_get_attrib_seq_len(const tSDP_RECORD* p_rec, const tSDP_ATTR_SEQ* attr_seq) {
   const tSDP_ATTRIBUTE* p_attr;
   uint16_t len1 = 0;
-  uint16_t xx;
   bool is_range = false;
   uint16_t start_id = 0, end_id = 0;
 
-  for (xx = 0; xx < attr_seq->num_attr; xx++) {
+  for (uint16_t xx = 0; xx < attr_seq->num_attr; xx++) {
     if (!is_range) {
       start_id = attr_seq->attr_entry[xx].start;
       end_id = attr_seq->attr_entry[xx].end;
@@ -1343,6 +1342,11 @@ uint16_t sdpu_get_attrib_seq_len(const tSDP_RECORD* p_rec, const tSDP_ATTR_SEQ* 
 
       /* If doing a range, stick with this one till no more attributes found */
       if (start_id != end_id) {
+        if (p_attr->id == UINT16_MAX) {
+          log::error("invalid p_attr id:{}", p_attr->id);
+          return len1;
+        }
+
         /* Update for next time through */
         start_id = p_attr->id + 1;
         xx--;
@@ -1541,13 +1545,13 @@ bool spdu_is_avrcp_version_valid(const uint16_t version) {
  * Returns          void
  *
  ******************************************************************************/
-void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress* bdaddr) {
+void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr, RawAddress bdaddr) {
   // Check attribute is AVRCP profile description list and get AVRC Target
   // version
   uint16_t avrcp_version = sdpu_is_avrcp_profile_description_list(p_attr);
   log::info("SDP AVRCP DB Version {:x}", avrcp_version);
   if (avrcp_version == 0) {
-    log::info("Not AVRCP version attribute or version not valid for device {}", *bdaddr);
+    log::info("Not AVRCP version attribute or version not valid for device {}", bdaddr);
     return;
   }
 
@@ -1567,10 +1571,8 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress
   }
 
   if (iop_version != 0) {
-    log::info(
-            "device={} is in IOP database. Reply AVRC Target version {:x} instead "
-            "of {:x}.",
-            *bdaddr, iop_version, avrcp_version);
+    log::info("device={} is in IOP database. Reply AVRC Target version {:x} instead of {:x}.",
+              bdaddr, iop_version, avrcp_version);
     uint8_t* p_version = p_attr->value_ptr + 6;
     UINT16_TO_BE_FIELD(p_version, iop_version);
     return;
@@ -1586,19 +1588,19 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress
   // Read the remote device's AVRC Controller version from local storage
   uint16_t cached_version = 0;
   size_t version_value_size =
-          btif_config_get_bin_length(bdaddr->ToString(), BTIF_STORAGE_KEY_AVRCP_CONTROLLER_VERSION);
+          btif_config_get_bin_length(bdaddr.ToString(), BTIF_STORAGE_KEY_AVRCP_CONTROLLER_VERSION);
   if (version_value_size != sizeof(cached_version)) {
-    log::error("cached value len wrong, bdaddr={}. Len is {} but should be {}.", *bdaddr,
+    log::error("cached value len wrong, bdaddr={}. Len is {} but should be {}.", bdaddr,
                version_value_size, sizeof(cached_version));
     return;
   }
 
-  if (!btif_config_get_bin(bdaddr->ToString(), BTIF_STORAGE_KEY_AVRCP_CONTROLLER_VERSION,
+  if (!btif_config_get_bin(bdaddr.ToString(), BTIF_STORAGE_KEY_AVRCP_CONTROLLER_VERSION,
                            reinterpret_cast<uint8_t*>(&cached_version), &version_value_size)) {
     log::info(
             "no cached AVRC Controller version for {}. Reply default AVRC Target "
             "version {:x}.DUT AVRC Target version {:x}.",
-            *bdaddr, avrcp_version, dut_avrcp_version);
+            bdaddr, avrcp_version, dut_avrcp_version);
     return;
   }
 
@@ -1606,7 +1608,7 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress
     log::error(
             "cached AVRC Controller version {:x} of {} is not valid. Reply default "
             "AVRC Target version {:x}.",
-            cached_version, *bdaddr, avrcp_version);
+            cached_version, bdaddr, avrcp_version);
     return;
   }
 
@@ -1614,7 +1616,7 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress
   log::info(
           "read cached AVRC Controller version {:x} of {}. DUT AVRC Target version "
           "{:x}.Negotiated AVRCP version to update peer {:x}.",
-          cached_version, *bdaddr, dut_avrcp_version, negotiated_avrcp_version);
+          cached_version, bdaddr, dut_avrcp_version, negotiated_avrcp_version);
   uint8_t* p_version = p_attr->value_ptr + 6;
   UINT16_TO_BE_FIELD(p_version, negotiated_avrcp_version);
 }
@@ -1631,7 +1633,7 @@ void sdpu_set_avrc_target_version(const tSDP_ATTRIBUTE* p_attr, const RawAddress
  * Returns          void
  *
  ******************************************************************************/
-void sdpu_set_avrc_target_features(const tSDP_ATTRIBUTE* p_attr, const RawAddress* bdaddr,
+void sdpu_set_avrc_target_features(const tSDP_ATTRIBUTE* p_attr, RawAddress bdaddr,
                                    uint16_t avrcp_version) {
   log::info("SDP AVRCP Version {:x}", avrcp_version);
 
@@ -1642,27 +1644,27 @@ void sdpu_set_avrc_target_features(const tSDP_ATTRIBUTE* p_attr, const RawAddres
   }
 
   if (avrcp_version == 0) {
-    log::info("AVRCP version not valid for device {}", *bdaddr);
+    log::info("AVRCP version not valid for device {}", bdaddr);
     return;
   }
 
   // Dynamic AVRCP version. If our version high than remote device's version,
   // reply version same as its. Otherwise, reply default version.
-  if (!osi_property_get_bool(AVRC_DYNAMIC_AVRCP_ENABLE_PROPERTY, false)) {
+  if (!osi_property_get_bool(AVRC_DYNAMIC_AVRCP_ENABLE_PROPERTY, true)) {
     log::info("Dynamic AVRCP version feature is not enabled, skipping this method");
     return;
   }
   // Read the remote device's AVRC Controller version from local storage
   uint16_t avrcp_peer_features = 0;
   size_t version_value_size =
-          btif_config_get_bin_length(bdaddr->ToString(), BTIF_STORAGE_KEY_AV_REM_CTRL_FEATURES);
+          btif_config_get_bin_length(bdaddr.ToString(), BTIF_STORAGE_KEY_AV_REM_CTRL_FEATURES);
   if (version_value_size != sizeof(avrcp_peer_features)) {
-    log::error("cached value len wrong, bdaddr={}. Len is {} but should be {}.", *bdaddr,
+    log::error("cached value len wrong, bdaddr={}. Len is {} but should be {}.", bdaddr,
                version_value_size, sizeof(avrcp_peer_features));
     return;
   }
 
-  if (!btif_config_get_bin(bdaddr->ToString(), BTIF_STORAGE_KEY_AV_REM_CTRL_FEATURES,
+  if (!btif_config_get_bin(bdaddr.ToString(), BTIF_STORAGE_KEY_AV_REM_CTRL_FEATURES,
                            reinterpret_cast<uint8_t*>(&avrcp_peer_features), &version_value_size)) {
     log::error("Unable to fetch cached AVRC features");
     return;

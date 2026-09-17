@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.android.bluetooth.sap;
 
 import android.app.AlarmManager;
@@ -24,6 +39,7 @@ import android.telephony.TelephonyManager;
 import android.util.Log;
 
 import com.android.bluetooth.R;
+import com.android.bluetooth.Util;
 import com.android.bluetooth.Utils;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -56,7 +72,7 @@ public class SapServer extends Thread implements Handler.Callback {
         CONNECTING_CALL_ONGOING,
         CONNECTED,
         CONNECTED_BUSY,
-        DISCONNECTING;
+        DISCONNECTING
     }
 
     @VisibleForTesting SAP_STATE mState = SAP_STATE.DISCONNECTED;
@@ -185,7 +201,7 @@ public class SapServer extends Thread implements Handler.Callback {
      * @param testMode Use SapMessage.TEST_MODE_XXX
      */
     public void setTestMode(int testMode) {
-        if (SapMessage.TEST || Utils.isInstrumentationTestMode()) {
+        if (SapMessage.TEST || Util.isInstrumentationTestMode()) {
             mTestMode = testMode;
         }
     }
@@ -489,7 +505,7 @@ public class SapServer extends Thread implements Handler.Callback {
             Log.w(TAG, e);
         } finally {
             int state = mAdapter.getState();
-            if (state != BluetoothAdapter.STATE_ON) {
+            if (state != android.bluetooth.State.ON) {
                 Log.d(TAG, "BT State :" + state);
                 mDeinitSignal.countDown();
             }
@@ -740,7 +756,6 @@ public class SapServer extends Thread implements Handler.Callback {
      */
     @VisibleForTesting
     void shutdown() {
-
         Log.d(TAG_HANDLER, "in Shutdown()");
         try {
             if (mRfcommOut != null) {
@@ -764,7 +779,6 @@ public class SapServer extends Thread implements Handler.Callback {
 
     @VisibleForTesting
     void startDisconnectTimer(int discType, int timeMs) {
-
         stopDisconnectTimer();
         synchronized (this) {
             Intent sapDisconnectIntent = new Intent(SapServer.SAP_DISCONNECT_ACTION);
@@ -810,7 +824,6 @@ public class SapServer extends Thread implements Handler.Callback {
     @VisibleForTesting
     void handleRfcommReply(SapMessage sapMsg) {
         if (sapMsg != null) {
-
             Log.d(
                     TAG_HANDLER,
                     "handleRfcommReply() handling "

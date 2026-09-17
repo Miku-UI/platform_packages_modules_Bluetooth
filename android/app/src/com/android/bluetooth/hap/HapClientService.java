@@ -21,7 +21,6 @@ import static android.Manifest.permission.BLUETOOTH_CONNECT;
 import static android.Manifest.permission.BLUETOOTH_PRIVILEGED;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_ALLOWED;
 import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
-import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_UNKNOWN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTING;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
@@ -50,11 +49,12 @@ import android.os.RemoteCallbackList;
 import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
+import com.android.bluetooth.Util;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.ActiveDeviceManager;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.ConnectableProfile;
 import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.profile.ConnectableProfile;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -89,6 +89,7 @@ public class HapClientService extends ConnectableProfile {
     private final Map<BluetoothDevice, Integer> mDeviceCurrentPresetMap = new HashMap<>();
     private final Map<BluetoothDevice, Integer> mDeviceFeaturesMap = new HashMap<>();
     private final Map<BluetoothDevice, List<BluetoothHapPresetInfo>> mPresetsMap = new HashMap<>();
+    private final ActiveDeviceManager mActiveDeviceManager;
     private final Handler mHandler;
     private final Looper mStateMachinesLooper;
     private final HandlerThread mStateMachinesThread;
@@ -98,22 +99,29 @@ public class HapClientService extends ConnectableProfile {
     @GuardedBy("mCallbacks")
     final RemoteCallbackList<IBluetoothHapClientCallback> mCallbacks = new RemoteCallbackList<>();
 
-    public HapClientService(AdapterService adapterService) {
-        this(adapterService, Flags.hapOnMainLooper() ? Looper.getMainLooper() : null, null);
+    public HapClientService(
+            AdapterService adapterService, ActiveDeviceManager activeDeviceManager) {
+        this(
+                adapterService,
+                activeDeviceManager,
+                Flags.hapOnMainLooper() ? Looper.getMainLooper() : null,
+                null);
     }
 
     @VisibleForTesting
     HapClientService(
             AdapterService adapterService,
+            ActiveDeviceManager activeDeviceManager,
             Looper looper,
             HapClientNativeInterface nativeInterface) {
-        super(BluetoothProfile.HAP_CLIENT, requireNonNull(adapterService));
+        super(BluetoothProfile.HAP_CLIENT, adapterService);
+        mActiveDeviceManager = activeDeviceManager;
         mNativeInterface =
                 requireNonNullElseGet(
                         nativeInterface,
                         () ->
                                 new HapClientNativeInterface(
-                                        new HapClientNativeCallback(adapterService, this)));
+                                        new HapClientNativeCallback(getAdapterService(), this)));
 
         if (Flags.hapOnMainLooper()) {
             mStateMachinesLooper = requireNonNull(looper);
@@ -240,7 +248,7 @@ public class HapClientService extends ConnectableProfile {
 
     @Override
     public void handleBondStateChanged(BluetoothDevice device, int fromState, int toState) {
-        if (Flags.hapOnMainLooper() && Flags.bondStateMachineLooper()) {
+        if (Flags.hapOnMainLooper()) {
             bondStateChanged(device, toState);
         } else {
             mHandler.post(() -> bondStateChanged(device, toState));
@@ -296,14 +304,11 @@ public class HapClientService extends ConnectableProfile {
         if (states == null) {
             return devices;
         }
-        final BluetoothDevice[] bondedDevices = mAdapterService.getBondedDevices();
-        if (bondedDevices == null) {
-            return devices;
-        }
+        final var bondedDevices = getAdapterService().getBondedDevices();
         synchronized (mStateMachines) {
             for (BluetoothDevice device : bondedDevices) {
-                final ParcelUuid[] featureUuids = mAdapterService.getRemoteUuids(device);
-                if (!Utils.arrayContains(featureUuids, BluetoothUuid.HAS)) {
+                final ParcelUuid[] featureUuids = getAdapterService().getRemoteUuids(device);
+                if (!Util.arrayContains(featureUuids, BluetoothUuid.HAS)) {
                     continue;
                 }
                 int connectionState = STATE_DISCONNECTED;
@@ -383,40 +388,11 @@ public class HapClientService extends ConnectableProfile {
     public boolean setConnectionPolicy(BluetoothDevice device, int connectionPolicy) {
         enforceMainLooperIsUsed();
         Log.d(TAG, "Saved connectionPolicy " + device + " = " + connectionPolicy);
-        mAdapterService.setProfileConnectionPolicy(device, mProfileId, connectionPolicy);
+        getAdapterService().setProfileConnectionPolicy(device, getProfileId(), connectionPolicy);
         if (connectionPolicy == CONNECTION_POLICY_ALLOWED) {
             connect(device);
         } else if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
             disconnect(device);
-        }
-        return true;
-    }
-
-    /** Check whether it can connect to a peer device. */
-    @Override
-    public boolean okToConnect(BluetoothDevice device) {
-        enforceMainLooperIsUsed();
-        if (Flags.validateConnectionPolicyBeforeAcceptingConnection()) {
-            return super.okToConnect(device);
-        }
-        // Check if this is an incoming connection in Quiet mode.
-        if (mAdapterService.isQuietModeEnabled()) {
-            Log.e(TAG, "okToConnect: cannot connect to " + device + " : quiet mode enabled");
-            return false;
-        }
-        // Check connection policy and accept or reject the connection.
-        int connectionPolicy = getConnectionPolicy(device);
-        int bondState = mAdapterService.getBondState(device);
-        // Allow this connection only if the device is bonded. Any attempt to connect while
-        // bonding would potentially lead to an unauthorized connection.
-        if (bondState != BluetoothDevice.BOND_BONDED) {
-            Log.w(TAG, "okToConnect: return false, bondState=" + bondState);
-            return false;
-        } else if (connectionPolicy != CONNECTION_POLICY_UNKNOWN
-                && connectionPolicy != CONNECTION_POLICY_ALLOWED) {
-            // Otherwise, reject the connection if connectionPolicy is not valid.
-            Log.w(TAG, "okToConnect: return false, connectionPolicy=" + connectionPolicy);
-            return false;
         }
         return true;
     }
@@ -437,40 +413,31 @@ public class HapClientService extends ConnectableProfile {
 
         // Check if the device is disconnected - if unbond, remove the state machine
         if (toState == STATE_DISCONNECTED) {
-            int bondState = mAdapterService.getBondState(device);
+            int bondState = getAdapterService().getBondState(device);
             if (bondState == BluetoothDevice.BOND_NONE) {
                 Log.d(TAG, device + " is unbond. Remove state machine");
                 removeStateMachine(device);
             }
         }
-        ActiveDeviceManager adManager = mAdapterService.getActiveDeviceManager();
-        if (adManager != null) {
-            adManager.profileConnectionStateChanged(mProfileId, device, fromState, toState);
-        }
+        mActiveDeviceManager.profileConnectionStateChanged(
+                getProfileId(), device, fromState, toState);
+        getAdapterService()
+                .updateProfileConnectionAdapterProperties(
+                        device, getProfileId(), toState, fromState);
     }
 
     @Override
     public boolean connect(BluetoothDevice device) {
         enforceMainLooperIsUsed();
         Log.d(TAG, "connect(): " + device);
-        if (Flags.validateConnectionPolicyBeforeAcceptingConnection()) {
-            requireNonNull(device);
+        requireNonNull(device);
 
-            if (!okToConnect(device)) {
-                return false;
-            }
-        } else {
-            if (device == null) {
-                return false;
-            }
-
-            if (getConnectionPolicy(device) == CONNECTION_POLICY_FORBIDDEN) {
-                return false;
-            }
+        if (!okToConnect(device)) {
+            return false;
         }
 
-        final ParcelUuid[] featureUuids = mAdapterService.getRemoteUuids(device);
-        if (!Utils.arrayContains(featureUuids, BluetoothUuid.HAS)) {
+        final ParcelUuid[] featureUuids = getAdapterService().getRemoteUuids(device);
+        if (!Util.arrayContains(featureUuids, BluetoothUuid.HAS)) {
             Log.e(
                     TAG,
                     "Cannot connect to "
@@ -549,7 +516,7 @@ public class HapClientService extends ConnectableProfile {
     }
 
     int getHapGroup(BluetoothDevice device) {
-        final var csipSetCoordinator = mAdapterService.getCsipSetCoordinatorService();
+        final var csipSetCoordinator = getAdapterService().getCsipSetCoordinatorService();
         if (csipSetCoordinator.isPresent()) {
             final Map<Integer, ParcelUuid> groups =
                     csipSetCoordinator.get().getGroupUuidMapByDevice(device);
@@ -717,7 +684,7 @@ public class HapClientService extends ConnectableProfile {
             return false;
         }
 
-        return mAdapterService
+        return getAdapterService()
                 .getCsipSetCoordinatorService()
                 .map(csipClient -> csipClient.getAllGroupIds(BluetoothUuid.CAP).contains(groupId))
                 .orElse(false);
@@ -802,7 +769,7 @@ public class HapClientService extends ConnectableProfile {
             return emptyList();
         }
 
-        return mAdapterService
+        return getAdapterService()
                 .getCsipSetCoordinatorService()
                 .map(csipClient -> csipClient.getGroupDevicesOrdered(groupId))
                 .orElse(emptyList());

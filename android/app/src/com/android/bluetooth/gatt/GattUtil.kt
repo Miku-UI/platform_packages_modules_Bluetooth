@@ -18,13 +18,16 @@ package com.android.bluetooth.gatt
 
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothStatusCodes
+import android.bluetooth.IBluetoothGattCallback
+import android.os.IInterface
+import com.android.bluetooth.Util.Transport
 import com.android.bluetooth.hid.HidHostService
 import java.util.UUID
 
 private const val TAG = "GattUtil"
 
 object GattUtil {
-    @JvmField val TAG_PREFIX = "BtGatt."
+    const val TAG_PREFIX = "BtGatt."
 
     private val HID_SERVICE_UUID = UUID.fromString("00001812-0000-1000-8000-00805F9B34FB")
 
@@ -96,6 +99,11 @@ object GattUtil {
             else -> BluetoothStatusCodes.ERROR_UNKNOWN
         }
 
+    @JvmInline
+    internal value class Status(val value: Int) {
+        override fun toString() = statusToString(value)
+    }
+
     /*
      * Print a readable version of the various status codes that can come from the stack or
      * applications.
@@ -109,7 +117,7 @@ object GattUtil {
      * This block should be kept in sync with system/stack/gatt/gatt_api.h
      */
     @JvmStatic
-    fun gattStatusToString(status: Int) =
+    fun statusToString(status: Int) =
         when (status) {
             BluetoothGatt.GATT_SUCCESS -> "GATT_SUCCESS (0x00)"
             0x01 -> "GATT_INVALID_HANDLE (0x01)"
@@ -157,5 +165,37 @@ object GattUtil {
             0xFF -> "GATT_OUT_OF_RANGE (0xFF)"
             BluetoothGatt.GATT_FAILURE -> "GATT_FAILURE (0x101)"
             else -> "UNKNOWN STATUS ($status)"
+        }
+
+    @JvmStatic
+    fun dump(
+        advertiseManager: AdvertiseManager,
+        clientMap: ContextMap<IBluetoothGattCallback>,
+        serverManager: GattServerManager,
+    ) = buildString {
+        appendLine("Registered App:")
+        appendLine("  Client:")
+        dumpMapDetails(clientMap)
+        appendLine("  Server:")
+        dumpMapDetails(serverManager.serverMap)
+        appendLine()
+        appendLine("GATT Advertiser Map:")
+        advertiseManager.dump(this)
+        appendLine("GATT Client Map:")
+        clientMap.dump(this)
+        appendLine("GATT Server Map:")
+        serverManager.serverMap.dump(this)
+        appendLine("GATT Handle Map:")
+        serverManager.handleMap.dump(this)
+    }
+
+    private fun <C : IInterface> StringBuilder.dumpMapDetails(map: ContextMap<C>) =
+        map.getAllApps().forEach { app ->
+            append("    app_if: ${app.id}")
+            append(", appName: ${app.name}")
+            append(", transport: ${Transport(app.transport)}")
+            app.tag?.let { tag -> append(", tag: $tag") }
+            appendLine()
+            map.getConnectionByApp(app.id).forEach { appendLine("      $it") }
         }
 }

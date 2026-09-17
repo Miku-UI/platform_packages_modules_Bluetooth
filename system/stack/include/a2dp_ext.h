@@ -18,8 +18,8 @@
 
 #include <vector>
 
-#include "a2dp_codec_api.h"
 #include "audio_hal_interface/a2dp_encoding.h"
+#include "stack/include/a2dp_codec_api.h"
 
 /// Codec configuration for codecs that are supported by a2dp hardware offload
 /// codec extensibility. The codec index may be a standard codec, in which case
@@ -49,7 +49,7 @@ public:
                       std::vector<uint8_t> const& vendor_specific_parameters);
 
 private:
-  [[maybe_unused]] bool is_source_;  // True if local is Source
+  bool is_source_;  // True if local is Source
   std::vector<uint8_t> vendor_specific_parameters_;
 };
 

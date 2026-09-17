@@ -28,7 +28,6 @@ import android.app.PendingIntent;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothMap;
 import android.bluetooth.BluetoothProfile;
-import android.bluetooth.BluetoothProtoEnums;
 import android.bluetooth.BluetoothUuid;
 import android.bluetooth.SdpMnsRecord;
 import android.content.BroadcastReceiver;
@@ -50,12 +49,11 @@ import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.util.SparseArray;
 
-import com.android.bluetooth.BluetoothStatsLog;
 import com.android.bluetooth.R;
+import com.android.bluetooth.Util;
 import com.android.bluetooth.Utils;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.ConnectableProfile;
-import com.android.bluetooth.content_profiles.ContentProfileErrorReportUtils;
+import com.android.bluetooth.profile.ConnectableProfile;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.io.IOException;
@@ -63,7 +61,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-// Next tag value for ContentProfileErrorReportUtils.report(): 25
 public class BluetoothMapService extends ConnectableProfile {
     private static final String TAG = BluetoothMapService.class.getSimpleName();
 
@@ -147,7 +144,7 @@ public class BluetoothMapService extends ConnectableProfile {
     }
 
     public BluetoothMapService(AdapterService adapterService) {
-        super(BluetoothProfile.MAP, requireNonNull(adapterService));
+        super(BluetoothProfile.MAP, adapterService);
         BluetoothMap.invalidateBluetoothGetConnectionStateCache();
 
         setComponentAvailable(MAP_FILE_PROVIDER, true);
@@ -169,11 +166,6 @@ public class BluetoothMapService extends ConnectableProfile {
         try {
             filterMessageSent.addDataType("message/*");
         } catch (MalformedMimeTypeException e) {
-            ContentProfileErrorReportUtils.report(
-                    mProfileId,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_SERVICE,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                    7);
             Log.e(TAG, "Wrong mime type!!!", e);
         }
         registerReceiver(mMapReceiver, filter);
@@ -237,11 +229,6 @@ public class BluetoothMapService extends ConnectableProfile {
                 masInst.startSocketListeners();
             } else {
                 Log.w(TAG, "startSocketListeners(): Invalid MasId: " + masId);
-                ContentProfileErrorReportUtils.report(
-                        mProfileId,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_SERVICE,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                        0);
             }
         }
     }
@@ -263,7 +250,7 @@ public class BluetoothMapService extends ConnectableProfile {
         if (mBluetoothMnsObexClient == null) {
             mBluetoothMnsObexClient =
                     new BluetoothMnsObexClient(
-                            mAdapterService, mRemoteDevice, mMnsRecord, mSessionStatusHandler);
+                            getAdapterService(), mRemoteDevice, mMnsRecord, mSessionStatusHandler);
         }
 
         boolean connected = false;
@@ -275,11 +262,6 @@ public class BluetoothMapService extends ConnectableProfile {
                     connected = true;
                 }
             } catch (IOException e) {
-                ContentProfileErrorReportUtils.report(
-                        mProfileId,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_SERVICE,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        1);
                 Log.w(
                         TAG,
                         "IOException occurred while starting an obexServerSession restarting"
@@ -287,11 +269,6 @@ public class BluetoothMapService extends ConnectableProfile {
                         e);
                 mMasInstances.valueAt(i).restartObexServerSession();
             } catch (RemoteException e) {
-                ContentProfileErrorReportUtils.report(
-                        mProfileId,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_SERVICE,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        2);
                 Log.w(
                         TAG,
                         "RemoteException occurred while starting an obexServerSession restarting"
@@ -400,7 +377,7 @@ public class BluetoothMapService extends ConnectableProfile {
                             BluetoothDevice.EXTRA_ACCESS_REQUEST_TYPE,
                             BluetoothDevice.REQUEST_TYPE_MESSAGE_ACCESS);
                     BluetoothMapService.this.sendBroadcast(
-                            intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastBundle());
+                            intent, BLUETOOTH_CONNECT, Util.getTempBroadcastBundle());
                     cancelUserTimeoutAlarm();
                     mIsWaitingAuthorization = false;
                     stopObexServerSessions(-1);
@@ -443,15 +420,12 @@ public class BluetoothMapService extends ConnectableProfile {
                 case MSG_MNS_SDP_SEARCH -> {
                     if (mRemoteDevice != null) {
                         Log.d(TAG, "MNS SDP Initiate Search ..");
-                        mRemoteDevice.sdpSearch(BluetoothMnsObexClient.BLUETOOTH_UUID_OBEX_MNS);
+                        getAdapterService()
+                                .sdpSearch(
+                                        mRemoteDevice,
+                                        BluetoothMnsObexClient.BLUETOOTH_UUID_OBEX_MNS);
                     } else {
                         Log.w(TAG, "remoteDevice info not available");
-                        ContentProfileErrorReportUtils.report(
-                                mProfileId,
-                                BluetoothProtoEnums.BLUETOOTH_MAP_SERVICE,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                                3);
                     }
                 }
                 case MSG_OBSERVER_REGISTRATION -> {
@@ -472,12 +446,6 @@ public class BluetoothMapService extends ConnectableProfile {
                             masInst.mObserver.unregisterObserver();
                         }
                     } catch (RemoteException e) {
-                        ContentProfileErrorReportUtils.report(
-                                mProfileId,
-                                BluetoothProtoEnums.BLUETOOTH_MAP_SERVICE,
-                                BluetoothStatsLog
-                                        .BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                                4);
                         Log.e(TAG, "ContentObserverRegistration Failed: " + e);
                     }
                 }
@@ -506,18 +474,8 @@ public class BluetoothMapService extends ConnectableProfile {
                     startObexServerSessions();
                 }
             } catch (IOException ex) {
-                ContentProfileErrorReportUtils.report(
-                        mProfileId,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_SERVICE,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        5);
                 Log.e(TAG, "catch IOException starting obex server session", ex);
             } catch (RemoteException ex) {
-                ContentProfileErrorReportUtils.report(
-                        mProfileId,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_SERVICE,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__EXCEPTION,
-                        6);
                 Log.e(TAG, "catch RemoteException starting obex server session", ex);
             }
         }
@@ -531,32 +489,31 @@ public class BluetoothMapService extends ConnectableProfile {
         return mRemoteDevice;
     }
 
-    private void setState(int state) {
-        setState(state, BluetoothMap.RESULT_SUCCESS);
-    }
-
-    private synchronized void setState(int state, int result) {
-        if (state != mState) {
-            Log.d(TAG, "Map state " + mState + " -> " + state + ", result = " + result);
-            int prevState = mState;
-            mState = state;
-            mAdapterService.updateProfileConnectionAdapterProperties(
-                    mRemoteDevice, mProfileId, mState, prevState);
-
-            BluetoothMap.invalidateBluetoothGetConnectionStateCache();
-            Intent intent = new Intent(BluetoothMap.ACTION_CONNECTION_STATE_CHANGED);
-            intent.putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, prevState);
-            intent.putExtra(BluetoothProfile.EXTRA_STATE, mState);
-            intent.putExtra(BluetoothDevice.EXTRA_DEVICE, mRemoteDevice);
-            sendBroadcast(intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastBundle());
+    private synchronized void setState(int state) {
+        if (state == mState) {
+            return;
         }
+        Log.d(TAG, "Map state " + mState + " -> " + state);
+        int prevState = mState;
+        mState = state;
+        getAdapterService()
+                .updateProfileConnectionAdapterProperties(
+                        mRemoteDevice, getProfileId(), mState, prevState);
+
+        BluetoothMap.invalidateBluetoothGetConnectionStateCache();
+        Intent intent = new Intent(BluetoothMap.ACTION_CONNECTION_STATE_CHANGED);
+        intent.putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, prevState);
+        intent.putExtra(BluetoothProfile.EXTRA_STATE, mState);
+        intent.putExtra(BluetoothDevice.EXTRA_DEVICE, mRemoteDevice);
+        sendBroadcast(intent, BLUETOOTH_CONNECT, Util.getTempBroadcastBundle());
     }
 
-    /**
-     * Disconnects MAP from the supplied device
-     *
-     * @param device is the device on which we want to disconnect MAP
-     */
+    @Override
+    public boolean connect(BluetoothDevice device) {
+        Log.w(TAG, "connect() was called but not implemented");
+        return false;
+    }
+
     @Override
     public boolean disconnect(BluetoothDevice device) {
         mSessionStatusHandler.obtainMessage(DISCONNECT_MAP, 0, 0, device).sendToTarget();
@@ -585,13 +542,10 @@ public class BluetoothMapService extends ConnectableProfile {
 
     List<BluetoothDevice> getDevicesMatchingConnectionStates(int[] states) {
         List<BluetoothDevice> deviceList = new ArrayList<>();
-        BluetoothDevice[] bondedDevices = mAdapterService.getBondedDevices();
-        if (bondedDevices == null) {
-            return deviceList;
-        }
+        var bondedDevices = getAdapterService().getBondedDevices();
         synchronized (this) {
             for (BluetoothDevice device : bondedDevices) {
-                final ParcelUuid[] featureUuids = mAdapterService.getRemoteUuids(device);
+                final ParcelUuid[] featureUuids = getAdapterService().getRemoteUuids(device);
                 if (!BluetoothUuid.containsAnyUuid(featureUuids, MAP_UUIDS)) {
                     continue;
                 }
@@ -643,9 +597,8 @@ public class BluetoothMapService extends ConnectableProfile {
     public boolean setConnectionPolicy(BluetoothDevice device, int connectionPolicy) {
         Log.v(TAG, "Saved connectionPolicy " + device + " = " + connectionPolicy);
 
-        if (!mAdapterService.setProfileConnectionPolicy(device, mProfileId, connectionPolicy)) {
-            return false;
-        }
+        getAdapterService().setProfileConnectionPolicy(device, getProfileId(), connectionPolicy);
+
         if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {
             disconnect(device);
         }
@@ -709,11 +662,11 @@ public class BluetoothMapService extends ConnectableProfile {
             Log.v(TAG, "  Adding account: " + account);
             int masId = getNextMasId();
             BluetoothMapMasInstance newInst =
-                    new BluetoothMapMasInstance(mAdapterService, this, account, masId, false);
+                    new BluetoothMapMasInstance(getAdapterService(), this, account, masId, false);
             mMasInstances.append(masId, newInst);
             mMasInstanceMap.put(account, newInst);
             // Start the new instance
-            if (mAdapterService.isEnabled()) {
+            if (getAdapterService().isEnabled()) {
                 newInst.startSocketListeners();
             }
         }
@@ -771,7 +724,7 @@ public class BluetoothMapService extends ConnectableProfile {
         if (mSmsCapable) {
             // Add the SMS/MMS instance
             BluetoothMapMasInstance smsMmsInst =
-                    new BluetoothMapMasInstance(mAdapterService, this, null, masId, true);
+                    new BluetoothMapMasInstance(getAdapterService(), this, null, masId, true);
             mMasInstances.append(masId, smsMmsInst);
             mMasInstanceMap.put(null, smsMmsInst);
             masId++;
@@ -780,7 +733,7 @@ public class BluetoothMapService extends ConnectableProfile {
         // get list of accounts already set to be visible through MAP
         for (BluetoothMapAccountItem account : mEnabledAccounts) {
             BluetoothMapMasInstance newInst =
-                    new BluetoothMapMasInstance(mAdapterService, this, account, masId, false);
+                    new BluetoothMapMasInstance(getAdapterService(), this, account, masId, false);
             mMasInstances.append(masId, newInst);
             mMasInstanceMap.put(account, newInst);
             masId++;
@@ -816,7 +769,7 @@ public class BluetoothMapService extends ConnectableProfile {
                     BluetoothMap.invalidateBluetoothGetConnectionStateCache();
                 }
 
-                mPermission = mAdapterService.getMessageAccessPermission(mRemoteDevice);
+                mPermission = getAdapterService().getMessageAccessPermission(mRemoteDevice);
                 if (mPermission == BluetoothDevice.ACCESS_UNKNOWN) {
                     sendIntent = true;
                     mIsWaitingAuthorization = true;
@@ -824,17 +777,13 @@ public class BluetoothMapService extends ConnectableProfile {
                 } else if (mPermission == BluetoothDevice.ACCESS_REJECTED) {
                     cancelConnection = true;
                 } else if (mPermission == BluetoothDevice.ACCESS_ALLOWED) {
-                    mAdapterService.sdpSearch(
-                            mRemoteDevice, BluetoothMnsObexClient.BLUETOOTH_UUID_OBEX_MNS);
+                    getAdapterService()
+                            .sdpSearch(
+                                    mRemoteDevice, BluetoothMnsObexClient.BLUETOOTH_UUID_OBEX_MNS);
                     mSdpSearchInitiated = true;
                 }
             } else if (!mRemoteDevice.equals(remoteDevice)) {
                 Log.w(TAG, "Unexpected connection from a second Remote Device: " + remoteDevice);
-                ContentProfileErrorReportUtils.report(
-                        mProfileId,
-                        BluetoothProtoEnums.BLUETOOTH_MAP_SERVICE,
-                        BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                        10);
                 return false;
             } // Else second connection to same device, just continue
         }
@@ -852,7 +801,7 @@ public class BluetoothMapService extends ConnectableProfile {
             sendOrderedBroadcast(
                     intent,
                     BLUETOOTH_CONNECT,
-                    Utils.getTempBroadcastBundle(),
+                    Util.getTempBroadcastBundle(),
                     null,
                     null,
                     Activity.RESULT_OK,
@@ -909,11 +858,6 @@ public class BluetoothMapService extends ConnectableProfile {
             mSessionStatusHandler.sendMessageDelayed(msg, 20);
         } else {
             Log.w(TAG, "mSessionStatusHandler START_LISTENER message already in Queue");
-            ContentProfileErrorReportUtils.report(
-                    mProfileId,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_SERVICE,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                    11);
         }
     }
 
@@ -943,11 +887,6 @@ public class BluetoothMapService extends ConnectableProfile {
         }
         if (mSessionStatusHandler.hasMessages(SHUTDOWN)) {
             Log.w(TAG, "mSessionStatusHandler shutdown message already in Queue");
-            ContentProfileErrorReportUtils.report(
-                    mProfileId,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_SERVICE,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                    13);
             return;
         }
         mSessionStatusHandler.removeCallbacksAndMessages(null);
@@ -955,11 +894,6 @@ public class BluetoothMapService extends ConnectableProfile {
         Message msg = mSessionStatusHandler.obtainMessage(SHUTDOWN);
         if (!mSessionStatusHandler.sendMessage(msg)) {
             Log.w(TAG, "mSessionStatusHandler shutdown message could not be sent");
-            ContentProfileErrorReportUtils.report(
-                    mProfileId,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_SERVICE,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_WARN,
-                    14);
         }
     }
 
@@ -1012,8 +946,9 @@ public class BluetoothMapService extends ConnectableProfile {
                         Log.d(TAG, "setMessageAccessPermission(ACCESS_ALLOWED) result=" + result);
                     }
 
-                    mAdapterService.sdpSearch(
-                            remoteDevice, BluetoothMnsObexClient.BLUETOOTH_UUID_OBEX_MNS);
+                    getAdapterService()
+                            .sdpSearch(
+                                    remoteDevice, BluetoothMnsObexClient.BLUETOOTH_UUID_OBEX_MNS);
                     mSdpSearchInitiated = true;
                 } else {
                     // Auth. declined by user, serverSession should not be running, but
@@ -1057,11 +992,6 @@ public class BluetoothMapService extends ConnectableProfile {
         }
         if (mRemoteDevice == null || device == null) {
             Log.e(TAG, "Unexpected error!");
-            ContentProfileErrorReportUtils.report(
-                    mProfileId,
-                    BluetoothProtoEnums.BLUETOOTH_MAP_SERVICE,
-                    BluetoothStatsLog.BLUETOOTH_CONTENT_PROFILE_ERROR_REPORTED__TYPE__LOG_ERROR,
-                    15);
             return;
         }
 

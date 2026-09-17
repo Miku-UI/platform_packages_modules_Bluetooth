@@ -2,8 +2,11 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "asha_omit_gatt_after_svc_changed"
+    name: "asha_retry_reconnect_when_in_set"
     namespace: "bluetooth"
-    description: "When Service Changed event was received, do not perform GATT operations on outdated handles"
-    bug: "419703276"
+    description: "When one of the hearing aids in set connects and the other fails, retry reconnect"
+    bug: "452898614"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

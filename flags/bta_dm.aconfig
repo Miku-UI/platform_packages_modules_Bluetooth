@@ -2,38 +2,8 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "extend_and_randomize_role_switch_delay"
-    namespace: "bluetooth"
-    description: "Fix the possible conflicts between role switch and authentication"
-    bug: "388459732"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "sniff_offload_with_vsc_based_control"
     namespace: "bluetooth"
     description: "Feature to enable sniff offload with VSC based control"
     bug: "416419075"
-}
-
-flag {
-    name: "complete_disc_if_no_rnr"
-    namespace: "bluetooth"
-    description: "Send discovery complete if canceling RNR fails"
-    bug: "424232101"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "gatt_discovery_is_non_opportunistic_client"
-    namespace: "bluetooth"
-    description: "Make GATT Discovery client Non oportunistic client"
-    bug: "436539073"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }

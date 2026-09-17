@@ -2,18 +2,7 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "set_component_available_fix"
-    namespace: "bluetooth"
-    description: "Ensure the state in PackageManager has DISABLED to ENABLED to trigger PACKAGE_CHANGED"
-    bug: "391084450"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "fix_started_module_race"
-    is_exported: true
     namespace: "bluetooth"
     description: "Fix race in modifying and accessing started modules"
     bug: "394488590"
@@ -33,41 +22,25 @@ flag {
 }
 
 flag {
-    name: "same_handler_for_all_modules"
-    namespace: "bluetooth"
-    description: "Update all modules to use the same handler"
-    bug: "398195386"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "hci_instance_name_use_injected"
-    namespace: "bluetooth"
-    description: "Inject service manager bluetooth hci instance name"
-    bug: "413484664"
-}
-
-flag {
-    name: "add_profile_as_intent_extra"
+    name: "enable_get_bond_status"
     is_exported: true
     namespace: "bluetooth"
-    description: "Add Profile as intent extra"
-    bug: "419074085"
+    description: "Enable getBondStatus API"
+    bug: "459659453"
 }
 
 flag {
-    name: "add_bond_loss_reason"
+    name: "bluetooth_quality_report_v8"
     namespace: "bluetooth"
-    description: "Add bond loss reason to ACTION_KEY_MISSING Intent"
-    bug: "421377117"
-}
-
-flag {
-    name: "key_missing_count_api"
+    description: "Enhanced Bluetooth Framework Support for Accessing Bluetooth Quality Report v8 Information"
+    bug: "457686158"
     is_exported: true
+}
+
+flag {
+    name: "add_new_local_disconnect_reason"
     namespace: "bluetooth"
-    description: "Promote getKeyMissingCount as public API"
-    bug: "421357557"
+    description: "Add new local disconnect reason to ACL_DISCONNECTED Intent"
+    is_exported: true
+    bug: "470011145"
 }

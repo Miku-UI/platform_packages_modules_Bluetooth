@@ -35,7 +35,6 @@ public:
   MOCK_METHOD(void, UnregisterCompletedAclPacketsCallback, ());
   MOCK_METHOD(void, RegisterCompletedMonitorAclPacketsCallback, (CompletedAclPacketsCallback cb));
   MOCK_METHOD(void, UnregisterCompletedMonitorAclPacketsCallback, ());
-  MOCK_METHOD(std::string, GetLocalName, (), (const));
   MOCK_METHOD(LocalVersionInformation, GetLocalVersionInformation, (), (const));
   MOCK_METHOD(bool, SupportsSimplePairing, (), (const));
   MOCK_METHOD(bool, SupportsSecureConnections, (), (const));
@@ -109,6 +108,7 @@ public:
   MOCK_METHOD(bool, SupportsBleConnectionSubrating, (), (const));
   MOCK_METHOD(bool, SupportsBleConnectionSubratingHost, (), (const));
   MOCK_METHOD(bool, SupportsBleChannelSounding, (), (const));
+  MOCK_METHOD(bool, SupportsBleHighDataThroughputPhy, (), (const));
   MOCK_METHOD(uint16_t, GetAclPacketLength, (), (const));
   MOCK_METHOD(uint16_t, GetNumAclPacketBuffers, (), (const));
   MOCK_METHOD(uint8_t, GetScoPacketLength, (), (const));

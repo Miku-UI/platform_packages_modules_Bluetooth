@@ -18,6 +18,7 @@
 #pragma once
 
 #include <base/functional/callback.h>
+#include <base/memory/weak_ptr.h>
 
 #include <string>
 
@@ -29,7 +30,7 @@ class HasClient {
 public:
   virtual ~HasClient() = default;
 
-  static void Initialize(bluetooth::has::HasClientCallbacks* callbacks, base::Closure initCb);
+  static void Initialize(bluetooth::has::HasClientCallbacks* callbacks, base::OnceClosure initCb);
   static void CleanUp();
   static HasClient* Get();
   static void DebugDump(int fd);
@@ -37,6 +38,7 @@ public:
   static void AddFromStorage(const RawAddress& addr, uint8_t features, uint16_t is_acceptlisted);
   virtual void Connect(const RawAddress& addr) = 0;
   virtual void Disconnect(const RawAddress& addr) = 0;
+  virtual void RemoveDevice(const RawAddress& addr) = 0;
   virtual void SelectActivePreset(std::variant<RawAddress, int> addr_or_group_id,
                                   uint8_t preset_index) = 0;
   virtual void NextActivePreset(std::variant<RawAddress, int> addr_or_group_id) = 0;
@@ -45,6 +47,7 @@ public:
   virtual void GetAllPresetInfo(const RawAddress& addr) = 0;
   virtual void SetPresetName(std::variant<RawAddress, int> addr_or_group_id, uint8_t preset_index,
                              std::string name) = 0;
+  static base::WeakPtr<HasClient> GetWeakPtr();
 };
 
 }  // namespace has

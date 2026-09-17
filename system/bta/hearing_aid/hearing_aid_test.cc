@@ -30,9 +30,11 @@
 #include <variant>
 
 #include "bta/le_audio/le_audio_types.h"
-#include "bta_gatt_api_mock.h"
+#include "bta/mock/bta_gatt_api_mock.h"
+#include "bta/mock/mock_bta_hearing_aid_audio_source.h"
 #include "bta_gatt_queue_mock.h"
 #include "bta_hearing_aid_api.h"
+#include "btif_status.h"
 #include "btif_storage_mock.h"
 #include "btm_api_mock.h"
 #include "gatt/database_builder.h"
@@ -41,11 +43,12 @@
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
+#include "stack/mock/mock_stack_btm_interface.h"
+#include "stack/mock/mock_stack_gap_conn_interface.h"
+#include "stack/mock/mock_stack_l2cap_interface.h"
+#include "stack/mock/mock_stack_security_client_interface.h"
 #include "test/common/mock_functions.h"
-#include "test/mock/mock_bta_hearing_aid_audio_source.h"
 #include "test/mock/mock_main_shim_entry.h"
-#include "test/mock/mock_stack_gap_conn_interface.h"
-#include "test/mock/mock_stack_l2cap_interface.h"
 
 static std::map<const char*, bool> fake_osi_bool_props;
 
@@ -74,7 +77,7 @@ std::atomic<int> num_async_tasks;
 bluetooth::common::MessageLoopThread message_loop_thread(
         "test message loop", bluetooth::os::Thread::Priority::REAL_TIME);
 
-bt_status_t do_in_main_thread(base::OnceClosure task) {
+BtStatus do_in_main_thread(base::OnceClosure task) {
   // Wrap the task with task counter so we could later know if there are
   // any callbacks scheduled and we should wait before performing some actions
   if (!message_loop_thread.DoInThread(base::BindOnce(
@@ -84,10 +87,10 @@ bt_status_t do_in_main_thread(base::OnceClosure task) {
               },
               std::move(task), std::ref(num_async_tasks)))) {
     log::error("failed to post task to task runner!");
-    return BT_STATUS_FAIL;
+    return BtifStatus(FAIL);
   }
   num_async_tasks++;
-  return BT_STATUS_SUCCESS;
+  return BtifStatus();
 }
 
 static void init_message_loop_thread() {
@@ -111,10 +114,10 @@ void SyncOnMainLoop() {
   }
 }
 
-RawAddress GetTestAddress(int index) {
-  CHECK_LT(index, UINT8_MAX);
-  RawAddress result = {{0xC0, 0xDE, 0xC0, 0xDE, 0x00, static_cast<uint8_t>(index)}};
-  return result;
+static RawAddress GetTestAddress(uint8_t index) {
+  EXPECT_LT(index, UINT8_MAX);
+  std::array<uint8_t, 6> bytes{0xC0, 0xDE, 0xC0, 0xDE, 0x00, index};
+  return RawAddress(bytes);
 }
 
 static uint16_t GetTestConnId(const RawAddress& address) {
@@ -137,12 +140,12 @@ class HearingAidTestBase : public ::testing::Test {
 protected:
   HearingAidAudioReceiver* audio_receiver_;
 
-  Uuid HEARING_AID_UUID = Uuid::FromString("FDF0");
-  Uuid READ_ONLY_PROPERTIES_UUID = Uuid::FromString("6333651e-c481-4a3e-9169-7c902aad37bb");
-  Uuid AUDIO_CONTROL_POINT_UUID = Uuid::FromString("f0d4de7e-4a88-476c-9d9f-1937b0996cc0");
-  Uuid AUDIO_STATUS_UUID = Uuid::FromString("38663f1a-e711-4cac-b641-326b56404837");
-  Uuid VOLUME_UUID = Uuid::FromString("00e4ca9e-ab14-41e4-8823-f9e70c7e91df");
-  Uuid LE_PSM_UUID = Uuid::FromString("2d410339-82b6-42aa-b34e-e2e01df8cc1a");
+  Uuid HEARING_AID_UUID = Uuid("FDF0");
+  Uuid READ_ONLY_PROPERTIES_UUID = Uuid("6333651e-c481-4a3e-9169-7c902aad37bb");
+  Uuid AUDIO_CONTROL_POINT_UUID = Uuid("f0d4de7e-4a88-476c-9d9f-1937b0996cc0");
+  Uuid AUDIO_STATUS_UUID = Uuid("38663f1a-e711-4cac-b641-326b56404837");
+  Uuid VOLUME_UUID = Uuid("00e4ca9e-ab14-41e4-8823-f9e70c7e91df");
+  Uuid LE_PSM_UUID = Uuid("2d410339-82b6-42aa-b34e-e2e01df8cc1a");
 
   static constexpr uint16_t kSvcStartHdl = 0x0010;
   static constexpr uint16_t kReadOnlyProperties = 0x0012;
@@ -193,10 +196,14 @@ protected:
                         case kReadOnlyProperties:
                           value.resize(17);
                           value[0] = 0x01;  // Version
-                          value[1] =
-                                  0x00;  // DeviceCapabilities - left, monaural, CSIS not supported
+                          if (device_capabilities_.count(conn_id)) {
+                            value[1] = device_capabilities_.at(conn_id);
+                          } else {
+                            value[1] = 0x00;  // default - left, monaural, CSIS not supported
+                          }
+
                           for (int i = 0; i < 8; i++) {
-                            value[2 + i] = 0xFF;  // HiSyncId
+                            value[2 + i] = 0xDE;  // HiSyncId
                           }
                           value[10] = 0x01;  // FeatureMap
                           value[11] = 0x01;  // RenderDelay
@@ -250,7 +257,7 @@ protected:
                       return nullptr;
                     }));
 
-    ON_CALL(gatt_interface, ServiceSearchRequest(_, _))
+    ON_CALL(gatt_interface, ServiceSearchRequest(_))
             .WillByDefault(WithArg<0>(
                     Invoke([&](uint16_t conn_id) { InjectSearchCompleteEvent(conn_id); })));
 
@@ -293,6 +300,9 @@ protected:
             &hearing_aid_audio_source_interface_);
     gatt::SetMockBtaGattInterface(&gatt_interface);
     gatt::SetMockBtaGattQueue(&gatt_queue);
+
+    set_security_client_interface(mock_btm_security_);
+
     callbacks.reset(new MockHearingAidCallbacks());
     bluetooth::hci::testing::mock_controller_ =
             std::make_unique<NiceMock<bluetooth::hci::testing::MockController>>();
@@ -314,28 +324,20 @@ protected:
             }));
 
     ON_CALL(mock_stack_gap_conn_interface_, GAP_ConnOpen(_, _, _, _, _, _, _, _, _, _, _))
-            .WillByDefault(Invoke([&](const char* /* p_serv_name */, uint8_t /*service_id*/,
-                                      bool /*is_server*/, const RawAddress* p_rem_bda,
-                                      uint16_t /*psm*/, uint16_t /*le_mps*/,
-                                      tL2CAP_CFG_INFO* /*p_cfg*/, tL2CAP_ERTM_INFO* /*ertm_info*/,
-                                      uint16_t /*security*/, tGAP_CONN_CALLBACK* p_cb,
-                                      tBT_TRANSPORT /*transport*/) {
-              InjectConnUpdateEvent(p_rem_bda->address[5], req_int, req_latency, req_timeout);
-
-              gap_conn_cb = p_cb;
-              if (gap_conn_cb) {
-                gap_conn_cb(0xFFFF, GAP_EVT_CONN_OPENED, nullptr);
-              }
-              return 1;
-            }));
+            .WillByDefault(DoAll(SaveArg<9>(&gap_conn_cb),
+                                 Invoke([&](const char*, uint8_t, bool, const RawAddress* p_rem_bda,
+                                            uint16_t, uint16_t, tL2CAP_CFG_INFO*, tL2CAP_ERTM_INFO*,
+                                            uint16_t, tGAP_CONN_CALLBACK*,
+                                            tBT_TRANSPORT) { return GetTestConnId(*p_rem_bda); })));
 
     ON_CALL(mock_stack_gap_conn_interface_, GAP_ConnGetRemoteAddr(_))
-            .WillByDefault(Invoke([&](uint16_t /*gap_handle*/) { return &test_address; }));
+            .WillByDefault(
+                    Invoke([&](uint16_t gap_handle) { return &connected_devices[gap_handle]; }));
 
     /* by default connect only direct connection requests */
-    ON_CALL(gatt_interface, Open(_, _, _, _))
+    ON_CALL(gatt_interface, Open(_, _, _))
             .WillByDefault(Invoke([&](tGATT_IF /*client_if*/, const RawAddress& remote_bda,
-                                      tBTM_BLE_CONN_TYPE connection_type, bool /*opportunistic*/) {
+                                      tBTM_BLE_CONN_TYPE connection_type) {
               if (connection_type == BTM_BLE_DIRECT_CONNECTION) {
                 InjectConnectedEvent(remote_bda, GetTestConnId(remote_bda));
               }
@@ -358,6 +360,7 @@ protected:
 
   void TearDown(void) override {
     services_map.clear();
+    reset_mock_btm_client_interface();
     gatt::SetMockBtaGattQueue(nullptr);
     gatt::SetMockBtaGattInterface(nullptr);
     bluetooth::manager::SetMockBtmInterface(nullptr);
@@ -370,6 +373,12 @@ protected:
     Mock::VerifyAndClearExpectations(&btm_interface);
     callbacks.reset();
     cleanup_message_loop_thread();
+  }
+
+  void InjectGapOpen(uint16_t gap_handle) {
+    if (gap_conn_cb) {
+      gap_conn_cb(gap_handle, GAP_EVT_CONN_OPENED, nullptr);
+    }
   }
 
   void InjectConnectedEvent(const RawAddress& address, uint16_t conn_id,
@@ -466,9 +475,10 @@ protected:
   void SetEncryptionResult(const RawAddress& address, bool success) {
     encryption_result = success;
 
-    ON_CALL(btm_interface, BTM_IsEncrypted(address, _)).WillByDefault(Return(encryption_result));
+    ON_CALL(mock_btm_security_, BTM_IsEncrypted(address, _))
+            .WillByDefault(Return(encryption_result));
 
-    ON_CALL(btm_interface, IsDeviceBonded(address, _)).WillByDefault(Return(true));
+    ON_CALL(mock_btm_security_, BTM_IsBonded(address, _)).WillByDefault(Return(true));
   }
 
   std::unique_ptr<MockHearingAidCallbacks> callbacks;
@@ -481,8 +491,10 @@ protected:
   const uint8_t gatt_if = 0xfe;
   std::map<uint8_t, RawAddress> connected_devices;
   std::map<uint16_t, std::list<gatt::Service>> services_map;
+  std::map<uint16_t, uint8_t> device_capabilities_;
   bluetooth::testing::stack::l2cap::Mock mock_stack_l2cap_interface_;
   bluetooth::testing::stack::gap_conn::Mock mock_stack_gap_conn_interface_;
+  NiceMock<MockSecurityClientInterface> mock_btm_security_;
   tGAP_CONN_CALLBACK* gap_conn_cb;
   uint16_t req_int;
   uint16_t req_latency;
@@ -496,11 +508,12 @@ class HearingAidTest : public HearingAidTestBase {
     HearingAidTestBase::SetUp();
     BtaAppRegisterCallback app_register_callback;
     EXPECT_CALL(gatt_interface, AppRegister(_, _, _, _))
-            .WillOnce(DoAll(SaveArg<1>(&gatt_callback), SaveArg<2>(&app_register_callback)));
+            .WillOnce(DoAll(SaveArg<1>(&gatt_callback),
+                            WithArg<2>([&](auto arg) { app_register_callback = std::move(arg); })));
     HearingAid::Initialize(callbacks.get(), base::DoNothing());
     ASSERT_TRUE(gatt_callback);
     ASSERT_TRUE(app_register_callback);
-    app_register_callback.Run(gatt_if, GATT_SUCCESS);
+    std::move(app_register_callback).Run(gatt_if, GATT_SUCCESS);
     ASSERT_TRUE(HearingAid::IsHearingAidRunning());
     Mock::VerifyAndClearExpectations(&gatt_interface);
   }
@@ -527,7 +540,7 @@ TEST_F(HearingAidTestBase, initialize) {
 /* Test that connect cancellation works */
 TEST_F(HearingAidTest, disconnect_when_connecting) {
   /* Override the default action to prevent us sending the connected event */
-  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION, _))
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION))
           .WillOnce(Return());
   EXPECT_CALL(*callbacks, OnDeviceAvailable(_, _, test_address)).Times(0);
   HearingAid::Connect(test_address);
@@ -543,22 +556,26 @@ TEST_F(HearingAidTest, disconnect_when_connecting) {
 TEST_F(HearingAidTest, connect) {
   set_sample_database(1);
 
-  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION, _));
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION));
   EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address));
   EXPECT_CALL(*callbacks, OnDeviceAvailable(_, _, test_address));
-  ON_CALL(btm_interface, BTM_IsEncrypted(test_address, _)).WillByDefault(Return(true));
+  ON_CALL(mock_btm_security_, BTM_IsEncrypted(test_address, _)).WillByDefault(Return(true));
 
   HearingAid::Connect(test_address);
+  InjectGapOpen(1);
+  InjectConnectionUpdateEvent(1);
 }
 
 /* Test that connected device can be disconnected */
 TEST_F(HearingAidTest, disconnect_when_connected) {
   set_sample_database(1);
 
-  ON_CALL(btm_interface, BTM_IsEncrypted(test_address, _)).WillByDefault(Return(true));
+  ON_CALL(mock_btm_security_, BTM_IsEncrypted(test_address, _)).WillByDefault(Return(true));
   EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(1);
   EXPECT_CALL(*callbacks, OnDeviceAvailable(_, _, test_address));
   HearingAid::Connect(test_address);
+  InjectGapOpen(1);
+  InjectConnectionUpdateEvent(1);
 
   /* First call from HearingAid:Disconnect. Second call from OnGattDisconnected*/
   EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::DISCONNECTED, test_address)).Times(2);
@@ -568,17 +585,19 @@ TEST_F(HearingAidTest, disconnect_when_connected) {
 
 /* Test that bonded device that was loaded from storage refreshes GATT handles */
 TEST_F(HearingAidTest, load_from_storage) {
-  com::android::bluetooth::flags::provider_->continue_queued_command_after_discovery(true);
   set_sample_database(1);
   SetEncryptionResult(test_address, true);
+  const uint16_t conn_id = GetTestConnId(test_address);
   HearingDevice saved_dev;
 
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(1);
-  HearingAid::Connect(test_address);
-  ON_CALL(btm_interface, BTM_IsEncrypted(test_address, _)).WillByDefault(Return(true));
+  ON_CALL(btif_storage_interface_, AddHearingAid(_))
+          .WillByDefault(Invoke([&](const HearingDevice* dev_info) { saved_dev = *dev_info; }));
 
-  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION, _));
+  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(1);
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION));
   HearingAid::Connect(test_address);
+  InjectGapOpen(1);
+  InjectConnectionUpdateEvent(1);
 
   Mock::VerifyAndClearExpectations(&*callbacks);
   Mock::VerifyAndClearExpectations(&gatt_interface);
@@ -586,9 +605,6 @@ TEST_F(HearingAidTest, load_from_storage) {
 
   EXPECT_CALL(gatt_interface, CancelOpen(_, test_address, _)).Times(AnyNumber());
   HearingAid::Disconnect(test_address);
-
-  ON_CALL(btif_storage_interface_, AddHearingAid(_))
-          .WillByDefault(Invoke([&](const HearingDevice* dev_info) { saved_dev = *dev_info; }));
 
   ON_CALL(btif_storage_interface_, GetHearingAidProp(_, _, _, _, _, _))
           .WillByDefault(Invoke([&](const RawAddress& /*address*/, uint8_t* capabilities,
@@ -603,12 +619,15 @@ TEST_F(HearingAidTest, load_from_storage) {
           }));
 
   Mock::VerifyAndClearExpectations(&gatt_interface);
+
+  ON_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_BKG_CONNECT_ALLOW_LIST))
+          .WillByDefault(Invoke([&](tGATT_IF, const RawAddress& remote_bda, tBTM_BLE_CONN_TYPE) {
+            InjectConnectedEvent(remote_bda, conn_id);
+          }));
+
   EXPECT_CALL(gatt_interface, ServiceSearchRequest).Times(1);
-
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_BKG_CONNECT_ALLOW_LIST));
   HearingAid::AddFromStorage(saved_dev, true);
-
-  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address, BTM_BLE_DIRECT_CONNECTION, _));
-  HearingAid::Connect(test_address);
 }
 
 /* 1. Hearing aid gets connected.
@@ -629,6 +648,8 @@ TEST_F(HearingAidTest, start_stream) {
   EXPECT_CALL(gatt_queue, WriteCharacteristic(1, kAudioControlPoint, _, _, _, _))
           .Times(AnyNumber());
   HearingAid::Connect(test_address);
+  InjectGapOpen(1);
+  InjectConnectionUpdateEvent(1);
 
   Mock::VerifyAndClearExpectations(callbacks.get());
   Mock::VerifyAndClearExpectations(&gatt_interface);
@@ -642,69 +663,6 @@ TEST_F(HearingAidTest, start_stream) {
   auto start_dummy_ticks = []() { log::info("start_audio_ticks: waiting for data path opened"); };
   do_in_main_thread(base::BindOnce(&HearingAidAudioReceiver::OnAudioResume,
                                    base::Unretained(audio_receiver_), start_dummy_ticks));
-  SyncOnMainLoop();
-}
-
-/* 1. Hearing aid gets connected.
- * 2. Service changed event is received
- * 3. Stream start is requested
- * 4. Volume is set
- *    Check if GATT operations were executed after service changed event, using old handles.
- * 5. Service search complete event arrives
- *    Check if write to AudioControlPoint was executed.
- * 6. Second Service changed event is received
- * 7. Stream is suspended
- *    Check if write to AudioControlPoint was executed, using old handle.
- */
-TEST_F(HearingAidTest, service_changed_before_stream_start) {
-  set_sample_database(1);
-  SetEncryptionResult(test_address, true);
-  com::android::bluetooth::flags::provider_->asha_omit_gatt_after_svc_changed(false);
-
-  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address)).Times(1);
-  EXPECT_CALL(*callbacks, OnDeviceAvailable(_, _, test_address)).Times(1);
-  EXPECT_CALL(gatt_interface, ServiceSearchRequest);
-  EXPECT_CALL(gatt_queue, ReadCharacteristic(1, kLePsm, _, _));
-  EXPECT_CALL(gatt_queue, ReadCharacteristic(1, kReadOnlyProperties, _, _));
-  EXPECT_CALL(gatt_queue, WriteCharacteristic(1, kAudioControlPoint, _, _, _, _)).Times(AtLeast(1));
-  HearingAid::Connect(test_address);
-
-  Mock::VerifyAndClearExpectations(callbacks.get());
-  Mock::VerifyAndClearExpectations(&gatt_interface);
-  Mock::VerifyAndClearExpectations(&gatt_queue);
-
-  /* b/417133855 - stream is starting, but Service Changed event arrives.
-   * Let's expect old handles to work, that are used on stream start
-   */
-  EXPECT_CALL(gatt_queue, WriteCharacteristic(1, kAudioControlPoint, _, _, _, _)).Times(1);
-  EXPECT_CALL(gatt_queue, WriteCharacteristic(1, kVolume, _, _, _, _)).Times(1);
-
-  InjectServiceChangedEvent(1);
-
-  /* Simulate AF sending Audio Resume */
-  auto start_dummy_ticks = []() { log::info("start_audio_ticks: waiting for data path opened"); };
-  do_in_main_thread(base::BindOnce(&HearingAidAudioReceiver::OnAudioResume,
-                                   base::Unretained(audio_receiver_), start_dummy_ticks));
-  HearingAid::SetVolume(20);
-  SyncOnMainLoop();
-
-  Mock::VerifyAndClearExpectations(callbacks.get());
-  Mock::VerifyAndClearExpectations(&gatt_interface);
-  Mock::VerifyAndClearExpectations(&gatt_queue);
-
-  EXPECT_CALL(gatt_queue, WriteCharacteristic(1, kAudioControlPoint, _, _, _, _)).Times(AtLeast(1));
-
-  InjectServiceSearchCompleteEvent();
-
-  Mock::VerifyAndClearExpectations(callbacks.get());
-  Mock::VerifyAndClearExpectations(&gatt_interface);
-  Mock::VerifyAndClearExpectations(&gatt_queue);
-
-  /* Simulate AF sending Audio Suspend */
-  do_in_main_thread(base::BindOnce(&HearingAidAudioReceiver::OnAudioSuspend,
-                                   base::Unretained(audio_receiver_), start_dummy_ticks));
-  EXPECT_CALL(gatt_queue, WriteCharacteristic(1, kAudioControlPoint, _, _, _, _)).Times(AtLeast(1));
-  InjectServiceChangedEvent(1);
   SyncOnMainLoop();
 }
 
@@ -724,6 +682,8 @@ TEST_F(HearingAidTest, conn_update_after_service_changed) {
   EXPECT_CALL(gatt_queue, ReadCharacteristic(1, kReadOnlyProperties, _, _));
   EXPECT_CALL(gatt_queue, WriteCharacteristic(1, kAudioControlPoint, _, _, _, _)).Times(AtLeast(1));
   HearingAid::Connect(test_address);
+  InjectGapOpen(1);
+  InjectConnectionUpdateEvent(1);
 
   Mock::VerifyAndClearExpectations(callbacks.get());
   Mock::VerifyAndClearExpectations(&gatt_interface);
@@ -745,11 +705,8 @@ TEST_F(HearingAidTest, conn_update_after_service_changed) {
  * 6. Second Service changed event is received
  * 7. Stream is suspended
  *    Check if write to AudioControlPoint was executed, using old handle.
- * This test should replace service_changed_before_stream_start after flag
- * asha_omit_gatt_after_svc_changed is released.
  */
 TEST_F(HearingAidTest, service_changed_before_stream_start_gatt_omitted_after_svc_changed) {
-  com::android::bluetooth::flags::provider_->asha_omit_gatt_after_svc_changed(true);
   set_sample_database(1);
   SetEncryptionResult(test_address, true);
 
@@ -760,6 +717,8 @@ TEST_F(HearingAidTest, service_changed_before_stream_start_gatt_omitted_after_sv
   EXPECT_CALL(gatt_queue, ReadCharacteristic(1, kReadOnlyProperties, _, _));
   EXPECT_CALL(gatt_queue, WriteCharacteristic(1, kAudioControlPoint, _, _, _, _)).Times(AtLeast(1));
   HearingAid::Connect(test_address);
+  InjectGapOpen(1);
+  InjectConnectionUpdateEvent(1);
 
   Mock::VerifyAndClearExpectations(callbacks.get());
   Mock::VerifyAndClearExpectations(&gatt_interface);
@@ -789,8 +748,8 @@ TEST_F(HearingAidTest, service_changed_before_stream_start_gatt_omitted_after_sv
   Mock::VerifyAndClearExpectations(&gatt_interface);
   Mock::VerifyAndClearExpectations(&gatt_queue);
 
-  EXPECT_CALL(gatt_queue, WriteCharacteristic(1, kVolume, _, _, _, _)).Times(1);
-  EXPECT_CALL(gatt_queue, WriteCharacteristic(1, kAudioControlPoint, _, _, _, _)).Times(AtLeast(2));
+  EXPECT_CALL(gatt_queue, WriteCharacteristic(1, kVolume, _, _, _, _));
+  EXPECT_CALL(gatt_queue, WriteCharacteristic(1, kAudioControlPoint, _, _, _, _));
   /* Simulate AF sending Audio Suspend */
   do_in_main_thread(base::BindOnce(&HearingAidAudioReceiver::OnAudioSuspend,
                                    base::Unretained(audio_receiver_), start_dummy_ticks));
@@ -807,7 +766,6 @@ TEST_F(HearingAidTest, service_changed_before_stream_start_gatt_omitted_after_sv
  *    Check if write to AudioControlPoint was not executed.
  */
 TEST_F(HearingAidTest, conn_update_after_service_changed_gatt_omitted_after_svc_changed) {
-  com::android::bluetooth::flags::provider_->asha_omit_gatt_after_svc_changed(true);
   set_sample_database(1);
   SetEncryptionResult(test_address, true);
 
@@ -818,6 +776,8 @@ TEST_F(HearingAidTest, conn_update_after_service_changed_gatt_omitted_after_svc_
   EXPECT_CALL(gatt_queue, ReadCharacteristic(1, kReadOnlyProperties, _, _));
   EXPECT_CALL(gatt_queue, WriteCharacteristic(1, kAudioControlPoint, _, _, _, _)).Times(AtLeast(1));
   HearingAid::Connect(test_address);
+  InjectGapOpen(1);
+  InjectConnectionUpdateEvent(1);
 
   Mock::VerifyAndClearExpectations(callbacks.get());
   Mock::VerifyAndClearExpectations(&gatt_interface);
@@ -827,6 +787,189 @@ TEST_F(HearingAidTest, conn_update_after_service_changed_gatt_omitted_after_svc_
   InjectConnectionUpdateEvent(1);
   EXPECT_CALL(gatt_queue, WriteCharacteristic(1, kAudioControlPoint, _, _, _, _)).Times(0);
   SyncOnMainLoop();
+}
+
+/* Test that if second of two devices fails to reconnect, reconnection is attempted */
+TEST_F(HearingAidTest, reconnect_first_success_second_fail) {
+  set_com_android_bluetooth_flags_asha_retry_reconnect_when_in_set(true);
+  const RawAddress test_address1 = GetTestAddress(1);
+  const RawAddress test_address2 = GetTestAddress(2);
+  const uint16_t conn_id1 = GetTestConnId(test_address1);
+  const uint16_t conn_id2 = GetTestConnId(test_address2);
+  HearingDevice saved_dev1;
+  HearingDevice saved_dev2;
+  device_capabilities_[GetTestConnId(GetTestAddress(1))] = 0x06;  // left
+  device_capabilities_[GetTestConnId(GetTestAddress(2))] = 0x07;  // right
+
+  set_sample_database(conn_id1);
+  set_sample_database(conn_id2);
+  SetEncryptionResult(test_address1, true);
+  SetEncryptionResult(test_address2, true);
+
+  ON_CALL(btif_storage_interface_, AddHearingAid(_))
+          .WillByDefault(Invoke([&](const HearingDevice* dev_info) {
+            if (dev_info->address == test_address1) {
+              saved_dev1 = *dev_info;
+            } else {
+              saved_dev2 = *dev_info;
+            }
+          }));
+
+  /* First device connects successfully */
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address1, BTM_BLE_DIRECT_CONNECTION));
+  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address1));
+  EXPECT_CALL(*callbacks, OnDeviceAvailable(_, _, test_address1));
+  HearingAid::Connect(test_address1);
+  InjectGapOpen(1);
+  InjectConnectionUpdateEvent(1);
+
+  /* Second device connects successfully */
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address2, BTM_BLE_DIRECT_CONNECTION));
+  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address2));
+  EXPECT_CALL(*callbacks, OnDeviceAvailable(_, _, test_address2));
+  HearingAid::Connect(test_address2);
+  InjectGapOpen(2);
+  InjectConnectionUpdateEvent(2);
+
+  Mock::VerifyAndClearExpectations(&*callbacks);
+  Mock::VerifyAndClearExpectations(&gatt_interface);
+  Mock::VerifyAndClearExpectations(&btm_interface);
+
+  /* Disconnect both devices */
+  EXPECT_CALL(gatt_interface, CancelOpen(_, test_address1, _)).Times(AnyNumber());
+  HearingAid::Disconnect(test_address1);
+  EXPECT_CALL(gatt_interface, CancelOpen(_, test_address2, _)).Times(AnyNumber());
+  HearingAid::Disconnect(test_address2);
+
+  ON_CALL(btif_storage_interface_, GetHearingAidProp(_, _, _, _, _, _))
+          .WillByDefault(Invoke([&](const RawAddress& address, uint8_t* capabilities,
+                                    uint64_t* hi_sync_id, uint16_t* render_delay,
+                                    uint16_t* preparation_delay, uint16_t* codecs) {
+            HearingDevice* restored_dev;
+            if (address == test_address1) {
+              restored_dev = &saved_dev1;
+            } else {
+              restored_dev = &saved_dev2;
+            }
+            *capabilities = restored_dev->capabilities;
+            *hi_sync_id = restored_dev->hi_sync_id;
+            *render_delay = restored_dev->render_delay;
+            *preparation_delay = restored_dev->preparation_delay;
+            *codecs = restored_dev->codecs;
+            return true;
+          }));
+
+  Mock::VerifyAndClearExpectations(&*callbacks);
+  Mock::VerifyAndClearExpectations(&gatt_interface);
+  Mock::VerifyAndClearExpectations(&btm_interface);
+
+  /* Add both devices froms storage. Second device fails to connect. Verify connection retry. */
+  ON_CALL(gatt_interface, Open(gatt_if, _, BTM_BLE_BKG_CONNECT_ALLOW_LIST)).WillByDefault(Return());
+  ON_CALL(gatt_interface, Open(gatt_if, test_address2, BTM_BLE_DIRECT_CONNECTION))
+          .WillByDefault(Invoke([&](tGATT_IF, const RawAddress& remote_bda, tBTM_BLE_CONN_TYPE) {
+            InjectConnectedEvent(remote_bda, conn_id2, GATT_ERROR);
+          }));
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address1, BTM_BLE_BKG_CONNECT_ALLOW_LIST));
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address2, BTM_BLE_BKG_CONNECT_ALLOW_LIST))
+          .Times(2);
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address2, BTM_BLE_DIRECT_CONNECTION));
+
+  HearingAid::AddFromStorage(saved_dev1, true);
+  HearingAid::AddFromStorage(saved_dev2, true);
+  InjectConnectedEvent(test_address1, conn_id1);
+  InjectGapOpen(1);
+}
+
+/* Test that if first of two devices fails to reconnect, reconnection is attempted after
+ * the second one connects successfully */
+TEST_F(HearingAidTest, reconnect_first_fail_second_success) {
+  set_com_android_bluetooth_flags_asha_retry_reconnect_when_in_set(true);
+  const RawAddress test_address1 = GetTestAddress(1);
+  const RawAddress test_address2 = GetTestAddress(2);
+  const uint16_t conn_id1 = GetTestConnId(test_address1);
+  const uint16_t conn_id2 = GetTestConnId(test_address2);
+  HearingDevice saved_dev1;
+  HearingDevice saved_dev2;
+  device_capabilities_[GetTestConnId(GetTestAddress(1))] = 0x06;  // left
+  device_capabilities_[GetTestConnId(GetTestAddress(2))] = 0x07;  // right
+
+  set_sample_database(conn_id1);
+  set_sample_database(conn_id2);
+  SetEncryptionResult(test_address1, true);
+  SetEncryptionResult(test_address2, true);
+
+  ON_CALL(btif_storage_interface_, AddHearingAid(_))
+          .WillByDefault(Invoke([&](const HearingDevice* dev_info) {
+            if (dev_info->address == test_address1) {
+              saved_dev1 = *dev_info;
+            } else {
+              saved_dev2 = *dev_info;
+            }
+          }));
+
+  /* First device connects successfully */
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address1, BTM_BLE_DIRECT_CONNECTION));
+  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address1));
+  EXPECT_CALL(*callbacks, OnDeviceAvailable(_, _, test_address1));
+  HearingAid::Connect(test_address1);
+  InjectGapOpen(1);
+  InjectConnectionUpdateEvent(1);
+
+  /* Second device connects successfully */
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address2, BTM_BLE_DIRECT_CONNECTION));
+  EXPECT_CALL(*callbacks, OnConnectionState(ConnectionState::CONNECTED, test_address2));
+  EXPECT_CALL(*callbacks, OnDeviceAvailable(_, _, test_address2));
+  HearingAid::Connect(test_address2);
+  InjectGapOpen(2);
+  InjectConnectionUpdateEvent(2);
+
+  Mock::VerifyAndClearExpectations(&*callbacks);
+  Mock::VerifyAndClearExpectations(&gatt_interface);
+  Mock::VerifyAndClearExpectations(&btm_interface);
+
+  /* Disconnect both devices */
+  EXPECT_CALL(gatt_interface, CancelOpen(_, test_address1, _)).Times(AnyNumber());
+  HearingAid::Disconnect(test_address1);
+  EXPECT_CALL(gatt_interface, CancelOpen(_, test_address2, _)).Times(AnyNumber());
+  HearingAid::Disconnect(test_address2);
+
+  ON_CALL(btif_storage_interface_, GetHearingAidProp(_, _, _, _, _, _))
+          .WillByDefault(Invoke([&](const RawAddress& address, uint8_t* capabilities,
+                                    uint64_t* hi_sync_id, uint16_t* render_delay,
+                                    uint16_t* preparation_delay, uint16_t* codecs) {
+            HearingDevice* restored_dev;
+            if (address == test_address1) {
+              restored_dev = &saved_dev1;
+            } else {
+              restored_dev = &saved_dev2;
+            }
+            *capabilities = restored_dev->capabilities;
+            *hi_sync_id = restored_dev->hi_sync_id;
+            *render_delay = restored_dev->render_delay;
+            *preparation_delay = restored_dev->preparation_delay;
+            *codecs = restored_dev->codecs;
+            return true;
+          }));
+
+  Mock::VerifyAndClearExpectations(&*callbacks);
+  Mock::VerifyAndClearExpectations(&gatt_interface);
+  Mock::VerifyAndClearExpectations(&btm_interface);
+
+  /* Add both devices froms storage. Second device fails to connect. Verify connection retry. */
+  ON_CALL(gatt_interface, Open(gatt_if, _, BTM_BLE_BKG_CONNECT_ALLOW_LIST)).WillByDefault(Return());
+  ON_CALL(gatt_interface, Open(gatt_if, test_address1, BTM_BLE_DIRECT_CONNECTION))
+          .WillByDefault(Invoke([&](tGATT_IF, const RawAddress& remote_bda, tBTM_BLE_CONN_TYPE) {
+            InjectConnectedEvent(remote_bda, conn_id2, GATT_ERROR);
+          }));
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address2, BTM_BLE_BKG_CONNECT_ALLOW_LIST));
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address1, BTM_BLE_BKG_CONNECT_ALLOW_LIST))
+          .Times(2);
+  EXPECT_CALL(gatt_interface, Open(gatt_if, test_address1, BTM_BLE_DIRECT_CONNECTION));
+
+  HearingAid::AddFromStorage(saved_dev1, true);
+  HearingAid::AddFromStorage(saved_dev2, true);
+  InjectConnectedEvent(test_address2, conn_id1);
+  InjectGapOpen(1);
 }
 
 }  // namespace

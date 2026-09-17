@@ -22,8 +22,8 @@ import static com.google.common.truth.Truth.assertWithMessage;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.when;
 
+import android.app.ActivityManager;
 import android.content.Context;
 import android.content.res.Resources;
 import android.database.MatrixCursor;
@@ -67,13 +67,16 @@ public class BluetoothPbapUtilsTest {
 
     @Mock Resources mResources;
 
+    @Mock ActivityManager mActivityManager;
+
     @Spy BluetoothMethodProxy mProxy;
 
     @Before
     public void setUp() throws Exception {
         BluetoothMethodProxy.setInstanceForTesting(mProxy);
 
-        when(mContext.getResources()).thenReturn(mResources);
+        doReturn(mResources).when(mContext).getResources();
+        doReturn(mActivityManager).when(mContext).getSystemService(ActivityManager.class);
         clearStaticFields();
     }
 

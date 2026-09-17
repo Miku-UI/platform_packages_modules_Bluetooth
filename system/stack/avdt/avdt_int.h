@@ -31,13 +31,13 @@
 #include <string>
 #include <unordered_map>
 
-#include "avdt_api.h"
 #include "avdt_defs.h"
-#include "avdtc_api.h"
 #include "include/macros.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/alarm.h"
 #include "osi/include/fixed_queue.h"
+#include "stack/include/avdt_api.h"
+#include "stack/include/avdtc_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cap_interface.h"
 
@@ -867,6 +867,7 @@ AvdtpScb* avdt_scb_alloc(uint8_t peer_id, const AvdtpStreamConfig& avdtp_stream_
 void avdt_scb_dealloc(AvdtpScb* p_scb, tAVDT_SCB_EVT* p_data);
 uint8_t avdt_scb_to_hdl(AvdtpScb* p_scb);
 AvdtpScb* avdt_scb_by_hdl(uint8_t hdl);
+AvdtpScb* avdt_connected_scb_by_hdl(uint8_t hdl);
 uint8_t avdt_scb_verify(AvdtpCcb* p_ccb, uint8_t state, uint8_t* p_seid, uint16_t num_seid,
                         uint8_t* p_err_code);
 void avdt_scb_peer_seid_list(tAVDT_MULTI* p_multi);

@@ -16,5 +16,5 @@
  */
 
 package android.bluetooth;
-/** @hide */
+
 parcelable BluetoothLeCall;

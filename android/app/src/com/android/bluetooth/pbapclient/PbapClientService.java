@@ -22,8 +22,6 @@ import static android.bluetooth.BluetoothProfile.CONNECTION_POLICY_FORBIDDEN;
 import static android.bluetooth.BluetoothProfile.STATE_CONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 
-import static java.util.Objects.requireNonNull;
-
 import android.accounts.Account;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
@@ -38,9 +36,8 @@ import android.sysprop.BluetoothProperties;
 import android.util.Log;
 
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.ConnectableProfile;
-import com.android.bluetooth.btservice.ProfileService;
-import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.profile.ConnectableProfile;
+import com.android.bluetooth.profile.ProfileService;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.ArrayList;
@@ -92,7 +89,7 @@ public class PbapClientService extends ConnectableProfile {
     }
 
     public PbapClientService(AdapterService adapterService) {
-        super(BluetoothProfile.PBAP_CLIENT, requireNonNull(adapterService));
+        super(BluetoothProfile.PBAP_CLIENT, adapterService);
         mHandler = new Handler(Looper.getMainLooper());
         mStateMachinesLooper = null;
 
@@ -112,7 +109,7 @@ public class PbapClientService extends ConnectableProfile {
             PbapClientContactsStorage storage,
             Map<BluetoothDevice, PbapClientStateMachine> deviceMap,
             Looper looper) {
-        super(BluetoothProfile.PBAP_CLIENT, requireNonNull(adapterService));
+        super(BluetoothProfile.PBAP_CLIENT, adapterService);
 
         // This is an override unique to this constructor which belongs to tests only
         mHandler = new Handler(looper);
@@ -133,7 +130,7 @@ public class PbapClientService extends ConnectableProfile {
     }
 
     @Override
-    public IProfileServiceBinder initBinder() {
+    protected IProfileServiceBinder initBinder() {
         return new PbapClientServiceBinder(this);
     }
 
@@ -165,7 +162,7 @@ public class PbapClientService extends ConnectableProfile {
      * up when we shutdown.
      */
     private void registerSdpRecord() {
-        final var nativeInterface = mAdapterService.getSdpManagerNativeInterface();
+        final var nativeInterface = getAdapterService().getSdpManagerNativeInterface();
         if (nativeInterface.isEmpty()) {
             Log.e(TAG, "SdpManagerNativeInterface is not available");
             return;
@@ -186,7 +183,7 @@ public class PbapClientService extends ConnectableProfile {
         }
         int sdpHandle = mSdpHandle;
         mSdpHandle = -1;
-        final var nativeInterface = mAdapterService.getSdpManagerNativeInterface();
+        final var nativeInterface = getAdapterService().getSdpManagerNativeInterface();
         if (nativeInterface.isEmpty()) {
             Log.e(
                     TAG,
@@ -230,7 +227,7 @@ public class PbapClientService extends ConnectableProfile {
                 }
                 stateMachine =
                         new PbapClientStateMachine(
-                                mAdapterService,
+                                getAdapterService(),
                                 device,
                                 mPbapClientContactsStorage,
                                 this,
@@ -280,7 +277,6 @@ public class PbapClientService extends ConnectableProfile {
             Log.d(TAG, "Received intent to disconnect HFP with " + device);
             Account account = mPbapClientContactsStorage.getStorageAccountForDevice(device);
             mPbapClientContactsStorage.removeCallHistory(account);
-            return;
         }
     }
 
@@ -358,18 +354,18 @@ public class PbapClientService extends ConnectableProfile {
                         + BluetoothUuid.PBAP_PSE.toString()
                         + ")");
         if (uuid.equals(BluetoothUuid.PBAP_PSE)) {
-            SdpPseRecord pseRecord = (SdpPseRecord) record;
-            if (pseRecord == null) {
-                Log.w(TAG, "Received null PSE record for device=" + device);
-                return;
-            }
-
             PbapClientStateMachine stateMachine = getDeviceStateMachine(device);
             if (stateMachine == null) {
                 Log.e(TAG, "No StateMachine found for the device=" + device.toString());
                 return;
             }
-            stateMachine.onSdpResultReceived(status, new PbapSdpRecord(device, pseRecord));
+
+            SdpPseRecord pseRecord = (SdpPseRecord) record;
+            PbapSdpRecord pbapRecord = null;
+            if (pseRecord != null) {
+                pbapRecord = new PbapSdpRecord(device, pseRecord);
+            }
+            stateMachine.onSdpResultReceived(status, pbapRecord);
         }
     }
 
@@ -389,10 +385,7 @@ public class PbapClientService extends ConnectableProfile {
             throw new IllegalArgumentException("Null device");
         }
         Log.d(TAG, "connect(device=" + device.getAddress() + ")");
-        if (getConnectionPolicy(device) <= CONNECTION_POLICY_FORBIDDEN
-                || (Flags.pbapClientCheckAccessPermission()
-                        && mAdapterService.getPhonebookAccessPermission(device)
-                                != BluetoothDevice.ACCESS_ALLOWED)) {
+        if (getConnectionPolicy(device) <= CONNECTION_POLICY_FORBIDDEN) {
             return false;
         }
 
@@ -502,9 +495,7 @@ public class PbapClientService extends ConnectableProfile {
         }
         Log.d(TAG, "Saved connectionPolicy " + device + " = " + connectionPolicy);
 
-        if (!mAdapterService.setProfileConnectionPolicy(device, mProfileId, connectionPolicy)) {
-            return false;
-        }
+        getAdapterService().setProfileConnectionPolicy(device, getProfileId(), connectionPolicy);
         if (connectionPolicy == CONNECTION_POLICY_ALLOWED) {
             connect(device);
         } else if (connectionPolicy == CONNECTION_POLICY_FORBIDDEN) {

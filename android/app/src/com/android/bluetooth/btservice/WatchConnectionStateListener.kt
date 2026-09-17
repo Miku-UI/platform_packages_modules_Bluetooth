@@ -24,8 +24,8 @@ import android.companion.CompanionDeviceManager.OnAssociationsChangedListener
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import com.android.bluetooth.Utils.isWatch
-import com.android.bluetooth.Utils.remoteDeviceIsWatch
+import com.android.bluetooth.Util.isWatch
+import com.android.bluetooth.Util.remoteDeviceIsWatch
 
 private const val TAG = "WatchConnectionStateListener"
 
@@ -44,7 +44,7 @@ class WatchConnectionStateListener(private val adapterService: AdapterService, l
     private var currentWatchStatus = false
 
     init {
-        if (!isWatch(adapterService)) {
+        if (!adapterService.isWatch()) {
             val cdm = adapterService.getSystemService(CompanionDeviceManager::class.java)
             cdm.addOnAssociationsChangedListener(Handler(looper)::post, this)
             onAssociationsChanged(cdm.allAssociations)
@@ -52,7 +52,7 @@ class WatchConnectionStateListener(private val adapterService: AdapterService, l
     }
 
     private fun computeCurrentWatchStatus(): Boolean {
-        if (isWatch(adapterService)) {
+        if (adapterService.isWatch()) {
             return !connectedDevices.isEmpty()
         }
         return connectedDevices.keys.any { device ->

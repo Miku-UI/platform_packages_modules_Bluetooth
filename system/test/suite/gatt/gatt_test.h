@@ -59,16 +59,9 @@ protected:
   virtual void TearDown();
 
   friend void RegisterClientCallback(int status, int clientIf, const bluetooth::Uuid& app_uuid);
-  friend void ScanResultCallback(uint16_t ble_evt_type, uint8_t addr_type, RawAddress* bda,
-                                 uint8_t ble_primary_phy, uint8_t ble_secondary_phy,
-                                 uint8_t ble_advertising_sid, int8_t ble_tx_power, int8_t rssi,
-                                 uint16_t ble_periodic_adv_int, std::vector<uint8_t> adv_data,
-                                 RawAddress* original_bda);
-
   friend void RegisterServerCallback(int status, int server_if, const bluetooth::Uuid& uuid);
   friend void ServiceAddedCallback(int status, int server_if, const btgatt_db_element_t* service,
                                    size_t service_count);
-  friend void ServiceStoppedCallback(int status, int server_if, int srvc_handle);
   friend void ServiceDeletedCallback(int status, int server_if, int srvc_handle);
 
   // Semaphores used to wait for specific callback execution. Each callback
@@ -81,7 +74,6 @@ protected:
   btsemaphore characteristic_added_callback_sem_;
   btsemaphore descriptor_added_callback_sem_;
   btsemaphore service_started_callback_sem_;
-  btsemaphore service_stopped_callback_sem_;
   btsemaphore service_deleted_callback_sem_;
 
 private:

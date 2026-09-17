@@ -367,7 +367,6 @@ public class MediaPlayerWrapper {
     }
 
     private void sendMediaUpdate(MediaData newData) {
-
         if (newData.equals(mCurrentData)) {
             // This may happen if the controller is fully synced by the time the
             // first update is completed
@@ -484,7 +483,7 @@ public class MediaPlayerWrapper {
                 Log.e(TAG, "The callback metadata doesn't match controller metadata");
             }
 
-            final Metadata mData = Util.toMetadata(mContext, mediaMetadata);
+            final Metadata mData = Util.toMetadata(mContext, metadata);
             Log.v(TAG, "onMetadataChanged(): " + mPackageName + " : " + mData);
 
             // TODO: Certain players update different metadata fields as they load, such as Album

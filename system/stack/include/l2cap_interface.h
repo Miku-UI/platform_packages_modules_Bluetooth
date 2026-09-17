@@ -304,7 +304,7 @@ public:
    ** Returns          LE_PSM to use if success. Otherwise returns 0.
    **
    ******************************************************************************/
-  virtual uint16_t L2CA_AllocateLePSM(void) = 0;
+  virtual uint16_t L2CA_AllocateLePSM(int fixed_psm_slots) = 0;
 
   /*******************************************************************************
    **
@@ -547,6 +547,20 @@ public:
 
   /*******************************************************************************
    **
+   ** Function         L2CA_SetRateControlEnabled
+   **
+   ** Description      Enable or disable rate control algorithm for a channel.
+   **
+   ** Parameters:      bd_addr: Peer bluetooth device address
+   **                  enabled: true to enable rate control; false to enable
+   **
+   ** Returns          true if command succeeded, false if failed
+   **
+   ******************************************************************************/
+  virtual bool L2CA_SetRateControlEnabled(const RawAddress& bd_addr, bool enabled) = 0;
+
+  /*******************************************************************************
+   **
    ** Function         L2CA_GetPeerFeatures
    **
    ** Description      Request peer features and fixed channel map
@@ -655,7 +669,10 @@ public:
    ******************************************************************************/
   virtual void L2CA_Consolidate(const RawAddress& identity_addr, const RawAddress& rpa) = 0;
   virtual tHCI_ROLE L2CA_GetBleConnRole(const RawAddress& bd_addr) = 0;
+  virtual uint16_t L2CA_GetBleSubrateFactor(const RawAddress& bd_addr) = 0;
   virtual uint16_t L2CA_GetBleConnInterval(const RawAddress& bd_addr) = 0;
+  virtual uint16_t L2CA_GetBlePeriphLatency(const RawAddress& bd_addr) = 0;
+  virtual uint16_t L2CA_GetBleSupervisionTimeout(const RawAddress& bd_addr) = 0;
 
   /*******************************************************************************
    **

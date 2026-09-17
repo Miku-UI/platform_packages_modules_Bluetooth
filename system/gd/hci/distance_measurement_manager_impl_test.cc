@@ -16,7 +16,10 @@
 
 #include "hci/distance_measurement_manager_impl.h"
 
+#include <base/functional/bind.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/string_helpers.h>
+#include <com_android_bluetooth_flags.h>
 #include <flag_macros.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 #include <gmock/gmock.h>
@@ -25,8 +28,6 @@
 #include <string>
 #include <vector>
 
-#include "common/bind.h"
-#include "common/strings.h"
 #include "hal/ranging_hal.h"
 #include "hal/ranging_hal_mock.h"
 #include "hci/acl_manager/acl_manager_le_mock.h"
@@ -56,10 +57,18 @@ using testing::WithParamInterface;
 
 namespace {
 static constexpr auto kTimeout = std::chrono::seconds(1);
+static constexpr uint8_t kMaxRetryCounterForReadRemoteCapability = 0x03;
 static constexpr uint8_t kMaxRetryCounterForCreateConfig = 0x03;
+static constexpr uint8_t kMaxRetryCounterForSetProcedureParameter = 0x0a;
 static constexpr uint8_t kMaxRetryCounterForCsEnable = 0x03;
 static constexpr uint8_t kConnInterval = 24;
 static constexpr uint16_t kMinProcedureInterval = 0x01;
+static constexpr uint16_t kCommandRetryIntervalMs = 300;
+// These are standalone constants from the original implementation file,
+// needed for validating the test expectations.
+static constexpr int kInvalidAzimuthAngleDegree = -1;
+static constexpr int kInvalidAltitudeAngleDegree = -91;
+static constexpr uint8_t KPacketNadmAttackUnlikely = 0x02;
 }  // namespace
 
 namespace bluetooth {
@@ -248,12 +257,12 @@ struct CsModule {
   std::future<void> fake_timer_advance(uint64_t ms) {
     std::promise<void> promise;
     auto future = promise.get_future();
-    client_handler_->Post(common::BindOnce(
+    client_handler_->Post(base::BindOnce(
             [](std::promise<void> promise, uint64_t ms) {
               fake_timerfd_advance(ms);
               promise.set_value();
             },
-            common::Passed(std::move(promise)), ms));
+            base::Passed(std::move(promise)), ms));
 
     return future;
   }
@@ -765,7 +774,7 @@ TEST_F(DistanceMeasurementManagerTest, error_read_remote_cs_caps_command) {
   cs_requester_.sync_client_handler();
 }
 
-TEST_F(DistanceMeasurementManagerTest, fail_read_remote_cs_caps_complete) {
+TEST_F(DistanceMeasurementManagerTest, fail_read_remote_cs_caps_complete_with_retry) {
   auto dm_session_future = cs_requester_.GetDmSessionFuture();
   StartMeasurementParameters params;
   cs_requester_.StartMeasurementTillRasConnectedEvent(params);
@@ -781,12 +790,20 @@ TEST_F(DistanceMeasurementManagerTest, fail_read_remote_cs_caps_complete) {
             cs_requester_.dm_session_promise_.reset();
           });
 
-  cs_requester_.test_hci_layer_->GetCommand(OpCode::LE_CS_READ_REMOTE_SUPPORTED_CAPABILITIES);
   CsReadCapabilitiesCompleteEvent read_cs_complete_event;
   read_cs_complete_event.error_code = ErrorCode::COMMAND_DISALLOWED;
-  cs_requester_.test_hci_layer_->IncomingLeMetaEvent(
-          CsModule::GetRemoteSupportedCapabilitiesCompleteEvent(params.connection_handle,
-                                                                read_cs_complete_event));
+  for (int i = 0; i <= kMaxRetryCounterForReadRemoteCapability; i++) {
+    cs_requester_.test_hci_layer_->GetCommand(OpCode::LE_CS_READ_REMOTE_SUPPORTED_CAPABILITIES);
+    cs_requester_.test_hci_layer_->IncomingLeMetaEvent(
+            CsModule::GetRemoteSupportedCapabilitiesCompleteEvent(params.connection_handle,
+                                                                  read_cs_complete_event));
+    cs_requester_.sync_client_handler();  // Ensure the event above is processed
+    if (i < kMaxRetryCounterForReadRemoteCapability) {
+      auto future = cs_requester_.fake_timer_advance(kCommandRetryIntervalMs);
+      future.wait_for(kTimeout);
+    }
+  }
+  dm_session_future.wait_for(kTimeout);
   cs_requester_.sync_client_handler();
 }
 
@@ -835,6 +852,11 @@ TEST_F(DistanceMeasurementManagerTest, fail_create_config_complete) {
     cs_requester_.test_hci_layer_->GetCommand(OpCode::LE_CS_CREATE_CONFIG);
     cs_requester_.test_hci_layer_->IncomingLeMetaEvent(
             CsModule::GetConfigCompleteEvent(params.connection_handle, cs_config_complete_event));
+    cs_requester_.sync_client_handler();  // Ensure event is processed, retry timer is set
+    if (i < kMaxRetryCounterForCreateConfig) {
+      auto future = cs_requester_.fake_timer_advance(kCommandRetryIntervalMs);
+      future.wait_for(kTimeout);
+    }
   }
   dm_session_future.wait_for(kTimeout);
   cs_requester_.sync_client_handler();
@@ -851,6 +873,37 @@ TEST_F(DistanceMeasurementManagerTest, fail_create_config_complete_in_wrong_stat
   cs_requester_.sync_client_handler();
 
   cs_requester_.test_hci_layer_->AssertNoQueuedCommand();
+}
+
+TEST_F(DistanceMeasurementManagerTest, fail_set_procedure_parameters_with_retry) {
+  auto dm_session_future = cs_requester_.GetDmSessionFuture();
+  StartMeasurementParameters params;
+  cs_requester_.StartMeasurementTillSecurityEnable(params);
+
+  EXPECT_CALL(cs_requester_.mock_dm_callbacks_,
+              OnDistanceMeasurementStopped(params.responder_addr,
+                                           DistanceMeasurementErrorCode::REASON_INTERNAL_ERROR,
+                                           DistanceMeasurementMethod::METHOD_CS))
+          .WillOnce([this](const Address& /*address*/, DistanceMeasurementErrorCode /*error_code*/,
+                           DistanceMeasurementMethod /*method*/) {
+            ASSERT_NE(cs_requester_.dm_session_promise_, nullptr);
+            cs_requester_.dm_session_promise_->set_value();
+            cs_requester_.dm_session_promise_.reset();
+          });
+
+  for (int i = 0; i <= kMaxRetryCounterForSetProcedureParameter; i++) {
+    cs_requester_.test_hci_layer_->GetCommand(OpCode::LE_CS_SET_PROCEDURE_PARAMETERS);
+    cs_requester_.test_hci_layer_->IncomingEvent(LeCsSetProcedureParametersCompleteBuilder::Create(
+            /*num_hci_command_packets=*/static_cast<uint8_t>(0xEE),
+            ErrorCode::INVALID_HCI_COMMAND_PARAMETERS, params.connection_handle));
+    cs_requester_.sync_client_handler();  // Ensure event is processed, retry timer is set
+    if (i < kMaxRetryCounterForSetProcedureParameter) {
+      auto future = cs_requester_.fake_timer_advance(kCommandRetryIntervalMs);
+      future.wait_for(kTimeout);
+    }
+  }
+  dm_session_future.wait_for(kTimeout);
+  cs_requester_.sync_client_handler();
 }
 
 TEST_F(DistanceMeasurementManagerTest, fail_security_enable_complete) {
@@ -913,6 +966,7 @@ TEST_F(DistanceMeasurementManagerTest, retry_fail_procedure_enable_command) {
     cs_requester_.test_hci_layer_->IncomingEvent(LeCsProcedureEnableStatusBuilder::Create(
             /*status=*/ErrorCode::COMMAND_DISALLOWED,
             /*num_hci_command_packets=*/0xff));
+    cs_requester_.sync_client_handler();  // Ensure event is processed, retry timer is set
     auto future = cs_requester_.fake_timer_advance(params.interval + 10);
     future.wait_for(kTimeout);
     cs_requester_.sync_client_handler();
@@ -1169,7 +1223,28 @@ TEST_F(DistanceMeasurementManagerTest, duplicated_requesting_session) {
 
   // start a new request after stop
   cs_requester_.StartMeasurement(params);
-  cs_requester_.test_hci_layer_->GetCommand(OpCode::LE_CS_PROCEDURE_ENABLE);
+
+  cs_requester_.sync_client_handler();
+
+  if (com_android_bluetooth_flags_channel_sounding_26q1_fix()) {
+    // Verify that LE_CS_SECURITY_ENABLE is sent upon restart
+    command_view = cs_requester_.test_hci_layer_->GetCommand(OpCode::LE_CS_SECURITY_ENABLE);
+    auto security_enable_view =
+            LeCsSecurityEnableView::Create(DistanceMeasurementCommandView::Create(command_view));
+    EXPECT_TRUE(security_enable_view.IsValid());
+    EXPECT_EQ(security_enable_view.GetConnectionHandle(), params.connection_handle);
+
+    // Allow the flow to continue to verify the next command
+    cs_requester_.test_hci_layer_->IncomingEvent(LeCsSecurityEnableStatusBuilder::Create(
+            /*status=*/ErrorCode::SUCCESS,
+            /*num_hci_command_packets=*/0xFF));
+    cs_requester_.test_hci_layer_->IncomingLeMetaEvent(LeCsSecurityEnableCompleteBuilder::Create(
+            ErrorCode::SUCCESS, params.connection_handle));
+    cs_requester_.sync_client_handler();
+    cs_requester_.test_hci_layer_->GetCommand(OpCode::LE_CS_SET_PROCEDURE_PARAMETERS);
+  } else {
+    cs_requester_.test_hci_layer_->GetCommand(OpCode::LE_CS_PROCEDURE_ENABLE);
+  }
   cs_requester_.test_hci_layer_->AssertNoQueuedCommand();
 }
 
@@ -1731,10 +1806,17 @@ TEST_F(DistanceMeasurementManagerTest, get_rssi_result_success) {
   int8_t rssi_drop_off_at_1m = 41;
   double pow_value = (transmit_power_level - rssi - rssi_drop_off_at_1m) / 20.0;
   double distance = pow(10.0, pow_value);
-  EXPECT_CALL(
-          cs_requester_.mock_dm_callbacks_,
-          OnDistanceMeasurementResult(params.responder_addr, distance * 100, distance * 100, _, _,
-                                      _, _, _, _, _, _, _, DistanceMeasurementMethod::METHOD_RSSI));
+  if (com_android_bluetooth_flags_include_power_and_rssi_in_distance_measurement_result()) {
+    EXPECT_CALL(cs_requester_.mock_dm_callbacks_,
+                OnDistanceMeasurementResult(params.responder_addr, distance * 100, distance * 100,
+                                            _, _, _, _, _, transmit_power_level, rssi, _, _, _, _,
+                                            DistanceMeasurementMethod::METHOD_RSSI));
+  } else {
+    EXPECT_CALL(cs_requester_.mock_dm_callbacks_,
+                OnDistanceMeasurementResult(params.responder_addr, distance * 100, distance * 100,
+                                            _, _, _, _, _, _, _, _, _, _, _,
+                                            DistanceMeasurementMethod::METHOD_RSSI));
+  }
   cs_requester_.test_hci_layer_->IncomingEvent(ReadRssiCompleteBuilder::Create(
           /*num_hci_command_packets=*/128, ErrorCode::SUCCESS, params.connection_handle, rssi));
   fake_timerfd_reset();
@@ -1824,6 +1906,54 @@ TEST_F(DistanceMeasurementManagerTest, ranging_hal_on_closed_after_started) {
 
   cs_requester_.sync_client_handler();
   cs_requester_.test_hci_layer_->AssertNoQueuedCommand();
+}
+
+TEST_F(DistanceMeasurementManagerTest, ranging_hal_on_result_v2) {
+  // 1. Setup: Start a CS session so a tracker exists.
+  // This is the step that was missing before.
+  StartMeasurementParameters params;
+  cs_requester_.StartMeasurementTillProcedureEnableComplete(params);
+  cs_requester_.sync_client_handler();
+
+  // 2. Define the mock result from HAL
+  hal::RangingResult ranging_result;
+  ranging_result.result_meters_ = 10.5;
+  ranging_result.error_meters_ = 0.5;
+  ranging_result.confidence_level_ = 90;
+  ranging_result.delay_spread_meters_ = 1.2;
+  ranging_result.detected_attack_level_ = KPacketNadmAttackUnlikely;
+  ranging_result.velocity_meters_per_second_ = 0.1;
+  ranging_result.elapsed_timestamp_nanos_ = 123456789;  // Specific timestamp for V2
+
+  // 3. Set the expectation on the final callback
+  // We expect OnDistanceMeasurementResult to be called with:
+  // - Distances converted to centimeters (10.5m -> 1050cm)
+  // - The exact timestamp from the V2 HAL result
+  // TODO(b/462311235): Add call path for check_cs_procedure_complete so that rssi can be tested.
+  EXPECT_CALL(cs_requester_.mock_dm_callbacks_,
+              OnDistanceMeasurementResult(
+                      params.responder_addr,
+                      static_cast<uint32_t>(ranging_result.result_meters_ * 100),  // 1050
+                      static_cast<uint32_t>(ranging_result.error_meters_ * 100),   // 50
+                      kInvalidAzimuthAngleDegree, kInvalidAzimuthAngleDegree,
+                      kInvalidAltitudeAngleDegree, kInvalidAltitudeAngleDegree,
+                      ranging_result.elapsed_timestamp_nanos_,  // V2 uses the provided timestamp
+                      _, _,
+                      ranging_result.confidence_level_,     // 90
+                      ranging_result.delay_spread_meters_,  // 1.2
+                      static_cast<DistanceMeasurementDetectedAttackLevel>(
+                              ranging_result.detected_attack_level_),  // NADM_ATTACK_UNLIKELY
+                      ranging_result.velocity_meters_per_second_,      // 0.1
+                      DistanceMeasurementMethod::METHOD_CS))
+          .Times(1);
+
+  // 4. Trigger the OnResult callback
+  // We get the registered callback from the mock HAL and invoke it.
+  cs_requester_.mock_ranging_hal_->GetRangingHalCallback()->OnResult(params.connection_handle,
+                                                                     ranging_result);
+
+  // 5. Synchronize handler to process the callback
+  cs_requester_.sync_client_handler();
 }
 
 }  // namespace

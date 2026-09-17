@@ -66,6 +66,12 @@ public:
 
   void UnregisterLeEventHandler(SubeventCode subevent_code) override;
 
+  void RegisterDevelopmentEventHandler(
+          DevelopmentSubeventCode subevent_code,
+          common::ContextualCallback<void(DevelopmentEventView)> event_handler) override;
+
+  void UnregisterDevelopmentEventHandler(DevelopmentSubeventCode subevent_code) override;
+
   void RegisterVendorSpecificEventHandler(
           VseSubeventCode subevent_code,
           common::ContextualCallback<void(VendorSpecificEventView)> event_handler) override;
@@ -74,7 +80,13 @@ public:
 
   void IncomingEvent(std::unique_ptr<EventBuilder> event_builder) LOCKS_EXCLUDED(mutex_);
 
+  void IncomingVendorSpecificEvent(std::unique_ptr<VendorSpecificEventBuilder> event_builder)
+          LOCKS_EXCLUDED(mutex_);
+
   void IncomingLeMetaEvent(std::unique_ptr<LeMetaEventBuilder> event_builder)
+          LOCKS_EXCLUDED(mutex_);
+
+  void IncomingDevelopmentEvent(std::unique_ptr<DevelopmentEventBuilder> event_builder)
           LOCKS_EXCLUDED(mutex_);
 
   void CommandCompleteCallback(EventView event) LOCKS_EXCLUDED(mutex_);
@@ -97,6 +109,11 @@ public:
   void SetLeAclDataConsumer(LeAclDataConsumer* le_acl_data_consumer) override;
   void SetClassicAclDataConsumer(ClassicAclDataConsumer* classic_acl_data_consumer) override;
 
+  void SetVendorAclHandleRange(uint16_t min, uint16_t max) override;
+  void RegisterVendorSpecificAclHandler(
+          common::ContextualCallback<void(uint16_t, std::vector<uint8_t>)> handler) override;
+  void UnregisterVendorSpecificAclHandler() override;
+
   os::Handler* handler_;
 
 private:
@@ -111,8 +128,14 @@ private:
           GUARDED_BY(mutex_);
   std::map<SubeventCode, common::ContextualCallback<void(LeMetaEventView)>> registered_le_events_
           GUARDED_BY(mutex_);
+  std::map<DevelopmentSubeventCode, common::ContextualCallback<void(DevelopmentEventView)>>
+          registered_development_events_ GUARDED_BY(mutex_);
   std::map<VseSubeventCode, common::ContextualCallback<void(VendorSpecificEventView)>>
           registered_vs_events_ GUARDED_BY(mutex_);
+  uint16_t vendor_connection_handle_min_ GUARDED_BY(mutex_) = 0;
+  uint16_t vendor_connection_handle_max_ GUARDED_BY(mutex_) = 0;
+  common::ContextualCallback<void(uint16_t, std::vector<uint8_t>)> vendor_specific_acl_handler_
+          GUARDED_BY(mutex_);
 
   common::BidiQueue<AclView, AclBuilder> acl_queue_ GUARDED_BY(mutex_){
           3 /* TODO: Set queue depth */};

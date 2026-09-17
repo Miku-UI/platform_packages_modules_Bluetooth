@@ -17,7 +17,6 @@
 
 package com.android.bluetooth.tbs;
 
-import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattServer;
@@ -25,6 +24,7 @@ import android.bluetooth.BluetoothGattServerCallback;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
+import android.bluetooth.BluetoothStatusCodes;
 import android.content.Context;
 
 import java.util.List;
@@ -37,7 +37,8 @@ import java.util.UUID;
  * test the correct functioning of the TbsService class, the final class must be put into a
  * container that can be mocked correctly.
  */
-@SuppressLint("AndroidFrameworkRequiresPermission") // TODO: b/350563786
+// TODO(b/460558297) TbsGatt to use internal GattService instead of framework APIs
+@SuppressWarnings("IncorrectRequiresPermissionPropagation")
 public class BluetoothGattServerProxy {
 
     private final Context mContext;
@@ -55,15 +56,21 @@ public class BluetoothGattServerProxy {
     }
 
     public void close() {
-        if (mBluetoothGattServer == null) {
+        var gattServer = mBluetoothGattServer;
+        if (gattServer == null) {
             return;
         }
-        mBluetoothGattServer.close();
+        gattServer.close();
         mBluetoothGattServer = null;
     }
 
     public boolean addService(BluetoothGattService service) {
-        return mBluetoothGattServer.addService(service);
+        var gattServer = mBluetoothGattServer;
+        if (gattServer == null) {
+            return false;
+        }
+
+        return gattServer.addService(service);
     }
 
     /**
@@ -78,7 +85,12 @@ public class BluetoothGattServerProxy {
      *     this device.
      */
     public BluetoothGattService getService(UUID uuid) {
-        return mBluetoothGattServer.getService(uuid);
+        var gattServer = mBluetoothGattServer;
+        if (gattServer == null) {
+            return null;
+        }
+
+        return gattServer.getService(uuid);
     }
 
     /**
@@ -87,7 +99,12 @@ public class BluetoothGattServerProxy {
      */
     public boolean sendResponse(
             BluetoothDevice device, int requestId, int status, int offset, byte[] value) {
-        return mBluetoothGattServer.sendResponse(device, requestId, status, offset, value);
+        var gattServer = mBluetoothGattServer;
+        if (gattServer == null) {
+            return false;
+        }
+
+        return gattServer.sendResponse(device, requestId, status, offset, value);
     }
 
     /**
@@ -99,8 +116,12 @@ public class BluetoothGattServerProxy {
             BluetoothGattCharacteristic characteristic,
             boolean confirm,
             byte[] value) {
-        return mBluetoothGattServer.notifyCharacteristicChanged(
-                device, characteristic, confirm, value);
+        var gattServer = mBluetoothGattServer;
+        if (gattServer == null) {
+            return BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ALLOWED;
+        }
+
+        return gattServer.notifyCharacteristicChanged(device, characteristic, confirm, value);
     }
 
     /**
@@ -109,7 +130,12 @@ public class BluetoothGattServerProxy {
      */
     public boolean notifyCharacteristicChanged(
             BluetoothDevice device, BluetoothGattCharacteristic characteristic, boolean confirm) {
-        return mBluetoothGattServer.notifyCharacteristicChanged(device, characteristic, confirm);
+        var gattServer = mBluetoothGattServer;
+        if (gattServer == null) {
+            return false;
+        }
+
+        return gattServer.notifyCharacteristicChanged(device, characteristic, confirm);
     }
 
     /**

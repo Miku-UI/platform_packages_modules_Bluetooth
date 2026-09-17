@@ -27,6 +27,9 @@ void Counter(CounterKey /* key */, int64_t /* count */) {}
 void LogBluetoothEvent(const Address& /* address */, EventType /* event type */,
                        State /* state */) {}
 
+void LogBluetoothEvent(const Address& /* address */, EventType /* event type */, State /* state */,
+                       int /* uid */) {}
+
 void LogMetricClassicPairingEvent(const Address& /* address */, uint16_t /* handle */,
                                   uint32_t /* hci_cmd */, uint16_t /* hci_event */,
                                   uint16_t /* cmd_status */, uint16_t /* reason_code */,
@@ -120,7 +123,14 @@ void LogMetricLeAudioConnectionSessionReported(
         const std::vector<RawAddress>& /*device_address*/,
         const std::vector<int64_t>& /*streaming_offset_nanos*/,
         const std::vector<int64_t>& /*streaming_duration_nanos*/,
-        const std::vector<int32_t>& /*streaming_context_type*/) {}
+        const std::vector<int32_t>& /*streaming_context_type*/,
+        const std::vector<int32_t>& /*codec_format*/,
+        const std::vector<int32_t>& /*vendor_company_id*/,
+        const std::vector<int32_t>& /*vendor_codec_id*/,
+        const std::vector<int32_t>& /*sink_sampling_frequency_hz*/,
+        const std::vector<int32_t>& /*source_sampling_frequency_hz*/,
+        const std::vector<bool>& /*is_dsa_active*/,
+        const std::vector<bool>& /*is_gmap_active*/) {}
 
 void LogMetricLeAudioBroadcastSessionReported(int64_t /*duration_nanos*/) {}
 
@@ -136,10 +146,18 @@ void LogMetricsChannelSoundingRequesterSessionReported(
         android::bluetooth::ChannelSoundingType /*cs_type*/, int32_t /*min_subevent_len*/,
         int32_t /*min_subevent_len_count*/) {}
 
-void LogMetricBluetoothEnergyMonitorReported(uint16_t /*bqr_version*/,
-                                             const bqr::BqrEnergyMonitorEvent& /*event*/) {}
+void LogMetricBluetoothEnergyMonitorReported(
+        uint16_t /*bqr_version*/, const bqr::BqrEnergyMonitoringEventV7& /*event*/) {}
 
 void LogMetricBluetoothRFStatsReported(uint16_t /*bqr_version*/,
                                        const bqr::BqrRFStatsEvent& /*event*/) {}
+
+void LogGattOffloadSessionStateChanged(
+        const Address& /* address */, int32_t /* session_id */,
+        android::bluetooth::gatt::GattRoleEnum /* gatt_role */,
+        android::bluetooth::gatt::GattOffloadSessionStateEnum /* state */,
+        int32_t /* gatt_characteristic_properties_bitmask */, int64_t /* session_duration_ms */,
+        android::bluetooth::gatt::GattOffloadErrorEnum /* error_code */, int32_t /* uid */,
+        const std::string& /* attribution_tag */) {}
 
 }  // namespace bluetooth::metrics

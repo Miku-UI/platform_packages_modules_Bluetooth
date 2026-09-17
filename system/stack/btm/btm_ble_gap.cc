@@ -33,35 +33,31 @@
 #include <com_android_bluetooth_flags.h>
 #include <hardware/ble_scanner.h>
 
-#include <bitset>
 #include <cstdint>
 #include <list>
 #include <memory>
-#include <type_traits>
 #include <vector>
 
 #include "ble_appearance.h"
 #include "bta/include/bta_api.h"
-#include "btif/include/btif_gatt.h"
+#include "btif/include/stack_manager_t.h"
 #include "common/time_util.h"
 #include "hci/controller.h"
 #include "main/shim/acl_api.h"
-#include "main/shim/ble_scanner_interface_impl.h"
 #include "main/shim/entry.h"
 #include "main/shim/le_scanning_manager.h"
-#include "osi/include/allocator.h"
 #include "osi/include/properties.h"
-#include "osi/include/stack_power_telemetry.h"
+
 #include "stack/btm/btm_ble_int.h"
 #include "stack/btm/btm_ble_int_types.h"
 #include "stack/btm/btm_dev.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec.h"
-#include "stack/btm/btm_sec_cb.h"
 #include "stack/btm/internal/btm_api.h"
+#include "stack/gatt/gatt_int.h"
 #include "stack/include/acl_api.h"
 #include "stack/include/advertise_data_parser.h"
-#include "stack/include/ble_scanner.h"
+#include "stack/include/ble_hci_link_interface.h"
 #include "stack/include/bt_dev_class.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
@@ -99,7 +95,7 @@ const uint8_t MSFT_FILTER_ENABLE_CMD_DISALLOWED = 0x0C;
 #endif
 
 static void btm_ble_start_scan();
-static void btm_ble_stop_scan();
+static void btm_ble_stop_scan(bool update_scan_filter_policy);
 
 static ::BleScannerInterface* scanner = bluetooth::shim::get_ble_scanner_instance();
 
@@ -201,20 +197,15 @@ AdvertisingCache cache;
 
 }  // namespace
 
-static bool ble_vnd_is_included() {
-  // replace build time config BLE_VND_INCLUDED with runtime
-  return android::sysprop::bluetooth::Ble::vnd_included().value_or(true);
-}
-
 /**********PAST & PS *******************/
-using StartSyncCb = base::Callback<void(
+using StartSyncCb = base::RepeatingCallback<void(
         uint8_t /*status*/, uint16_t /*sync_handle*/, uint8_t /*advertising_sid*/,
         uint8_t /*address_type*/, RawAddress /*address*/, uint8_t /*phy*/, uint16_t /*interval*/)>;
 using SyncReportCb =
-        base::Callback<void(uint16_t /*sync_handle*/, int8_t /*tx_power*/, int8_t /*rssi*/,
-                            uint8_t /*status*/, std::vector<uint8_t> /*data*/)>;
-using SyncLostCb = base::Callback<void(uint16_t /*sync_handle*/)>;
-using SyncTransferCb = base::Callback<void(uint8_t /*status*/, RawAddress)>;
+        base::RepeatingCallback<void(uint16_t /*sync_handle*/, int8_t /*tx_power*/, int8_t /*rssi*/,
+                                     uint8_t /*status*/, std::vector<uint8_t> /*data*/)>;
+using SyncLostCb = base::RepeatingCallback<void(uint16_t /*sync_handle*/)>;
+using SyncTransferCb = base::RepeatingCallback<void(uint8_t /*status*/, RawAddress)>;
 #define MAX_SYNC_TRANSACTION 16
 #define SYNC_TIMEOUT (30 * 1000)
 #define ADV_SYNC_ESTB_EVT_LEN 16
@@ -246,9 +237,6 @@ typedef struct {
   SyncTransferCb cb;
 } tBTM_BLE_PERIODIC_SYNC_TRANSFER;
 
-static list_t* sync_queue;
-static std::mutex sync_queue_mutex_;
-
 typedef struct {
   bool busy;
   uint8_t sid;
@@ -272,9 +260,6 @@ typedef struct {
 } tBTM_BLE_PA_SYNC_TX_CB;
 static tBTM_BLE_PA_SYNC_TX_CB btm_ble_pa_sync_cb;
 
-static int btm_ble_get_psync_index(uint8_t adv_sid, RawAddress addr);
-static void btm_ble_start_sync_timeout(void* data);
-
 /*****************************/
 /*******************************************************************************
  *  Local functions
@@ -283,6 +268,9 @@ static void btm_ble_stop_observe(void);
 static void btm_ble_inquiry_timer_timeout(void* data);
 static void btm_ble_observer_timer_timeout(void* data);
 static DEV_CLASS btm_ble_appearance_to_cod(uint16_t appearance);
+static void btm_ble_msft_adv_mon_enable(bool enable, bool restart_scan);
+static void btm_update_scanner_filter_policy(uint8_t policy);
+static bool use_msft_filtering();
 
 enum : uint8_t {
   BTM_BLE_NOT_SCANNING = 0x00,
@@ -349,7 +337,7 @@ static std::pair<uint16_t /* interval */, uint16_t /* window */> get_low_latency
  *
  ******************************************************************************/
 tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_results_cb,
-                           tBTM_CMPL_CB* p_cmpl_cb) {
+                           tBTM_INQUIRY_CMPL_CB* p_cmpl_cb) {
   tBTM_STATUS status = tBTM_STATUS::BTM_WRONG_MODE;
   uint8_t scan_phy = btm_cb.ble_ctr_cb.inq_var.scan_phy | BTM_BLE_DEFAULT_PHYS;
 
@@ -409,7 +397,11 @@ tBTM_STATUS BTM_BleObserve(bool start, uint8_t duration, tBTM_INQ_RESULTS_CB* p_
               (uint8_t)ll_scan_window, btm_cb.ble_ctr_cb.inq_var.scan_interval_coded,
               btm_cb.ble_ctr_cb.inq_var.scan_window_coded, (uint16_t)scan_phy,
               btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type, BTM_BLE_DEFAULT_SFP);
-      btm_ble_start_scan();
+      if (use_msft_filtering()) {
+        btm_ble_msft_adv_mon_enable(/*enable=*/false, /*restart_scan=*/true);
+      } else {
+        btm_ble_start_scan();
+      }
     }
 
     btm_cb.neighbor.le_observe = {
@@ -485,7 +477,7 @@ void BTM_BleGetDynamicAudioBuffer(tBTM_BT_DYNAMIC_AUDIO_BUFFER_CB p_dynamic_audi
  *
  ******************************************************************************/
 void BTM_BleReadControllerFeatures(tBTM_BLE_CTRL_FEATURES_CBACK* p_vsc_cback) {
-  if (!ble_vnd_is_included()) {
+  if (!android::sysprop::bluetooth::Ble::vnd_included()) {
     return;
   }
 
@@ -523,6 +515,8 @@ void BTM_BleReadControllerFeatures(tBTM_BLE_CTRL_FEATURES_CBACK* p_vsc_cback) {
   btm_cb.cmn_ble_vsc_cb.dynamic_audio_buffer_support =
           vendor_capabilities.dynamic_audio_buffer_support_;
   btm_cb.cmn_ble_vsc_cb.a2dp_offload_v2_support = vendor_capabilities.a2dp_offload_v2_support_;
+  btm_cb.cmn_ble_vsc_cb.big_set_channel_map_classification_support =
+          vendor_capabilities.big_set_channel_map_classification_support_;
 
   if (vendor_capabilities.dynamic_audio_buffer_support_) {
     std::array<bluetooth::hci::DynamicAudioBufferCodecCapability, BTM_CODEC_TYPE_MAX_RECORDS>
@@ -588,12 +582,10 @@ bool BTM_BleConfigPrivacy(bool privacy_mode) {
   if (!privacy_mode) /* if privacy disabled, always use public address */
   {
     btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type = BLE_ADDR_PUBLIC;
-    /* This is a Floss only flag. Allow host use random address when privacy
+    /* Allow host use random address when privacy
      * mode is not enabled by setting the sysprop true */
-    if (com_android_bluetooth_flags_floss_separate_host_privacy_and_llprivacy()) {
-      if (osi_property_get_bool(PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED, privacy_mode)) {
-        btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type = BLE_ADDR_RANDOM;
-      }
+    if (osi_property_get_bool(PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED, privacy_mode)) {
+      btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type = BLE_ADDR_RANDOM;
     }
     btm_cb.ble_ctr_cb.privacy_mode = BTM_PRIVACY_NONE;
   } else /* privacy is turned on*/
@@ -601,13 +593,10 @@ bool BTM_BleConfigPrivacy(bool privacy_mode) {
     /* always set host random address, used when privacy 1.1 or priavcy 1.2 is
      * disabled */
     btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type = BLE_ADDR_RANDOM;
-    /* This is a Floss only flag. Allow host use public address when privacy
+    /* Allow host use public address when privacy
      * mode is enabled by setting the sysprop false */
-    if (com_android_bluetooth_flags_floss_separate_host_privacy_and_llprivacy()) {
-      /* use public address if own address privacy is false in sysprop */
-      if (!osi_property_get_bool(PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED, privacy_mode)) {
-        btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type = BLE_ADDR_PUBLIC;
-      }
+    if (!osi_property_get_bool(PROPERTY_BLE_PRIVACY_OWN_ADDRESS_ENABLED, privacy_mode)) {
+      btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type = BLE_ADDR_PUBLIC;
     }
 
     /* 4.2 controller only allow privacy 1.2 or mixed mode, resolvable private
@@ -638,291 +627,6 @@ bool BTM_BleConfigPrivacy(bool privacy_mode) {
  *
  ******************************************************************************/
 bool BTM_BleLocalPrivacyEnabled(void) { return btm_cb.ble_ctr_cb.privacy_mode != BTM_PRIVACY_NONE; }
-
-/*******************************************************************************
- * PAST and Periodic Sync helper functions
- ******************************************************************************/
-
-static void sync_queue_add(sync_node_t* p_param) {
-  std::unique_lock<std::mutex> guard(sync_queue_mutex_);
-  if (!sync_queue) {
-    log::info("allocating sync queue");
-    sync_queue = list_new(osi_free);
-    log::assert_that(sync_queue != NULL, "assert failed: sync_queue != NULL");
-  }
-
-  // Validity check
-  log::assert_that(list_length(sync_queue) < MAX_SYNC_TRANSACTION,
-                   "assert failed: list_length(sync_queue) < MAX_SYNC_TRANSACTION");
-  sync_node_t* p_node = (sync_node_t*)osi_malloc(sizeof(sync_node_t));
-  *p_node = *p_param;
-  list_append(sync_queue, p_node);
-}
-
-static void sync_queue_advance() {
-  log::debug("");
-  std::unique_lock<std::mutex> guard(sync_queue_mutex_);
-
-  if (sync_queue && !list_is_empty(sync_queue)) {
-    sync_node_t* p_head = (sync_node_t*)list_front(sync_queue);
-    log::info("queue_advance");
-    list_remove(sync_queue, p_head);
-  }
-}
-
-static void sync_queue_cleanup(remove_sync_node_t* p_param) {
-  std::unique_lock<std::mutex> guard(sync_queue_mutex_);
-  if (!sync_queue) {
-    return;
-  }
-
-  sync_node_t* sync_request;
-  const list_node_t* node = list_begin(sync_queue);
-  while (node && node != list_end(sync_queue)) {
-    sync_request = (sync_node_t*)list_node(node);
-    node = list_next(node);
-    if (sync_request->sid == p_param->sid && sync_request->address == p_param->address) {
-      log::info("removing connection request SID={:04X}, bd_addr={}, busy={}", sync_request->sid,
-                sync_request->address, sync_request->busy);
-      list_remove(sync_queue, sync_request);
-    }
-  }
-}
-
-static void btm_ble_start_sync_request(uint8_t sid, RawAddress addr, uint16_t skip,
-                                       uint16_t timeout) {
-  tBLE_ADDR_TYPE address_type = BLE_ADDR_RANDOM;
-  tINQ_DB_ENT* p_i = btm_inq_db_find(addr);
-  if (p_i) {
-    address_type = p_i->inq_info.results.ble_addr_type;  // Random
-  }
-  btm_random_pseudo_to_identity_addr(&addr, &address_type);
-  address_type &= ~BLE_ADDR_TYPE_ID_BIT;
-  uint8_t options = 0;
-  uint8_t cte_type = 7;
-  int index = btm_ble_get_psync_index(sid, addr);
-
-  if (index == MAX_SYNC_TRANSACTION) {
-    log::error("Failed to get sync transfer index");
-    return;
-  }
-
-  tBTM_BLE_PERIODIC_SYNC* p = &btm_ble_pa_sync_cb.p_sync[index];
-  p->sync_state = PERIODIC_SYNC_PENDING;
-
-  if (BleScanningManager::IsInitialized()) {
-    BleScanningManager::Get()->PeriodicScanStart(options, sid, address_type, addr, skip, timeout,
-                                                 cte_type);
-  }
-
-  alarm_set(sync_timeout_alarm, SYNC_TIMEOUT, btm_ble_start_sync_timeout, NULL);
-}
-
-static void btm_queue_sync_next() {
-  if (!sync_queue || list_is_empty(sync_queue)) {
-    log::debug("sync_queue empty");
-    return;
-  }
-
-  sync_node_t* p_head = (sync_node_t*)list_front(sync_queue);
-
-  log::info("executing sync request SID={:04X}, bd_addr={}", p_head->sid, p_head->address);
-  if (p_head->busy) {
-    log::debug("BUSY");
-    return;
-  }
-
-  p_head->busy = true;
-  alarm_cancel(sync_timeout_alarm);
-  btm_ble_start_sync_request(p_head->sid, p_head->address, p_head->skip, p_head->timeout);
-}
-
-static void btm_ble_sync_queue_handle(uint16_t event, char* param) {
-  switch (event) {
-    case BTM_QUEUE_SYNC_REQ_EVT:
-      log::debug("BTIF_QUEUE_SYNC_REQ_EVT");
-      sync_queue_add((sync_node_t*)param);
-      break;
-    case BTM_QUEUE_SYNC_ADVANCE_EVT:
-      log::debug("BTIF_QUEUE_ADVANCE_EVT");
-      sync_queue_advance();
-      break;
-    case BTM_QUEUE_SYNC_CLEANUP_EVT:
-      sync_queue_cleanup((remove_sync_node_t*)param);
-      return;
-  }
-  btm_queue_sync_next();
-}
-
-static void btm_sync_queue_advance() {
-  log::debug("");
-  btm_ble_sync_queue_handle(BTM_QUEUE_SYNC_ADVANCE_EVT, nullptr);
-}
-
-static void btm_ble_start_sync_timeout(void* /* data */) {
-  log::debug("");
-  sync_node_t* p_head = (sync_node_t*)list_front(sync_queue);
-  uint8_t adv_sid = p_head->sid;
-  RawAddress address = p_head->address;
-
-  int index = btm_ble_get_psync_index(adv_sid, address);
-
-  if (index == MAX_SYNC_TRANSACTION) {
-    log::error("Failed to get sync transfer index");
-    return;
-  }
-
-  tBTM_BLE_PERIODIC_SYNC* p = &btm_ble_pa_sync_cb.p_sync[index];
-
-  if (BleScanningManager::IsInitialized()) {
-    BleScanningManager::Get()->PeriodicScanCancelStart();
-  }
-  p->sync_start_cb.Run(0x3C, 0, p->sid, 0, p->remote_bda, 0, 0);
-
-  p->sync_state = PERIODIC_SYNC_IDLE;
-  p->in_use = false;
-  p->remote_bda = RawAddress::kEmpty;
-  p->sid = 0;
-  p->sync_handle = 0;
-  p->in_use = false;
-}
-
-static int btm_ble_get_psync_index_from_handle(uint16_t handle) {
-  int i;
-  for (i = 0; i < MAX_SYNC_TRANSACTION; i++) {
-    if (btm_ble_pa_sync_cb.p_sync[i].sync_handle == handle &&
-        btm_ble_pa_sync_cb.p_sync[i].sync_state == PERIODIC_SYNC_ESTABLISHED) {
-      log::debug("found index at {}", i);
-      return i;
-    }
-  }
-  return i;
-}
-
-static int btm_ble_get_psync_index(uint8_t adv_sid, RawAddress addr) {
-  int i;
-  for (i = 0; i < MAX_SYNC_TRANSACTION; i++) {
-    if (btm_ble_pa_sync_cb.p_sync[i].sid == adv_sid &&
-        btm_ble_pa_sync_cb.p_sync[i].remote_bda == addr) {
-      log::debug("found index at {}", i);
-      return i;
-    }
-  }
-  return i;
-}
-
-/*******************************************************************************
- *
- * Function         btm_ble_periodic_adv_sync_established
- *
- * Description      Periodic Adv Sync Established callback from controller when
- &                  sync to PA is established
- *
- *
- ******************************************************************************/
-void btm_ble_periodic_adv_sync_established(uint8_t status, uint16_t sync_handle, uint8_t adv_sid,
-                                           uint8_t address_type, const RawAddress& addr,
-                                           uint8_t phy, uint16_t interval,
-                                           uint8_t adv_clock_accuracy) {
-  log::debug(
-          "[PSync]: status={}, sync_handle={}, s_id={}, addr_type={}, "
-          "adv_phy={},adv_interval={}, clock_acc={}",
-          status, sync_handle, adv_sid, address_type, phy, interval, adv_clock_accuracy);
-
-  /*if (param_len != ADV_SYNC_ESTB_EVT_LEN) {
-    log::error("[PSync]Invalid event length");
-    STREAM_TO_UINT8(status, param);
-    if (status == tBTM_STATUS::BTM_SUCCESS) {
-      STREAM_TO_UINT16(sync_handle, param);
-      //btsnd_hcic_ble_terminate_periodic_sync(sync_handle);
-      if (BleScanningManager::IsInitialized()) {
-        BleScanningManager::Get()->PeriodicScanTerminate(sync_handle);
-      }
-      return;
-    }
-  }*/
-
-  RawAddress bda = addr;
-  alarm_cancel(sync_timeout_alarm);
-
-  tBLE_ADDR_TYPE ble_addr_type = to_ble_addr_type(address_type);
-  if (ble_addr_type & BLE_ADDR_TYPE_ID_BIT) {
-    btm_identity_addr_to_random_pseudo(&bda, &ble_addr_type, true);
-  }
-  int index = btm_ble_get_psync_index(adv_sid, bda);
-  if (index == MAX_SYNC_TRANSACTION) {
-    log::warn("[PSync]: Invalid index for sync established");
-    if (status == 0) {
-      log::warn("Terminate sync");
-      if (BleScanningManager::IsInitialized()) {
-        BleScanningManager::Get()->PeriodicScanTerminate(sync_handle);
-      }
-    }
-    btm_sync_queue_advance();
-    return;
-  }
-  tBTM_BLE_PERIODIC_SYNC* ps = &btm_ble_pa_sync_cb.p_sync[index];
-  ps->sync_handle = sync_handle;
-  ps->sync_state = PERIODIC_SYNC_ESTABLISHED;
-  ps->sync_start_cb.Run(status, sync_handle, adv_sid, from_ble_addr_type(ble_addr_type), bda, phy,
-                        interval);
-  btm_sync_queue_advance();
-}
-
-/*******************************************************************************
- *
- * Function        btm_ble_periodic_adv_report
- *
- * Description     This callback is received when controller establishes sync
- *                 to a PA requested from host
- *
- ******************************************************************************/
-void btm_ble_periodic_adv_report(uint16_t sync_handle, uint8_t tx_power, int8_t rssi,
-                                 uint8_t cte_type, uint8_t data_status, uint8_t data_len,
-                                 const uint8_t* periodic_data) {
-  log::debug(
-          "[PSync]: sync_handle = {}, tx_power = {}, rssi = {},cte_type = {}, "
-          "data_status = {}, data_len = {}",
-          sync_handle, tx_power, rssi, cte_type, data_status, data_len);
-
-  std::vector<uint8_t> data;
-  for (int i = 0; i < data_len; i++) {
-    data.push_back(periodic_data[i]);
-  }
-  int index = btm_ble_get_psync_index_from_handle(sync_handle);
-  if (index == MAX_SYNC_TRANSACTION) {
-    log::error("[PSync]: index not found for handle {}", sync_handle);
-    return;
-  }
-  tBTM_BLE_PERIODIC_SYNC* ps = &btm_ble_pa_sync_cb.p_sync[index];
-  log::debug("[PSync]: invoking callback");
-  ps->sync_report_cb.Run(sync_handle, tx_power, rssi, data_status, data);
-}
-
-/*******************************************************************************
- *
- * Function        btm_ble_periodic_adv_sync_lost
- *
- * Description     This callback is received when sync to PA is lost
- *
- ******************************************************************************/
-void btm_ble_periodic_adv_sync_lost(uint16_t sync_handle) {
-  log::debug("[PSync]: sync_handle = {}", sync_handle);
-
-  int index = btm_ble_get_psync_index_from_handle(sync_handle);
-  if (index == MAX_SYNC_TRANSACTION) {
-    log::error("[PSync]: index not found for handle {}", sync_handle);
-    return;
-  }
-  tBTM_BLE_PERIODIC_SYNC* ps = &btm_ble_pa_sync_cb.p_sync[index];
-  ps->sync_lost_cb.Run(sync_handle);
-
-  ps->in_use = false;
-  ps->sid = 0;
-  ps->sync_handle = 0;
-  ps->sync_state = PERIODIC_SYNC_IDLE;
-  ps->remote_bda = RawAddress::kEmpty;
-}
 
 static void btm_send_hci_scan_enable(uint8_t enable, uint8_t filter_duplicates) {
   if (bluetooth::shim::GetController()->SupportsBleExtendedAdvertising()) {
@@ -961,55 +665,55 @@ void btm_send_hci_set_scan_params(uint8_t scan_type, uint16_t scan_int_1m, uint1
   }
 }
 
+// TODO(b/459944050): Delete msft related functions when scan multiplexing feature is done.
+/* Whether or not to use MSFT-based scan filtering */
+static bool use_msft_filtering() {
+  // We prefer to use APCF-based filtering over MSFT if it's available, so only use MSFT
+  // filtering if APCF is not supported.
+  return !BTM_BleIsFilteringSupported() && scanner->IsMsftSupported();
+}
+
+// TODO(b/459944050): Delete msft related functions when scan multiplexing feature is done.
 /* MSFT advertisement enable callback */
-static void msft_adv_mon_enable_cb(bool /* enable */, uint8_t status) {
-  if (status == MSFT_FILTER_ENABLE_SUCCESS) {
+static void msft_adv_mon_enable_cb(bool restart_scan, bool enable, uint8_t status) {
+  if (status == MSFT_FILTER_ENABLE_CMD_DISALLOWED) {
+    log::warn("MSFT: Advertisement monitor is already {}", enable ? "enabled" : "disabled");
+  } else if (status != MSFT_FILTER_ENABLE_SUCCESS) {
+    log::error("MSFT: {} advertisement monitor failed with status: {}",
+               enable ? "Enabling" : "Disabling", status);
     return;
+  } else {
+    log::debug("MSFT: Advertisement monitor {}", enable ? "enabled" : "disabled");
   }
 
-  if (status == MSFT_FILTER_ENABLE_CMD_DISALLOWED) {
-    log::warn("Toggling MSFT advertisement monitor failed because it's already enabled/disabled");
-  } else {
-    log::error("Toggling MSFT advertisement monitor failed with status: {}", status);
+  // To retain the correct command sequencing, only re-enable LE scanning now
+  // that we know MSFT filtered scanning has been re-enabled.
+  if (!restart_scan) {
+    return;
   }
+  log::debug("MSFT: Restarting LE scan");
+  btm_ble_start_scan();
 }
 
 /* Update MSFT-based scan to align with active scan requirements */
-static void btm_ble_update_msft_scan(tBTM_BLE_SCAN_COND_OP action) {
-  if (!com_android_bluetooth_flags_le_scan_msft_support() ||
-      !osi_property_get_bool("bluetooth.core.le.use_msft_hci_ext", false) ||
-      !scanner->IsMsftSupported()) {
+static void btm_ble_msft_adv_mon_enable(bool enable, bool restart_scan) {
+  if (!use_msft_filtering()) {
     return;
   }
 
-  switch (action) {
-    case BTM_BLE_SCAN_COND_ADD:
-      log::debug("Disabling MSFT advertisement monitor");
-      scanner->MsftAdvMonitorEnable(false, base::Bind(msft_adv_mon_enable_cb));
-      break;
-
-    case BTM_BLE_SCAN_COND_DELETE:
-      log::debug("Enabling MSFT advertisement monitor");
-      scanner->MsftAdvMonitorEnable(true, base::Bind(msft_adv_mon_enable_cb));
-      break;
-
-    default:
-      break;
-  }
+  log::debug("MSFT: {} advertisement monitor", enable ? "Enabling" : "Disabling");
+  scanner->MsftAdvMonitorEnable(enable, base::Bind(msft_adv_mon_enable_cb, restart_scan));
 }
 
 /* Scan filter param config event */
 static void btm_ble_scan_filt_param_cfg_evt(uint8_t /* avbl_space */,
-                                            tBTM_BLE_SCAN_COND_OP action_type,
+                                            tBTM_BLE_SCAN_COND_OP /* action_type */,
                                             tBTM_STATUS btm_status) {
   if (btm_status == tBTM_STATUS::BTM_SUCCESS) {
     log::verbose("");
     return;
   }
   log::warn("{}", btm_status_text(btm_status));
-
-  // If APCF-based scan filtering is not supported, try MSFT-based filtering
-  btm_ble_update_msft_scan(action_type);
 }
 
 /*******************************************************************************
@@ -1063,18 +767,27 @@ tBTM_STATUS btm_ble_start_inquiry(uint8_t duration) {
     btm_send_hci_set_scan_params(BTM_BLE_SCAN_MODE_ACTI, scan_interval, scan_window, 0, 0, scan_phy,
                                  btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type, SP_ADV_ALL);
     btm_cb.ble_ctr_cb.inq_var.scan_type = BTM_BLE_SCAN_MODE_ACTI;
-    btm_ble_start_scan();
+
+    if (use_msft_filtering()) {
+      btm_ble_msft_adv_mon_enable(/*enable=*/false, /*restart_scan=*/true);
+    } else {
+      btm_ble_start_scan();
+    }
   } else if (!btm_cb.ble_ctr_cb.inq_var.is_1m_phy_configured() ||
              (btm_cb.ble_ctr_cb.inq_var.scan_interval_1m != scan_interval) ||
              (btm_cb.ble_ctr_cb.inq_var.scan_window_1m != scan_window)) {
     log::verbose("restart LE scan with low latency scan params");
-    btm_send_hci_scan_enable(BTM_BLE_SCAN_DISABLE, BTM_BLE_DUPLICATE_ENABLE);
+    btm_ble_stop_scan(/*update_scan_filter_policy=*/false);
     btm_send_hci_set_scan_params(BTM_BLE_SCAN_MODE_ACTI, scan_interval, scan_window,
                                  btm_cb.ble_ctr_cb.inq_var.scan_interval_coded,
                                  btm_cb.ble_ctr_cb.inq_var.scan_window_coded,
                                  btm_cb.ble_ctr_cb.inq_var.scan_phy | scan_phy,
                                  btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type, SP_ADV_ALL);
-    btm_send_hci_scan_enable(BTM_BLE_SCAN_ENABLE, BTM_BLE_DUPLICATE_DISABLE);
+    if (use_msft_filtering()) {
+      btm_ble_msft_adv_mon_enable(/*enable=*/false, /*restart_scan=*/true);
+    } else {
+      btm_ble_start_scan();
+    }
   }
 
   btm_cb.btm_inq_vars.inq_active |= BTM_BLE_GENERAL_INQUIRY;
@@ -1109,6 +822,11 @@ tBTM_STATUS btm_ble_start_inquiry(uint8_t duration) {
  ******************************************************************************/
 static void btm_ble_read_remote_name_cmpl(bool status, const RawAddress& bda, uint16_t length,
                                           char* p_name) {
+  if (!stack_is_running()) {
+    log::warn("stack is not running");
+    return;
+  }
+
   tHCI_STATUS hci_status = HCI_SUCCESS;
   BD_NAME bd_name;
   bd_name_from_char_pointer(bd_name, p_name);
@@ -1140,8 +858,7 @@ tBTM_STATUS btm_ble_read_remote_name(const RawAddress& remote_bda, tBTM_NAME_CMP
 
   tINQ_DB_ENT* p_i = btm_inq_db_find(remote_bda);
   if (p_i && !ble_evt_type_is_connectable(p_i->inq_info.results.ble_evt_type)) {
-    if (com_android_bluetooth_flags_ble_rnr_when_connected() &&
-        BTM_IsAclConnectionUp(remote_bda, BT_TRANSPORT_LE)) {
+    if (BTM_IsAclConnectionUp(remote_bda, BT_TRANSPORT_LE)) {
       log::verbose("name request to non-connectable device, but already connected");
     } else {
       log::verbose("name request to non-connectable device failed.");
@@ -1196,9 +913,9 @@ static void btm_ble_read_remote_appearance_cmpl(bool status, const RawAddress& b
   log::info("Appearance 0x{:04x}, Class of Device {} found for {}", appearance, dev_class_text(cod),
             bda);
 
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bda);
-  if (p_dev_rec != nullptr) {
-    p_dev_rec->dev_class = cod;
+  BtmDevice* p_device = btm_get_dev(bda);
+  if (p_device != nullptr) {
+    p_device->dev_class = cod;
   }
 }
 
@@ -1380,7 +1097,11 @@ static void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
       local_flag = *p_flag;
     }
 
-    p_cur->dev_class = btm_ble_get_appearance_as_cod(data);
+    // CoD received from inquiry response should not be overwritten by the appearance value. So
+    // update it only if it is not known.
+    if (p_cur->dev_class == kDevClassUnclassified || p_cur->dev_class == kDevClassEmpty) {
+      p_cur->dev_class = btm_ble_get_appearance_as_cod(data);
+    }
 
     const uint8_t* p_rsi = AdvertiseDataParser::GetFieldByType(data, BTM_BLE_AD_TYPE_RSI, &len);
     if (p_rsi != nullptr && len == 6) {
@@ -1419,7 +1140,8 @@ static void btm_ble_update_inq_result(tINQ_DB_ENT* p_i, uint8_t addr_type,
       local_flag = 0;
     }
     if (has_advertising_flags && (local_flag & BTM_BLE_BREDR_NOT_SPT) == 0) {
-      if (p_cur->ble_addr_type != BLE_ADDR_RANDOM) {
+      if (com_android_bluetooth_flags_unify_device_type_verification_logic() ||
+          p_cur->ble_addr_type != BLE_ADDR_RANDOM) {
         log::verbose("NOT_BR_EDR support bit not set, treat device as DUMO");
         p_cur->device_type |= BT_DEVICE_TYPE_DUMO;
       } else {
@@ -1438,17 +1160,17 @@ void btm_ble_process_adv_addr(RawAddress& bda, tBLE_ADDR_TYPE* addr_type) {
   log::verbose("bda={}", bda);
   /* always do RRA resolution on host */
   if (!match && BTM_BLE_IS_RESOLVE_BDA(bda)) {
-    tBTM_SEC_DEV_REC* match_rec = btm_ble_resolve_random_addr(bda);
-    if (match_rec) {
-      match_rec->ble.active_addr_type = BTM_BLE_ADDR_RRA;
-      match_rec->ble.cur_rand_addr = bda;
+    BtmDevice* match_dev = btm_ble_resolve_random_addr(bda);
+    if (match_dev) {
+      match_dev->ble.active_addr_type = BTM_BLE_ADDR_RRA;
+      match_dev->ble.cur_rand_addr = bda;
 
-      if (btm_ble_init_pseudo_addr(match_rec, bda)) {
-        bda = match_rec->bd_addr;
+      if (btm_ble_init_pseudo_addr(match_dev, bda)) {
+        bda = match_dev->bd_addr;
       } else {
         // Assign the original address to be the current report address
-        bda = match_rec->ble.pseudo_addr;
-        *addr_type = match_rec->ble.AddressType();
+        bda = match_dev->ble.pseudo_addr;
+        *addr_type = match_dev->ble.AddressType();
       }
     }
   }
@@ -1619,15 +1341,20 @@ void btm_ble_process_adv_pkt_cont_for_inquiry(uint16_t evt_type, tBLE_ADDR_TYPE 
                                               uint16_t periodic_adv_int,
                                               std::vector<uint8_t> advertising_data) {
   bool update = true;
-
   bool include_rsi = false;
+
   uint8_t len;
+  const uint8_t* p_flag =
+          AdvertiseDataParser::GetFieldByType(advertising_data, BTM_BLE_AD_TYPE_FLAG, &len);
+
+  if (len > 1) {
+    log::warn("Dropping bad advertising packet from {}: len={}", bda, len);
+    return;
+  }
+
   if (AdvertiseDataParser::GetFieldByType(advertising_data, BTM_BLE_AD_TYPE_RSI, &len)) {
     include_rsi = true;
   }
-
-  const uint8_t* p_flag =
-          AdvertiseDataParser::GetFieldByType(advertising_data, BTM_BLE_AD_TYPE_FLAG, &len);
 
   tINQ_DB_ENT* p_i = btm_inq_db_find(bda);
 
@@ -1778,7 +1505,7 @@ static void btm_update_scanner_filter_policy(tBTM_BLE_SFP scan_policy) {
  * Returns          void
  *
  ******************************************************************************/
-static void btm_ble_stop_scan(void) {
+static void btm_ble_stop_scan(bool update_scan_filter_policy = true) {
   /* Clear the inquiry callback if set */
   btm_cb.ble_ctr_cb.inq_var.scan_type = BTM_BLE_SCAN_MODE_NONE;
 
@@ -1791,7 +1518,13 @@ static void btm_ble_stop_scan(void) {
                       btm_cb.neighbor.le_legacy_scan.results));
   btm_send_hci_scan_enable(BTM_BLE_SCAN_DISABLE, BTM_BLE_DUPLICATE_ENABLE);
 
-  btm_update_scanner_filter_policy(SP_ADV_ALL);
+  if (update_scan_filter_policy) {
+    btm_update_scanner_filter_policy(SP_ADV_ALL);
+  }
+
+  // For simplicity, disable MSFT filtered scan whenever we stop LE scanning.
+  // Defer the decision on whether or not to re-enable it for later.
+  btm_ble_msft_adv_mon_enable(/*enable=*/false, /*restart_scan=*/false);
 }
 /*******************************************************************************
  *
@@ -1825,12 +1558,17 @@ void btm_ble_stop_inquiry(void) {
                                                         btm_cb.ble_ctr_cb.inq_var.scan_window_1m)) {
     log::verbose("Setting scan parameters to values requested previously from ongoing observer");
     btm_ble_stop_scan();
+    uint8_t scan_filter_policy = use_msft_filtering() ? SP_ACCEPT_LIST_ONLY : SP_ADV_ALL;
     btm_send_hci_set_scan_params(
             BTM_BLE_SCAN_MODE_ACTI, btm_cb.ble_ctr_cb.inq_var.scan_interval_1m,
             btm_cb.ble_ctr_cb.inq_var.scan_window_1m, btm_cb.ble_ctr_cb.inq_var.scan_interval_coded,
             btm_cb.ble_ctr_cb.inq_var.scan_window_coded, btm_cb.ble_ctr_cb.inq_var.scan_phy,
-            btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type, SP_ADV_ALL);
-    btm_ble_start_scan();
+            btm_cb.ble_ctr_cb.addr_mgnt_cb.own_addr_type, scan_filter_policy);
+    if (use_msft_filtering()) {
+      btm_ble_msft_adv_mon_enable(/*enable=*/true, /*restart_scan=*/true);
+    } else {
+      btm_ble_start_scan();
+    }
   }
 
   /* If we have a callback registered for inquiry complete, call it */
@@ -1853,7 +1591,7 @@ void btm_ble_stop_inquiry(void) {
  *
  ******************************************************************************/
 static void btm_ble_stop_observe(void) {
-  tBTM_CMPL_CB* p_obs_cb = btm_cb.ble_ctr_cb.p_obs_cmpl_cb;
+  tBTM_INQUIRY_CMPL_CB* p_obs_cb = btm_cb.ble_ctr_cb.p_obs_cmpl_cb;
 
   alarm_cancel(btm_cb.ble_ctr_cb.observer_timer);
 
@@ -1918,6 +1656,14 @@ void btm_ble_read_remote_features_complete(uint8_t* p, uint8_t length) {
       log::error("Unable to find existing connection after read remote features");
       return;
     }
+
+    if (com_android_bluetooth_flags_le_subrate_manager()) {
+      const BtmDevice* p_device = btm_find_dev_by_handle(handle);
+      if (p_device) {
+          // init when acl connected & remote_feature received
+          gatt_init_subrate_cb(p_device->ble.pseudo_addr);
+      }
+    }
   }
 
   btsnd_hcic_rmt_ver_req(handle);
@@ -1969,7 +1715,7 @@ void btm_ble_init(void) {
           alarm_new("btm_ble_addr.refresh_raddr_timer");
   btm_ble_pa_sync_cb = {};
   sync_timeout_alarm = alarm_new("btm.sync_start_task");
-  if (!ble_vnd_is_included()) {
+  if (!android::sysprop::bluetooth::Ble::vnd_included()) {
     btm_ble_adv_filter_init();
   }
 }

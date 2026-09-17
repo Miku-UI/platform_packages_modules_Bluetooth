@@ -26,11 +26,11 @@
 #define BTA_HH_INT_H
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/acl_link_spec.h>
 #include <bluetooth/types/address.h>
 
 #include <cstdint>
 
-#include "bta/include/bta_api.h"
 #include "bta/include/bta_gatt_api.h"
 #include "bta/include/bta_hh_api.h"
 #include "bta/sys/bta_sys.h"
@@ -42,6 +42,7 @@
 /* state machine events, these events are handled by the state machine */
 enum tBTA_HH_INT_EVT : uint16_t {
   BTA_HH_API_OPEN_EVT = BTA_SYS_EVT_START(BTA_ID_HH),
+  BTA_HH_API_CANCEL_OPEN_EVT,
   BTA_HH_API_CLOSE_EVT,
   BTA_HH_INT_OPEN_EVT,
   BTA_HH_INT_CLOSE_EVT,
@@ -86,22 +87,32 @@ typedef struct {
 
 typedef struct {
   BT_HDR_RIGID hdr;
-  tAclLinkSpec link_spec;
+  bthh_status_t status;
+} tBTA_HH_API_CLOSE;
+
+typedef struct {
+  BT_HDR_RIGID hdr;
+  AclLinkSpec link_spec;
   tBTA_HH_PROTO_MODE mode;
   bool direct;
 } tBTA_HH_API_CONN;
 
+typedef struct {
+  BT_HDR_RIGID hdr;
+  AclLinkSpec link_spec;
+} tBTA_HH_API_CANCEL_CONN;
+
 /* internal event data from BTE HID callback */
 typedef struct {
   BT_HDR_RIGID hdr;
-  tAclLinkSpec link_spec;
+  AclLinkSpec link_spec;
   uint32_t data;
   BT_HDR* p_data;
 } tBTA_HH_CBACK_DATA;
 
 typedef struct {
   BT_HDR_RIGID hdr;
-  tAclLinkSpec link_spec;
+  AclLinkSpec link_spec;
   uint16_t attr_mask;
   uint16_t sub_event;
   uint8_t sub_class;
@@ -125,9 +136,11 @@ typedef struct {
 typedef union {
   BT_HDR_RIGID hdr;
   tBTA_HH_API_CONN api_conn;
+  tBTA_HH_API_CANCEL_CONN api_cancel_conn;
+  tBTA_HH_API_CLOSE api_close;
   tBTA_HH_CMD_DATA api_sndcmd;
   tBTA_HH_CBACK_DATA hid_cback;
-  tBTA_HH_STATUS status;
+  bthh_status_t status;
   tBTA_HH_MAINT_DEV api_maintdev;
   tBTA_HH_LE_CLOSE le_close;
   tBTA_GATTC_OPEN le_open;
@@ -187,7 +200,7 @@ typedef struct {
 /* device control block */
 typedef struct {
   tBTA_HH_DEV_DSCP_INFO dscp_info; /* report descriptor and DI information */
-  tAclLinkSpec link_spec;          /* ACL link specification of the HID device */
+  AclLinkSpec link_spec;           /* ACL link specification of the HID device */
   uint16_t attr_mask;              /* attribute mask */
   uint16_t w4_evt;                 /* W4_handshake event name */
   uint8_t index;                   /* index number referenced to handle index */
@@ -210,7 +223,7 @@ typedef struct {
 #define BTA_HH_LE_DISC_SCPS 0x04
 
   uint8_t disc_active;
-  tBTA_HH_STATUS status;
+  bthh_status_t status;
   tBTM_STATUS btm_status;
   tBTA_HH_LE_HID_SRVC hid_srvc;
   tCONN_ID conn_id;
@@ -261,6 +274,7 @@ void bta_hh_data_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data);
 void bta_hh_ctrl_dat_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data);
 void bta_hh_connect(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data);
 void bta_hh_connect_upgrade(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data);
+void bta_hh_cancel_connect(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data);
 void bta_hh_sdp_cmpl(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data);
 void bta_hh_write_dev_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data);
 void bta_hh_get_dscp_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data);
@@ -270,8 +284,8 @@ void bta_hh_open_cmpl_act(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data);
 void bta_hh_open_failure(tBTA_HH_DEV_CB* p_cb, const tBTA_HH_DATA* p_data);
 
 /* utility functions */
-tBTA_HH_DEV_CB* bta_hh_find_cb(const tAclLinkSpec& link_spec);
-tBTA_HH_DEV_CB* bta_hh_get_cb(const tAclLinkSpec& link_spec);
+tBTA_HH_DEV_CB* bta_hh_find_cb(const AclLinkSpec& link_spec);
+tBTA_HH_DEV_CB* bta_hh_get_cb(const AclLinkSpec& link_spec);
 tBTA_HH_DEV_CB* bta_hh_find_cb_by_handle(uint8_t hid_handle);
 bool bta_hh_tod_spt(tBTA_HH_DEV_CB* p_cb, uint8_t sub_class);
 void bta_hh_clean_up_kdev(tBTA_HH_DEV_CB* p_cb);
@@ -281,15 +295,15 @@ void bta_hh_add_device_to_list(tBTA_HH_DEV_CB* p_cb, uint8_t handle, uint16_t at
                                uint16_t max_latency, uint16_t min_tout, uint8_t app_id);
 void bta_hh_update_di_info(tBTA_HH_DEV_CB* p_cb, uint16_t vendor_id, uint16_t product_id,
                            uint16_t version, uint8_t flag, uint8_t ctry_code);
-void bta_hh_cleanup_disable(tBTA_HH_STATUS status);
+void bta_hh_cleanup_disable(bthh_status_t status);
 
 /* action functions used outside state machine */
 void bta_hh_api_enable(tBTA_HH_CBACK* p_cback, bool enable_hid, bool enable_hogp);
 void bta_hh_api_disable(void);
 void bta_hh_disc_cmpl(void);
 
-tBTA_HH_STATUS bta_hh_read_ssr_param(const tAclLinkSpec& link_spec, uint16_t* p_max_ssr_lat,
-                                     uint16_t* p_min_ssr_tout);
+bthh_status_t bta_hh_read_ssr_param(const AclLinkSpec& link_spec, uint16_t* p_max_ssr_lat,
+                                    uint16_t* p_min_ssr_tout);
 
 /* functions for LE HID */
 void bta_hh_le_enable(void);

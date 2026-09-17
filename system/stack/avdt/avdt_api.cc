@@ -25,7 +25,7 @@
 
 #define LOG_TAG "bluetooth-a2dp"
 
-#include "avdt_api.h"
+#include "stack/include/avdt_api.h"
 
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
@@ -37,11 +37,11 @@
 
 #include "avdt_defs.h"
 #include "avdt_int.h"
-#include "avdtc_api.h"
 #include "bta/include/bta_sec_api.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/alarm.h"
 #include "stack/include/a2dp_codec_api.h"
+#include "stack/include/avdtc_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cap_interface.h"
 
@@ -172,30 +172,27 @@ void AVDT_AbortReq(uint8_t handle) {
  * Returns          AVDT_SUCCESS if successful, otherwise error.
  *
  ******************************************************************************/
-uint16_t AVDT_CreateStream(uint8_t peer_id, uint8_t* p_handle,
-                           const AvdtpStreamConfig& avdtp_stream_config) {
-  tAVDT_RESULT result = AVDT_SUCCESS;
-  AvdtpScb* p_scb;
-
-  /* Verify parameters; if invalid, return failure */
-  if (((avdtp_stream_config.cfg.psc_mask & (~AVDT_PSC)) != 0) ||
-      (avdtp_stream_config.p_avdt_ctrl_cback == NULL)) {
-    result = AVDT_BAD_PARAMS;
+tAVDT_RESULT AVDT_CreateStream(uint8_t peer_id, uint8_t* p_handle,
+                               const AvdtpStreamConfig& avdtp_stream_config) {
+  // Verify parameters; if invalid, return failure.
+  if ((avdtp_stream_config.cfg.psc_mask & (~AVDT_PSC)) != 0 ||
+      avdtp_stream_config.p_avdt_ctrl_cback == NULL) {
     log::error("Invalid AVDT stream endpoint parameters peer_id={} scb_index={}", peer_id,
                avdtp_stream_config.scb_index);
-  } else {
-    /* Allocate scb; if no scbs, return failure */
-    p_scb = avdt_scb_alloc(peer_id, avdtp_stream_config);
-    if (p_scb == NULL) {
-      log::error("Unable to create AVDT stream endpoint peer_id={} scb_index={}", peer_id,
-                 avdtp_stream_config.scb_index);
-      result = AVDT_NO_RESOURCES;
-    } else {
-      *p_handle = avdt_scb_to_hdl(p_scb);
-      log::debug("Created stream endpoint peer_id={} handle={}", peer_id, *p_handle);
-    }
+    return tAVDT_RESULT::AVDT_BAD_PARAMS;
   }
-  return static_cast<uint16_t>(result);
+
+  // Allocate scb; if no scbs, return failure.
+  AvdtpScb* p_scb = avdt_scb_alloc(peer_id, avdtp_stream_config);
+  if (p_scb == NULL) {
+    log::error("Unable to create AVDT stream endpoint peer_id={} scb_index={}", peer_id,
+               avdtp_stream_config.scb_index);
+    return tAVDT_RESULT::AVDT_NO_RESOURCES;
+  }
+
+  *p_handle = avdt_scb_to_hdl(p_scb);
+  log::debug("Created stream endpoint peer_id={} handle={}", peer_id, *p_handle);
+  return tAVDT_RESULT::AVDT_SUCCESS;
 }
 
 /*******************************************************************************
@@ -976,6 +973,31 @@ uint16_t AVDT_GetL2CapChannel(uint8_t handle) {
   return lcid;
 }
 
+/*******************************************************************************
+ *
+ * Function         DumpAvdtCodecInfo
+ *
+ * Description      Dump the AVDT codec info to hex string
+ *
+ * Returns          std::string with hex dump of codec info.
+ *
+ ******************************************************************************/
+std::string DumpAvdtCodecInfo(const uint8_t* data) {
+  std::string s;
+  s.reserve(AVDT_CODEC_SIZE * 7 + 1);
+  s += "\n";
+  for (size_t i = 0; i < AVDT_CODEC_SIZE; ++i) {
+    s += std::format("{:#04x}", data[i]);
+    if (i < AVDT_CODEC_SIZE - 1) {
+      s += ", ";
+    }
+    if ((i + 1) % 10 == 0) {
+      s += "\n";
+    }
+  }
+  return s;
+}
+
 void stack_debug_avdtp_api_dump(int fd) {
   dprintf(fd, "\nAVDTP Stack State:\n");
   dprintf(fd, "  AVDTP signalling L2CAP channel MTU: %d\n", avdtp_cb.rcb.ctrl_mtu);
@@ -1005,7 +1027,8 @@ void stack_debug_avdtp_api_dump(int fd) {
       dprintf(fd, "      SEP codec: %s\n", A2DP_CodecName(scb.stream_config.cfg.codec_info));
       dprintf(fd, "      SEP protocol service capabilities: 0x%x\n",
               scb.stream_config.cfg.psc_mask);
-      dprintf(fd, "      SEP type: 0x%x\n", scb.stream_config.tsep);
+      dprintf(fd, "      SEP type: %d [%s]\n", scb.stream_config.tsep,
+              peer_stream_endpoint_text(scb.stream_config.tsep).c_str());
       dprintf(fd, "      Media type: 0x%x\n", scb.stream_config.media_type);
       dprintf(fd, "      MTU: %d\n", scb.stream_config.mtu);
       dprintf(fd, "      AVDT SCB handle: %d\n", scb.ScbHandle());

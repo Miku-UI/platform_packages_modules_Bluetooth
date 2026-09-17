@@ -23,6 +23,7 @@
 
 #include "bt_common_types.h"
 #include "bt_gatt_types.h"
+#include "bt_status.h"
 
 __BEGIN_DECLS
 
@@ -40,14 +41,6 @@ typedef struct {
   uint8_t status;
 } btgatt_read_params_t;
 
-/** Parameters for GATT write operations */
-typedef struct {
-  btgatt_srvc_id_t srvc_id;
-  btgatt_gatt_id_t char_id;
-  btgatt_gatt_id_t descr_id;
-  uint8_t status;
-} btgatt_write_params_t;
-
 /** Attribute change notification parameters */
 typedef struct {
   uint8_t value[GATT_MAX_ATTR_LEN];
@@ -56,36 +49,6 @@ typedef struct {
   uint16_t len;
   uint8_t is_notify;
 } btgatt_notify_params_t;
-
-typedef struct {
-  RawAddress* bda1;
-  bluetooth::Uuid* uuid1;
-  uint16_t u1;
-  uint16_t u2;
-  uint16_t u3;
-  uint16_t u4;
-  uint16_t u5;
-} btgatt_test_params_t;
-
-/* BT GATT client error codes */
-typedef enum {
-  BT_GATTC_COMMAND_SUCCESS = 0,       /* 0  Command succeeded                 */
-  BT_GATTC_COMMAND_STARTED,           /* 1  Command started OK.               */
-  BT_GATTC_COMMAND_BUSY,              /* 2  Device busy with another command  */
-  BT_GATTC_COMMAND_STORED,            /* 3 request is stored in control block */
-  BT_GATTC_NO_RESOURCES,              /* 4  No resources to issue command     */
-  BT_GATTC_MODE_UNSUPPORTED,          /* 5  Request for 1 or more unsupported modes */
-  BT_GATTC_ILLEGAL_VALUE,             /* 6  Illegal command /parameter value  */
-  BT_GATTC_INCORRECT_STATE,           /* 7  Device in wrong state for request  */
-  BT_GATTC_UNKNOWN_ADDR,              /* 8  Unknown remote BD address         */
-  BT_GATTC_DEVICE_TIMEOUT,            /* 9  Device timeout                    */
-  BT_GATTC_INVALID_CONTROLLER_OUTPUT, /* 10  An incorrect value was received
-                                         from HCI */
-  BT_GATTC_SECURITY_ERROR,            /* 11 Authorization or security failure or not
-                                         authorized  */
-  BT_GATTC_DELAYED_ENCRYPTION_CHECK,  /*12 Delayed encryption check */
-  BT_GATTC_ERR_PROCESSING             /* 12 Generic error                     */
-} btgattc_error_t;
 
 /** BT-GATT Client callback structure. */
 
@@ -169,7 +132,12 @@ typedef void (*service_changed_callback)(int conn_id);
 /** Callback invoked when the subrate change event for a given connection
  * is received */
 typedef void (*subrate_change_callback)(int conn_id, uint16_t subrate_factor, uint16_t latency,
-                                        uint16_t cont_num, uint16_t timeout, uint8_t status);
+                                        uint16_t cont_num, uint16_t timeout, uint8_t subrate_mode,
+                                        uint8_t status);
+
+/** Callback invoked when the characteristics unoffloaded event for a given connection is received
+ */
+typedef void (*characteristics_unoffloaded_callback)(int conn_id, int session_id, uint8_t status);
 
 typedef struct {
   register_client_callback register_client_cb;
@@ -192,33 +160,34 @@ typedef struct {
   conn_updated_callback conn_updated_cb;
   service_changed_callback service_changed_cb;
   subrate_change_callback subrate_chg_cb;
+  characteristics_unoffloaded_callback characteristics_unoffloaded_cb;
 } btgatt_client_callbacks_t;
 
 /** Represents the standard BT-GATT client interface. */
 
 typedef struct {
   /** Registers a GATT client application with the stack */
-  bt_status_t (*register_client)(const bluetooth::Uuid& uuid, const char* name, bool eatt_support);
+  BtStatus (*register_client)(const bluetooth::Uuid& uuid, const char* name, bool eatt_support);
 
   /** Unregister a client application from the stack */
-  bt_status_t (*unregister_client)(int client_if);
+  BtStatus (*unregister_client)(int client_if);
 
   /** Create a connection to a remote LE or dual-mode device */
-  bt_status_t (*connect)(int client_if, const RawAddress& bd_addr, uint8_t addr_type,
-                         bool is_direct, int transport, bool opportunistic, int initiating_phys,
-                         int preferred_mtu, bool prefer_relax_mode);
+  BtStatus (*connect)(int client_if, const RawAddress& bd_addr, uint8_t addr_type, bool is_direct,
+                      int transport, bool opportunistic, int preferred_mtu, bool prefer_relax_mode,
+                      bool auto_mtu_enabled);
 
   /** Disconnect a remote device or cancel a pending connection */
-  bt_status_t (*disconnect)(int client_if, const RawAddress& bd_addr, int conn_id);
+  BtStatus (*disconnect)(int client_if, const RawAddress& bd_addr, int conn_id);
 
   /** Clear the attribute cache for a given device */
-  bt_status_t (*refresh)(int client_if, const RawAddress& bd_addr);
+  BtStatus (*refresh)(int client_if, const RawAddress& bd_addr);
 
   /**
    * Enumerate all GATT services on a connected device.
    * Optionally, the results can be filtered for a given UUID.
    */
-  bt_status_t (*search_service)(int conn_id, const bluetooth::Uuid* filter_uuid);
+  BtStatus (*search_service)(int conn_id, const bluetooth::Uuid* filter_uuid);
 
   /**
    * Sead "Find service by UUID" request. Used only for PTS tests.
@@ -226,63 +195,71 @@ typedef struct {
   void (*btif_gattc_discover_service_by_uuid)(int conn_id, const bluetooth::Uuid& uuid);
 
   /** Read a characteristic on a remote device */
-  bt_status_t (*read_characteristic)(int conn_id, uint16_t handle, int auth_req);
+  BtStatus (*read_characteristic)(int conn_id, uint16_t handle, int auth_req);
 
   /** Read a characteristic on a remote device */
-  bt_status_t (*read_using_characteristic_uuid)(int conn_id, const bluetooth::Uuid& uuid,
-                                                uint16_t s_handle, uint16_t e_handle, int auth_req);
+  BtStatus (*read_using_characteristic_uuid)(int conn_id, const bluetooth::Uuid& uuid,
+                                             uint16_t s_handle, uint16_t e_handle, int auth_req);
 
   /** Write a remote characteristic */
-  bt_status_t (*write_characteristic)(int conn_id, uint16_t handle, int write_type, int auth_req,
-                                      const uint8_t* value, size_t length);
+  BtStatus (*write_characteristic)(int conn_id, uint16_t handle, int write_type, int auth_req,
+                                   const uint8_t* value, size_t length);
 
   /** Read the descriptor for a given characteristic */
-  bt_status_t (*read_descriptor)(int conn_id, uint16_t handle, int auth_req);
+  BtStatus (*read_descriptor)(int conn_id, uint16_t handle, int auth_req);
 
   /** Write a remote descriptor for a given characteristic */
-  bt_status_t (*write_descriptor)(int conn_id, uint16_t handle, int auth_req, const uint8_t* value,
-                                  size_t length);
+  BtStatus (*write_descriptor)(int conn_id, uint16_t handle, int auth_req, const uint8_t* value,
+                               size_t length);
 
   /** Execute a prepared write operation */
-  bt_status_t (*execute_write)(int conn_id, int execute);
+  BtStatus (*execute_write)(int conn_id, int execute);
 
   /**
    * Register to receive notifications or indications for a given
    * characteristic
    */
-  bt_status_t (*register_for_notification)(int client_if, const RawAddress& bd_addr,
-                                           uint16_t handle);
+  BtStatus (*register_for_notification)(int client_if, const RawAddress& bd_addr, uint16_t handle);
 
   /** Deregister a previous request for notifications/indications */
-  bt_status_t (*deregister_for_notification)(int client_if, const RawAddress& bd_addr,
-                                             uint16_t handle);
+  BtStatus (*deregister_for_notification)(int client_if, const RawAddress& bd_addr,
+                                          uint16_t handle);
 
   /** Request RSSI for a given remote device */
-  bt_status_t (*read_remote_rssi)(int client_if, const RawAddress& bd_addr);
+  BtStatus (*read_remote_rssi)(int client_if, const RawAddress& bd_addr);
 
   /** Determine the type of the remote device (LE, BR/EDR, Dual-mode) */
   int (*get_device_type)(const RawAddress& bd_addr);
 
   /** Configure the MTU for a given connection */
-  bt_status_t (*configure_mtu)(int conn_id, int mtu);
+  BtStatus (*configure_mtu)(int conn_id, int mtu);
 
   /** Request a connection parameter update */
-  bt_status_t (*conn_parameter_update)(const RawAddress& bd_addr, int min_interval,
-                                       int max_interval, int latency, int timeout,
-                                       uint16_t min_ce_len, uint16_t max_ce_len);
+  BtStatus (*conn_parameter_update)(const RawAddress& bd_addr, int min_interval, int max_interval,
+                                    int latency, int timeout, uint16_t min_ce_len,
+                                    uint16_t max_ce_len);
 
-  bt_status_t (*set_preferred_phy)(const RawAddress& bd_addr, uint8_t tx_phy, uint8_t rx_phy,
-                                   uint16_t phy_options);
+  BtStatus (*set_preferred_phy)(const RawAddress& bd_addr, uint8_t tx_phy, uint8_t rx_phy,
+                                uint16_t phy_options);
 
-  bt_status_t (*read_phy)(const RawAddress& bd_addr,
-                          base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb);
-
-  /** Test mode interface */
-  bt_status_t (*test_command)(int command, const btgatt_test_params_t& params);
+  BtStatus (*read_phy)(const RawAddress& bd_addr,
+                       base::OnceCallback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)> cb);
 
   /** Request a BLE subrate request procedure */
-  bt_status_t (*subrate_request)(const RawAddress& bd_addr, int subrate_min, int subrate_max,
-                                 int max_latency, int cont_num, int timeout);
+  BtStatus (*subrate_request)(const RawAddress& bd_addr, int subrate_min, int subrate_max,
+                              int max_latency, int cont_num, int timeout);
+
+  /** Request a BLE subrate mode request procedure */
+  BtStatus (*subrate_mode_request)(int client_if, const RawAddress& bd_addr, uint8_t subrate_mode);
+
+  /** Offload GATT characteristics */
+  BtStatus (*offload_characteristics)(int conn_id, btgatt_db_element_t* service,
+                                      size_t elements_count, uint64_t endpoint_id, uint64_t hub_id,
+                                      int uid, std::string attribution_tag,
+                                      btgatt_offload_result_t* result);
+
+  /** Unoffload GATT characteristics */
+  BtStatus (*unoffload_characteristics)(int conn_id, int session_id);
 } btgatt_client_interface_t;
 
 __END_DECLS

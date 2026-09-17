@@ -19,8 +19,7 @@
 /*****************************************************************************
  *
  *  This file contains functions that manages ACL link modes.
- *  This includes operations such as active, hold,
- *  park and sniff modes.
+ *  This includes operations such as active and sniff modes.
  *
  *  This module contains both internal and external (API)
  *  functions. External (API) functions are distinguishable
@@ -33,15 +32,16 @@
 
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstdint>
 #include <unordered_map>
 
 #include "device/include/interop.h"
 #include "hci/controller.h"
+#include "hci/le_scanning_manager.h"
 #include "internal_include/bt_target.h"
 #include "main/shim/dumpsys.h"
-#include "osi/include/stack_power_telemetry.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/internal/btm_api.h"
 #include "stack/include/acl_api.h"
@@ -75,26 +75,10 @@ uint8_t pm_pend_id = 0; /* the id pf the module, which has a pending PM cmd */
 constexpr char kBtmLogTag[] = "ACL";
 }  // namespace
 
-/*****************************************************************************/
-/*      to handle different modes                                            */
-/*****************************************************************************/
-#define BTM_PM_NUM_SET_MODES 3 /* only hold, sniff & park */
-
-#define BTM_PM_GET_MD1 1
-#define BTM_PM_GET_MD2 2
-#define BTM_PM_GET_COMP 3
-
-const uint8_t btm_pm_md_comp_matrix[BTM_PM_NUM_SET_MODES * BTM_PM_NUM_SET_MODES] = {
-        BTM_PM_GET_COMP, BTM_PM_GET_MD2,  BTM_PM_GET_MD2,
-
-        BTM_PM_GET_MD1,  BTM_PM_GET_COMP, BTM_PM_GET_MD1,
-
-        BTM_PM_GET_MD1,  BTM_PM_GET_MD2,  BTM_PM_GET_COMP};
-
 static void send_sniff_subrating(uint16_t handle, const RawAddress& addr, uint16_t max_lat,
                                  uint16_t min_rmt_to, uint16_t min_loc_to) {
   uint16_t new_max_lat = 0;
-  if (interop_match_addr_get_max_lat(INTEROP_UPDATE_HID_SSR_MAX_LAT, &addr, &new_max_lat)) {
+  if (interop_match_addr_get_max_lat(INTEROP_UPDATE_HID_SSR_MAX_LAT, addr, &new_max_lat)) {
     max_lat = new_max_lat;
   }
 
@@ -208,10 +192,8 @@ tBTM_STATUS BTM_SetPowerMode(uint8_t pm_id, const RawAddress& remote_bda,
 
   if (mode != BTM_PM_MD_ACTIVE) {
     auto controller = bluetooth::shim::GetController();
-    if ((mode == BTM_PM_MD_HOLD && !controller->SupportsHoldMode()) ||
-        (mode == BTM_PM_MD_SNIFF && !controller->SupportsSniffMode()) ||
-        (mode == BTM_PM_MD_PARK && !controller->SupportsParkMode()) ||
-        interop_match_addr(INTEROP_DISABLE_SNIFF, &remote_bda)) {
+    if ((mode == BTM_PM_MD_SNIFF && !controller->SupportsSniffMode()) ||
+        interop_match_addr(INTEROP_DISABLE_SNIFF, remote_bda)) {
       log::error("pm_id {} mode {} is not supported for {}", pm_id, mode, remote_bda);
       return tBTM_STATUS::BTM_MODE_UNSUPPORTED;
     }
@@ -241,12 +223,10 @@ tBTM_STATUS BTM_SetPowerMode(uint8_t pm_id, const RawAddress& remote_bda,
     p_cb->chg_ind = true;
   }
 
-  /* if mode == hold or pending, return */
-  if ((p_cb->state == BTM_PM_STS_HOLD) || (p_cb->state == BTM_PM_STS_PENDING) ||
-      (pm_pend_link != 0)) {
+  /* if mode == pending, return */
+  if (p_cb->state == BTM_PM_STS_PENDING || pm_pend_link != 0) {
     log::info(
-            "Current power mode is hold or pending status or pending links "
-            "state:{}[{}] pm_pending_link:{}",
+            "Current power mode is pending status or pending links state:{}[{}] pm_pending_link:{}",
             power_mode_state_text(p_cb->state), p_cb->state, pm_pend_link);
     /* command pending */
     if (handle != pm_pend_link) {
@@ -378,8 +358,6 @@ void btm_pm_reset(void) {
  ******************************************************************************/
 static tBTM_PM_PWR_MD* btm_pm_compare_modes(const tBTM_PM_PWR_MD* p_md1,
                                             const tBTM_PM_PWR_MD* p_md2, tBTM_PM_PWR_MD* p_res) {
-  uint8_t res;
-
   if (p_md1 == NULL) {
     *p_res = *p_md2;
     p_res->mode &= ~BTM_PM_MD_FORCE;
@@ -404,37 +382,24 @@ static tBTM_PM_PWR_MD* btm_pm_compare_modes(const tBTM_PM_PWR_MD* p_md1,
     return p_res;
   }
 
-  res = (p_md1->mode - 1) * BTM_PM_NUM_SET_MODES + (p_md2->mode - 1);
-  res = btm_pm_md_comp_matrix[res];
-  switch (res) {
-    case BTM_PM_GET_MD1:
-      *p_res = *p_md1;
-      return p_res;
+  p_res->mode = p_md1->mode;
+  /* min of the two */
+  p_res->max = (p_md1->max < p_md2->max) ? (p_md1->max) : (p_md2->max);
+  /* max of the two */
+  p_res->min = (p_md1->min > p_md2->min) ? (p_md1->min) : (p_md2->min);
 
-    case BTM_PM_GET_MD2:
-      *p_res = *p_md2;
-      return p_res;
-
-    case BTM_PM_GET_COMP:
-      p_res->mode = p_md1->mode;
-      /* min of the two */
-      p_res->max = (p_md1->max < p_md2->max) ? (p_md1->max) : (p_md2->max);
-      /* max of the two */
-      p_res->min = (p_md1->min > p_md2->min) ? (p_md1->min) : (p_md2->min);
-
-      /* the intersection is NULL */
-      if (p_res->max < p_res->min) {
-        return NULL;
-      }
-
-      if (p_res->mode == BTM_PM_MD_SNIFF) {
-        /* max of the two */
-        p_res->attempt = (p_md1->attempt > p_md2->attempt) ? (p_md1->attempt) : (p_md2->attempt);
-        p_res->timeout = (p_md1->timeout > p_md2->timeout) ? (p_md1->timeout) : (p_md2->timeout);
-      }
-      return p_res;
+  /* the intersection is NULL */
+  if (p_res->max < p_res->min) {
+    return NULL;
   }
-  return NULL;
+
+  if (p_res->mode == BTM_PM_MD_SNIFF) {
+    /* max of the two */
+    p_res->attempt = (p_md1->attempt > p_md2->attempt) ? (p_md1->attempt) : (p_md2->attempt);
+    p_res->timeout = (p_md1->timeout > p_md2->timeout) ? (p_md1->timeout) : (p_md2->timeout);
+  }
+
+  return p_res;
 }
 
 /*******************************************************************************
@@ -560,19 +525,10 @@ static tBTM_STATUS btm_pm_snd_md_req(uint16_t handle, uint8_t pm_id, int link_in
           btsnd_hcic_exit_sniff_mode(handle);
           pm_pend_link = handle;
           break;
-        case BTM_PM_MD_PARK:
-          btsnd_hcic_exit_park_mode(handle);
-          pm_pend_link = handle;
-          break;
         default:
           /* Failure pm_pend_link = MAX_L2CAP_LINKS */
           break;
       }
-      break;
-
-    case BTM_PM_MD_HOLD:
-      btsnd_hcic_hold_mode(handle, md_res.max, md_res.min);
-      pm_pend_link = handle;
       break;
 
     case BTM_PM_MD_SNIFF:
@@ -580,10 +536,6 @@ static tBTM_STATUS btm_pm_snd_md_req(uint16_t handle, uint8_t pm_id, int link_in
       pm_pend_link = handle;
       break;
 
-    case BTM_PM_MD_PARK:
-      btsnd_hcic_park_mode(handle, md_res.max, md_res.min);
-      pm_pend_link = handle;
-      break;
     default:
       /* Failure pm_pend_link = MAX_L2CAP_LINKS */
       break;
@@ -649,7 +601,8 @@ void btm_pm_proc_cmd_status(tHCI_STATUS status) {
   }
 
   /* notify the caller is appropriate */
-  if ((pm_pend_id != BTM_PM_SET_ONLY_ID) && (pm_reg_db.mask & BTM_PM_REG_SET)) {
+  if ((pm_pend_id != BTM_PM_SET_ONLY_ID) && (pm_reg_db.mask & BTM_PM_REG_SET) &&
+      (pm_reg_db.cback != nullptr)) {
     const RawAddress bd_addr = pm_mode_db[pm_pend_link].bda_;
     log::verbose("Notifying callback that link power mode is complete peer:{}", bd_addr);
     (*pm_reg_db.cback)(bd_addr, pm_status, 0, status);
@@ -670,8 +623,7 @@ void btm_pm_proc_cmd_status(tHCI_STATUS status) {
  *
  * Input Parms      hci_status - status of the event (HCI_SUCCESS if no errors)
  *                  hci_handle - connection handle associated with the change
- *                  mode - HCI_MODE_ACTIVE, HCI_MODE_HOLD, HCI_MODE_SNIFF, or
- *                         HCI_MODE_PARK
+ *                  mode - HCI_MODE_ACTIVE or HCI_MODE_SNIFF
  *                  interval - number of baseband slots (meaning depends on
  *                                                       mode)
  *
@@ -700,15 +652,6 @@ void btm_pm_proc_mode_change(tHCI_STATUS hci_status, uint16_t hci_handle, tHCI_M
     l2c_OnHciModeChangeSendPendingPackets(p_cb->bda_);
   }
 
-  (mode != BTM_PM_ST_ACTIVE)
-          ? power_telemetry::GetInstance().LogSniffStarted(hci_handle, p_cb->bda_)
-          : power_telemetry::GetInstance().LogSniffStopped(hci_handle, p_cb->bda_);
-
-  /* set req_mode  HOLD mode->ACTIVE */
-  if ((mode == BTM_PM_MD_ACTIVE) && (p_cb->req_mode.mode == BTM_PM_MD_HOLD)) {
-    p_cb->req_mode.mode = BTM_PM_MD_ACTIVE;
-  }
-
   /* new request has been made. - post a message to BTU task */
   if (old_state & BTM_PM_STORED_MASK) {
     btm_pm_snd_md_req(hci_handle, BTM_PM_SET_ONLY_ID, hci_handle, NULL);
@@ -722,7 +665,7 @@ void btm_pm_proc_mode_change(tHCI_STATUS hci_status, uint16_t hci_handle, tHCI_M
   }
 
   /* notify registered parties */
-  if (pm_reg_db.mask & BTM_PM_REG_SET) {
+  if ((pm_reg_db.mask & BTM_PM_REG_SET) && (pm_reg_db.cback != nullptr)) {
     (*pm_reg_db.cback)(p_cb->bda_, mode, interval, hci_status);
   }
   /*check if sco disconnect  is waiting for the mode change */
@@ -760,7 +703,7 @@ static void process_ssr_event(tHCI_STATUS status, uint16_t handle, uint16_t /* m
   }
 
   int cnt = 0;
-  if (pm_reg_db.mask & BTM_PM_REG_SET) {
+  if ((pm_reg_db.mask & BTM_PM_REG_SET) && (pm_reg_db.cback != nullptr)) {
     (*pm_reg_db.cback)(bd_addr, BTM_PM_STS_SSR, (use_ssr) ? 1 : 0, status);
     cnt++;
   }
@@ -854,20 +797,36 @@ uint8_t BTM_PM_ReadBleLinkCount(void) {
  *
  ******************************************************************************/
 uint32_t BTM_PM_ReadBleScanDutyCycle(void) {
-  if (!btm_cb.ble_ctr_cb.is_ble_scan_active()) {
+  auto le_scanning_manager = bluetooth::shim::GetScanning();
+  if (!com_android_bluetooth_flags_migrate_btm_scan_to_gd() &&
+      !btm_cb.ble_ctr_cb.is_ble_scan_active()) {
+    return 0;
+  } else if (!le_scanning_manager->IsScanActive()) {
     return 0;
   }
   uint32_t duty_cycle_1m = 0;
   uint32_t duty_cycle_coded = 0;
-  if (btm_cb.ble_ctr_cb.inq_var.is_1m_phy_configured()) {
+  if (!com_android_bluetooth_flags_migrate_btm_scan_to_gd() &&
+      btm_cb.ble_ctr_cb.inq_var.is_1m_phy_configured()) {
     uint32_t scan_window = btm_cb.ble_ctr_cb.inq_var.scan_window_1m;
     uint32_t scan_interval = btm_cb.ble_ctr_cb.inq_var.scan_interval_1m;
     log::debug("LE 1m scan_window:{} scan interval:{}", scan_window, scan_interval);
     duty_cycle_1m = (scan_window * 100) / scan_interval;
+  } else if (le_scanning_manager->Is1mPhyConfigured()) {
+    uint32_t scan_window = le_scanning_manager->GetWindowMs1m();
+    uint32_t scan_interval = le_scanning_manager->GetIntervalMs1m();
+    log::debug("LE 1m scan_window:{} scan interval:{}", scan_window, scan_interval);
+    duty_cycle_1m = (scan_window * 100) / scan_interval;
   }
-  if (btm_cb.ble_ctr_cb.inq_var.is_coded_phy_configured()) {
+  if (!com_android_bluetooth_flags_migrate_btm_scan_to_gd() &&
+      btm_cb.ble_ctr_cb.inq_var.is_coded_phy_configured()) {
     uint32_t scan_window = btm_cb.ble_ctr_cb.inq_var.scan_window_coded;
     uint32_t scan_interval = btm_cb.ble_ctr_cb.inq_var.scan_interval_coded;
+    log::debug("LE coded scan_window:{} scan interval:{}", scan_window, scan_interval);
+    duty_cycle_coded = (scan_window * 100) / scan_interval;
+  } else if (le_scanning_manager->IsCodedPhyConfigured()) {
+    uint32_t scan_window = le_scanning_manager->GetWindowMsCoded();
+    uint32_t scan_interval = le_scanning_manager->GetIntervalMsCoded();
     log::debug("LE coded scan_window:{} scan interval:{}", scan_window, scan_interval);
     duty_cycle_coded = (scan_window * 100) / scan_interval;
   }
@@ -876,6 +835,6 @@ uint32_t BTM_PM_ReadBleScanDutyCycle(void) {
 
 void btm_pm_on_mode_change(tHCI_STATUS status, uint16_t handle, tHCI_MODE current_mode,
                            uint16_t interval) {
-  btm_sco_chk_pend_unpark(status, handle);
+  btm_sco_chk_pend_unsniff(status, handle);
   btm_pm_proc_mode_change(status, handle, current_mode, interval);
 }

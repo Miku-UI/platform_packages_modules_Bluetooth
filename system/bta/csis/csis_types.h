@@ -29,7 +29,7 @@
 #include "bta_groups.h"
 #include "btif/include/btif_storage.h"
 #include "crypto_toolbox/crypto_toolbox.h"
-#include "gap_api.h"
+#include "stack/include/gap_api.h"
 
 // Uncomment to debug SIRK calculations
 // #define CSIS_DEBUG
@@ -41,11 +41,11 @@ using bluetooth::csis::CsisLockCb;
 
 // CSIP additions
 /* Generic UUID is used when CSIS is not included in any context */
-static const bluetooth::Uuid kCsisServiceUuid = bluetooth::Uuid::From16Bit(0x1846);
-static const bluetooth::Uuid kCsisSirkUuid = bluetooth::Uuid::From16Bit(0x2B84);
-static const bluetooth::Uuid kCsisSizeUuid = bluetooth::Uuid::From16Bit(0x2B85);
-static const bluetooth::Uuid kCsisLockUuid = bluetooth::Uuid::From16Bit(0x2B86);
-static const bluetooth::Uuid kCsisRankUuid = bluetooth::Uuid::From16Bit(0x2B87);
+static constexpr bluetooth::Uuid kCsisServiceUuid = bluetooth::Uuid::From16Bit(0x1846);
+static constexpr bluetooth::Uuid kCsisSirkUuid = bluetooth::Uuid::From16Bit(0x2B84);
+static constexpr bluetooth::Uuid kCsisSizeUuid = bluetooth::Uuid::From16Bit(0x2B85);
+static constexpr bluetooth::Uuid kCsisLockUuid = bluetooth::Uuid::From16Bit(0x2B86);
+static constexpr bluetooth::Uuid kCsisRankUuid = bluetooth::Uuid::From16Bit(0x2B87);
 
 static constexpr uint8_t kCsisErrorCodeLockDenied = 0x80;
 static constexpr uint8_t kCsisErrorCodeReleaseNotAllowed = 0x81;
@@ -66,7 +66,7 @@ struct hdl_pair {
 };
 
 /* CSIS Types */
-static constexpr uint8_t kDefaultScanDurationS = 5;
+static constexpr uint8_t kDefaultScanDurationS = 10;
 static constexpr uint8_t kDefaultCsisSetSize = 1;
 static constexpr uint8_t kUnknownRank = 0xff;
 
@@ -95,6 +95,8 @@ public:
   tCONN_ID conn_id = GATT_INVALID_CONN_ID;
   uint16_t service_handle = GAP_INVALID_HANDLE;
   bool is_gatt_service_valid = false;
+  bool sirk_all_zeros = false;
+  bool sirk_all_zeros_size_one = false;
 
   GattServiceDevice(const RawAddress& addr, bool connecting)
       : addr(addr), connecting_actively(connecting) {}
@@ -211,6 +213,8 @@ public:
   void ClearSvcData() {
     GattServiceDevice::service_handle = GAP_INVALID_HANDLE;
     GattServiceDevice::is_gatt_service_valid = false;
+    GattServiceDevice::sirk_all_zeros = false;
+    GattServiceDevice::sirk_all_zeros_size_one = false;
 
     csis_instances_.clear();
   }
@@ -370,6 +374,15 @@ public:
     }
     sirk_available_ = true;
     sirk_ = sirk;
+  }
+
+  bool IsUnsafe(void) const {
+    log::verbose("group_id: {}, is_unsafe: {}", group_id_, is_unsafe_);
+    return is_unsafe_;
+  }
+  void SetUnsafe() {
+    log::info("group_id: {}", group_id_);
+    is_unsafe_ = true;
   }
 
   int GetNumOfConnectedDevices(void) {
@@ -532,6 +545,13 @@ private:
   bool sirk_available_ = false;
   int size_;
   bluetooth::Uuid uuid_;
+
+  /* When CSIS detects any misconfiguration on the remote CSIS set,
+   * the CSIS group should be disabled and is treated as unsafe i.e. Disconnected from the CSIS
+   * Server. One of the example could be multiple CSIS Sets which uses the same SIRK, as this might
+   * break the user experiance, especially when SIZE of the CSIS group changes dynamically.
+   */
+  bool is_unsafe_ = false;
 
   std::vector<std::shared_ptr<CsisDevice>> devices_;
   CsisDiscoveryState member_discovery_state_;

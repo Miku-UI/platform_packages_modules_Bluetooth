@@ -57,10 +57,10 @@ std::string dump_rc_opcode(uint8_t opcode);
 std::string dump_rc_event(uint8_t event);
 std::string dump_rc_notification_event_id(uint8_t event_id);
 std::string dump_rc_pdu(uint8_t pdu);
-
 uint32_t devclass2uint(const DEV_CLASS dev_class);
 DEV_CLASS uint2devclass(uint32_t dev);
 
 int ascii_2_hex(const char* p_ascii, int len, uint8_t* p_hex);
-
+bool compare_pairing_type_for_downgrade(const PairingType& current_pairing_type,
+                                        const PairingType& new_pairing_type);
 #endif /* BTIF_UTIL_H */

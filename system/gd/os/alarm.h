@@ -16,16 +16,19 @@
 
 #pragma once
 
+#include <base/functional/callback.h>
+
 #include <functional>
 #include <memory>
 #include <mutex>
 
-#include "common/callback.h"
 #include "os/thread.h"
 #include "os/utils.h"
 
 namespace bluetooth {
 namespace os {
+
+#define kDefaultReactableTimeout std::chrono::milliseconds(0)
 
 // A single-shot alarm for reactor-based thread, implemented by Linux timerfd.
 // When it's constructed, it will register a reactable on the specified thread; when it's destroyed,
@@ -33,11 +36,17 @@ namespace os {
 class Alarm {
 public:
   // Create and register a single-shot alarm on a given thread. This creates a wake alarm.
-  explicit Alarm(Thread* thread);
+  // `reactable_timeout` is the timeout for waiting for the reactable to be unregistered.
+  // Note: If set, this will block the ~Alarm() until the reactor gets idle.
+  explicit Alarm(Thread* thread,
+                 std::chrono::milliseconds reactable_timeout = kDefaultReactableTimeout);
 
   // Create and register a single-shot alarm on a given thread.
   // This constructor can specify whether the alarm will be a wake alarm or a non-wake alarm.
-  explicit Alarm(Thread* thread, bool isWakeAlarm);
+  // `reactable_timeout` is the timeout for waiting for the reactable to be unregistered.
+  // Note: If set, this will block the ~Alarm() until the reactor gets idle.
+  explicit Alarm(Thread* thread, bool isWakeAlarm,
+                 std::chrono::milliseconds reactable_timeout = kDefaultReactableTimeout);
 
   Alarm(const Alarm&) = delete;
   Alarm& operator=(const Alarm&) = delete;
@@ -46,7 +55,7 @@ public:
   ~Alarm();
 
   // Schedule the alarm with given delay
-  void Schedule(common::OnceClosure task, std::chrono::milliseconds delay);
+  void Schedule(base::OnceClosure task, std::chrono::milliseconds delay);
 
   // Cancel the alarm. No-op if it's not armed.
   void Cancel();
@@ -54,13 +63,15 @@ public:
   std::chrono::system_clock::time_point GetArmedTime() { return armed_time_; }
 
 private:
-  common::OnceClosure task_;
+  base::OnceClosure task_;
   std::chrono::system_clock::time_point armed_time_;
   Thread* thread_;
   int fd_ = 0;
   Reactor::Reactable* token_;
   mutable std::mutex mutex_;
   void on_fire();
+
+  std::chrono::milliseconds reactable_timeout_;
 };
 
 }  // namespace os

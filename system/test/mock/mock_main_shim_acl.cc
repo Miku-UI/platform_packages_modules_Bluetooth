@@ -61,7 +61,8 @@ using HciHandle = uint16_t;
 
 struct shim::Acl::impl {};
 
-void shim::Acl::CreateClassicConnection(const hci::Address& /* address */) {
+void shim::Acl::CreateClassicConnection(const hci::Address& /* address */,
+                                        uint16_t /* clock_offset */) {
   inc_func_call_count(__func__);
 }
 
@@ -96,7 +97,8 @@ void shim::Acl::OnLeLinkDisconnected(HciHandle /* handle */, hci::ErrorCode /* r
 }
 
 void shim::Acl::OnConnectSuccess(
-        std::unique_ptr<hci::acl_manager::ClassicAclConnection> /* connection */) {
+        std::unique_ptr<hci::acl_manager::ClassicAclConnection> /* connection */,
+        hci::Role /* role */) {
   inc_func_call_count(__func__);
 }
 

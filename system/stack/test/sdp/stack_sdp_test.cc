@@ -21,16 +21,18 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "bta/ag/bta_ag_int.h"
+#include "bta/sys/bta_sys.h"
 #include "include/macros.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/sdp_api.h"
 #include "stack/include/sdpdefs.h"
+#include "stack/mock/mock_stack_l2cap_interface.h"
 #include "stack/sdp/internal/sdp_api.h"
 #include "stack/sdp/sdpint.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_osi_allocator.h"
-#include "test/mock/mock_stack_l2cap_interface.h"
 
 #ifndef BT_DEFAULT_BUFFER_SIZE
 #define BT_DEFAULT_BUFFER_SIZE (4096 + 16)
@@ -49,10 +51,14 @@ using ::testing::StrEq;
 using ::testing::StrictMock;
 using ::testing::Test;
 
+// TODO: remove dependency on BTA symbols.
+bool bta_ag_get_swb_supported() { return false; }
+void bta_sys_add_uuid(uint16_t) {}
+
 namespace {
 constexpr uint8_t kSDP_MAX_CONNECTIONS = static_cast<uint8_t>(SDP_MAX_CONNECTIONS);
 
-RawAddress addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});
+RawAddress addr = RawAddress("A1:A2:A3:A4:A5:A6");
 int L2CA_ConnectReqWithSecurity_cid = 42;
 tSDP_DISCOVERY_DB* sdp_db = nullptr;
 
@@ -456,10 +462,10 @@ TEST_F(StackSdpInitTest, sdpu_dump_all_ccb) {
   sdpu_dump_all_ccb();
 
   for (uint8_t i = 0; i < kSDP_MAX_CONNECTIONS; i++) {
-    RawAddress bd_addr = RawAddress({0x11, 0x22, 0x33, 0x44, 0x55, i});
+    RawAddress bd_addr = RawAddress(std::array<uint8_t, 6>({0x11, 0x22, 0x33, 0x44, 0x55, i}));
     ASSERT_NE(nullptr, sdp_conn_originate(bd_addr));
   }
-  RawAddress bd_addr_fail = RawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0xff});
+  RawAddress bd_addr_fail = RawAddress("11:22:33:44:55:ff");
   ASSERT_EQ(nullptr, sdp_conn_originate(bd_addr_fail));
 
   sdpu_dump_all_ccb();
@@ -474,10 +480,10 @@ TEST_F(StackSdpInitTest, SDP_Dumpsys_ccb) {
                                         uint16_t /* sec_level */) -> uint16_t { return cid++; }));
 
   for (uint8_t i = 0; i < kSDP_MAX_CONNECTIONS; i++) {
-    RawAddress bd_addr = RawAddress({0x11, 0x22, 0x33, 0x44, 0x55, i});
+    RawAddress bd_addr = RawAddress(std::array<uint8_t, 6>({0x11, 0x22, 0x33, 0x44, 0x55, i}));
     ASSERT_NE(nullptr, sdp_conn_originate(bd_addr));
   }
-  RawAddress bd_addr_fail = RawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0xff});
+  RawAddress bd_addr_fail = RawAddress("11:22:33:44:55:ff");
   ASSERT_EQ(nullptr, sdp_conn_originate(bd_addr_fail));
 
   SDP_Dumpsys(1);

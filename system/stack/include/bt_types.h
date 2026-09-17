@@ -19,17 +19,18 @@
 #ifndef BT_TYPES_H
 #define BT_TYPES_H
 
-#include <stdbool.h>
-
 #include "stack/include/bt_device_type.h"
 #include "stack/include/bt_hdr.h"
+
 #ifdef __cplusplus
 #include <bluetooth/types/address.h>
+#include <bluetooth/types/bt_octets.h>
 #include <bluetooth/types/uuid.h>
 
 #include "include/hardware/bluetooth.h"
-#include "stack/include/bt_octets.h"
 #endif  // __cplusplus
+
+#include <stdbool.h>
 
 /* READ WELL !!
  *
@@ -111,27 +112,27 @@
   { *(p)++ = (int8_t)(u8); }
 #define ARRAY16_TO_STREAM(p, a)        \
   {                                    \
-    int ijk;                           \
+    unsigned int ijk;                  \
     for (ijk = 0; ijk < 16; ijk++)     \
       *(p)++ = (uint8_t)(a)[15 - ijk]; \
   }
 #define ARRAY8_TO_STREAM(p, a)        \
   {                                   \
-    int ijk;                          \
+    unsigned int ijk;                 \
     for (ijk = 0; ijk < 8; ijk++)     \
       *(p)++ = (uint8_t)(a)[7 - ijk]; \
   }
 #define LAP_TO_STREAM(p, a)                     \
   {                                             \
-    int ijk;                                    \
+    unsigned int ijk;                           \
     for (ijk = 0; ijk < LAP_LEN; ijk++)         \
       *(p)++ = (uint8_t)(a)[LAP_LEN - 1 - ijk]; \
   }
-#define ARRAY_TO_STREAM(p, a, len)    \
-  {                                   \
-    int ijk;                          \
-    for (ijk = 0; ijk < (len); ijk++) \
-      *(p)++ = (uint8_t)(a)[ijk];     \
+#define ARRAY_TO_STREAM(p, a, len)                             \
+  {                                                            \
+    unsigned int ijk;                                          \
+    for (ijk = 0; ijk < static_cast<unsigned int>(len); ijk++) \
+      *(p)++ = (uint8_t)(a)[ijk];                              \
   }
 #define STREAM_TO_INT8(u8, p) \
   {                           \
@@ -170,30 +171,30 @@
   }
 #define STREAM_TO_ARRAY16(a, p)        \
   {                                    \
-    int ijk;                           \
+    unsigned int ijk;                  \
     uint8_t* _pa = (uint8_t*)(a) + 15; \
     for (ijk = 0; ijk < 16; ijk++)     \
       *_pa-- = *(p)++;                 \
   }
 #define STREAM_TO_ARRAY8(a, p)        \
   {                                   \
-    int ijk;                          \
+    unsigned int ijk;                 \
     uint8_t* _pa = (uint8_t*)(a) + 7; \
     for (ijk = 0; ijk < 8; ijk++)     \
       *_pa-- = *(p)++;                \
   }
 #define STREAM_TO_LAP(a, p)                      \
   {                                              \
-    int ijk;                                     \
+    unsigned int ijk;                            \
     uint8_t* plap = (uint8_t*)(a) + LAP_LEN - 1; \
     for (ijk = 0; ijk < LAP_LEN; ijk++)          \
       *plap-- = *(p)++;                          \
   }
-#define STREAM_TO_ARRAY(a, p, len)    \
-  {                                   \
-    int ijk;                          \
-    for (ijk = 0; ijk < (len); ijk++) \
-      ((uint8_t*)(a))[ijk] = *(p)++;  \
+#define STREAM_TO_ARRAY(a, p, len)                             \
+  {                                                            \
+    unsigned int ijk;                                          \
+    for (ijk = 0; ijk < static_cast<unsigned int>(len); ijk++) \
+      ((uint8_t*)(a))[ijk] = *(p)++;                           \
   }
 #define STREAM_SKIP_UINT8(p) \
   do {                       \
@@ -207,6 +208,21 @@
   do {                        \
     (p) += 4;                 \
   } while (0)
+
+#define BD_ADDR_LEN 6 /* Device address length */
+
+inline void BDADDR_TO_STREAM(uint8_t*& p, const RawAddress& a) {
+  for (int ijk = 0; ijk < BD_ADDR_LEN; ijk++) {
+    *(p)++ = a.address[BD_ADDR_LEN - 1 - ijk];
+  }
+}
+
+inline void STREAM_TO_BDADDR(RawAddress& a, const uint8_t*& p) {
+  uint8_t* pbda = a.address.data() + BD_ADDR_LEN - 1;
+  for (int ijk = 0; ijk < BD_ADDR_LEN; ijk++) {
+    *pbda-- = *(p)++;
+  }
+}
 
 /*******************************************************************************
  * Macros to get and put bytes to and from a stream (Big Endian format)
@@ -231,11 +247,11 @@
   }
 #define UINT8_TO_BE_STREAM(p, u8) \
   { *(p)++ = (uint8_t)(u8); }
-#define ARRAY_TO_BE_STREAM(p, a, len) \
-  {                                   \
-    int ijk;                          \
-    for (ijk = 0; ijk < (len); ijk++) \
-      *(p)++ = (uint8_t)(a)[ijk];     \
+#define ARRAY_TO_BE_STREAM(p, a, len)                          \
+  {                                                            \
+    unsigned int ijk;                                          \
+    for (ijk = 0; ijk < static_cast<unsigned int>(len); ijk++) \
+      *(p)++ = (uint8_t)(a)[ijk];                              \
   }
 #define BE_STREAM_TO_UINT8(u8, p) \
   {                               \
@@ -266,11 +282,11 @@
              ((uint64_t)(*((p) + 1)) << 48) + ((uint64_t)(*(p)) << 56));       \
     (p) += 8;                                                                  \
   }
-#define BE_STREAM_TO_ARRAY(p, a, len) \
-  {                                   \
-    int ijk;                          \
-    for (ijk = 0; ijk < (len); ijk++) \
-      ((uint8_t*)(a))[ijk] = *(p)++;  \
+#define BE_STREAM_TO_ARRAY(p, a, len)                          \
+  {                                                            \
+    unsigned int ijk;                                          \
+    for (ijk = 0; ijk < static_cast<unsigned int>(len); ijk++) \
+      ((uint8_t*)(a))[ijk] = *(p)++;                           \
   }
 
 /*******************************************************************************

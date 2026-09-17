@@ -23,7 +23,7 @@
 
 #define LOG_TAG "bluetooth-a2dp"
 
-#include "a2dp_vendor_ldac.h"
+#include "stack/include/a2dp_vendor_ldac.h"
 
 #include <bluetooth/log.h>
 #include <string.h>
@@ -33,15 +33,14 @@
 #include <sstream>
 #include <string>
 
-#include "a2dp_api.h"
-#include "a2dp_codec_api.h"
-#include "a2dp_constants.h"
-#include "a2dp_vendor_ldac_constants.h"
-#include "a2dp_vendor_ldac_encoder.h"
-#include "avdt_api.h"
-#include "btif/include/btif_av_co.h"
 #include "hardware/bt_av.h"
 #include "internal_include/bt_trace.h"
+#include "stack/include/a2dp_api.h"
+#include "stack/include/a2dp_codec_api.h"
+#include "stack/include/a2dp_constants.h"
+#include "stack/include/a2dp_vendor_ldac_constants.h"
+#include "stack/include/a2dp_vendor_ldac_encoder.h"
+#include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
 
 using namespace bluetooth;
@@ -245,8 +244,6 @@ bool A2DP_VendorUsesRtpHeaderLdac(bool /* content_protection_enabled */,
   return true;
 }
 
-const char* A2DP_VendorCodecNameLdac(const uint8_t* /* p_codec_info */) { return "LDAC"; }
-
 bool A2DP_VendorCodecTypeEqualsLdac(const uint8_t* p_codec_info_a, const uint8_t* p_codec_info_b) {
   tA2DP_LDAC_CIE ldac_cie_a;
   tA2DP_LDAC_CIE ldac_cie_b;
@@ -286,10 +283,8 @@ bool A2DP_VendorCodecEqualsLdac(const uint8_t* p_codec_info_a, const uint8_t* p_
          (ldac_cie_a.channelMode == ldac_cie_b.channelMode);
 }
 
-int A2DP_VendorGetBitRateLdac(const uint8_t* p_codec_info) {
-  A2dpCodecConfig* current_codec = bta_av_get_a2dp_current_codec();
-  btav_a2dp_codec_config_t codec_config_ = current_codec->getCodecConfig();
-  int samplerate = A2DP_GetTrackSampleRate(p_codec_info);
+int A2dpCodecConfigLdacBase::getTrackBitRate() const {
+  int samplerate = A2DP_GetTrackSampleRate(ota_codec_config_.data());
   switch (codec_config_.codec_specific_1 % 10) {
     case 0:
       if (samplerate == 44100 || samplerate == 88200) {
@@ -502,8 +497,7 @@ std::string A2DP_VendorCodecInfoStringLdac(const uint8_t* p_codec_info) {
   return res.str();
 }
 
-const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceLdac(
-    const uint8_t* p_codec_info) {
+const tA2DP_ENCODER_INTERFACE* A2DP_VendorGetEncoderInterfaceLdac(const uint8_t* p_codec_info) {
   if (!A2DP_IsCodecValidLdac(p_codec_info)) {
     return NULL;
   }
@@ -522,19 +516,12 @@ bool A2DP_VendorAdjustCodecLdac(uint8_t* p_codec_info) {
   return true;
 }
 
-btav_a2dp_codec_index_t A2DP_VendorSourceCodecIndexLdac(const uint8_t* /* p_codec_info */) {
-  return BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC;
-}
-
-const char* A2DP_VendorCodecIndexStrLdac(void) { return "LDAC"; }
-
 bool A2DP_VendorInitCodecConfigLdac(AvdtpSepConfig* p_cfg) {
   return A2DP_BuildInfoLdac(AVDT_MEDIA_TYPE_AUDIO, &a2dp_ldac_source_caps, p_cfg->codec_info);
 }
 
 A2dpCodecConfigLdacSource::A2dpCodecConfigLdacSource(btav_a2dp_codec_priority_t codec_priority)
-    : A2dpCodecConfigLdacBase(BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC, A2DP_VendorCodecIndexStrLdac(),
-                              codec_priority, true) {
+    : A2dpCodecConfigLdacBase(BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC, "LDAC", codec_priority, true) {
   // Compute the local capability
   if (a2dp_ldac_source_caps.sampleRate & A2DP_LDAC_SAMPLING_FREQ_44100) {
     codec_local_capability_.sample_rate |= BTAV_A2DP_CODEC_SAMPLE_RATE_44100;
@@ -823,13 +810,10 @@ tA2DP_STATUS A2dpCodecConfigLdacBase::setCodecConfig(const uint8_t* p_peer_codec
   btav_a2dp_codec_config_t saved_codec_selectable_capability = codec_selectable_capability_;
   btav_a2dp_codec_config_t saved_codec_user_config = codec_user_config_;
   btav_a2dp_codec_config_t saved_codec_audio_config = codec_audio_config_;
-  uint8_t saved_ota_codec_config[AVDT_CODEC_SIZE];
-  uint8_t saved_ota_codec_peer_capability[AVDT_CODEC_SIZE];
-  uint8_t saved_ota_codec_peer_config[AVDT_CODEC_SIZE];
-  memcpy(saved_ota_codec_config, ota_codec_config_, sizeof(ota_codec_config_));
-  memcpy(saved_ota_codec_peer_capability, ota_codec_peer_capability_,
-         sizeof(ota_codec_peer_capability_));
-  memcpy(saved_ota_codec_peer_config, ota_codec_peer_config_, sizeof(ota_codec_peer_config_));
+  bluetooth::a2dp::MediaCodecCapabilities saved_ota_codec_config = ota_codec_config_;
+  bluetooth::a2dp::MediaCodecCapabilities saved_ota_codec_peer_capability =
+          ota_codec_peer_capability_;
+  bluetooth::a2dp::MediaCodecCapabilities saved_ota_codec_peer_config = ota_codec_peer_config_;
 
   tA2DP_STATUS status = A2DP_ParseInfoLdac(&peer_info_cie, p_peer_codec_info, is_capability);
   if (status != A2DP_SUCCESS) {
@@ -1105,16 +1089,17 @@ tA2DP_STATUS A2dpCodecConfigLdacBase::setCodecConfig(const uint8_t* p_peer_codec
   // Create a local copy of the peer codec capability, and the
   // result codec config.
   if (is_capability) {
-    log::assert_that(
-            A2DP_BuildInfoLdac(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_capability_),
-            "Failed to build media codec capabilities");
+    log::assert_that(A2DP_BuildInfoLdac(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie,
+                                        ota_codec_peer_capability_.data()),
+                     "Failed to build media codec capabilities");
   } else {
-    log::assert_that(
-            A2DP_BuildInfoLdac(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_config_),
-            "Failed to build media codec capabilities");
+    log::assert_that(A2DP_BuildInfoLdac(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie,
+                                        ota_codec_peer_config_.data()),
+                     "Failed to build media codec capabilities");
   }
-  log::assert_that(A2DP_BuildInfoLdac(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, ota_codec_config_),
-                   "Failed to build media codec capabilities");
+  log::assert_that(
+          A2DP_BuildInfoLdac(AVDT_MEDIA_TYPE_AUDIO, &result_config_cie, ota_codec_config_.data()),
+          "Failed to build media codec capabilities");
   return A2DP_SUCCESS;
 
 fail:
@@ -1123,10 +1108,9 @@ fail:
   codec_selectable_capability_ = saved_codec_selectable_capability;
   codec_user_config_ = saved_codec_user_config;
   codec_audio_config_ = saved_codec_audio_config;
-  memcpy(ota_codec_config_, saved_ota_codec_config, sizeof(ota_codec_config_));
-  memcpy(ota_codec_peer_capability_, saved_ota_codec_peer_capability,
-         sizeof(ota_codec_peer_capability_));
-  memcpy(ota_codec_peer_config_, saved_ota_codec_peer_config, sizeof(ota_codec_peer_config_));
+  ota_codec_config_ = saved_ota_codec_config;
+  ota_codec_peer_capability_ = saved_ota_codec_peer_capability;
+  ota_codec_peer_config_ = saved_ota_codec_peer_config;
   return status;
 }
 
@@ -1140,9 +1124,8 @@ bool A2dpCodecConfigLdacBase::setPeerCodecCapabilities(const uint8_t* p_peer_cod
 
   // Save the internal state
   btav_a2dp_codec_config_t saved_codec_selectable_capability = codec_selectable_capability_;
-  uint8_t saved_ota_codec_peer_capability[AVDT_CODEC_SIZE];
-  memcpy(saved_ota_codec_peer_capability, ota_codec_peer_capability_,
-         sizeof(ota_codec_peer_capability_));
+  bluetooth::a2dp::MediaCodecCapabilities saved_ota_codec_peer_capability =
+          ota_codec_peer_capability_;
 
   tA2DP_STATUS status = A2DP_ParseInfoLdac(&peer_info_cie, p_peer_codec_capabilities, true);
   if (status != A2DP_SUCCESS) {
@@ -1186,15 +1169,14 @@ bool A2dpCodecConfigLdacBase::setPeerCodecCapabilities(const uint8_t* p_peer_cod
     codec_selectable_capability_.channel_mode |= BTAV_A2DP_CODEC_CHANNEL_MODE_STEREO;
   }
 
-  log::assert_that(
-          A2DP_BuildInfoLdac(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie, ota_codec_peer_capability_),
-          "Failed to build media codec capabilities");
+  log::assert_that(A2DP_BuildInfoLdac(AVDT_MEDIA_TYPE_AUDIO, &peer_info_cie,
+                                      ota_codec_peer_capability_.data()),
+                   "Failed to build media codec capabilities");
   return true;
 
 fail:
   // Restore the internal state
   codec_selectable_capability_ = saved_codec_selectable_capability;
-  memcpy(ota_codec_peer_capability_, saved_ota_codec_peer_capability,
-         sizeof(ota_codec_peer_capability_));
+  ota_codec_peer_capability_ = saved_ota_codec_peer_capability;
   return false;
 }

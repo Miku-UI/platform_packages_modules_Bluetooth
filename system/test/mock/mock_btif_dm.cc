@@ -39,7 +39,7 @@ bool btif_dm_pairing_is_busy() {
   inc_func_call_count(__func__);
   return false;
 }
-bool btif_check_cod_hid(const RawAddress& /* remote_bdaddr */) {
+bool btif_check_cod_hid(RawAddress /* remote_bdaddr */) {
   inc_func_call_count(__func__);
   return false;
 }
@@ -51,12 +51,8 @@ bool is_le_audio_capable_during_service_discovery(const RawAddress& /* bd_addr *
   inc_func_call_count(__func__);
   return false;
 }
-uint16_t btif_dm_get_connection_state(const RawAddress& /* bd_addr */) {
-  inc_func_call_count(__func__);
-  return 0;
-}
 void BTIF_dm_disable() { inc_func_call_count(__func__); }
-void BTIF_dm_enable() { inc_func_call_count(__func__); }
+void BTIF_dm_enable(const std::string) { inc_func_call_count(__func__); }
 void BTIF_dm_report_inquiry_status_change(tBTM_INQUIRY_STATE /* state */) {
   inc_func_call_count(__func__);
 }
@@ -94,7 +90,6 @@ void btif_dm_get_ble_local_keys(tBTA_DM_BLE_LOCAL_KEY_MASK* /* p_key_mask */, Oc
 void btif_dm_get_remote_services(RawAddress /* remote_addr */, tBT_TRANSPORT /* transport */) {
   inc_func_call_count(__func__);
 }
-void btif_dm_hh_open_failed(RawAddress* /* bdaddr */) { inc_func_call_count(__func__); }
 void btif_dm_init(uid_set_t* /* set */) { inc_func_call_count(__func__); }
 DEV_CLASS btif_dm_get_local_class_of_device() {
   inc_func_call_count(__func__);
@@ -109,7 +104,7 @@ void btif_dm_pin_reply(const RawAddress /* bd_addr */, uint8_t /* accept */, uin
 void btif_dm_proc_io_req(tBTM_AUTH_REQ* /* p_auth_req */, bool /* is_orig */) {
   inc_func_call_count(__func__);
 }
-void btif_dm_proc_io_rsp(const RawAddress& /* bd_addr */, tBTM_IO_CAP /* io_cap */,
+void btif_dm_proc_io_rsp(const RawAddress& /* bd_addr */, BtIoCap /* io_cap */,
                          tBTM_OOB_DATA /* oob_data */, tBTM_AUTH_REQ /* auth_req */) {
   inc_func_call_count(__func__);
 }
@@ -118,12 +113,12 @@ void btif_dm_remove_bond(const RawAddress /* bd_addr */) { inc_func_call_count(_
 void btif_dm_set_oob_for_io_req(tBTM_OOB_DATA* /* p_has_oob_data */) {
   inc_func_call_count(__func__);
 }
-void btif_dm_set_oob_for_le_io_req(const RawAddress& /* bd_addr */,
-                                   tBTM_OOB_DATA* /* p_has_oob_data */,
-                                   tBTM_LE_AUTH_REQ* /* p_auth_req */) {
+std::optional<tBTM_LE_AUTH_REQ> btif_dm_le_oob_auth_req(const RawAddress& /* bd_addr */,
+                                                        tBTM_LE_AUTH_REQ /* auth_req */) {
   inc_func_call_count(__func__);
+  return std::nullopt;
 }
-void btif_dm_ssp_reply(const RawAddress /* bd_addr */, bt_ssp_variant_t /* variant */,
+void btif_dm_ssp_reply(const RawAddress /* bd_addr */, PairingVariant /* variant */,
                        uint8_t /* accept */) {
   inc_func_call_count(__func__);
 }

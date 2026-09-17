@@ -36,9 +36,9 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
-import com.android.bluetooth.Utils;
+import com.android.bluetooth.Util;
 import com.android.bluetooth.btservice.AdapterService;
-import com.android.bluetooth.btservice.ProfileService;
+import com.android.bluetooth.profile.ProfileService;
 import com.android.bluetooth.util.BluetoothTrace;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.State;
@@ -313,8 +313,10 @@ class PbapClientStateMachine extends StateMachine {
     public void onSdpResultReceived(int status, PbapSdpRecord record) {
         if (status != SDP_SUCCESS) {
             sendMessage(MSG_SDP_FAILED, status);
-        } else {
+        } else if (record != null) {
             sendMessage(MSG_SDP_COMPLETE, record);
+        } else {
+            Log.e(TAG, "Received null PSE record for device=" + mDevice);
         }
     }
 
@@ -408,7 +410,7 @@ class PbapClientStateMachine extends StateMachine {
             // We can't connect over OBEX until we known where/how to connect. We need the SDP
             // record details to do this. Thus, being connected means we received a valid SDP record
             // and properly connected our OBEX Client afterwards.
-            mDevice.sdpSearch(BluetoothUuid.PBAP_PSE);
+            mAdapterService.sdpSearch(mDevice, BluetoothUuid.PBAP_PSE);
 
             // Wait up to CONNECT_TIMEOUT for SDP to complete and our OBEX client to connect
             sendMessageDelayed(MSG_CONNECT_TIMEOUT, CONNECT_TIMEOUT_MS);
@@ -429,7 +431,7 @@ class PbapClientStateMachine extends StateMachine {
                     int failureCode = message.arg1;
                     info("Connecting: SDP unsuccessful, code=" + sdpCodeToString(failureCode));
                     if (failureCode == SDP_BUSY) {
-                        mDevice.sdpSearch(BluetoothUuid.PBAP_PSE);
+                        mAdapterService.sdpSearch(mDevice, BluetoothUuid.PBAP_PSE);
                     } else {
                         transitionTo(mDisconnecting);
                     }
@@ -453,7 +455,7 @@ class PbapClientStateMachine extends StateMachine {
                         mObexClient.connectRfcomm(mSdpRecord.getRfcommChannelNumber());
                     } else {
                         error("Connecting: Record didn't contain a valid L2CAP PSM/RFCOMM channel");
-                        mDevice.sdpSearch(BluetoothUuid.PBAP_PSE);
+                        mAdapterService.sdpSearch(mDevice, BluetoothUuid.PBAP_PSE);
                     }
 
                     if (mSdpRecord.isRepositorySupported(PbapSdpRecord.REPOSITORY_FAVORITES)) {
@@ -965,6 +967,9 @@ class PbapClientStateMachine extends StateMachine {
 
     private void onConnectionStateChanged(int state) {
         int prevState = mCurrentState;
+        if (prevState == state) {
+            return;
+        }
 
         Intent intent = new Intent(BluetoothPbapClient.ACTION_CONNECTION_STATE_CHANGED);
         intent.putExtra(BluetoothProfile.EXTRA_PREVIOUS_STATE, prevState);
@@ -983,7 +988,7 @@ class PbapClientStateMachine extends StateMachine {
         mContext.sendBroadcastMultiplePermissions(
                 intent,
                 new String[] {BLUETOOTH_CONNECT, BLUETOOTH_PRIVILEGED},
-                Utils.getTempBroadcastOptions());
+                Util.getTempBroadcastOptions());
     }
 
     /* Callback for getting events back from our OBEX Client */

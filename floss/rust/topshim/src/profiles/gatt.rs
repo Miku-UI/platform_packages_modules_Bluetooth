@@ -1,13 +1,6 @@
 use crate::bindings::root as bindings;
-use crate::btif::{ptr_to_vec, BluetoothInterface, BtStatus, RawAddress, SupportedProfiles, Uuid};
-use crate::profiles::gatt::bindings::{
-    btgatt_callbacks_t, btgatt_client_callbacks_t, btgatt_client_interface_t, btgatt_interface_t,
-    btgatt_server_callbacks_t, btgatt_server_interface_t, BleAdvertiserInterface,
-    BleScannerInterface,
-};
+use crate::btif::{ptr_to_vec, BluetoothInterface, BtStatus, RawAddress, Uuid};
 use crate::topstack::get_dispatchers;
-use crate::utils::LTCheckedPtr;
-use crate::{ccall, mutcxxcall};
 
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::cast::{FromPrimitive, ToPrimitive};
@@ -19,12 +12,22 @@ use std::ffi::CString;
 
 use topshim_macros::{cb_variant, gen_cxx_extern_trivial, log_args};
 
-pub type BtGattNotifyParams = bindings::btgatt_notify_params_t;
-pub type BtGattReadParams = bindings::btgatt_read_params_t;
-pub type BtGattDbElement = bindings::btgatt_db_element_t;
-pub type BtGattResponse = bindings::btgatt_response_t;
 pub type BtGattValue = bindings::btgatt_value_t;
-pub type BtGattTestParams = bindings::btgatt_test_params_t;
+
+#[gen_cxx_extern_trivial]
+pub type BtGattReadParams = bindings::btgatt_read_params_t;
+
+#[gen_cxx_extern_trivial]
+pub type BtGattNotifyParams = bindings::btgatt_notify_params_t;
+
+#[gen_cxx_extern_trivial]
+pub type BtGattDbElement = bindings::btgatt_db_element_t;
+
+#[gen_cxx_extern_trivial]
+pub type BtGattOffloadResult = bindings::btgatt_offload_result_t;
+
+#[gen_cxx_extern_trivial]
+pub type BtGattResponse = bindings::btgatt_response_t;
 
 #[cxx::bridge(namespace = bluetooth::topshim::rust)]
 pub mod ffi {
@@ -34,6 +37,8 @@ pub mod ffi {
         type RawAddress = crate::btif::RawAddress;
         #[namespace = "bluetooth"]
         type Uuid = crate::btif::Uuid;
+
+        type BtIntf = crate::btif::ffi::BtIntf;
     }
 
     #[derive(Debug, Clone)]
@@ -105,26 +110,314 @@ pub mod ffi {
     unsafe extern "C++" {
         include!("topshim/gatt/gatt_shim.h");
 
+        #[namespace = ""]
+        #[cxx_name = "btgatt_db_element_t"]
+        type BtGattDbElement = super::BtGattDbElement;
+
+        #[namespace = ""]
+        #[cxx_name = "btgatt_offload_result_t"]
+        type BtGattOffloadResult = super::BtGattOffloadResult;
+
+        #[namespace = ""]
+        #[cxx_name = "btgatt_response_t"]
+        type BtGattResponse = super::BtGattResponse;
+
+        #[namespace = ""]
+        #[cxx_name = "btgatt_notify_params_t"]
+        type BtGattNotifyParams = super::BtGattNotifyParams;
+
+        #[namespace = ""]
+        #[cxx_name = "btgatt_read_params_t"]
+        type BtGattReadParams = super::BtGattReadParams;
+
         type GattClientIntf;
 
-        unsafe fn GetGattClientProfile(btif: *const u8) -> UniquePtr<GattClientIntf>;
+        fn GetGattClientProfile(btif: &BtIntf) -> UniquePtr<GattClientIntf>;
 
-        fn read_phy(self: Pin<&mut GattClientIntf>, client_if: i32, bt_addr: RawAddress) -> i32;
+        fn register_client(
+            self: &GattClientIntf,
+            uuid: Uuid,
+            name: Vec<u8>,
+            eatt_support: bool,
+        ) -> u32;
+        fn unregister_client(self: &GattClientIntf, client_if: i32) -> u32;
+        #[allow(clippy::too_many_arguments)]
+        fn connect(
+            self: &GattClientIntf,
+            client_if: i32,
+            bd_addr: RawAddress,
+            addr_type: u8,
+            is_direct: bool,
+            transport: i32,
+            opportunistic: bool,
+            preferred_mtu: i32,
+            prefer_relax_mode: bool,
+            auto_mtu_enabled: bool,
+        ) -> u32;
+        fn disconnect(
+            self: &GattClientIntf,
+            client_if: i32,
+            bd_addr: RawAddress,
+            conn_id: i32,
+        ) -> u32;
+        fn refresh(self: &GattClientIntf, client_if: i32, bd_addr: RawAddress) -> u32;
+
+        // cxxbridge hasn't yet support Option, thus we split the btif |search_service| API into 2.
+        fn search_service(self: &GattClientIntf, conn_id: i32, filter_uuid: Uuid) -> u32;
+        fn search_service_all(self: &GattClientIntf, conn_id: i32) -> u32;
+
+        fn btif_gattc_discover_service_by_uuid(self: &GattClientIntf, conn_id: i32, uuid: Uuid);
+        fn read_characteristic(
+            self: &GattClientIntf,
+            conn_id: i32,
+            handle: u16,
+            auth_req: i32,
+        ) -> u32;
+        fn read_using_characteristic_uuid(
+            self: &GattClientIntf,
+            conn_id: i32,
+            uuid: Uuid,
+            s_handle: u16,
+            e_handle: u16,
+            auth_req: i32,
+        ) -> u32;
+        fn write_characteristic(
+            self: &GattClientIntf,
+            conn_id: i32,
+            handle: u16,
+            write_type: i32,
+            auth_req: i32,
+            value: Vec<u8>,
+            length: usize,
+        ) -> u32;
+        fn read_descriptor(self: &GattClientIntf, conn_id: i32, handle: u16, auth_req: i32) -> u32;
+        fn write_descriptor(
+            self: &GattClientIntf,
+            conn_id: i32,
+            handle: u16,
+            auth_req: i32,
+            value: Vec<u8>,
+            length: usize,
+        ) -> u32;
+        fn execute_write(self: &GattClientIntf, conn_id: i32, execute: i32) -> u32;
+        fn register_for_notification(
+            self: &GattClientIntf,
+            client_if: i32,
+            bd_addr: RawAddress,
+            handle: u16,
+        ) -> u32;
+        fn deregister_for_notification(
+            self: &GattClientIntf,
+            client_if: i32,
+            bd_addr: RawAddress,
+            handle: u16,
+        ) -> u32;
+        fn read_remote_rssi(self: &GattClientIntf, client_if: i32, bd_addr: RawAddress) -> u32;
+        fn get_device_type(self: &GattClientIntf, bd_addr: RawAddress) -> i32;
+        fn configure_mtu(self: &GattClientIntf, conn_id: i32, mtu: i32) -> u32;
+        #[allow(clippy::too_many_arguments)]
+        fn conn_parameter_update(
+            self: &GattClientIntf,
+            bd_addr: RawAddress,
+            min_interval: i32,
+            max_interval: i32,
+            latency: i32,
+            timeout: i32,
+            min_ce_len: u16,
+            max_ce_len: u16,
+        ) -> u32;
+        fn set_preferred_phy(
+            self: &GattClientIntf,
+            bd_addr: RawAddress,
+            tx_phy: u8,
+            rx_phy: u8,
+            phy_options: u16,
+        ) -> u32;
+        fn read_phy(self: &GattClientIntf, client_if: i32, bt_addr: RawAddress) -> u32;
+        fn subrate_request(
+            self: &GattClientIntf,
+            bd_addr: RawAddress,
+            subrate_min: i32,
+            subrate_max: i32,
+            max_latency: i32,
+            cont_num: i32,
+            timeout: i32,
+        ) -> u32;
+        fn subrate_mode_request(
+            self: &GattClientIntf,
+            client_if: i32,
+            bd_addr: RawAddress,
+            subrate_mode: u8,
+        ) -> u32;
+        fn offload_characteristics(
+            self: &GattClientIntf,
+            conn_id: i32,
+            service: BtGattDbElement,
+            elements_count: usize,
+            endpoint_id: u64,
+            hub_id: u64,
+            result: BtGattOffloadResult,
+        ) -> u32;
 
         type GattServerIntf;
 
-        unsafe fn GetGattServerProfile(btif: *const u8) -> UniquePtr<GattServerIntf>;
+        fn GetGattServerProfile(btif: &BtIntf) -> UniquePtr<GattServerIntf>;
 
-        fn server_read_phy(
-            self: Pin<&mut GattServerIntf>,
+        fn register_server(self: &GattServerIntf, uuid: Uuid, eatt_support: bool) -> u32;
+        fn unregister_server(self: &GattServerIntf, server_if: i32) -> u32;
+        fn connect(
+            self: &GattServerIntf,
             server_if: i32,
-            bt_addr: RawAddress,
-        ) -> i32;
+            bd_addr: RawAddress,
+            addr_type: u8,
+            is_direct: bool,
+            transport: i32,
+        ) -> u32;
+        fn disconnect(
+            self: &GattServerIntf,
+            server_if: i32,
+            bd_addr: RawAddress,
+            conn_id: i32,
+        ) -> u32;
+        fn add_service(
+            self: &GattServerIntf,
+            server_if: i32,
+            service: &[BtGattDbElement],
+            service_count: usize,
+        ) -> u32;
+        fn delete_service(self: &GattServerIntf, server_if: i32, service_handle: i32) -> u32;
+        fn send_indication(
+            self: &GattServerIntf,
+            server_if: i32,
+            attribute_handle: i32,
+            conn_id: i32,
+            confirm: i32,
+            value: Vec<u8>,
+            length: usize,
+        ) -> u32;
+        fn send_response(
+            self: &GattServerIntf,
+            conn_id: i32,
+            trans_id: i32,
+            status: i32,
+            response: BtGattResponse,
+        ) -> u32;
+        fn set_preferred_phy(
+            self: &GattServerIntf,
+            bd_addr: RawAddress,
+            tx_phy: u8,
+            rx_phy: u8,
+            phy_options: u16,
+        ) -> u32;
+        fn read_phy(self: &GattServerIntf, server_if: i32, bt_addr: RawAddress) -> u32;
+        fn offload_characteristics(
+            self: &GattServerIntf,
+            conn_id: i32,
+            service: BtGattDbElement,
+            elements_count: usize,
+            endpoint_id: u64,
+            hub_id: u64,
+            result: BtGattOffloadResult,
+        ) -> u32;
+        fn unoffload_characteristics(self: &GattServerIntf, conn_id: i32, session_id: i32) -> u32;
+
+        type GattIntf;
+
+        fn GetGattProfile(btif: &BtIntf) -> UniquePtr<GattIntf>;
+
+        fn init(self: &GattIntf) -> u32;
+        fn cleanup(self: &GattIntf);
+
+        fn GetBleAdvertiserIntf(self: &GattIntf) -> UniquePtr<BleAdvertiserIntf>;
+        fn GetBleScannerIntf(self: &GattIntf) -> UniquePtr<BleScannerIntf>;
     }
 
     extern "Rust" {
         // Generated by cb_variant! below.
+        fn gc_register_client_cb(status: i32, client_if: i32, app_uuid: Uuid);
+        fn gc_open_cb(conn_id: i32, status: i32, client_if: i32, transport: i32, bda: RawAddress);
+        fn gc_close_cb(conn_id: i32, status: i32, client_if: i32, transport: i32, bda: RawAddress);
+        fn gc_register_for_notification_cb(conn_id: i32, registered: i32, status: i32, handle: u16);
+        fn gc_notify_cb(conn_id: i32, p_data: BtGattNotifyParams);
+        fn gc_read_characteristic_cb(conn_id: i32, status: i32, p_data: BtGattReadParams);
+        fn gc_write_characteristic_cb(conn_id: i32, status: i32, handle: u16, value: &[u8]);
+        fn gc_read_descriptor_cb(conn_id: i32, status: i32, p_data: BtGattReadParams);
+        fn gc_write_descriptor_cb(conn_id: i32, status: i32, handle: u16, value: &[u8]);
+        fn gc_execute_write_cb(conn_id: i32, status: i32);
+        fn gc_read_remote_rssi_cb(client_if: i32, bda: RawAddress, rssi: i32, status: i32);
+        fn gc_configure_mtu_cb(conn_id: i32, status: i32, mtu: i32);
+        fn gc_congestion_cb(conn_id: i32, congested: bool);
+        fn gc_get_gatt_db_cb(conn_id: i32, db: &[BtGattDbElement]);
+        fn gc_phy_updated_cb(conn_id: i32, tx_phy: u8, rx_phy: u8, status: u8);
+        fn gc_conn_updated_cb(conn_id: i32, interval: u16, latency: u16, timeout: u16, status: u8);
+        fn gc_service_changed_cb(conn_id: i32);
+
         fn read_phy_callback(client_if: i32, addr: RawAddress, tx_phy: u8, rx_phy: u8, status: u8);
+
+        fn gs_register_server_cb(status: i32, server_if: i32, app_uuid: Uuid);
+        fn gs_connection_cb(
+            conn_id: i32,
+            server_if: i32,
+            transport: i32,
+            connected: i32,
+            bda: RawAddress,
+        );
+        fn gs_service_added_cb(status: i32, server_if: i32, service: &[BtGattDbElement]);
+        fn gs_service_deleted_cb(status: i32, server_if: i32, srvc_handle: i32);
+        fn gs_request_read_characteristic_cb(
+            conn_id: i32,
+            trans_id: i32,
+            bda: RawAddress,
+            attr_handle: i32,
+            offset: i32,
+            is_long: bool,
+        );
+        fn gs_request_read_descriptor_cb(
+            conn_id: i32,
+            trans_id: i32,
+            bda: RawAddress,
+            attr_handle: i32,
+            offset: i32,
+            is_long: bool,
+        );
+        #[allow(clippy::too_many_arguments)]
+        fn gs_request_write_characteristic_cb(
+            conn_id: i32,
+            trans_id: i32,
+            bda: RawAddress,
+            attr_handle: i32,
+            offset: i32,
+            need_rsp: bool,
+            is_prep: bool,
+            value: &[u8],
+        );
+        #[allow(clippy::too_many_arguments)]
+        fn gs_request_write_descriptor_cb(
+            conn_id: i32,
+            trans_id: i32,
+            bda: RawAddress,
+            attr_handle: i32,
+            offset: i32,
+            need_rsp: bool,
+            is_prep: bool,
+            value: &[u8],
+        );
+        fn gs_request_exec_write_cb(conn_id: i32, trans_id: i32, bda: RawAddress, exec_write: i32);
+        fn gs_response_confirmation_cb(status: i32, handle: i32);
+        fn gs_indication_sent_cb(conn_id: i32, status: i32);
+        fn gs_congestion_cb(conn_id: i32, congested: bool);
+        fn gs_mtu_changed_cb(conn_id: i32, mtu: i32);
+        fn gs_phy_updated_cb(conn_id: i32, tx_phy: u8, rx_phy: u8, status: u8);
+        fn gs_conn_updated_cb(conn_id: i32, interval: u16, latency: u16, timeout: u16, status: u8);
+        fn gs_subrate_chg_cb(
+            conn_id: i32,
+            subrate_factor: u16,
+            latency: u16,
+            cont_num: u16,
+            timeout: u16,
+            subrate_mode: u8,
+            status: u8,
+        );
 
         fn server_read_phy_callback(
             server_if: i32,
@@ -143,8 +436,6 @@ pub mod ffi {
         #[namespace = ""]
         #[cxx_name = "btgatt_filt_param_setup_t"]
         type GattFilterParam = super::GattFilterParam;
-
-        unsafe fn GetBleScannerIntf(gatt: *const u8) -> UniquePtr<BleScannerIntf>;
 
         fn RegisterScanner(self: Pin<&mut BleScannerIntf>, uuid: Uuid);
         fn Unregister(self: Pin<&mut BleScannerIntf>, scanner_id: u8);
@@ -167,6 +458,7 @@ pub mod ffi {
         fn MsftAdvMonitorAdd(self: Pin<&mut BleScannerIntf>, monitor: &RustMsftAdvMonitor);
         fn MsftAdvMonitorRemove(self: Pin<&mut BleScannerIntf>, monitor_handle: u8);
         fn MsftAdvMonitorEnable(self: Pin<&mut BleScannerIntf>, enable: bool);
+        #[allow(clippy::too_many_arguments)]
         fn SetScanParameters(
             self: Pin<&mut BleScannerIntf>,
             scan_type: u8,
@@ -201,6 +493,7 @@ pub mod ffi {
             self: Pin<&mut BleScannerIntf>,
             sid: u8,
             address: RawAddress,
+            address_type: u8,
             skip: u16,
             timeout: u16,
         );
@@ -236,6 +529,7 @@ pub mod ffi {
         // by the ScanningCallbacks handler in shim.
         unsafe fn gdscan_on_scanner_registered(uuid: *const i8, scannerId: u8, status: u8);
         unsafe fn gdscan_on_set_scanner_parameter_complete(scannerId: u8, status: u8);
+        #[allow(clippy::too_many_arguments)]
         unsafe fn gdscan_on_scan_result(
             event_type: u16,
             addr_type: u8,
@@ -261,7 +555,6 @@ pub mod ffi {
         unsafe fn gdscan_on_batch_scan_threshold_crossed(client_if: i32);
 
         // Static cb_variant! callbacks using base::Callback
-        unsafe fn gdscan_register_callback(uuid: Uuid, scanner_id: u8, btm_status: u8);
         unsafe fn gdscan_status_callback(scanner_id: u8, btm_status: u8);
         unsafe fn gdscan_enable_callback(action: u8, btm_status: u8);
         unsafe fn gdscan_filter_param_setup_callback(
@@ -312,10 +605,6 @@ pub mod ffi {
         #[namespace = ""]
         type PeriodicAdvertisingParameters = super::PeriodicAdvertisingParameters;
 
-        /// Given the gatt profile interface, creates a shim interface for
-        /// |BleAdvertiserInterface|.
-        unsafe fn GetBleAdvertiserIntf(gatt: *const u8) -> UniquePtr<BleAdvertiserIntf>;
-
         fn RegisterAdvertiser(self: Pin<&mut BleAdvertiserIntf>);
         fn Unregister(self: Pin<&mut BleAdvertiserIntf>, adv_id: u8);
 
@@ -346,6 +635,7 @@ pub mod ffi {
             scan_response_data: Vec<u8>,
             timeout_in_sec: i32,
         );
+        #[allow(clippy::too_many_arguments)]
         fn StartAdvertisingSet(
             self: Pin<&mut BleAdvertiserIntf>,
             reg_id: i32,
@@ -495,10 +785,11 @@ impl Display for GattStatus {
     }
 }
 
-#[derive(Debug, FromPrimitive, ToPrimitive, Clone, Copy)]
+#[derive(Debug, FromPrimitive, ToPrimitive, Clone, Copy, Default, PartialEq)]
 #[repr(u32)]
 /// LE Discoverable modes.
 pub enum LeDiscMode {
+    #[default]
     Invalid = 0,
     NonDiscoverable,
     LimitedDiscoverable,
@@ -511,22 +802,17 @@ impl From<u32> for LeDiscMode {
     }
 }
 
-impl Into<u32> for LeDiscMode {
-    fn into(self) -> u32 {
-        self.to_u32().unwrap_or(0)
+impl From<LeDiscMode> for u32 {
+    fn from(val: LeDiscMode) -> Self {
+        val.to_u32().unwrap_or(0)
     }
 }
 
-impl Default for LeDiscMode {
-    fn default() -> Self {
-        LeDiscMode::Invalid
-    }
-}
-
-#[derive(Debug, FromPrimitive, ToPrimitive, Clone, Copy)]
+#[derive(Debug, FromPrimitive, ToPrimitive, Clone, Copy, Default)]
 #[repr(u8)]
 /// Represents LE PHY.
 pub enum LePhy {
+    #[default]
     Invalid = 0,
     Phy1m = 1,
     Phy2m = 2,
@@ -542,12 +828,6 @@ impl From<LePhy> for i32 {
 impl From<LePhy> for u8 {
     fn from(item: LePhy) -> Self {
         item.to_u8().unwrap_or(0)
-    }
-}
-
-impl Default for LePhy {
-    fn default() -> Self {
-        LePhy::Invalid
     }
 }
 
@@ -577,16 +857,16 @@ pub enum GattClientCallbacks {
     Connect(i32, GattStatus, i32, i32, RawAddress),
     Disconnect(i32, GattStatus, i32, i32, RawAddress),
     RegisterForNotification(i32, i32, GattStatus, u16),
-    Notify(i32, BtGattNotifyParams),
-    ReadCharacteristic(i32, GattStatus, BtGattReadParams),
-    WriteCharacteristic(i32, GattStatus, u16, u16, *const u8),
-    ReadDescriptor(i32, GattStatus, BtGattReadParams),
-    WriteDescriptor(i32, GattStatus, u16, u16, *const u8),
+    Notify(i32, Box<BtGattNotifyParams>),
+    ReadCharacteristic(i32, GattStatus, Box<BtGattReadParams>),
+    WriteCharacteristic(i32, GattStatus, u16, Vec<u8>),
+    ReadDescriptor(i32, GattStatus, Box<BtGattReadParams>),
+    WriteDescriptor(i32, GattStatus, u16, Vec<u8>),
     ExecuteWrite(i32, GattStatus),
     ReadRemoteRssi(i32, RawAddress, i32, GattStatus),
     ConfigureMtu(i32, GattStatus, i32),
     Congestion(i32, bool),
-    GetGattDb(i32, Vec<BtGattDbElement>, i32),
+    GetGattDb(i32, Vec<BtGattDbElement>),
     PhyUpdated(i32, u8, u8, GattStatus),
     ConnUpdated(i32, u16, u16, u16, GattStatus),
     ServiceChanged(i32),
@@ -597,13 +877,12 @@ pub enum GattClientCallbacks {
 pub enum GattServerCallbacks {
     RegisterServer(GattStatus, i32, Uuid),
     Connection(i32, i32, i32, i32, RawAddress),
-    ServiceAdded(GattStatus, i32, Vec<BtGattDbElement>, usize),
-    ServiceStopped(GattStatus, i32, i32),
+    ServiceAdded(GattStatus, i32, Vec<BtGattDbElement>),
     ServiceDeleted(GattStatus, i32, i32),
     RequestReadCharacteristic(i32, i32, RawAddress, i32, i32, bool),
     RequestReadDescriptor(i32, i32, RawAddress, i32, i32, bool),
-    RequestWriteCharacteristic(i32, i32, RawAddress, i32, i32, bool, bool, Vec<u8>, usize),
-    RequestWriteDescriptor(i32, i32, RawAddress, i32, i32, bool, bool, Vec<u8>, usize),
+    RequestWriteCharacteristic(i32, i32, RawAddress, i32, i32, bool, bool, Vec<u8>),
+    RequestWriteDescriptor(i32, i32, RawAddress, i32, i32, bool, bool, Vec<u8>),
     RequestExecWrite(i32, i32, RawAddress, i32),
     ResponseConfirmation(i32, i32),
     IndicationSent(i32, GattStatus),
@@ -612,7 +891,7 @@ pub enum GattServerCallbacks {
     PhyUpdated(i32, u8, u8, GattStatus),
     ConnUpdated(i32, u16, u16, u16, GattStatus),
     ReadPhy(i32, RawAddress, u8, u8, GattStatus),
-    SubrateChanged(i32, u16, u16, u16, u16, GattStatus),
+    SubrateChanged(i32, u16, u16, u16, u16, u8, GattStatus),
 }
 
 pub struct GattClientCallbacksDispatcher {
@@ -641,119 +920,102 @@ type GattServerCb = Arc<Mutex<GattServerCallbacksDispatcher>>;
 cb_variant!(
     GattClientCb,
     gc_register_client_cb -> GattClientCallbacks::RegisterClient,
-    i32 -> GattStatus, i32, *const Uuid, {
-        let _2 = unsafe { *_2.clone() };
-    }
+    i32 -> GattStatus, i32, Uuid
 );
 
 cb_variant!(
     GattClientCb,
     gc_open_cb -> GattClientCallbacks::Connect,
-    i32, i32 -> GattStatus, i32, i32, *const RawAddress, {
-        let _4 = unsafe { *_4 };
-    }
+    i32, i32 -> GattStatus, i32, i32, RawAddress
 );
 
 cb_variant!(
     GattClientCb,
     gc_close_cb -> GattClientCallbacks::Disconnect,
-    i32, i32 -> GattStatus, i32, i32, *const RawAddress, {
-        let _4 = unsafe { *_4 };
-    }
+    i32, i32 -> GattStatus, i32, i32, RawAddress
 );
 
 cb_variant!(
     GattClientCb,
     gc_register_for_notification_cb -> GattClientCallbacks::RegisterForNotification,
-    i32, i32, i32 -> GattStatus, u16, {}
+    i32, i32, i32 -> GattStatus, u16
 );
 
 cb_variant!(
     GattClientCb,
     gc_notify_cb -> GattClientCallbacks::Notify,
-    i32, *const BtGattNotifyParams, {
-        let _1 = unsafe { *_1.clone() };
-    }
+    i32, BtGattNotifyParams -> Box::<BtGattNotifyParams>
 );
 
 cb_variant!(
     GattClientCb,
     gc_read_characteristic_cb -> GattClientCallbacks::ReadCharacteristic,
-    i32, i32 -> GattStatus, *const BtGattReadParams, {
-        let _2 = unsafe { *_2.clone() };
-    }
+    i32, i32 -> GattStatus, BtGattReadParams -> Box::<BtGattReadParams>
 );
 
 cb_variant!(
     GattClientCb,
     gc_write_characteristic_cb -> GattClientCallbacks::WriteCharacteristic,
-    i32, i32 -> GattStatus, u16, u16, *const u8, {}
-);
+    i32, i32 -> GattStatus, u16, &[u8] -> Vec::<u8>);
 
 cb_variant!(
     GattClientCb,
     gc_read_descriptor_cb -> GattClientCallbacks::ReadDescriptor,
-    i32, i32 -> GattStatus, *const BtGattReadParams, {
-        let _2 = unsafe { *_2.clone() };
-    }
+    i32, i32 -> GattStatus, BtGattReadParams -> Box::<BtGattReadParams>
 );
 
 cb_variant!(
     GattClientCb,
     gc_write_descriptor_cb -> GattClientCallbacks::WriteDescriptor,
-    i32, i32 -> GattStatus, u16, u16, *const u8, {}
+    i32, i32 -> GattStatus, u16, &[u8] -> Vec::<u8>
 );
 
 cb_variant!(
     GattClientCb,
     gc_execute_write_cb -> GattClientCallbacks::ExecuteWrite,
-    i32, i32 -> GattStatus, {}
+    i32, i32 -> GattStatus
 );
 
 cb_variant!(
     GattClientCb,
     gc_read_remote_rssi_cb -> GattClientCallbacks::ReadRemoteRssi,
-    i32, *const RawAddress, i32, i32 -> GattStatus, {
-        let _1 = unsafe { *_1 };
-    }
+    i32, RawAddress, i32, i32 -> GattStatus
 );
 
 cb_variant!(
     GattClientCb,
     gc_configure_mtu_cb -> GattClientCallbacks::ConfigureMtu,
-    i32, i32 -> GattStatus, i32, {}
+    i32, i32 -> GattStatus, i32
 );
 
 cb_variant!(
     GattClientCb,
     gc_congestion_cb -> GattClientCallbacks::Congestion,
-    i32, bool, {}
+    i32, bool
 );
 
 cb_variant!(
     GattClientCb,
     gc_get_gatt_db_cb -> GattClientCallbacks::GetGattDb,
-    i32, *const BtGattDbElement, i32, {
-        let _1 = ptr_to_vec(_1, _2 as usize);
-    }
+    i32, &[BtGattDbElement] -> Vec::<BtGattDbElement>
 );
 
 cb_variant!(
     GattClientCb,
     gc_phy_updated_cb -> GattClientCallbacks::PhyUpdated,
-    i32, u8, u8, u8 -> GattStatus, {}
+    i32, u8, u8, u8 -> GattStatus
 );
 
 cb_variant!(
     GattClientCb,
     gc_conn_updated_cb -> GattClientCallbacks::ConnUpdated,
-    i32, u16, u16, u16, u8 -> GattStatus, {}
+    i32, u16, u16, u16, u8 -> GattStatus
 );
 
 cb_variant!(
     GattClientCb,
     gc_service_changed_cb -> GattClientCallbacks::ServiceChanged,
-    i32, {}
+    i32
 );
 
 cb_variant!(
@@ -764,115 +1026,91 @@ cb_variant!(
 cb_variant!(
     GattServerCb,
     gs_register_server_cb -> GattServerCallbacks::RegisterServer,
-    i32 -> GattStatus, i32, *const Uuid, {
-        let _2 = unsafe { *_2.clone() };
-    }
+    i32 -> GattStatus, i32, Uuid
 );
 
 cb_variant!(
     GattServerCb,
     gs_connection_cb -> GattServerCallbacks::Connection,
-    i32, i32, i32, i32, *const RawAddress, {
-        let _4 = unsafe { *_4 };
-    }
+    i32, i32, i32, i32, RawAddress
 );
 
 cb_variant!(
     GattServerCb,
     gs_service_added_cb -> GattServerCallbacks::ServiceAdded,
-    i32 -> GattStatus, i32, *const BtGattDbElement, usize, {
-        let _2 = ptr_to_vec(_2, _3);
-    }
-);
-
-cb_variant!(
-    GattServerCb,
-    gs_service_stopped_cb -> GattServerCallbacks::ServiceStopped,
-    i32 -> GattStatus, i32, i32, {}
+    i32 -> GattStatus, i32, &[BtGattDbElement] -> Vec::<BtGattDbElement>
 );
 
 cb_variant!(
     GattServerCb,
     gs_service_deleted_cb -> GattServerCallbacks::ServiceDeleted,
-    i32 -> GattStatus, i32, i32, {}
+    i32 -> GattStatus, i32, i32
 );
 
 cb_variant!(
     GattServerCb,
     gs_request_read_characteristic_cb -> GattServerCallbacks::RequestReadCharacteristic,
-    i32, i32, *const RawAddress, i32, i32, bool, {
-        let _2 = unsafe { *_2 };
-    }
+    i32, i32, RawAddress, i32, i32, bool
 );
 
 cb_variant!(
     GattServerCb,
     gs_request_read_descriptor_cb -> GattServerCallbacks::RequestReadDescriptor,
-    i32, i32, *const RawAddress, i32, i32, bool, {
-        let _2 = unsafe { *_2 };
-    }
+    i32, i32, RawAddress, i32, i32, bool
 );
 
 cb_variant!(
     GattServerCb,
     gs_request_write_characteristic_cb -> GattServerCallbacks::RequestWriteCharacteristic,
-    i32, i32, *const RawAddress, i32, i32, bool, bool, *const u8, usize, {
-        let _2 = unsafe { *_2 };
-        let _7 = ptr_to_vec(_7, _8);
-    }
+    i32, i32, RawAddress, i32, i32, bool, bool, &[u8] -> Vec::<u8>
 );
 
 cb_variant!(
     GattServerCb,
     gs_request_write_descriptor_cb -> GattServerCallbacks::RequestWriteDescriptor,
-    i32, i32, *const RawAddress, i32, i32, bool, bool, *const u8, usize, {
-        let _2 = unsafe { *_2 };
-        let _7 = ptr_to_vec(_7, _8);
-    }
+    i32, i32, RawAddress, i32, i32, bool, bool, &[u8] -> Vec::<u8>
 );
 
 cb_variant!(
     GattServerCb,
     gs_request_exec_write_cb -> GattServerCallbacks::RequestExecWrite,
-    i32, i32, *const RawAddress, i32, {
-        let _2 = unsafe { *_2 };
-    }
+    i32, i32, RawAddress, i32
 );
 
 cb_variant!(
     GattServerCb,
     gs_response_confirmation_cb -> GattServerCallbacks::ResponseConfirmation,
-    i32, i32, {}
+    i32, i32
 );
 
 cb_variant!(
     GattServerCb,
     gs_indication_sent_cb -> GattServerCallbacks::IndicationSent,
-    i32, i32 -> GattStatus, {}
+    i32, i32 -> GattStatus
 );
 
 cb_variant!(
     GattServerCb,
     gs_congestion_cb -> GattServerCallbacks::Congestion,
-    i32, bool, {}
+    i32, bool
 );
 
 cb_variant!(
     GattServerCb,
     gs_mtu_changed_cb -> GattServerCallbacks::MtuChanged,
-    i32, i32, {}
+    i32, i32
 );
 
 cb_variant!(
     GattServerCb,
     gs_phy_updated_cb -> GattServerCallbacks::PhyUpdated,
-    i32, u8, u8, u8 -> GattStatus, {}
+    i32, u8, u8, u8 -> GattStatus
 );
 
 cb_variant!(
     GattServerCb,
     gs_conn_updated_cb -> GattServerCallbacks::ConnUpdated,
-    i32, u16, u16, u16, u8 -> GattStatus, {}
+    i32, u16, u16, u16, u8 -> GattStatus
 );
 
 cb_variant!(
@@ -883,7 +1121,7 @@ cb_variant!(
 cb_variant!(
     GattServerCb,
     gs_subrate_chg_cb -> GattServerCallbacks::SubrateChanged,
-    i32, u16, u16, u16, u16, u8 -> GattStatus, {}
+    i32, u16, u16, u16, u16, u8, u8 -> GattStatus
 );
 
 /// Scanning callbacks used by the GD implementation of BleScannerInterface.
@@ -915,7 +1153,7 @@ cb_variant!(
     GDScannerCb,
     gdscan_on_scanner_registered -> GattScannerCallbacks::OnScannerRegistered,
     *const i8, u8, u8 -> GattStatus, {
-        let _0 = unsafe { *(_0 as *const Uuid).clone() };
+        let _0 = unsafe { *(_0 as *const Uuid) };
     }
 );
 
@@ -959,9 +1197,6 @@ cb_variant!(GDScannerCb, gdscan_on_batch_scan_threshold_crossed -> GattScannerCa
 /// identifier for the callback instead (such as scanner id or Uuid).
 #[derive(Debug)]
 pub enum GattScannerInbandCallbacks {
-    /// Params: App Uuid, Scanner Id, BTM Status
-    RegisterCallback(Uuid, u8, u8),
-
     /// Params: Scanner Id, BTM Status
     StatusCallback(u8, u8),
 
@@ -1010,9 +1245,6 @@ impl Debug for GattScannerInbandCallbacksDispatcher {
 }
 
 type GDScannerInbandCb = Arc<Mutex<GattScannerInbandCallbacksDispatcher>>;
-
-cb_variant!(GDScannerInbandCb, gdscan_register_callback -> GattScannerInbandCallbacks::RegisterCallback,
-    Uuid, u8, u8);
 
 cb_variant!(GDScannerInbandCb, gdscan_status_callback -> GattScannerInbandCallbacks::StatusCallback, u8, u8);
 cb_variant!(GDScannerInbandCb, gdscan_enable_callback -> GattScannerInbandCallbacks::EnableCallback, u8, u8);
@@ -1159,33 +1391,8 @@ u8, u8, *const RawAddress, {
     let _2 = unsafe { *_2 };
 });
 
-struct RawGattWrapper {
-    raw: *const btgatt_interface_t,
-}
-
-struct RawGattClientWrapper {
-    raw: *const btgatt_client_interface_t,
-}
-
-struct RawGattServerWrapper {
-    raw: *const btgatt_server_interface_t,
-}
-
-struct RawBleScannerWrapper {
-    _raw: *const BleScannerInterface,
-}
-
-struct RawBleAdvertiserWrapper {
-    _raw: *const BleAdvertiserInterface,
-}
-
 // Pointers unsafe due to ownership but this is a static pointer so Send is ok
-unsafe impl Send for RawGattWrapper {}
-unsafe impl Send for RawGattClientWrapper {}
-unsafe impl Send for RawGattServerWrapper {}
-unsafe impl Send for RawBleScannerWrapper {}
-unsafe impl Send for RawBleAdvertiserWrapper {}
-unsafe impl Send for btgatt_callbacks_t {}
+unsafe impl Send for Gatt {}
 unsafe impl Send for GattClient {}
 unsafe impl Send for GattClientCallbacks {}
 unsafe impl Send for GattServer {}
@@ -1193,94 +1400,91 @@ unsafe impl Send for BleScanner {}
 unsafe impl Send for BleAdvertiser {}
 
 pub struct GattClient {
-    internal: RawGattClientWrapper,
-    internal_cxx: cxx::UniquePtr<ffi::GattClientIntf>,
+    internal: cxx::UniquePtr<ffi::GattClientIntf>,
 }
 
 impl GattClient {
     #[log_args]
-    pub fn register_client(&self, uuid: &Uuid, eatt_support: bool) -> BtStatus {
+    pub fn register_client(&self, uuid: Uuid, eatt_support: bool) -> BtStatus {
         let cname = CString::new("rust_client").expect("CString::new failed");
-        BtStatus::from(ccall!(self, register_client, uuid, cname.as_ptr(), eatt_support))
+        self.internal.register_client(uuid, cname.into(), eatt_support).into()
     }
 
     #[log_args]
     pub fn unregister_client(&self, client_if: i32) -> BtStatus {
-        BtStatus::from(ccall!(self, unregister_client, client_if))
+        self.internal.unregister_client(client_if).into()
     }
 
     #[log_args]
+    #[allow(clippy::too_many_arguments)]
     pub fn connect(
         &self,
         client_if: i32,
-        addr: &RawAddress,
+        addr: RawAddress,
         addr_type: u8,
         is_direct: bool,
         transport: i32,
         opportunistic: bool,
-        initiating_phys: i32,
         preferred_mtu: i32,
         prefer_relax_mode: bool,
+        auto_mtu_enabled: bool,
     ) -> BtStatus {
-        BtStatus::from(ccall!(
-            self,
-            connect,
-            client_if,
-            addr,
-            addr_type,
-            is_direct,
-            transport,
-            opportunistic,
-            initiating_phys,
-            preferred_mtu,
-            prefer_relax_mode
-        ))
+        self.internal
+            .connect(
+                client_if,
+                addr,
+                addr_type,
+                is_direct,
+                transport,
+                opportunistic,
+                preferred_mtu,
+                prefer_relax_mode,
+                auto_mtu_enabled,
+            )
+            .into()
     }
 
     #[log_args]
-    pub fn disconnect(&self, client_if: i32, addr: &RawAddress, conn_id: i32) -> BtStatus {
-        BtStatus::from(ccall!(self, disconnect, client_if, addr, conn_id))
+    pub fn disconnect(&self, client_if: i32, addr: RawAddress, conn_id: i32) -> BtStatus {
+        self.internal.disconnect(client_if, addr, conn_id).into()
     }
 
     #[log_args]
-    pub fn refresh(&self, client_if: i32, addr: &RawAddress) -> BtStatus {
-        BtStatus::from(ccall!(self, refresh, client_if, addr))
+    pub fn refresh(&self, client_if: i32, addr: RawAddress) -> BtStatus {
+        self.internal.refresh(client_if, addr).into()
     }
 
     #[log_args]
     pub fn search_service(&self, conn_id: i32, filter_uuid: Option<Uuid>) -> BtStatus {
-        let filter_uuid_ptr = LTCheckedPtr::from(&filter_uuid);
-        BtStatus::from(ccall!(self, search_service, conn_id, filter_uuid_ptr.into()))
+        if let Some(filter_uuid) = filter_uuid {
+            self.internal.search_service(conn_id, filter_uuid).into()
+        } else {
+            self.internal.search_service_all(conn_id).into()
+        }
     }
 
     #[log_args]
-    pub fn btif_gattc_discover_service_by_uuid(&self, conn_id: i32, uuid: &Uuid) {
-        ccall!(self, btif_gattc_discover_service_by_uuid, conn_id, uuid)
+    pub fn btif_gattc_discover_service_by_uuid(&self, conn_id: i32, uuid: Uuid) {
+        self.internal.btif_gattc_discover_service_by_uuid(conn_id, uuid)
     }
 
     #[log_args]
     pub fn read_characteristic(&self, conn_id: i32, handle: u16, auth_req: i32) -> BtStatus {
-        BtStatus::from(ccall!(self, read_characteristic, conn_id, handle, auth_req))
+        self.internal.read_characteristic(conn_id, handle, auth_req).into()
     }
 
     #[log_args]
     pub fn read_using_characteristic_uuid(
         &self,
         conn_id: i32,
-        uuid: &Uuid,
+        uuid: Uuid,
         s_handle: u16,
         e_handle: u16,
         auth_req: i32,
     ) -> BtStatus {
-        BtStatus::from(ccall!(
-            self,
-            read_using_characteristic_uuid,
-            conn_id,
-            uuid,
-            s_handle,
-            e_handle,
-            auth_req
-        ))
+        self.internal
+            .read_using_characteristic_uuid(conn_id, uuid, s_handle, e_handle, auth_req)
+            .into()
     }
 
     #[log_args]
@@ -1292,22 +1496,21 @@ impl GattClient {
         auth_req: i32,
         value: &[u8],
     ) -> BtStatus {
-        let value_ptr = LTCheckedPtr::from(value);
-        BtStatus::from(ccall!(
-            self,
-            write_characteristic,
-            conn_id,
-            handle,
-            write_type,
-            auth_req,
-            value_ptr.into(),
-            value.len()
-        ))
+        self.internal
+            .write_characteristic(
+                conn_id,
+                handle,
+                write_type,
+                auth_req,
+                value.to_vec(),
+                value.len(),
+            )
+            .into()
     }
 
     #[log_args]
     pub fn read_descriptor(&self, conn_id: i32, handle: u16, auth_req: i32) -> BtStatus {
-        BtStatus::from(ccall!(self, read_descriptor, conn_id, handle, auth_req))
+        self.internal.read_descriptor(conn_id, handle, auth_req).into()
     }
 
     #[log_args]
@@ -1318,62 +1521,56 @@ impl GattClient {
         auth_req: i32,
         value: &[u8],
     ) -> BtStatus {
-        let value_ptr = LTCheckedPtr::from(value);
-        BtStatus::from(ccall!(
-            self,
-            write_descriptor,
-            conn_id,
-            handle,
-            auth_req,
-            value_ptr.into(),
-            value.len()
-        ))
+        self.internal
+            .write_descriptor(conn_id, handle, auth_req, value.to_vec(), value.len())
+            .into()
     }
 
     #[log_args]
     pub fn execute_write(&self, conn_id: i32, execute: i32) -> BtStatus {
-        BtStatus::from(ccall!(self, execute_write, conn_id, execute))
+        self.internal.execute_write(conn_id, execute).into()
     }
 
     #[log_args]
     pub fn register_for_notification(
         &self,
         client_if: i32,
-        addr: &RawAddress,
+        addr: RawAddress,
         handle: u16,
     ) -> BtStatus {
-        BtStatus::from(ccall!(self, register_for_notification, client_if, addr, handle))
+        self.internal.register_for_notification(client_if, addr, handle).into()
     }
 
     #[log_args]
     pub fn deregister_for_notification(
         &self,
         client_if: i32,
-        addr: &RawAddress,
+        addr: RawAddress,
         handle: u16,
     ) -> BtStatus {
-        BtStatus::from(ccall!(self, deregister_for_notification, client_if, addr, handle))
+        self.internal.deregister_for_notification(client_if, addr, handle).into()
     }
 
     #[log_args]
-    pub fn read_remote_rssi(&self, client_if: i32, addr: &RawAddress) -> BtStatus {
-        BtStatus::from(ccall!(self, read_remote_rssi, client_if, addr))
+    pub fn read_remote_rssi(&self, client_if: i32, addr: RawAddress) -> BtStatus {
+        self.internal.read_remote_rssi(client_if, addr).into()
     }
 
     #[log_args]
-    pub fn get_device_type(&self, addr: &RawAddress) -> i32 {
-        ccall!(self, get_device_type, addr)
+    pub fn get_device_type(&self, addr: RawAddress) -> i32 {
+        self.internal.get_device_type(addr)
     }
 
     #[log_args]
     pub fn configure_mtu(&self, conn_id: i32, mtu: i32) -> BtStatus {
-        BtStatus::from(ccall!(self, configure_mtu, conn_id, mtu))
+        self.internal.configure_mtu(conn_id, mtu).into()
     }
 
     #[log_args]
+    #[allow(clippy::too_many_arguments)]
     pub fn conn_parameter_update(
         &self,
-        addr: &RawAddress,
+        addr: RawAddress,
         min_interval: i32,
         max_interval: i32,
         latency: i32,
@@ -1381,88 +1578,76 @@ impl GattClient {
         min_ce_len: u16,
         max_ce_len: u16,
     ) -> BtStatus {
-        BtStatus::from(ccall!(
-            self,
-            conn_parameter_update,
-            addr,
-            min_interval,
-            max_interval,
-            latency,
-            timeout,
-            min_ce_len,
-            max_ce_len
-        ))
+        self.internal
+            .conn_parameter_update(
+                addr,
+                min_interval,
+                max_interval,
+                latency,
+                timeout,
+                min_ce_len,
+                max_ce_len,
+            )
+            .into()
     }
 
     #[log_args]
     pub fn set_preferred_phy(
         &self,
-        addr: &RawAddress,
+        addr: RawAddress,
         tx_phy: u8,
         rx_phy: u8,
         phy_options: u16,
     ) -> BtStatus {
-        BtStatus::from(ccall!(self, set_preferred_phy, addr, tx_phy, rx_phy, phy_options))
+        self.internal.set_preferred_phy(addr, tx_phy, rx_phy, phy_options).into()
     }
 
     #[log_args]
-    pub fn read_phy(&mut self, client_if: i32, addr: &RawAddress) -> BtStatus {
-        BtStatus::from_i32(mutcxxcall!(self, read_phy, client_if, *addr)).unwrap()
-    }
-
-    #[log_args]
-    pub fn test_command(&self, command: i32, params: &BtGattTestParams) -> BtStatus {
-        BtStatus::from(ccall!(self, test_command, command, params))
+    pub fn read_phy(&mut self, client_if: i32, addr: RawAddress) -> BtStatus {
+        self.internal.read_phy(client_if, addr).into()
     }
 }
 
 pub struct GattServer {
-    internal: RawGattServerWrapper,
-    internal_cxx: cxx::UniquePtr<ffi::GattServerIntf>,
+    internal: cxx::UniquePtr<ffi::GattServerIntf>,
 }
 
 impl GattServer {
     #[log_args]
-    pub fn register_server(&self, uuid: &Uuid, eatt_support: bool) -> BtStatus {
-        BtStatus::from(ccall!(self, register_server, uuid, eatt_support))
+    pub fn register_server(&self, uuid: Uuid, eatt_support: bool) -> BtStatus {
+        self.internal.register_server(uuid, eatt_support).into()
     }
 
     #[log_args]
     pub fn unregister_server(&self, server_if: i32) -> BtStatus {
-        BtStatus::from(ccall!(self, unregister_server, server_if))
+        self.internal.unregister_server(server_if).into()
     }
 
     #[log_args]
     pub fn connect(
         &self,
         server_if: i32,
-        addr: &RawAddress,
+        addr: RawAddress,
         addr_type: u8,
         is_direct: bool,
         transport: i32,
     ) -> BtStatus {
-        BtStatus::from(ccall!(self, connect, server_if, addr, addr_type, is_direct, transport))
+        self.internal.connect(server_if, addr, addr_type, is_direct, transport).into()
     }
 
     #[log_args]
-    pub fn disconnect(&self, server_if: i32, addr: &RawAddress, conn_id: i32) -> BtStatus {
-        BtStatus::from(ccall!(self, disconnect, server_if, addr, conn_id))
+    pub fn disconnect(&self, server_if: i32, addr: RawAddress, conn_id: i32) -> BtStatus {
+        self.internal.disconnect(server_if, addr, conn_id).into()
     }
 
     #[log_args]
     pub fn add_service(&self, server_if: i32, service: &[BtGattDbElement]) -> BtStatus {
-        let service_ptr = LTCheckedPtr::from(service);
-        BtStatus::from(ccall!(self, add_service, server_if, service_ptr.into(), service.len()))
-    }
-
-    #[log_args]
-    pub fn stop_service(&self, server_if: i32, service_handle: i32) -> BtStatus {
-        BtStatus::from(ccall!(self, stop_service, server_if, service_handle))
+        self.internal.add_service(server_if, service, service.len()).into()
     }
 
     #[log_args]
     pub fn delete_service(&self, server_if: i32, service_handle: i32) -> BtStatus {
-        BtStatus::from(ccall!(self, delete_service, server_if, service_handle))
+        self.internal.delete_service(server_if, service_handle).into()
     }
 
     #[log_args]
@@ -1474,17 +1659,16 @@ impl GattServer {
         confirm: i32,
         value: &[u8],
     ) -> BtStatus {
-        let value_ptr = LTCheckedPtr::from(value);
-        BtStatus::from(ccall!(
-            self,
-            send_indication,
-            server_if,
-            attribute_handle,
-            conn_id,
-            confirm,
-            value_ptr.into(),
-            value.len()
-        ))
+        self.internal
+            .send_indication(
+                server_if,
+                attribute_handle,
+                conn_id,
+                confirm,
+                value.to_vec(),
+                value.len(),
+            )
+            .into()
     }
 
     /// Send a GATT response to a request.
@@ -1501,7 +1685,7 @@ impl GattServer {
         conn_id: i32,
         trans_id: i32,
         status: i32,
-        response: &BtGattResponse,
+        response: BtGattResponse,
     ) -> BtStatus {
         // SAFETY: `handle` and `btgatt_value_t` support all byte sequences as valid values, but
         // said sequences must be preset to avoid undefined behavior.
@@ -1521,64 +1705,55 @@ impl GattServer {
                 response.attr_value.auth_req
             );
         }
-        BtStatus::from(ccall!(self, send_response, conn_id, trans_id, status, response))
+        self.internal.send_response(conn_id, trans_id, status, response).into()
     }
 
     #[log_args]
     pub fn set_preferred_phy(
         &self,
-        addr: &RawAddress,
+        addr: RawAddress,
         tx_phy: u8,
         rx_phy: u8,
         phy_options: u16,
     ) -> BtStatus {
-        BtStatus::from(ccall!(self, set_preferred_phy, addr, tx_phy, rx_phy, phy_options))
+        self.internal.set_preferred_phy(addr, tx_phy, rx_phy, phy_options).into()
     }
 
     #[log_args]
-    pub fn read_phy(&mut self, server_if: i32, addr: &RawAddress) -> BtStatus {
-        BtStatus::from_i32(mutcxxcall!(self, server_read_phy, server_if, *addr)).unwrap()
+    pub fn read_phy(&mut self, server_if: i32, addr: RawAddress) -> BtStatus {
+        self.internal.read_phy(server_if, addr).into()
     }
 }
 
 pub struct BleScanner {
-    _internal: RawBleScannerWrapper,
-    internal_cxx: cxx::UniquePtr<ffi::BleScannerIntf>,
+    internal: cxx::UniquePtr<ffi::BleScannerIntf>,
 }
 
 impl BleScanner {
     // TODO(b/383549885) Devise a method to print bound type BleScannerIntf
-    pub(crate) fn new(
-        raw_gatt: *const btgatt_interface_t,
-        internal_cxx: cxx::UniquePtr<ffi::BleScannerIntf>,
-    ) -> Self {
-        BleScanner {
-            _internal: RawBleScannerWrapper {
-                _raw: unsafe { (*raw_gatt).scanner as *const BleScannerInterface },
-            },
-            internal_cxx,
-        }
+    pub(crate) fn new(internal: cxx::UniquePtr<ffi::BleScannerIntf>) -> Self {
+        BleScanner { internal }
     }
 
     #[log_args]
     pub fn register_scanner(&mut self, app_uuid: Uuid) {
-        mutcxxcall!(self, RegisterScanner, app_uuid);
+        self.internal.pin_mut().RegisterScanner(app_uuid);
     }
 
     #[log_args]
     pub fn unregister(&mut self, scanner_id: u8) {
-        mutcxxcall!(self, Unregister, scanner_id);
+        self.internal.pin_mut().Unregister(scanner_id);
     }
 
     // TODO(b/233124021): topshim should expose scan(enable) instead of start_scan and stop_scan.
     #[log_args]
     pub fn start_scan(&mut self) {
-        mutcxxcall!(self, Scan, true);
+        self.internal.pin_mut().Scan(true);
     }
 
     #[log_args]
     pub fn stop_scan(&mut self) {
-        mutcxxcall!(self, Scan, false);
+        self.internal.pin_mut().Scan(false);
     }
 
     #[log_args]
@@ -1589,50 +1764,51 @@ impl BleScanner {
         filter_index: u8,
         param: GattFilterParam,
     ) {
-        mutcxxcall!(self, ScanFilterParamSetup, scanner_id, action, filter_index, param);
+        self.internal.pin_mut().ScanFilterParamSetup(scanner_id, action, filter_index, param);
     }
 
     #[log_args]
     pub fn scan_filter_add(&mut self, filter_index: u8, filters: Vec<ApcfCommand>) {
-        mutcxxcall!(self, ScanFilterAdd, filter_index, filters);
+        self.internal.pin_mut().ScanFilterAdd(filter_index, filters);
     }
 
     #[log_args]
     pub fn scan_filter_clear(&mut self, filter_index: u8) {
-        mutcxxcall!(self, ScanFilterClear, filter_index);
+        self.internal.pin_mut().ScanFilterClear(filter_index);
     }
 
     #[log_args]
     pub fn scan_filter_enable(&mut self) {
-        mutcxxcall!(self, ScanFilterEnable, true);
+        self.internal.pin_mut().ScanFilterEnable(true);
     }
 
     #[log_args]
     pub fn scan_filter_disable(&mut self) {
-        mutcxxcall!(self, ScanFilterEnable, false);
+        self.internal.pin_mut().ScanFilterEnable(false);
     }
 
     #[log_args]
     pub fn is_msft_supported(&mut self) -> bool {
-        mutcxxcall!(self, IsMsftSupported)
+        self.internal.pin_mut().IsMsftSupported()
     }
 
     #[log_args]
     pub fn msft_adv_monitor_add(&mut self, monitor: &MsftAdvMonitor) {
-        mutcxxcall!(self, MsftAdvMonitorAdd, monitor);
+        self.internal.pin_mut().MsftAdvMonitorAdd(monitor);
     }
 
     #[log_args]
     pub fn msft_adv_monitor_remove(&mut self, monitor_handle: u8) {
-        mutcxxcall!(self, MsftAdvMonitorRemove, monitor_handle);
+        self.internal.pin_mut().MsftAdvMonitorRemove(monitor_handle);
     }
 
     #[log_args]
     pub fn msft_adv_monitor_enable(&mut self, enable: bool) {
-        mutcxxcall!(self, MsftAdvMonitorEnable, enable);
+        self.internal.pin_mut().MsftAdvMonitorEnable(enable);
     }
 
     #[log_args]
+    #[allow(clippy::too_many_arguments)]
     pub fn set_scan_parameters(
         &mut self,
         scan_type: u8,
@@ -1644,9 +1820,7 @@ impl BleScanner {
         scan_window_coded: u16,
         scan_phy: u8,
     ) {
-        mutcxxcall!(
-            self,
-            SetScanParameters,
+        self.internal.pin_mut().SetScanParameters(
             scan_type,
             scanner_id_1m,
             scan_interval_1m,
@@ -1654,7 +1828,7 @@ impl BleScanner {
             scanner_id_coded,
             scan_interval_coded,
             scan_window_coded,
-            scan_phy
+            scan_phy,
         );
     }
 
@@ -1666,13 +1840,11 @@ impl BleScanner {
         trunc_max: i32,
         notify_threshold: i32,
     ) {
-        mutcxxcall!(
-            self,
-            BatchScanConfigStorage,
+        self.internal.pin_mut().BatchScanConfigStorage(
             scanner_id,
             full_max,
             trunc_max,
-            notify_threshold
+            notify_threshold,
         );
     }
 
@@ -1685,103 +1857,99 @@ impl BleScanner {
         addr_type: i32,
         discard_rule: i32,
     ) {
-        mutcxxcall!(
-            self,
-            BatchScanEnable,
+        self.internal.pin_mut().BatchScanEnable(
             scan_mode,
             scan_interval,
             scan_window,
             addr_type,
-            discard_rule
+            discard_rule,
         );
     }
 
     #[log_args]
     pub fn batch_scan_disable(&mut self) {
-        mutcxxcall!(self, BatchScanDisable);
+        self.internal.pin_mut().BatchScanDisable();
     }
 
     #[log_args]
     pub fn batch_scan_read_reports(&mut self, scanner_id: u8, scan_mode: i32) {
-        mutcxxcall!(self, BatchScanReadReports, scanner_id, scan_mode);
+        self.internal.pin_mut().BatchScanReadReports(scanner_id, scan_mode);
     }
 
     #[log_args]
-    pub fn start_sync(&mut self, sid: u8, addr: RawAddress, skip: u16, timeout: u16) {
-        mutcxxcall!(self, StartSync, sid, addr, skip, timeout);
+    pub fn start_sync(
+        &mut self,
+        sid: u8,
+        addr: RawAddress,
+        addr_type: u8,
+        skip: u16,
+        timeout: u16,
+    ) {
+        self.internal.pin_mut().StartSync(sid, addr, addr_type, skip, timeout);
     }
 
     #[log_args]
     pub fn stop_sync(&mut self, handle: u16) {
-        mutcxxcall!(self, StopSync, handle);
+        self.internal.pin_mut().StopSync(handle);
     }
 
     #[log_args]
     pub fn cancel_create_sync(&mut self, sid: u8, addr: RawAddress) {
-        mutcxxcall!(self, CancelCreateSync, sid, addr);
+        self.internal.pin_mut().CancelCreateSync(sid, addr);
     }
 
     #[log_args]
     pub fn transfer_sync(&mut self, addr: RawAddress, service_data: u16, sync_handle: u16) {
-        mutcxxcall!(self, TransferSync, addr, service_data, sync_handle);
+        self.internal.pin_mut().TransferSync(addr, service_data, sync_handle);
     }
 
     #[log_args]
     pub fn transfer_set_info(&mut self, addr: RawAddress, service_data: u16, adv_handle: u8) {
-        mutcxxcall!(self, TransferSetInfo, addr, service_data, adv_handle);
+        self.internal.pin_mut().TransferSetInfo(addr, service_data, adv_handle);
     }
 
     #[log_args]
     pub fn sync_tx_parameters(&mut self, addr: RawAddress, mode: u8, skip: u16, timeout: u16) {
-        mutcxxcall!(self, SyncTxParameters, addr, mode, skip, timeout);
+        self.internal.pin_mut().SyncTxParameters(addr, mode, skip, timeout);
     }
 }
 
 pub struct BleAdvertiser {
-    _internal: RawBleAdvertiserWrapper,
-    internal_cxx: cxx::UniquePtr<ffi::BleAdvertiserIntf>,
+    internal: cxx::UniquePtr<ffi::BleAdvertiserIntf>,
 }
 
 impl BleAdvertiser {
     // TODO(b/383549885) Devise a method to print bound type BleAdvertiserIntf
-    pub(crate) fn new(
-        raw_gatt: *const btgatt_interface_t,
-        internal_cxx: cxx::UniquePtr<ffi::BleAdvertiserIntf>,
-    ) -> Self {
-        BleAdvertiser {
-            _internal: RawBleAdvertiserWrapper {
-                _raw: unsafe { (*raw_gatt).advertiser as *const BleAdvertiserInterface },
-            },
-            internal_cxx,
-        }
+    pub(crate) fn new(internal: cxx::UniquePtr<ffi::BleAdvertiserIntf>) -> Self {
+        BleAdvertiser { internal }
     }
 
     #[log_args]
     pub fn register_advertiser(&mut self) {
-        mutcxxcall!(self, RegisterAdvertiser);
+        self.internal.pin_mut().RegisterAdvertiser();
     }
 
     #[log_args]
     pub fn unregister(&mut self, adv_id: u8) {
-        mutcxxcall!(self, Unregister, adv_id);
+        self.internal.pin_mut().Unregister(adv_id);
     }
 
     #[log_args]
     pub fn get_own_address(&mut self, adv_id: u8) {
-        mutcxxcall!(self, GetOwnAddress, adv_id);
+        self.internal.pin_mut().GetOwnAddress(adv_id);
     }
 
     #[log_args]
     pub fn set_parameters(&mut self, adv_id: u8, params: AdvertiseParameters) {
-        mutcxxcall!(self, SetParameters, adv_id, params);
+        self.internal.pin_mut().SetParameters(adv_id, params);
     }
     #[log_args]
     pub fn set_data(&mut self, adv_id: u8, set_scan_rsp: bool, data: Vec<u8>) {
-        mutcxxcall!(self, SetData, adv_id, set_scan_rsp, data);
+        self.internal.pin_mut().SetData(adv_id, set_scan_rsp, data);
     }
     #[log_args]
     pub fn enable(&mut self, adv_id: u8, enable: bool, duration: u16, max_ext_adv_events: u8) {
-        mutcxxcall!(self, Enable, adv_id, enable, duration, max_ext_adv_events);
+        self.internal.pin_mut().Enable(adv_id, enable, duration, max_ext_adv_events);
     }
     #[log_args]
     pub fn start_advertising(
@@ -1792,17 +1960,16 @@ impl BleAdvertiser {
         scan_response_data: Vec<u8>,
         timeout_in_sec: i32,
     ) {
-        mutcxxcall!(
-            self,
-            StartAdvertising,
+        self.internal.pin_mut().StartAdvertising(
             adv_id,
             params,
             advertise_data,
             scan_response_data,
-            timeout_in_sec
+            timeout_in_sec,
         );
     }
     #[log_args]
+    #[allow(clippy::too_many_arguments)]
     pub fn start_advertising_set(
         &mut self,
         reg_id: i32,
@@ -1814,9 +1981,7 @@ impl BleAdvertiser {
         duration: u16,
         max_ext_adv_events: u8,
     ) {
-        mutcxxcall!(
-            self,
-            StartAdvertisingSet,
+        self.internal.pin_mut().StartAdvertisingSet(
             reg_id,
             params,
             advertise_data,
@@ -1824,7 +1989,7 @@ impl BleAdvertiser {
             periodic_params,
             periodic_data,
             duration,
-            max_ext_adv_events
+            max_ext_adv_events,
         );
     }
     #[log_args]
@@ -1833,67 +1998,44 @@ impl BleAdvertiser {
         adv_id: u8,
         params: PeriodicAdvertisingParameters,
     ) {
-        mutcxxcall!(self, SetPeriodicAdvertisingParameters, adv_id, params);
+        self.internal.pin_mut().SetPeriodicAdvertisingParameters(adv_id, params);
     }
     #[log_args]
     pub fn set_periodic_advertising_data(&mut self, adv_id: u8, data: Vec<u8>) {
-        mutcxxcall!(self, SetPeriodicAdvertisingData, adv_id, data);
+        self.internal.pin_mut().SetPeriodicAdvertisingData(adv_id, data);
     }
     #[log_args]
     pub fn set_periodic_advertising_enable(&mut self, adv_id: u8, enable: bool, include_adi: bool) {
-        mutcxxcall!(self, SetPeriodicAdvertisingEnable, adv_id, enable, include_adi);
+        self.internal.pin_mut().SetPeriodicAdvertisingEnable(adv_id, enable, include_adi);
     }
 }
 
 pub struct Gatt {
-    internal: RawGattWrapper,
+    internal: cxx::UniquePtr<ffi::GattIntf>,
     is_init: bool,
 
     pub client: GattClient,
     pub server: GattServer,
     pub scanner: BleScanner,
     pub advertiser: BleAdvertiser,
-
-    // Keep callback object in memory (underlying code doesn't make copy)
-    callbacks: Option<Box<bindings::btgatt_callbacks_t>>,
-    gatt_client_callbacks: Option<Box<bindings::btgatt_client_callbacks_t>>,
-    gatt_server_callbacks: Option<Box<bindings::btgatt_server_callbacks_t>>,
 }
 
 impl Gatt {
     #[log_args]
     pub fn new(intf: &BluetoothInterface) -> Gatt {
-        let r = intf.get_profile_interface(SupportedProfiles::Gatt);
-
-        if r.is_null() {
-            panic!("Failed to get GATT interface");
-        }
-
-        let gatt_client_intf = unsafe { ffi::GetGattClientProfile(r as *const u8) };
-        let gatt_server_intf = unsafe { ffi::GetGattServerProfile(r as *const u8) };
-        let gatt_scanner_intf = unsafe { ffi::GetBleScannerIntf(r as *const u8) };
-        let gatt_advertiser_intf = unsafe { ffi::GetBleAdvertiserIntf(r as *const u8) };
+        let gatt_intf = ffi::GetGattProfile(intf.as_btif());
+        let gatt_client_intf = ffi::GetGattClientProfile(intf.as_btif());
+        let gatt_server_intf = ffi::GetGattServerProfile(intf.as_btif());
+        let gatt_scanner_intf = gatt_intf.GetBleScannerIntf();
+        let gatt_advertiser_intf = gatt_intf.GetBleAdvertiserIntf();
 
         Gatt {
-            internal: RawGattWrapper { raw: r as *const btgatt_interface_t },
+            internal: gatt_intf,
             is_init: false,
-            client: GattClient {
-                internal: RawGattClientWrapper {
-                    raw: unsafe { (*(r as *const btgatt_interface_t)).client },
-                },
-                internal_cxx: gatt_client_intf,
-            },
-            server: GattServer {
-                internal: RawGattServerWrapper {
-                    raw: unsafe { (*(r as *const btgatt_interface_t)).server },
-                },
-                internal_cxx: gatt_server_intf,
-            },
-            scanner: BleScanner::new(r as *const btgatt_interface_t, gatt_scanner_intf),
-            advertiser: BleAdvertiser::new(r as *const btgatt_interface_t, gatt_advertiser_intf),
-            callbacks: None,
-            gatt_client_callbacks: None,
-            gatt_server_callbacks: None,
+            client: GattClient { internal: gatt_client_intf },
+            server: GattServer { internal: gatt_server_intf },
+            scanner: BleScanner::new(gatt_scanner_intf),
+            advertiser: BleAdvertiser::new(gatt_advertiser_intf),
         }
     }
 
@@ -1959,69 +2101,13 @@ impl Gatt {
             panic!("Tried to set dispatcher for GattAdvCallbacks but it already existed");
         }
 
-        let gatt_client_callbacks = Box::new(btgatt_client_callbacks_t {
-            register_client_cb: Some(gc_register_client_cb),
-            open_cb: Some(gc_open_cb),
-            close_cb: Some(gc_close_cb),
-            register_for_notification_cb: Some(gc_register_for_notification_cb),
-            notify_cb: Some(gc_notify_cb),
-            read_characteristic_cb: Some(gc_read_characteristic_cb),
-            write_characteristic_cb: Some(gc_write_characteristic_cb),
-            read_descriptor_cb: Some(gc_read_descriptor_cb),
-            write_descriptor_cb: Some(gc_write_descriptor_cb),
-            execute_write_cb: Some(gc_execute_write_cb),
-            read_remote_rssi_cb: Some(gc_read_remote_rssi_cb),
-            configure_mtu_cb: Some(gc_configure_mtu_cb),
-            congestion_cb: Some(gc_congestion_cb),
-            get_gatt_db_cb: Some(gc_get_gatt_db_cb),
-            phy_updated_cb: Some(gc_phy_updated_cb),
-            conn_updated_cb: Some(gc_conn_updated_cb),
-            service_changed_cb: Some(gc_service_changed_cb),
-            // These callbacks are never used and will also be removed from btif.
-            // TODO(b/200073464): Remove these.
-            services_removed_cb: None,
-            services_added_cb: None,
-            subrate_chg_cb: None,
-        });
-
-        let gatt_server_callbacks = Box::new(btgatt_server_callbacks_t {
-            register_server_cb: Some(gs_register_server_cb),
-            connection_cb: Some(gs_connection_cb),
-            service_added_cb: Some(gs_service_added_cb),
-            service_stopped_cb: Some(gs_service_stopped_cb),
-            service_deleted_cb: Some(gs_service_deleted_cb),
-            request_read_characteristic_cb: Some(gs_request_read_characteristic_cb),
-            request_read_descriptor_cb: Some(gs_request_read_descriptor_cb),
-            request_write_characteristic_cb: Some(gs_request_write_characteristic_cb),
-            request_write_descriptor_cb: Some(gs_request_write_descriptor_cb),
-            request_exec_write_cb: Some(gs_request_exec_write_cb),
-            response_confirmation_cb: Some(gs_response_confirmation_cb),
-            indication_sent_cb: Some(gs_indication_sent_cb),
-            congestion_cb: Some(gs_congestion_cb),
-            mtu_changed_cb: Some(gs_mtu_changed_cb),
-            phy_updated_cb: Some(gs_phy_updated_cb),
-            conn_updated_cb: Some(gs_conn_updated_cb),
-            subrate_chg_cb: Some(gs_subrate_chg_cb),
-        });
-
-        let callbacks = Box::new(btgatt_callbacks_t {
-            size: std::mem::size_of::<btgatt_callbacks_t>(),
-            client: &*gatt_client_callbacks,
-            server: &*gatt_server_callbacks,
-        });
-
-        let cb_ptr = LTCheckedPtr::from(&callbacks);
-
-        let init = ccall!(self, init, cb_ptr.into());
-        self.is_init = init == 0;
-        self.callbacks = Some(callbacks);
-        self.gatt_client_callbacks = Some(gatt_client_callbacks);
-        self.gatt_server_callbacks = Some(gatt_server_callbacks);
+        let init: BtStatus = self.internal.init().into();
+        self.is_init = init == BtStatus::Success;
 
         // Register callbacks for gatt scanner and advertiser
-        mutcxxcall!(self.scanner, RegisterCallbacks);
-        mutcxxcall!(self.advertiser, RegisterCallbacks);
+        self.scanner.internal.pin_mut().RegisterCallbacks();
+        self.advertiser.internal.pin_mut().RegisterCallbacks();
 
-        return self.is_init;
+        self.is_init
     }
 }

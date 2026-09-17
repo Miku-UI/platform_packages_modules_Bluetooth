@@ -55,12 +55,9 @@ import pandora.HostProto.OwnAddressType
 
 /** DCK GATT Tests */
 @RunWith(TestParameterInjector::class)
-public class DckGattTest() {
+class DckGattTest() {
 
-    private val context: Context = ApplicationProvider.getApplicationContext()
-    private val bluetoothManager = context.getSystemService(BluetoothManager::class.java)!!
-    private val bluetoothAdapter = bluetoothManager.adapter
-    private val leScanner = bluetoothAdapter.bluetoothLeScanner
+    private val context = ApplicationProvider.getApplicationContext<Context>()
 
     private val scanResultCaptor = argumentCaptor<ScanResult>()
     private val scanCallbackMock = mock<ScanCallback>()
@@ -70,15 +67,11 @@ public class DckGattTest() {
             on { onConnectionStateChange(gattCaptor.capture(), any(), any()) } doAnswer {}
         }
 
-    // A Rule live from a test setup through it's teardown.
-    // Gives shell permissions during the test.
-    @Rule(order = 0) @JvmField val mPermissionRule = AdoptShellPermissionsRule()
+    @get:Rule(order = 0) val permissionRule = AdoptShellPermissionsRule()
 
-    // Setup a Bumble Pandora device for the duration of the test.
-    // Acting as a Pandora client, it can be interacted with through the Pandora APIs.
-    @Rule(order = 1) @JvmField val mBumble = PandoraDevice()
+    @get:Rule(order = 1) val bumble = PandoraDevice()
 
-    @Rule(order = 2) @JvmField val enableBluetoothRule = EnableBluetoothRule(false, true)
+    @get:Rule(order = 2) val enableBluetoothRule = EnableBluetoothRule(false, true)
 
     @Before
     fun setUp() {
@@ -88,7 +81,7 @@ public class DckGattTest() {
         // - `withDeadline(Deadline.after(TIMEOUT, TimeUnit.MILLISECONDS))` sets a timeout for the
         //   gRPC call.
         // - `register(Empty.getDefaultInstance())` sends a registration request to the server.
-        mBumble
+        bumble
             .dckBlocking()
             .withDeadline(Deadline.after(TIMEOUT, TimeUnit.MILLISECONDS))
             .register(Empty.getDefaultInstance())
@@ -98,7 +91,7 @@ public class DckGattTest() {
 
             // Connect DUT to Ref as prerequisite
             val device =
-                bluetoothAdapter.getRemoteLeDevice(
+                adapter.getRemoteLeDevice(
                     Utils.BUMBLE_RANDOM_ADDRESS,
                     BluetoothDevice.ADDRESS_TYPE_RANDOM,
                 )
@@ -154,13 +147,12 @@ public class DckGattTest() {
      */
     @Test
     fun testDiscoverDkGattService() {
-
         // 2. Advertise the host's (presumably the car's) Bluetooth capabilities using another
         //    gRPC call:
         // - `hostBlocking()` accesses another gRPC service related to the host.
         //   The following `advertise(...)` sends an advertise request to the server, setting
         //   specific attributes.
-        mBumble
+        bumble
             .hostBlocking()
             .advertise(
                 AdvertiseRequest.newBuilder()
@@ -176,7 +168,7 @@ public class DckGattTest() {
 
         // 3. Fetch a remote Bluetooth device instance (here, Bumble).
         val bumbleDevice =
-            bluetoothAdapter.getRemoteLeDevice(
+            adapter.getRemoteLeDevice(
                 // To keep things straightforward, the Bumble RANDOM address is set to a predefined
                 // constant.
                 // Typically, an LE scan would be conducted to identify the Bumble device, matching
@@ -193,7 +185,7 @@ public class DckGattTest() {
         val gattCallback = mock<BluetoothGattCallback>()
 
         // 5. Connect to the Bumble device and expect a successful connection callback.
-        var bumbleGatt = bumbleDevice.connectGatt(context, false, gattCallback)
+        val bumbleGatt = bumbleDevice.connectGatt(context, false, gattCallback)
         verify(gattCallback, timeout(TIMEOUT))
             .onConnectionStateChange(any(), eq(BluetoothGatt.GATT_SUCCESS), eq(STATE_CONNECTED))
 
@@ -313,22 +305,19 @@ public class DckGattTest() {
         }
 
         val cancellableContext = GrpcContext.current().withCancellation()
-        with(cancellableContext) {
-            run { mBumble.hostBlocking().advertise(requestBuilder.build()) }
-        }
+        with(cancellableContext) { run { bumble.hostBlocking().advertise(requestBuilder.build()) } }
 
         return cancellableContext
     }
 
     companion object {
-        private const val TAG = "DckGattTest"
-        private const val TIMEOUT: Long = 2000
-        private const val DISCOVERY_TIMEOUT: Long = 5000
+        private const val TIMEOUT = 2000L
+        private const val DISCOVERY_TIMEOUT = 5000L
         private const val TEST_ADDRESS_RANDOM_STATIC = "F0:43:A8:23:10:11"
 
         // CCC DK Specification R3 1.2.0 r14 section 19.2.1.2 Bluetooth Le Pairing
         private val CCC_DK_UUID = UUID.fromString("0000FFF5-0000-1000-8000-00805f9b34fb")
 
-        @TestParameter private val connected: Boolean = false
+        @TestParameter private var connected: Boolean = false
     }
 }

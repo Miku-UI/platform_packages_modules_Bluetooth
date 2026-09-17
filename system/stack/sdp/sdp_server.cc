@@ -39,6 +39,7 @@
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
+#include "stack/include/sdp_api.h"
 #include "stack/include/sdpdefs.h"
 #include "stack/sdp/sdpint.h"
 
@@ -51,28 +52,8 @@
 #define HFP_PROFILE_MINOR_VERSION_6 0x06
 #define HFP_PROFILE_MINOR_VERSION_7 0x07
 #define HFP_PROFILE_MINOR_VERSION_9 0x09
-#define PBAP_GOEP_L2CAP_PSM_LEN 0x06
-#define PBAP_SUPP_FEA_LEN 0x08
-
-#ifndef SDP_ENABLE_PTS_PBAP
-#define SDP_ENABLE_PTS_PBAP "bluetooth.pts.pbap"
-#endif
-
-#define PBAP_1_2 0x0102
-#define PBAP_1_2_BL_LEN 14
 
 using namespace bluetooth;
-
-/* Used to set PBAP local SDP device record for PBAP 1.2 upgrade */
-struct tSDP_PSE_LOCAL_RECORD {
-  int32_t rfcomm_channel_number;
-  int32_t l2cap_psm;
-  int32_t profile_version;
-  uint32_t supported_features;
-  uint32_t supported_repositories;
-};
-
-static tSDP_PSE_LOCAL_RECORD sdpPseLocalRecord;
 
 /******************************************************************************/
 /*                E R R O R   T E X T   S T R I N G S                         */
@@ -133,9 +114,9 @@ bool sdp_dynamic_change_hfp_version(const tSDP_ATTRIBUTE* p_attr,
       UUID_SERVCLASS_HF_HANDSFREE) {
     return false;
   }
-  bool is_allowlisted_1_7 = interop_match_addr_or_name(INTEROP_HFP_1_7_ALLOWLIST, &remote_address,
+  bool is_allowlisted_1_7 = interop_match_addr_or_name(INTEROP_HFP_1_7_ALLOWLIST, remote_address,
                                                        &btif_storage_get_remote_device_property);
-  bool is_allowlisted_1_9 = interop_match_addr_or_name(INTEROP_HFP_1_9_ALLOWLIST, &remote_address,
+  bool is_allowlisted_1_9 = interop_match_addr_or_name(INTEROP_HFP_1_9_ALLOWLIST, remote_address,
                                                        &btif_storage_get_remote_device_property);
   /* For PTS we should update AG's HFP version as 1.7 */
   if (!(is_allowlisted_1_7) && !(is_allowlisted_1_9) &&
@@ -417,6 +398,7 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num, uint16
                                               ATTR_ID_SERVICE_CLASS_ID_LIST);
   p_attr_profile_desc_list_id = sdp_db_find_attr_in_rec(p_rec, ATTR_ID_BT_PROFILE_DESC_LIST,
                                                         ATTR_ID_BT_PROFILE_DESC_LIST);
+
   if (p_attr_service_id) {
     is_service_avrc_target = sdpu_is_service_id_avrc_target(p_attr_service_id);
   }
@@ -426,11 +408,16 @@ static void process_service_attr_req(tCONN_CB* p_ccb, uint16_t trans_num, uint16
                                      attr_seq.attr_entry[xx].end);
     if (p_attr) {
       if (is_service_avrc_target) {
-        sdpu_set_avrc_target_version(p_attr, &(p_ccb->device_address));
+        sdpu_set_avrc_target_version(p_attr, p_ccb->device_address);
         if (p_attr->id == ATTR_ID_SUPPORTED_FEATURES) {
+          if (p_attr_profile_desc_list_id == nullptr) {
+            log::error("Could not find profile descriptor list id");
+            return;
+          }
+
           avrc_sdp_version = sdpu_is_avrcp_profile_description_list(p_attr_profile_desc_list_id);
           log::error("avrc_sdp_version in SDP records {:x}", avrc_sdp_version);
-          sdpu_set_avrc_target_features(p_attr, &(p_ccb->device_address), avrc_sdp_version);
+          sdpu_set_avrc_target_features(p_attr, p_ccb->device_address, avrc_sdp_version);
         }
       }
       is_hfp_fallback = sdp_dynamic_change_hfp_version(p_attr, p_ccb->device_address);
@@ -707,11 +694,11 @@ static void process_service_search_attr_req(tCONN_CB* p_ccb, uint16_t trans_num,
 
       if (p_attr) {
         if (is_service_avrc_target) {
-          sdpu_set_avrc_target_version(p_attr, &(p_ccb->device_address));
+          sdpu_set_avrc_target_version(p_attr, p_ccb->device_address);
           if (p_attr->id == ATTR_ID_SUPPORTED_FEATURES && p_attr_profile_desc_list_id != nullptr) {
             avrc_sdp_version = sdpu_is_avrcp_profile_description_list(p_attr_profile_desc_list_id);
             log::error("avrc_sdp_version in SDP records {:x}", avrc_sdp_version);
-            sdpu_set_avrc_target_features(p_attr, &(p_ccb->device_address), avrc_sdp_version);
+            sdpu_set_avrc_target_features(p_attr, p_ccb->device_address, avrc_sdp_version);
           }
         }
         is_hfp_fallback = sdp_dynamic_change_hfp_version(p_attr, p_ccb->device_address);
@@ -993,64 +980,66 @@ void sdp_server_handle_client_req(tCONN_CB* p_ccb, BT_HDR* p_msg) {
   }
 }
 
-/*************************************************************************************
-**
-** Function        update_pce_entry_to_interop_database
-**
-** Description     Update PCE 1.2 entry to dynamic interop database
-**
-***************************************************************************************/
-void update_pce_entry_to_interop_database(RawAddress remote_addr) {
-  if (!interop_match_addr_or_name(INTEROP_ADV_PBAP_VER_1_2, &remote_addr,
-                                  &btif_storage_get_remote_device_property)) {
-    interop_database_add_addr(INTEROP_ADV_PBAP_VER_1_2, &remote_addr, 3);
-    log::verbose("device: {} is added into interop list", remote_addr);
-  } else {
-    log::warn("device: {} is already found on interop list", remote_addr);
-  }
-}
+void sdp_register_sdp_discovery_server_records() {
+  uint16_t service_uuid = UUID_SERVCLASS_SERVICE_DISCOVERY_SERVER;
+  tSDP_PROTOCOL_ELEM proto_elem_list = {.protocol_uuid = UUID_PROTOCOL_L2CAP, .num_params = 0};
+  const char* service_name = "Service Discovery Server";
+  uint16_t browse = UUID_SERVCLASS_PUBLIC_BROWSE_GROUP;
+  uint32_t handle = 0;
+  uint32_t db_state = 0;
+  uint8_t db_state_buf[4] = {};
+  uint8_t* db_state_ptr = db_state_buf;
+  bool status = true;
 
-/*************************************************************************************
-**
-** Function        is_sdp_pbap_pce_disabled
-**
-** Description     Checks if given PBAP record is for PBAP PSE and SDP
-*denylisted
-**
-** Returns         BOOLEAN
-**
-***************************************************************************************/
-bool is_sdp_pbap_pce_disabled(RawAddress remote_address) {
-  if (interop_match_addr_or_name(INTEROP_DISABLE_PCE_SDP_AFTER_PAIRING, &remote_address,
-                                 &btif_storage_get_remote_device_property)) {
-    log::verbose("device is denylisted for PCE SDP");
-    return true;
-  } else {
-    return false;
-  }
-}
+  log::assert_that(!sdp_cb.server_db.service_disc_server_info.has_value(),
+                   "assert failed: ServiceDiscoveryServer Service already existed!");
 
-/*************************************************************************************
-**
-** Function        sdp_save_local_pse_record_attributes_val
-**
-** Description     Save pbap 1.2 sdp record attributes values, which would be
-*used for dynamic version upgrade.
-**
-** Returns         BOOLEAN
-**
-***************************************************************************************/
-void sdp_save_local_pse_record_attributes(int32_t rfcomm_channel_number, int32_t l2cap_psm,
-                                          int32_t profile_version, uint32_t supported_features,
-                                          uint32_t supported_repositories) {
-  log::warn(
-          "rfcomm_channel_number: 0x{:x}, l2cap_psm: 0x{:x} profile_version: "
-          "0x{:x}supported_features: 0x{:x} supported_repositories:  0x{:x}",
-          rfcomm_channel_number, l2cap_psm, profile_version, supported_features,
-          supported_repositories);
-  sdpPseLocalRecord.rfcomm_channel_number = rfcomm_channel_number;
-  sdpPseLocalRecord.l2cap_psm = l2cap_psm;
-  sdpPseLocalRecord.profile_version = profile_version;
-  sdpPseLocalRecord.supported_features = supported_features;
-  sdpPseLocalRecord.supported_repositories = supported_repositories;
+  handle = bluetooth::legacy::stack::sdp::get_legacy_stack_sdp_api()->SDP_CreateRecord();
+  if (handle == 0) {
+    log::error("Unable to register ServiceDiscoveryServer Service");
+    return;
+  }
+
+  // The structure of the Service Discovery Server record is defined in the
+  // Bluetooth Core Specification, Volume 3, Part B, Section 5.2:
+  // "ServiceDiscoveryServer service class attribute definitions".
+
+  /* add service class */
+  status &= bluetooth::legacy::stack::sdp::get_legacy_stack_sdp_api()->SDP_AddServiceClassIdList(
+          handle, 1, &service_uuid);
+
+  /* add protocol list */
+  status &= bluetooth::legacy::stack::sdp::get_legacy_stack_sdp_api()->SDP_AddProtocolList(
+          handle, 1, &proto_elem_list);
+
+  /* Add a name entry */
+  status &= bluetooth::legacy::stack::sdp::get_legacy_stack_sdp_api()->SDP_AddAttribute(
+          handle, (uint16_t)ATTR_ID_SERVICE_NAME, (uint8_t)TEXT_STR_DESC_TYPE,
+          (uint32_t)(strlen(service_name) + 1),
+          reinterpret_cast<uint8_t*>(const_cast<char*>(service_name)));
+
+  /* Add ServiceDatabaseState attribute */
+  UINT32_TO_BE_STREAM(db_state_ptr, db_state);
+  status &= bluetooth::legacy::stack::sdp::get_legacy_stack_sdp_api()->SDP_AddAttribute(
+          handle, ATTR_ID_SERVICE_DATABASE_STATE, UINT_DESC_TYPE, sizeof(db_state_buf),
+          db_state_buf);
+
+  /* Make the service browseable */
+  status &= bluetooth::legacy::stack::sdp::get_legacy_stack_sdp_api()->SDP_AddUuidSequence(
+          handle, ATTR_ID_BROWSE_GROUP_LIST, 1, &browse);
+
+  if (!status) {
+    if (!bluetooth::legacy::stack::sdp::get_legacy_stack_sdp_api()->SDP_DeleteRecord(handle)) {
+      log::warn("Unable to delete SDP record handle:{}", handle);
+    }
+    log::error("Failed to register ServiceDiscoveryServer Service");
+    return;
+  }
+
+  sdp_cb.server_db.service_disc_server_info = tSERVICE_DISC_SERVER_INFO{
+          .handle = handle,
+          .db_state = db_state,
+  };
+  bta_sys_add_uuid(service_uuid);
+  log::info("SDP Registered (handle 0x{:08x})", handle);
 }

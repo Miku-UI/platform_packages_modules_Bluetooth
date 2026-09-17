@@ -2,62 +2,60 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "only_broadcast_to_local_user"
+    name: "reject_enable_from_unknown_requester"
     namespace: "bluetooth"
-    description: "The bluetooth stack start and exist only for the current user. We should only restrict the intent to the current user"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-    bug: "435244086"
-}
-
-flag {
-    name: "graceful_disable_without_message"
-    namespace: "bluetooth"
-    description: "Handle disable requests gracefully without a delayed message"
-    bug: "431067156"
+    description: "Sometimes, the requester of enable/enableBle is unknown, making investigation impossible. Let's reject them to trace and properly identify the caller"
+    bug: "453047643"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "system_server_messenger"
+    name: "system_server_migrate_bms_to_kotlin"
     namespace: "bluetooth"
-    description: "Replace binder call to the system server with a Messenger to enforce thread safety"
-    bug: "321804999"
+    description: "The entire Bluetooth System Server is now in Kotlin, except BluetoothManagerService. Let's finish it"
+    bug: "478056203"
 }
 
 flag {
-    name: "user_restriction_refactor"
+    name: "system_server_no_longer_provide_process_exemption"
     namespace: "bluetooth"
-    description: "Move user restriction to Kotlin and properly check before any attempt to start Bluetooth"
-    bug: "420992261"
+    description: "Calling in process must have appropriate permissions."
+    bug: "483470879"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "on_to_ble_on_via_off"
+    name: "concurrent_user_instances"
     namespace: "bluetooth"
-    description: "When transitioning from ON to BLE_ON, go through OFF state completely to reset bluetooth state."
-    bug: "431079894"
+    description: "Allow concurrent stack instances given multiple published hci instances"
+    bug: "444519431"
+}
+
+flag {
+    name: "br_settings"
+    namespace: "bluetooth"
+    description: "Backup and restore airplane mode and auto on bluetooth settings"
+    bug: "450288332"
+}
+
+flag {
+    name: "switch_when_current_user_stop"
+    namespace: "bluetooth"
+    description: "Due to race condition in user controller we may receive a user_stop prior to a user_switch. This enable a fallback workaround to emulate an user switch when receiving an user stop on the current user"
+    bug: "469419496"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "watch_device_override_airplane_mode"
+    name: "validate_bluetooth_name_in_platform_config"
     namespace: "bluetooth"
-    description: "If there is a watch connected, keep Bluetooth on"
-    bug: "416092966"
+    description: "Validate that the platform config match the installed bluetooth package"
+    bug: "467963541"
 }
 
-flag {
-    name: "user_visible_on_user_starting"
-    namespace: "bluetooth"
-    description: "Check userVisible API to determine if user should startup bluetooth instance"
-    bug: "438756896"
-}

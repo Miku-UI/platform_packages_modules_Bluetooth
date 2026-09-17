@@ -16,6 +16,7 @@
 
 #include "codec_manager.h"
 
+#include <com_android_bluetooth_flags.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <log/log.h>
@@ -30,7 +31,7 @@
 #include "le_audio/le_audio_types.h"
 #include "le_audio_set_configuration_provider.h"
 #include "osi/include/properties.h"
-#include "test/mock/mock_legacy_hci_interface.h"
+#include "stack/mock/mock_stack_hcic_layer.h"
 #include "test/mock/mock_main_shim_entry.h"
 
 using ::testing::_;
@@ -67,7 +68,6 @@ static bool get_pts_unencrypt_broadcast(void) { return false; }
 static bool get_pts_eatt_peripheral_collision_support(void) { return false; }
 static bool get_pts_force_le_audio_multiple_contexts_metadata(void) { return false; }
 static bool get_pts_le_audio_disable_ases_before_stopping(void) { return false; }
-static config_t* get_all(void) { return nullptr; }
 
 stack_config_t mock_stack_config{
         .get_pts_avrcp_test = get_pts_avrcp_test,
@@ -85,7 +85,6 @@ stack_config_t mock_stack_config{
                 get_pts_force_le_audio_multiple_contexts_metadata,
         .get_pts_le_audio_disable_ases_before_stopping =
                 get_pts_le_audio_disable_ases_before_stopping,
-        .get_all = get_all,
 };
 
 const stack_config_t* stack_config_get_interface(void) { return &mock_stack_config; }
@@ -164,6 +163,8 @@ public:
   MOCK_METHOD((void), SetCodecPriority,
               (const ::bluetooth::le_audio::types::LeAudioCodecId& codecId, int32_t priority),
               (override));
+  MOCK_METHOD((void), UpdateBroadcastAudioConfigToHal,
+              (const ::bluetooth::le_audio::broadcast_offload_config&), (override));
   MOCK_METHOD((void), SuspendedForReconfiguration, (), (override));
   MOCK_METHOD((void), ReconfigurationComplete, (), (override));
 
@@ -173,10 +174,7 @@ public:
               (const override));
 
   MOCK_METHOD((std::optional<::bluetooth::le_audio::types::AudioSetConfiguration>),
-              GetUnicastConfig,
-              (types::LeAudioContextType,
-               std::optional<const ::bluetooth::le_audio::types::PublishedAudioCapabilities*>,
-               std::optional<const ::bluetooth::le_audio::types::PublishedAudioCapabilities*>),
+              GetUnicastConfig, (const CodecManager::UnicastConfigurationRequirements&),
               (const override));
 
   MOCK_METHOD((void), OnDestroyed, ());
@@ -227,6 +225,11 @@ static const types::LeAudioCodecId kLeAudioCodecIdVendor_C0DE = {
         .coding_format = types::kLeAudioCodingFormatVendorSpecific,
         .vendor_company_id = types::kLeAudioVendorCompanyIdGoogle,
         .vendor_codec_id = 0xC0DE};
+
+static const types::LeAudioCodecId kLeAudioCodecIdVendor_Opus = {
+        .coding_format = types::kLeAudioCodingFormatVendorSpecific,
+        .vendor_company_id = types::kLeAudioVendorCompanyIdGoogle,
+        .vendor_codec_id = 0x0001};
 
 static const types::CodecConfigSetting lc3_16_2 = {
         .id = kLeAudioCodecIdLc3,
@@ -297,18 +300,84 @@ static constexpr char kPropLeAudioBidirSwbSupported[] =
 
 static RawAddress GetTestAddress(uint8_t index) {
   EXPECT_LT(index, UINT8_MAX);
-  RawAddress result = {{0xC0, 0xDE, 0xC0, 0xDE, 0x00, index}};
-  return result;
+  std::array<uint8_t, 6> bytes{0xC0, 0xDE, 0xC0, 0xDE, 0x00, index};
+  return RawAddress(bytes);
 }
 
-class CodecManagerTestBase : public Test {
+static auto PrepareStackProviderInfo(bool is_encoding, bool with_vendor, bool opus) {
+  ProviderInfo stack_provider_info;
+  std::vector<ProviderInfo::CentralCodecInfo>* central_codec_infos;
+
+  if (is_encoding) {
+    central_codec_infos = &stack_provider_info.encoding_codec_configs;
+  } else {
+    central_codec_infos = &stack_provider_info.decoding_codec_configs;
+  }
+
+  ProviderInfo::CentralCodecInfo lc3_codec_info = {.codec_id = kLeAudioCodecIdLc3};
+  lc3_codec_info.supported_configs.push_back({.sample_freq = 16000,
+                                              .frame_duration = 7500,
+                                              .channel_count = 1,
+                                              .bits_per_sample = 16});
+  lc3_codec_info.supported_configs.push_back({
+          .sample_freq = 48000,
+          .frame_duration = 10000,
+          .channel_count = 1,
+          .bits_per_sample = 16,
+  });
+  central_codec_infos->push_back(lc3_codec_info);
+
+  if (with_vendor) {
+    stack_provider_info.isMulticodecSupported = true;
+    ProviderInfo::CentralCodecInfo vs_codec_info = {.codec_id = kLeAudioCodecIdVendor_C0DE};
+    vs_codec_info.supported_configs.push_back({.sample_freq = 16000,
+                                               .frame_duration = 7500,
+                                               .channel_count = 1,
+                                               .bits_per_sample = 16});
+    vs_codec_info.supported_configs.push_back({.sample_freq = 48000,
+                                               .frame_duration = 10000,
+                                               .channel_count = 1,
+                                               .bits_per_sample = 16});
+    central_codec_infos->push_back(vs_codec_info);
+  }
+
+  if (opus) {
+    stack_provider_info.isMulticodecSupported = true;
+    ProviderInfo::CentralCodecInfo opus_codec_info = {.codec_id = kLeAudioCodecIdVendor_Opus};
+    opus_codec_info.supported_configs.push_back({.sample_freq = 48000,
+                                                 .frame_duration = 7500,
+                                                 .channel_count = 1,
+                                                 .bits_per_sample = 16});
+    opus_codec_info.supported_configs.push_back({.sample_freq = 96000,
+                                                 .frame_duration = 10000,
+                                                 .channel_count = 1,
+                                                 .bits_per_sample = 16});
+    central_codec_infos->push_back(opus_codec_info);
+  }
+
+  return stack_provider_info;
+}
+
+class CodecManagerTest : public ::testing::TestWithParam<std::vector<const char*>> {
 public:
   virtual void SetUp() override {
+    osi_property_set_bool(kPropLeAudioOffloadSupported, false);
+    osi_property_set_bool(kPropLeAudioOffloadDisabled, false);
+    osi_property_set_bool(kPropLeAudioBidirSwbSupported, false);
+    osi_property_set_bool(kPropLeAudioCodecExtensibility, false);
+
+    properties_ = GetParam();
+    for (auto const* prop : properties_) {
+      log::error("Set prop: {}", prop);
+      osi_property_set_bool(prop, true);
+    }
+
     __android_log_set_minimum_priority(ANDROID_LOG_VERBOSE);
-    com::android::bluetooth::flags::provider_->reset_flags();
+    com_android_bluetooth_flags_reset_flags();
+    set_com_android_bluetooth_flags_leaudio_codec_id_support(true);
     set_mock_offload_capabilities(offload_capabilities_none);
 
-    bluetooth::legacy::hci::testing::SetMock(legacy_hci_mock_);
+    hcic::SetMockHcicInterface(&legacy_hci_mock_);
 
     bluetooth::hci::testing::mock_controller_ =
             std::make_unique<NiceMock<bluetooth::hci::testing::MockController>>();
@@ -325,12 +394,34 @@ public:
   }
 
   virtual void TearDown() override {
+    /* It is essential to clear expectations on mocks that are not owned by
+     * the test fixture.
+     */
+    if (mock_le_audio_source_hal_client_) {
+      Mock::VerifyAndClearExpectations(mock_le_audio_source_hal_client_);
+    }
+    owned_mock_le_audio_source_hal_client_.reset();
+    mock_le_audio_source_hal_client_ = nullptr;
+
+    if (mock_broadcast_le_audio_source_hal_client_) {
+      Mock::VerifyAndClearExpectations(mock_broadcast_le_audio_source_hal_client_);
+    }
+    owned_mock_broadcast_le_audio_source_hal_client_.reset();
+    mock_broadcast_le_audio_source_hal_client_ = nullptr;
+
+    if (mock_le_audio_sink_hal_client_) {
+      Mock::VerifyAndClearExpectations(mock_le_audio_sink_hal_client_);
+    }
+    owned_mock_le_audio_sink_hal_client_.reset();
+    mock_le_audio_sink_hal_client_ = nullptr;
+
     codec_manager->Stop();
     bluetooth::hci::testing::mock_controller_.release();
   }
 
+  std::vector<const char*> properties_;
   CodecManager* codec_manager;
-  bluetooth::legacy::hci::testing::MockInterface legacy_hci_mock_;
+  hcic::MockHcicInterface legacy_hci_mock_;
 
 protected:
   void RegisterSourceHalClientMock() {
@@ -366,63 +457,44 @@ protected:
   }
 };
 
-/*----------------- ADSP codec manager tests ------------------*/
-class CodecManagerTestAdsp : public CodecManagerTestBase {
-public:
-  virtual void SetUp() override {
-    // Enable the HW offloader
-    osi_property_set_bool(kPropLeAudioOffloadSupported, true);
-    osi_property_set_bool(kPropLeAudioOffloadDisabled, false);
+TEST_P(CodecManagerTest, test_init) { ASSERT_EQ(codec_manager, CodecManager::GetInstance()); }
 
-    // Allow for bidir SWB configurations
-    osi_property_set_bool(kPropLeAudioBidirSwbSupported, true);
-
-    // Disable codec extensibility by default
-    osi_property_set_bool(kPropLeAudioCodecExtensibility, false);
-
-    CodecManagerTestBase::SetUp();
+TEST_P(CodecManagerTest, test_start) {
+  bool is_using_adsp = true;
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    is_using_adsp = false;
   }
-};
 
-class CodecManagerTestAdspNoSwb : public CodecManagerTestBase {
-public:
-  virtual void SetUp() override {
-    // Enable the HW offloader
-    osi_property_set_bool(kPropLeAudioOffloadSupported, true);
-    osi_property_set_bool(kPropLeAudioOffloadDisabled, false);
-
-    // Allow for bidir SWB configurations
-    osi_property_set_bool(kPropLeAudioBidirSwbSupported, false);
-
-    CodecManagerTestBase::SetUp();
-  }
-};
-
-TEST_F(CodecManagerTestAdsp, test_init) { ASSERT_EQ(codec_manager, CodecManager::GetInstance()); }
-
-TEST_F(CodecManagerTestAdsp, test_start) {
   EXPECT_CALL(legacy_hci_mock_, ConfigureDataPath(hci_data_direction_t::HOST_TO_CONTROLLER,
                                                   kIsoDataPathPlatformDefault, _))
-          .Times(1);
+          .Times(is_using_adsp ? 1 : 0);
   EXPECT_CALL(legacy_hci_mock_, ConfigureDataPath(hci_data_direction_t::CONTROLLER_TO_HOST,
                                                   kIsoDataPathPlatformDefault, _))
-          .Times(1);
+          .Times(is_using_adsp ? 1 : 0);
 
   // Verify data path is reset on Stop()
   EXPECT_CALL(legacy_hci_mock_,
               ConfigureDataPath(hci_data_direction_t::HOST_TO_CONTROLLER, kIsoDataPathHci, _))
-          .Times(1);
+          .Times(is_using_adsp ? 1 : 0);
   EXPECT_CALL(legacy_hci_mock_,
               ConfigureDataPath(hci_data_direction_t::CONTROLLER_TO_HOST, kIsoDataPathHci, _))
-          .Times(1);
+          .Times(is_using_adsp ? 1 : 0);
 
   const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference(0);
   codec_manager->Start(offloading_preference);
 
-  ASSERT_EQ(codec_manager->GetCodecLocation(), CodecLocation::ADSP);
+  ASSERT_EQ(codec_manager->GetCodecLocation(),
+            is_using_adsp ? CodecLocation::ADSP : CodecLocation::HOST);
 }
 
-TEST_F(CodecManagerTestAdsp, testStreamConfigurationAdspDownMix) {
+TEST_P(CodecManagerTest, testStreamConfigurationAdspDownMix) {
+  // Skip if offload unsupported or disabled
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    GTEST_SKIP();
+  }
+
   const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference(0);
   codec_manager->Start(offloading_preference);
 
@@ -550,7 +622,13 @@ TEST_F(CodecManagerTestAdsp, testStreamConfigurationAdspDownMix) {
   }
 }
 
-TEST_F(CodecManagerTestAdsp, test_configuration_update_cis_disconnected) {
+TEST_P(CodecManagerTest, test_configuration_update_cis_disconnected) {
+  // Skip if offload unsupported or disabled
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    GTEST_SKIP();
+  }
+
   const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference(0);
   codec_manager->Start(offloading_preference);
 
@@ -776,7 +854,13 @@ TEST_F(CodecManagerTestAdsp, test_configuration_update_cis_disconnected) {
   ASSERT_EQ(number_of_calls.source, 1);
 }
 
-TEST_F(CodecManagerTestAdsp, testStreamConfigurationMono) {
+TEST_P(CodecManagerTest, testStreamConfigurationMono) {
+  // Skip if offload unsupported or disabled
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    GTEST_SKIP();
+  }
+
   const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference(0);
   codec_manager->Start(offloading_preference);
 
@@ -908,7 +992,13 @@ TEST_F(CodecManagerTestAdsp, testStreamConfigurationMono) {
   }
 }
 
-TEST_F(CodecManagerTestAdsp, test_capabilities_none) {
+TEST_P(CodecManagerTest, test_capabilities_none) {
+  // Skip if offload unsupported or disabled
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    GTEST_SKIP();
+  }
+
   const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference(0);
   codec_manager->Start(offloading_preference);
 
@@ -941,7 +1031,18 @@ TEST_F(CodecManagerTestAdsp, test_capabilities_none) {
   }
 }
 
-TEST_F(CodecManagerTestAdsp, test_capabilities) {
+TEST_P(CodecManagerTest, test_capabilities) {
+  // Skip if offload unsupported or disabled
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    GTEST_SKIP();
+  }
+
+  // Run only on SWB supporting test suite to check those as well
+  if (osi_property_get_bool(kPropLeAudioBidirSwbSupported, false) == false) {
+    GTEST_SKIP();
+  }
+
   for (auto test_context : ::bluetooth::le_audio::types::kLeAudioContextAllTypesArray) {
     // Build the offloader capabilities vector using the configuration provider
     // in HOST mode to get all the .json file configuration entries.
@@ -951,6 +1052,7 @@ TEST_F(CodecManagerTestAdsp, test_capabilities) {
     ASSERT_NE(0lu, all_local_configs->size());
 
     for (auto& cap : *all_local_configs) {
+      // Note: If we run this test with SWB disabled, we should filter out those configs here
       offload_capabilities.push_back(*cap);
     }
 
@@ -1001,7 +1103,13 @@ TEST_F(CodecManagerTestAdsp, test_capabilities) {
   }
 }
 
-TEST_F(CodecManagerTestAdsp, test_broadcast_config) {
+TEST_P(CodecManagerTest, test_broadcast_config) {
+  // Skip if offload unsupported or disabled
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    GTEST_SKIP();
+  }
+
   static const types::CodecConfigSetting bc_lc3_48_2 = {
           .id = kLeAudioCodecIdLc3,
           .params = types::LeAudioLtvMap({
@@ -1045,7 +1153,69 @@ TEST_F(CodecManagerTestAdsp, test_broadcast_config) {
   codec_manager->Stop();
 }
 
-TEST_F(CodecManagerTestAdsp, test_update_broadcast_offloader) {
+TEST_P(CodecManagerTest, test_broadcast_config_with_source_capability) {
+  // Skip if offload unsupported or disabled
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    GTEST_SKIP();
+  }
+
+  static const types::CodecConfigSetting bc_lc3_48_2 = {
+          .id = kLeAudioCodecIdLc3,
+          .params = types::LeAudioLtvMap({
+                  LTV_ENTRY_SAMPLING_FREQUENCY(codec_spec_conf::kLeAudioSamplingFreq48000Hz),
+                  LTV_ENTRY_FRAME_DURATION(codec_spec_conf::kLeAudioCodecFrameDur10000us),
+                  LTV_ENTRY_AUDIO_CHANNEL_ALLOCATION(codec_spec_conf::kLeAudioLocationStereo),
+                  LTV_ENTRY_OCTETS_PER_CODEC_FRAME(100),
+          }),
+          .channel_count_per_iso_stream = 2,
+  };
+
+  // This configuration has both sink and source capabilities. Before the fix,
+  // this would be ignored. After the fix, it should be considered a valid
+  // broadcast capability based on its sink part.
+  std::vector<AudioSetConfiguration> offload_capabilities = {{
+          .name = "Test_Broadcast_Config_With_Source_lc3_48_2",
+          .confs = {.sink = {types::AseConfiguration(bc_lc3_48_2),
+                             types::AseConfiguration(bc_lc3_48_2)},
+                    .source = {types::AseConfiguration(lc3_16_2)}},
+  }};
+  set_mock_offload_capabilities(offload_capabilities);
+
+  const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference = {
+          {.codec_type = bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3}};
+  codec_manager->Start(offloading_preference);
+
+  CodecManager::BroadcastConfigurationRequirements requirements = {
+          .subgroup_quality = {{types::LeAudioContextType::MEDIA, 1}}};
+  auto cfg = codec_manager->GetBroadcastConfig(requirements);
+
+  // Verify that the configuration was processed correctly
+  ASSERT_NE(nullptr, cfg);
+  ASSERT_EQ(2, cfg->GetNumBisTotal());
+  ASSERT_EQ(2, cfg->GetNumChannelsMax());
+  ASSERT_EQ(48000u, cfg->GetSamplingFrequencyHzMax());
+  ASSERT_EQ(10000u, cfg->GetSduIntervalUs());
+  ASSERT_EQ(100u, cfg->GetMaxSduOctets());
+  ASSERT_EQ(1lu, cfg->subgroups.size());
+  ASSERT_EQ(2lu, cfg->subgroups.at(0).GetNumBis());
+  ASSERT_EQ(2lu, cfg->subgroups.at(0).GetNumChannelsTotal());
+
+  ASSERT_EQ(2lu, cfg->subgroups.at(0).GetBisCodecConfigs().at(0).GetNumBis());
+  ASSERT_EQ(2lu, cfg->subgroups.at(0).GetBisCodecConfigs().at(0).GetNumChannels());
+  ASSERT_EQ(1lu, cfg->subgroups.at(0).GetBisCodecConfigs().at(0).GetNumChannelsPerBis());
+
+  // Clean up the before testing any other offload capabilities.
+  codec_manager->Stop();
+}
+
+TEST_P(CodecManagerTest, test_update_broadcast_offloader) {
+  // Skip if offload unsupported or disabled
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    GTEST_SKIP();
+  }
+
   static const types::CodecConfigSetting bc_lc3_48_2 = {
           .id = kLeAudioCodecIdLc3,
           .params = types::LeAudioLtvMap({
@@ -1092,44 +1262,7 @@ TEST_F(CodecManagerTestAdsp, test_update_broadcast_offloader) {
   ASSERT_NE(0u, bcast_config.max_transport_latency);
 }
 
-/*----------------- HOST codec manager tests ------------------*/
-class CodecManagerTestHost : public CodecManagerTestBase {
-public:
-  virtual void SetUp() override {
-    // Enable the HW offloader
-    osi_property_set_bool(kPropLeAudioOffloadSupported, false);
-    osi_property_set_bool(kPropLeAudioOffloadDisabled, false);
-
-    // Allow for bidir SWB configurations
-    osi_property_set_bool(kPropLeAudioBidirSwbSupported, true);
-
-    // Codec extensibility disabled by default
-    osi_property_set_bool(kPropLeAudioCodecExtensibility, false);
-
-    CodecManagerTestBase::SetUp();
-  }
-};
-
-class CodecManagerTestHostNoSwb : public CodecManagerTestBase {
-public:
-  virtual void SetUp() override {
-    // Enable the HW offloader
-    osi_property_set_bool(kPropLeAudioOffloadSupported, true);
-    osi_property_set_bool(kPropLeAudioOffloadDisabled, false);
-
-    // Do not allow for bidir SWB configurations
-    osi_property_set_bool(kPropLeAudioBidirSwbSupported, false);
-
-    // Codec extensibility disabled by default
-    osi_property_set_bool(kPropLeAudioCodecExtensibility, false);
-
-    CodecManagerTestBase::SetUp();
-  }
-};
-
-TEST_F(CodecManagerTestHost, test_init) { ASSERT_EQ(codec_manager, CodecManager::GetInstance()); }
-
-TEST_F(CodecManagerTestHost, test_audio_session_update) {
+TEST_P(CodecManagerTest, test_audio_session_update) {
   ASSERT_EQ(codec_manager, CodecManager::GetInstance());
 
   auto unicast_source = LeAudioSourceAudioHalClient::AcquireUnicast();
@@ -1174,29 +1307,7 @@ TEST_F(CodecManagerTestHost, test_audio_session_update) {
   ASSERT_FALSE(codec_manager->UpdateActiveBroadcastAudioHalClient(nullptr, true));
 }
 
-TEST_F(CodecManagerTestHost, test_start) {
-  EXPECT_CALL(legacy_hci_mock_, ConfigureDataPath(hci_data_direction_t::HOST_TO_CONTROLLER,
-                                                  kIsoDataPathPlatformDefault, _))
-          .Times(0);
-  EXPECT_CALL(legacy_hci_mock_, ConfigureDataPath(hci_data_direction_t::CONTROLLER_TO_HOST,
-                                                  kIsoDataPathPlatformDefault, _))
-          .Times(0);
-
-  // Verify data path is NOT reset on Stop() for the Host encoding session
-  EXPECT_CALL(legacy_hci_mock_,
-              ConfigureDataPath(hci_data_direction_t::HOST_TO_CONTROLLER, kIsoDataPathHci, _))
-          .Times(0);
-  EXPECT_CALL(legacy_hci_mock_,
-              ConfigureDataPath(hci_data_direction_t::CONTROLLER_TO_HOST, kIsoDataPathHci, _))
-          .Times(0);
-
-  const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference(0);
-  codec_manager->Start(offloading_preference);
-
-  ASSERT_EQ(codec_manager->GetCodecLocation(), CodecLocation::HOST);
-}
-
-TEST_F(CodecManagerTestHost, test_non_bidir_swb) {
+TEST_P(CodecManagerTest, test_non_bidir_swb) {
   const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference = {
           {.codec_type = bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3}};
   codec_manager->Start(offloading_preference);
@@ -1348,7 +1459,7 @@ TEST_F(CodecManagerTestHost, test_non_bidir_swb) {
   }));
 }
 
-TEST_F(CodecManagerTestHost, test_dual_bidir_swb) {
+TEST_P(CodecManagerTest, test_dual_bidir_swb) {
   const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference = {
           {.codec_type = bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3}};
   codec_manager->Start(offloading_preference);
@@ -1376,38 +1487,12 @@ TEST_F(CodecManagerTestHost, test_dual_bidir_swb) {
   }));
 }
 
-TEST_F(CodecManagerTestHost, test_dual_bidir_swb_supported) {
-  const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference = {
-          {.codec_type = bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3}};
-  codec_manager->Start(offloading_preference);
-
-  int num_of_dual_bidir_swb_configs = 0;
-  for (auto context : types::kLeAudioContextAllTypesArray) {
-    bool got_null_cfgs_container = false;
-    auto ptr = codec_manager->GetCodecConfig(
-            {.audio_context_type = context},
-            [&](const CodecManager::UnicastConfigurationRequirements& /*requirements*/,
-                const types::AudioSetConfigurations* confs)
-                    -> std::unique_ptr<types::AudioSetConfiguration> {
-              if (confs == nullptr) {
-                got_null_cfgs_container = true;
-              } else {
-                num_of_dual_bidir_swb_configs +=
-                        std::count_if(confs->begin(), confs->end(), [&](auto const& cfg) {
-                          return codec_manager->CheckCodecConfigIsDualBiDirSwb(*cfg);
-                        });
-              }
-              // In this case the chosen configuration doesn't matter - select none
-              return nullptr;
-            });
-    ASSERT_FALSE(got_null_cfgs_container);
+TEST_P(CodecManagerTest, test_dual_bidir_swb_supported) {
+  if (osi_property_get_bool(kPropLeAudioBidirSwbSupported, false) == false) {
+    // Skip test is SWB not supported
+    GTEST_SKIP();
   }
 
-  // Make sure some dual bidir SWB configs were returned
-  ASSERT_NE(0, num_of_dual_bidir_swb_configs);
-}
-
-TEST_F(CodecManagerTestAdsp, test_dual_bidir_swb_supported) {
   // Set the offloader capabilities
   std::vector<AudioSetConfiguration> offload_capabilities = {
           {
@@ -1456,38 +1541,12 @@ TEST_F(CodecManagerTestAdsp, test_dual_bidir_swb_supported) {
   ASSERT_NE(0, num_of_dual_bidir_swb_configs);
 }
 
-TEST_F(CodecManagerTestHostNoSwb, test_dual_bidir_swb_not_supported) {
-  const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference = {
-          {.codec_type = bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3}};
-  codec_manager->Start(offloading_preference);
-
-  int num_of_dual_bidir_swb_configs = 0;
-  for (auto context : types::kLeAudioContextAllTypesArray) {
-    bool got_null_cfgs_container = false;
-    auto ptr = codec_manager->GetCodecConfig(
-            {.audio_context_type = context},
-            [&](const CodecManager::UnicastConfigurationRequirements& /*requirements*/,
-                const types::AudioSetConfigurations* confs)
-                    -> std::unique_ptr<types::AudioSetConfiguration> {
-              if (confs == nullptr) {
-                got_null_cfgs_container = true;
-              } else {
-                num_of_dual_bidir_swb_configs +=
-                        std::count_if(confs->begin(), confs->end(), [&](auto const& cfg) {
-                          return codec_manager->CheckCodecConfigIsDualBiDirSwb(*cfg);
-                        });
-              }
-              // In this case the chosen configuration doesn't matter - select none
-              return nullptr;
-            });
-    ASSERT_FALSE(got_null_cfgs_container);
+TEST_P(CodecManagerTest, test_dual_bidir_swb_not_supported) {
+  if (osi_property_get_bool(kPropLeAudioBidirSwbSupported, false)) {
+    // Skip if SWB enabled
+    GTEST_SKIP();
   }
 
-  // Make sure no dual bidir SWB configs were returned
-  ASSERT_EQ(0, num_of_dual_bidir_swb_configs);
-}
-
-TEST_F(CodecManagerTestAdspNoSwb, test_dual_bidir_swb_not_supported) {
   // Set the offloader capabilities
   std::vector<AudioSetConfiguration> offload_capabilities = {
           {
@@ -1536,7 +1595,14 @@ TEST_F(CodecManagerTestAdspNoSwb, test_dual_bidir_swb_not_supported) {
   ASSERT_EQ(0, num_of_dual_bidir_swb_configs);
 }
 
-TEST_F(CodecManagerTestHost, test_dont_update_broadcast_offloader) {
+TEST_P(CodecManagerTest, test_dont_update_broadcast_offloader) {
+  if (osi_property_get_bool(kPropLeAudioOffloadSupported, false)) {
+    // Skip if offload unsupported or disabled
+    if (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == false) {
+      GTEST_SKIP();
+    }
+  }
+
   const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference = {
           {.codec_type = bluetooth::le_audio::LE_AUDIO_CODEC_INDEX_SOURCE_LC3}};
   codec_manager->Start(offloading_preference);
@@ -1551,8 +1617,13 @@ TEST_F(CodecManagerTestHost, test_dont_update_broadcast_offloader) {
   ASSERT_FALSE(was_called);
 }
 
-TEST_F(CodecManagerTestHost, test_dont_call_hal_for_config) {
-  osi_property_set_bool(kPropLeAudioCodecExtensibility, true);
+TEST_P(CodecManagerTest, test_dont_call_hal_for_config) {
+  if (osi_property_get_bool(kPropLeAudioOffloadSupported, false)) {
+    // Skip if offload unsupported or disabled
+    if (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == false) {
+      GTEST_SKIP();
+    }
+  }
 
   // Set the offloader capabilities
   std::vector<AudioSetConfiguration> offload_capabilities;
@@ -1574,7 +1645,13 @@ TEST_F(CodecManagerTestHost, test_dont_call_hal_for_config) {
           });
 }
 
-TEST_F(CodecManagerTestAdsp, test_hal_client_set_unset) {
+TEST_P(CodecManagerTest, test_hal_client_set_unset) {
+  // Skip if offload unsupported or disabled
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    GTEST_SKIP();
+  }
+
   osi_property_set_bool(kPropLeAudioCodecExtensibility, true);
 
   // Set the offloader capabilities
@@ -1612,7 +1689,13 @@ TEST_F(CodecManagerTestAdsp, test_hal_client_set_unset) {
           });
 }
 
-TEST_F(CodecManagerTestAdsp, testStreamConfigurationVendor) {
+TEST_P(CodecManagerTest, testStreamConfigurationVendor) {
+  // Skip if offload unsupported or disabled
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    GTEST_SKIP();
+  }
+
   osi_property_set_bool(kPropLeAudioCodecExtensibility, true);
 
   const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference(0);
@@ -1786,7 +1869,13 @@ TEST_F(CodecManagerTestAdsp, testStreamConfigurationVendor) {
   }
 }
 
-TEST_F(CodecManagerTestAdsp, test_notify_hal_with_empty_cis_handles_unsupported) {
+TEST_P(CodecManagerTest, test_notify_hal_with_empty_cis_handles_unsupported) {
+  // Skip if offload unsupported or disabled
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    GTEST_SKIP();
+  }
+
   osi_property_set_bool(kPropLeAudioCodecExtensibility, true);
 
   // Set the offloader capabilities
@@ -1810,8 +1899,15 @@ TEST_F(CodecManagerTestAdsp, test_notify_hal_with_empty_cis_handles_unsupported)
   codec_manager->UpdateSelectedCodecConfig(lc3_config);
 }
 
-TEST_F(CodecManagerTestAdsp, test_notify_hal_with_empty_cis_handles) {
+TEST_P(CodecManagerTest, test_notify_hal_with_empty_cis_handles) {
+  // Skip if offload unsupported or disabled
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    GTEST_SKIP();
+  }
+
   osi_property_set_bool(kPropLeAudioCodecExtensibility, true);
+
   provider_info = bluetooth::le_audio::ProviderInfo({.isMulticodecSupported = true});
 
   // Set the offloader capabilities
@@ -1833,5 +1929,89 @@ TEST_F(CodecManagerTestAdsp, test_notify_hal_with_empty_cis_handles) {
   });
   codec_manager->UpdateSelectedCodecConfig(lc3_config);
 }
+
+TEST_P(CodecManagerTest, test_vendor_specific_codec_config) {
+  // Skip if offload unsupported or disabled
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    GTEST_SKIP();
+  }
+
+  osi_property_set_bool(kPropLeAudioCodecExtensibility, true);
+
+  provider_info = PrepareStackProviderInfo(true, true, false);
+
+  // Set the offloader capabilities
+  std::vector<AudioSetConfiguration> offload_capabilities;
+  set_mock_offload_capabilities(offload_capabilities);
+
+  const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference = {};
+  codec_manager->Start(offloading_preference);
+
+  auto local_capa = codec_manager->GetLocalAudioOutputCodecCapa();
+  bool is_vsc_supported = false;
+  for (auto& capa : local_capa) {
+    if (capa.codec_type == btle_audio_codec_index_t::LE_AUDIO_CODEC_INDEX_SOURCE_VENDOR_SPECIFIC) {
+      is_vsc_supported = true;
+      ASSERT_TRUE(kLeAudioCodecIdVendor_C0DE.getCodecIdRaw() == capa.codec_id);
+      break;
+    }
+  }
+  ASSERT_TRUE(is_vsc_supported);
+}
+
+TEST_P(CodecManagerTest, test_vendor_specific_codec_opus_config) {
+  // Skip if offload unsupported or disabled
+  if ((osi_property_get_bool(kPropLeAudioOffloadSupported, false) == false) ||
+      (osi_property_get_bool(kPropLeAudioOffloadDisabled, false) == true)) {
+    GTEST_SKIP();
+  }
+
+  osi_property_set_bool(kPropLeAudioCodecExtensibility, true);
+
+  provider_info = PrepareStackProviderInfo(true, true, true);
+
+  // Set the offloader capabilities
+  std::vector<AudioSetConfiguration> offload_capabilities;
+  set_mock_offload_capabilities(offload_capabilities);
+
+  const std::vector<bluetooth::le_audio::btle_audio_codec_config_t> offloading_preference = {};
+  codec_manager->Start(offloading_preference);
+
+  auto local_capa = codec_manager->GetLocalAudioOutputCodecCapa();
+  bool has_opus_high = false;
+  bool has_opus = false;
+  for (auto& capa : local_capa) {
+    switch (capa.codec_type) {
+      case btle_audio_codec_index_t::LE_AUDIO_CODEC_INDEX_SOURCE_OPUS:
+        has_opus = true;
+        break;
+      case btle_audio_codec_index_t::LE_AUDIO_CODEC_INDEX_SOURCE_OPUS_HI_RES:
+        has_opus_high = true;
+        break;
+      default:
+        continue;
+        break;
+    }
+  }
+
+  ASSERT_TRUE(has_opus_high);
+  ASSERT_TRUE(has_opus);
+}
+
+/*----------------- ADSP codec manager tests ------------------*/
+INSTANTIATE_TEST_CASE_P(CodecManagerTestAdsp, CodecManagerTest,
+                        ::testing::Values(std::vector<const char*>{kPropLeAudioOffloadSupported,
+                                                                   kPropLeAudioBidirSwbSupported}));
+
+INSTANTIATE_TEST_CASE_P(CodecManagerTestAdspNoSwb, CodecManagerTest,
+                        ::testing::Values(std::vector<const char*>{kPropLeAudioOffloadSupported}));
+
+/*----------------- HOST codec manager tests ------------------*/
+INSTANTIATE_TEST_CASE_P(CodecManagerHostTest, CodecManagerTest,
+                        ::testing::Values(std::vector<const char*>{kPropLeAudioBidirSwbSupported}));
+
+INSTANTIATE_TEST_CASE_P(CodecManagerTestHostNoSwb, CodecManagerTest,
+                        ::testing::Values(std::vector<const char*>{kPropLeAudioOffloadSupported}));
 
 }  // namespace bluetooth::le_audio

@@ -21,6 +21,8 @@
          of the location permissions. -->
     <bool name="strict_location_check">true</bool>
 
+    <!-- Default connection parameter is going to be deprecated in config.xml.
+         Please use system properties instead. -->
     <!-- Specifies the min/max connection interval parameters for high priority,
          balanced and low power GATT configurations. These values are in
          multiples of 1.25ms. -->
@@ -87,9 +89,6 @@
     <!-- If true, device requests audio focus and start avrcp updates on source start or play -->
     <bool name="a2dp_sink_automatically_request_audio_focus">false</bool>
 
-    <!-- For enabling the AVRCP Controller Cover Artwork feature -->
-    <bool name="avrcp_controller_enable_cover_art">true</bool>
-
     <!-- For enabling browsed cover art with the AVRCP Controller Cover Artwork feature -->
     <bool name="avrcp_controller_cover_art_browsed_images">false</bool>
 
@@ -113,7 +112,6 @@
     <integer name="a2dp_source_codec_priority_aptx">3001</integer>
     <integer name="a2dp_source_codec_priority_aptx_hd">4001</integer>
     <integer name="a2dp_source_codec_priority_ldac">5001</integer>
-    <integer name="a2dp_source_codec_priority_lc3">6001</integer>
 
     <!-- Package that is responsible for user interaction on pairing request,
          success or cancel.

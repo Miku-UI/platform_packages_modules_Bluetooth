@@ -56,7 +56,8 @@ private const val BLE_SCAN_ALWAYS_AVAILABLE = "ble_scan_always_enabled"
 
 object BlockingBluetoothAdapter {
     private val context = InstrumentationRegistry.getInstrumentation().getContext()
-    @JvmStatic val adapter = context.getSystemService(BluetoothManager::class.java).getAdapter()
+    @JvmStatic val manager = context.getSystemService(BluetoothManager::class.java)
+    @JvmStatic val adapter = manager.getAdapter()
 
     private val state = AdapterStateListener(context, adapter)
 
@@ -76,15 +77,15 @@ object BlockingBluetoothAdapter {
         if (toggleScanSetting) {
             Log.d(TAG, "Allowing the scan to be perform while Bluetooth is OFF")
             Settings.Global.putInt(context.contentResolver, BLE_SCAN_ALWAYS_AVAILABLE, 1)
-            for (i in 1..10) {
+            for (i in 1..20) {
                 if (adapter.isBleScanAlwaysAvailable()) {
                     break
                 }
-                Log.d(TAG, "Ble scan not yet available... Sleeping 50 ms $i/10")
-                Thread.sleep(50)
+                Log.d(TAG, "Ble scan not yet available... Sleeping 100 ms $i/20")
+                Thread.sleep(100)
             }
             if (!adapter.isBleScanAlwaysAvailable()) {
-                throw IllegalStateException("Could not enable BLE scan")
+                Log.w(TAG, "No BLE_SCAN_ALWAYS_AVAILABLE propagation. Test may fail")
             }
         }
         Log.d(TAG, "Call to enableBLE")

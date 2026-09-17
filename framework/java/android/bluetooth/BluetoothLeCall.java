@@ -17,6 +17,7 @@
 
 package android.bluetooth;
 
+import android.annotation.Hide;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.RequiresNoPermission;
@@ -29,11 +30,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * Representation of Call
- *
- * @hide
- */
+/** Representation of Call */
+@Hide
 public final class BluetoothLeCall implements Parcelable {
 
     @IntDef(
@@ -130,7 +128,6 @@ public final class BluetoothLeCall implements Parcelable {
 
     @Override
     public boolean equals(Object o) {
-
         if (this == o) return true;
 
         if (o == null || getClass() != o.getClass()) return false;

@@ -25,11 +25,9 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.os.UserHandle;
 import android.util.Log;
 
-import com.android.bluetooth.Utils;
-import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.Util;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -48,7 +46,7 @@ import java.util.Map;
  * is not connected with A2DP or HFP, it cannot enter silence mode.
  */
 public class SilenceDeviceManager {
-    private static final String TAG = Utils.BT_PREFIX + SilenceDeviceManager.class.getSimpleName();
+    private static final String TAG = Util.BT_PREFIX + SilenceDeviceManager.class.getSimpleName();
 
     private final AdapterService mAdapterService;
     private final Handler mHandler;
@@ -234,13 +232,7 @@ public class SilenceDeviceManager {
     private void broadcastSilenceStateChange(BluetoothDevice device) {
         Intent intent = new Intent(BluetoothDevice.ACTION_SILENCE_MODE_CHANGED);
         intent.putExtra(BluetoothDevice.EXTRA_DEVICE, device);
-        if (Flags.onlyBroadcastToLocalUser()) {
-            mAdapterService.sendBroadcast(
-                    intent, BLUETOOTH_CONNECT, Utils.getTempBroadcastBundle());
-        } else {
-            mAdapterService.sendBroadcastAsUser(
-                    intent, UserHandle.ALL, BLUETOOTH_CONNECT, Utils.getTempBroadcastBundle());
-        }
+        mAdapterService.sendBroadcast(intent, BLUETOOTH_CONNECT, Util.getTempBroadcastBundle());
     }
 
     boolean getSilenceMode(BluetoothDevice device) {

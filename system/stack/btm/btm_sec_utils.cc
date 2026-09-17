@@ -24,7 +24,7 @@
 #include "btif/include/btif_storage.h"
 #include "osi/include/properties.h"
 #include "stack/btm/btm_dev.h"
-#include "stack/btm/security_device_record.h"
+#include "stack/btm/btm_device_record.h"
 #include "stack/include/bt_dev_class.h"
 
 using namespace bluetooth;
@@ -56,26 +56,15 @@ bool handleUnexpectedEncryptionChange() {
  * Description      Save Secure Connections support for this device to file
  *
  ******************************************************************************/
-void btm_sec_store_device_sc_support(uint16_t hci_handle, bool host_secure_connections_supported,
-                                     bool controller_secure_connections_supported) {
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev_by_handle(hci_handle);
-  if (p_dev_rec == nullptr) {
+void btm_sec_store_device_sc_support(uint16_t hci_handle, bool host_sc_supported,
+                                     bool controller_sc_supported) {
+  const BtmDevice* p_device = btm_find_dev_by_handle(hci_handle);
+  if (p_device == nullptr) {
     return;
   }
 
-  uint8_t property_val = (uint8_t)host_secure_connections_supported;
-  bt_property_t property = {.type = BT_PROPERTY_REMOTE_HOST_SECURE_CONNECTIONS_SUPPORTED,
-                            .len = sizeof(uint8_t),
-                            .val = &property_val};
-
-  btif_storage_set_remote_device_property(&p_dev_rec->bd_addr, &property);
-
-  property_val = (uint8_t)controller_secure_connections_supported;
-  property = {.type = BT_PROPERTY_REMOTE_CONTROLLER_SECURE_CONNECTIONS_SUPPORTED,
-              .len = sizeof(uint8_t),
-              .val = &property_val};
-
-  btif_storage_set_remote_device_property(&p_dev_rec->bd_addr, &property);
+  btif_storage_set_remote_host_sc_support(p_device->bd_addr, host_sc_supported);
+  btif_storage_set_remote_controller_sc_support(p_device->bd_addr, controller_sc_supported);
 }
 
 /*******************************************************************************
@@ -89,51 +78,23 @@ void btm_sec_store_device_sc_support(uint16_t hci_handle, bool host_secure_conne
  * Returns          bool
  *
  ******************************************************************************/
-bool btm_sec_is_enc_algo_downgrade(uint16_t hci_handle, bool host_secure_connections_supported,
-                                   bool controller_secure_connections_supported) {
-  if (!com_android_bluetooth_flags_btsec_check_controller_sc_support()) {
+bool btm_sec_is_enc_algo_downgrade(uint16_t hci_handle, bool host_sc_supported,
+                                   bool controller_sc_supported) {
+
+  const BtmDevice* p_device = btm_find_dev_by_handle(hci_handle);
+  if (p_device == nullptr) {
     return false;
   }
 
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev_by_handle(hci_handle);
-  if (p_dev_rec == nullptr) {
-    return false;
-  }
+  bool cached_controller_support =
+          btif_storage_get_remote_controller_sc_support(p_device->bd_addr).value_or(false);
+  bool cached_host_support =
+          btif_storage_get_remote_host_sc_support(p_device->bd_addr).value_or(false);
 
-  // If this is a BR/EDR only device, we check only the controller support.
-  // Otherwise, we check both the controller and host support.
-  uint8_t controller_val = 0;
-  bt_property_t property = {.type = BT_PROPERTY_REMOTE_CONTROLLER_SECURE_CONNECTIONS_SUPPORTED,
-                            .len = sizeof(uint8_t),
-                            .val = &controller_val};
-
-  bt_status_t cached = btif_storage_get_remote_device_property(&p_dev_rec->bd_addr, &property);
-
-  // No cached value for this device, so it's a new device and we don't need to
-  // make the check.
-  if (cached == BT_STATUS_FAIL) {
-    return false;
-  }
-
-  uint8_t host_val = 0;
-
-  property = {.type = BT_PROPERTY_REMOTE_HOST_SECURE_CONNECTIONS_SUPPORTED,
-              .len = sizeof(uint8_t),
-              .val = &host_val};
-
-  cached = btif_storage_get_remote_device_property(&p_dev_rec->bd_addr, &property);
-
-  // No cached value for host -- in theory we should always have both or
-  // neither, but let's check this just in case.
-  if (cached == BT_STATUS_FAIL) {
-    return false;
-  }
-
-  // If both the host and controller properties are set to true, then we used
-  // AES-CCM previously.  If support for either one is false now, then we'd be
-  // using E0 and this is a downgrade.
-  if (controller_val && host_val) {
-    if (!host_secure_connections_supported || !controller_secure_connections_supported) {
+  // If both the host and controller properties are set to true, then we used AES-CCM previously.
+  // If support for either one is false now, then we'd be using E0 and this is a downgrade.
+  if (cached_controller_support && cached_host_support) {
+    if (!host_sc_supported || !controller_sc_supported) {
       return true;
     }
   }
@@ -153,8 +114,8 @@ bool btm_sec_is_enc_algo_downgrade(uint16_t hci_handle, bool host_secure_connect
  *
  ******************************************************************************/
 bool btm_sec_is_session_key_size_downgrade(uint16_t hci_handle, uint8_t key_size) {
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev_by_handle(hci_handle);
-  if (p_dev_rec == nullptr) {
+  const BtmDevice* p_device = btm_find_dev_by_handle(hci_handle);
+  if (p_device == nullptr) {
     return false;
   }
 
@@ -163,7 +124,7 @@ bool btm_sec_is_session_key_size_downgrade(uint16_t hci_handle, uint8_t key_size
                             .len = sizeof(uint8_t),
                             .val = &property_val};
 
-  bt_status_t cached = btif_storage_get_remote_device_property(&p_dev_rec->bd_addr, &property);
+  bt_status_t cached = btif_storage_get_remote_device_property(p_device->bd_addr, &property);
 
   if (cached == BT_STATUS_FAIL) {
     return false;
@@ -180,8 +141,8 @@ bool btm_sec_is_session_key_size_downgrade(uint16_t hci_handle, uint8_t key_size
  *
  ******************************************************************************/
 void btm_sec_update_session_key_size(uint16_t hci_handle, uint8_t key_size) {
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev_by_handle(hci_handle);
-  if (p_dev_rec == nullptr) {
+  const BtmDevice* p_device = btm_find_dev_by_handle(hci_handle);
+  if (p_device == nullptr) {
     return;
   }
 
@@ -190,7 +151,7 @@ void btm_sec_update_session_key_size(uint16_t hci_handle, uint8_t key_size) {
                             .len = sizeof(uint8_t),
                             .val = &property_val};
 
-  btif_storage_set_remote_device_property(&p_dev_rec->bd_addr, &property);
+  btif_storage_set_remote_device_property(p_device->bd_addr, &property);
 }
 
 /*******************************************************************************
@@ -202,8 +163,8 @@ void btm_sec_update_session_key_size(uint16_t hci_handle, uint8_t key_size) {
  * Returns          bool    true or false
  *
  ******************************************************************************/
-bool btm_dev_authenticated(const tBTM_SEC_DEV_REC* p_dev_rec) {
-  return p_dev_rec->sec_rec.sec_flags & BTM_SEC_AUTHENTICATED;
+bool btm_dev_authenticated(const BtmDevice* p_device) {
+  return p_device->sec_rec.sec_flags & BTM_SEC_AUTHENTICATED;
 }
 
 /*******************************************************************************
@@ -215,8 +176,8 @@ bool btm_dev_authenticated(const tBTM_SEC_DEV_REC* p_dev_rec) {
  * Returns          bool    true or false
  *
  ******************************************************************************/
-bool btm_dev_encrypted(const tBTM_SEC_DEV_REC* p_dev_rec) {
-  return p_dev_rec->sec_rec.sec_flags & BTM_SEC_ENCRYPTED;
+bool btm_dev_encrypted(const BtmDevice* p_device) {
+  return p_device->sec_rec.sec_flags & BTM_SEC_ENCRYPTED;
 }
 
 /*******************************************************************************
@@ -228,9 +189,9 @@ bool btm_dev_encrypted(const tBTM_SEC_DEV_REC* p_dev_rec) {
  * Returns          bool    true or false
  *
  ******************************************************************************/
-bool btm_dev_16_digit_authenticated(const tBTM_SEC_DEV_REC* p_dev_rec) {
+bool btm_dev_16_digit_authenticated(const BtmDevice* p_device) {
   // BTM_SEC_16_DIGIT_PIN_AUTHED is set if MITM or 16 digit pin is used
-  return p_dev_rec->sec_rec.sec_flags & BTM_SEC_16_DIGIT_PIN_AUTHED;
+  return p_device->sec_rec.sec_flags & BTM_SEC_16_DIGIT_PIN_AUTHED;
 }
 
 /*******************************************************************************
@@ -244,16 +205,16 @@ bool btm_dev_16_digit_authenticated(const tBTM_SEC_DEV_REC* p_dev_rec) {
  *                  false otherwise
  *
  ******************************************************************************/
-bool access_secure_service_from_temp_bond(const tBTM_SEC_DEV_REC* p_dev_rec, bool locally_initiated,
+bool access_secure_service_from_temp_bond(const BtmDevice* p_device, bool locally_initiated,
                                           uint16_t security_req) {
   return !locally_initiated && (security_req & BTM_SEC_IN_AUTHENTICATE) &&
-         p_dev_rec->sec_rec.is_bond_type_temporary();
+         p_device->sec_rec.is_bond_type_temporary();
 }
 
 bool BTM_CanReadDiscoverableCharacteristics(const RawAddress& bd_addr) {
-  auto p_dev_rec = btm_find_dev(bd_addr);
-  if (p_dev_rec != nullptr) {
-    return p_dev_rec->can_read_discoverable;
+  auto p_device = btm_find_dev(bd_addr);
+  if (p_device != nullptr) {
+    return p_device->can_read_discoverable;
   } else {
     log::error(
             "BTM_CanReadDiscoverableCharacteristics invoked for an invalid "
@@ -262,26 +223,26 @@ bool BTM_CanReadDiscoverableCharacteristics(const RawAddress& bd_addr) {
   }
 }
 
-// Return DEV_CLASS (uint8_t[3]) of bda. If record doesn't exist, create one.
+// Return DEV_CLASS (uint8_t[3]) of bda
 DEV_CLASS btm_get_dev_class(const RawAddress& bda) {
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_or_alloc_dev(bda);
+  const BtmDevice* p_device = btm_find_dev(bda);
 
-  if (p_dev_rec == nullptr) {
-    log::error("No memory to allocate new p_dev_rec");
+  if (p_device == nullptr) {
+    log::error("No record found for bda: {}", bda);
     return kDevClassEmpty;
   }
 
-  return p_dev_rec->dev_class;
+  return p_device->dev_class;
 }
 
 void BTM_update_version_info(const RawAddress& bd_addr,
                              const remote_version_info& remote_version_info) {
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
-  if (p_dev_rec == nullptr) {
+  BtmDevice* p_device = btm_get_dev(bd_addr);
+  if (p_device == nullptr) {
     return;
   }
 
-  p_dev_rec->remote_version_info = remote_version_info;
+  p_device->remote_version_info = remote_version_info;
 }
 
 /*******************************************************************************
@@ -318,4 +279,23 @@ const char* btm_pair_state_descr(tBTM_PAIRING_STATE state) {
   }
 
   return "???";
+}
+
+/*******************************************************************************
+ *
+ * Function         is_autonomous_repairing_supported
+ *
+ * Description      Return true if the autonomous repairing is supported.
+ *
+ ******************************************************************************/
+static bool autonomous_repairing_initiation = false;
+
+bool is_autonomous_repairing_supported() {
+  // TODO (b/440298497): Change this to flag and android check once the SDK check CL is in.
+  return autonomous_repairing_initiation;
+}
+
+void set_autonomous_repairing_supported(bool platform_support_autonomous_repairing_initiation) {
+  autonomous_repairing_initiation = com_android_bluetooth_flags_autonomous_repairing_initiation() &&
+                                    platform_support_autonomous_repairing_initiation;
 }

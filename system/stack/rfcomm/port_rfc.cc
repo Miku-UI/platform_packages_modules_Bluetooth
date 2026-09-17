@@ -33,9 +33,8 @@
 
 #include <cstdint>
 
+#include "bluetooth/metrics/bluetooth_event.h"
 #include "hal/snoop_logger.h"
-#include "internal_include/bt_target.h"
-#include "internal_include/bt_trace.h"
 #include "main/shim/entry.h"
 #include "osi/include/allocator.h"
 #include "osi/include/mutex.h"
@@ -65,7 +64,7 @@ static void port_get_credits(tPORT* p_port, uint8_t k);
  *
  ******************************************************************************/
 int port_open_continue(tPORT* p_port) {
-  log::verbose("port_open_continue, p_port:{}", std::format_ptr(p_port));
+  log::verbose("port_open_continue, port_handle:{}", p_port->handle);
 
   /* Check if multiplexer channel has already been established */
   tRFC_MCB* p_mcb = rfc_alloc_multiplexer_channel(p_port->bd_addr, true);
@@ -75,7 +74,7 @@ int port_open_continue(tPORT* p_port) {
     return PORT_NO_RESOURCES;
   }
 
-  p_port->rfc.p_mcb = p_mcb;
+  p_port->p_mcb = p_mcb;
 
   p_mcb->port_handles[p_port->dlci] = p_port->handle;
 
@@ -84,6 +83,8 @@ int port_open_continue(tPORT* p_port) {
 
   switch (p_mcb->state) {
     case RFC_MX_STATE_CONNECTED:
+      bluetooth::metrics::LogRfcommMxEvent(p_mcb->bd_addr,
+                                           bluetooth::metrics::State::ALREADY_CONNECTED);
       RFCOMM_ParameterNegotiationRequest(p_mcb, p_port->dlci, p_port->mtu);
       log::verbose("Multiplexer already connected peer:{} state:{} cid:{}", p_port->bd_addr,
                    p_mcb->state, p_mcb->lcid);
@@ -118,7 +119,7 @@ int port_open_continue(tPORT* p_port) {
  *
  ******************************************************************************/
 void port_start_control(tPORT* p_port) {
-  tRFC_MCB* p_mcb = p_port->rfc.p_mcb;
+  tRFC_MCB* p_mcb = p_port->p_mcb;
 
   if (p_mcb == nullptr) {
     return;
@@ -136,7 +137,7 @@ void port_start_control(tPORT* p_port) {
  *
  ******************************************************************************/
 void port_start_par_neg(tPORT* p_port) {
-  tRFC_MCB* p_mcb = p_port->rfc.p_mcb;
+  tRFC_MCB* p_mcb = p_port->p_mcb;
 
   if (p_mcb == nullptr) {
     return;
@@ -154,7 +155,7 @@ void port_start_par_neg(tPORT* p_port) {
  *
  ******************************************************************************/
 void port_start_close(tPORT* p_port) {
-  tRFC_MCB* p_mcb = p_port->rfc.p_mcb;
+  tRFC_MCB* p_mcb = p_port->p_mcb;
   uint8_t old_signals;
   uint32_t events = 0;
 
@@ -180,7 +181,7 @@ void port_start_close(tPORT* p_port) {
   }
 
   /* Check if RFCOMM side has been closed while the message was queued */
-  if ((p_mcb == nullptr) || (p_port->rfc.sm_cb.state == RFC_STATE_CLOSED)) {
+  if ((p_mcb == nullptr) || (p_port->sm_cb.state == RFC_STATE_CLOSED)) {
     /* Call management callback function before calling port_release_port() to
      * clear tPort */
     if (p_port->p_mgmt_callback) {
@@ -211,18 +212,16 @@ void PORT_StartCnf(tRFC_MCB* p_mcb, uint16_t result) {
 
   tPORT* p_port = &rfc_cb.port.port[0];
   for (int i = 0; i < MAX_RFC_PORTS; i++, p_port++) {
-    if (p_port->rfc.p_mcb == p_mcb) {
+    if (p_port->p_mcb == p_mcb) {
       no_ports_up = false;
 
       if (result == RFCOMM_SUCCESS) {
         log::verbose("dlci {}", p_port->dlci);
+        bluetooth::metrics::LogRfcommMxEvent(p_mcb->bd_addr,
+                                             bluetooth::metrics::State::STATE_CONNECTED);
         RFCOMM_ParameterNegotiationRequest(p_mcb, p_port->dlci, p_port->mtu);
       } else {
         log::warn("Unable start configuration dlci:{} result:{}", p_port->dlci, result);
-
-        if (!com_android_bluetooth_flags_fix_socket_connection_failed_no_callback()) {
-          rfc_release_multiplexer_channel(p_mcb);
-        }
 
         /* Send event to the application */
         if (p_port->p_callback && (p_port->ev_mask & PORT_EV_CONNECT_ERR)) {
@@ -238,22 +237,14 @@ void PORT_StartCnf(tRFC_MCB* p_mcb, uint16_t result) {
     }
   }
 
-  if (com_android_bluetooth_flags_fix_socket_connection_failed_no_callback()) {
-    /* There can be a situation when after starting connection, user closes the */
-    /* port, we can catch it here to close multiplexor channel */
-    if (no_ports_up) {
-      rfc_check_mcb_active(p_mcb);
-    } else if (result != RFCOMM_SUCCESS) {
-      /* If we failed to start rfcomm socket connection, */
-      /* we should release multiplexor channel with p_mcb */
-      rfc_release_multiplexer_channel(p_mcb);
-    }
-  } else {
-    /* There can be a situation when after starting connection, user closes the */
-    /* port, we can catch it here to close multiplexor channel */
-    if (no_ports_up) {
-      rfc_check_mcb_active(p_mcb);
-    }
+  /* There can be a situation when after starting connection, user closes the */
+  /* port, we can catch it here to close multiplexor channel */
+  if (no_ports_up) {
+    rfc_check_mcb_active(p_mcb);
+  } else if (result != RFCOMM_SUCCESS) {
+    /* If we failed to start rfcomm socket connection, */
+    /* we should release multiplexor channel with p_mcb */
+    rfc_release_multiplexer_channel(p_mcb);
   }
 }
 
@@ -275,7 +266,7 @@ void PORT_StartInd(tRFC_MCB* p_mcb) {
 
   p_port = &rfc_cb.port.port[0];
   for (i = 0; i < MAX_RFC_PORTS; i++, p_port++) {
-    if ((p_port->rfc.p_mcb == nullptr) || (p_port->rfc.p_mcb == p_mcb)) {
+    if ((p_port->p_mcb == nullptr) || (p_port->p_mcb == p_mcb)) {
       log::verbose("PORT_StartInd, RFCOMM_StartRsp RFCOMM_SUCCESS: p_mcb:{}",
                    std::format_ptr(p_mcb));
       RFCOMM_StartRsp(p_mcb, RFCOMM_SUCCESS);
@@ -320,7 +311,7 @@ void PORT_ParNegInd(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint8_t cl, uin
   /* Connection is up and we know local and remote features, select MTU */
   port_select_mtu(p_port);
 
-  p_port->rfc.p_mcb = p_mcb;
+  p_port->p_mcb = p_mcb;
   p_port->mtu = (p_port->mtu < mtu) ? p_port->mtu : mtu;
   p_port->peer_mtu = p_port->mtu;
 
@@ -381,7 +372,7 @@ void PORT_ParNegInd(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint8_t cl, uin
  *
  ******************************************************************************/
 void PORT_ParNegCnf(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint8_t cl, uint8_t k) {
-  log::verbose("PORT_ParNegCnf dlci:{} mtu:{} cl: {} k: {}", dlci, mtu, cl, k);
+  log::verbose("PORT_ParNegCnf dlci:{} mtu:{} cl:{} k:{}", dlci, mtu, cl, k);
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
   if (p_port == nullptr) {
     log::warn("port is null for {}", p_mcb->bd_addr);
@@ -432,8 +423,8 @@ void PORT_ParNegCnf(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint8_t cl, uin
 void PORT_DlcEstablishInd(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu) {
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, dlci);
 
-  log::verbose("p_mcb:{}, dlci:{} mtu:{}i, p_port:{}, bd_addr:{}", std::format_ptr(p_mcb), dlci,
-               mtu, std::format_ptr(p_port), p_mcb->bd_addr);
+  log::verbose("p_mcb:{}, dlci:{}, mtu:{}, port_handle:{}, bd_addr:{}", std::format_ptr(p_mcb),
+               dlci, mtu, p_port->handle, p_mcb->bd_addr);
 
   if (p_port == nullptr) {
     /* This can be a first request for this port */
@@ -461,17 +452,10 @@ void PORT_DlcEstablishInd(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu) {
     (p_port->p_callback)(PORT_EV_CONNECTED, p_port->handle);
   }
 
-  if (com_android_bluetooth_flags_indicate_rfcomm_connection_complete_after_msc()) {
-    if (p_port->rfc_cfg_info.data_path != BTSOCK_DATA_PATH_HARDWARE_OFFLOAD &&
-        p_port->p_mgmt_callback) {
-      p_port->p_mgmt_callback(PORT_SUCCESS, p_port->handle);
-      bluetooth::metrics::Counter(bluetooth::metrics::CounterKey::RFCOMM_CONNECTION_SUCCESS_IND);
-    }
-  } else {
-    if (p_port->p_mgmt_callback) {
-      p_port->p_mgmt_callback(PORT_SUCCESS, p_port->handle);
-      bluetooth::metrics::Counter(bluetooth::metrics::CounterKey::RFCOMM_CONNECTION_SUCCESS_IND);
-    }
+  if (p_port->rfc_cfg_info.data_path != BTSOCK_DATA_PATH_HARDWARE_OFFLOAD &&
+      p_port->p_mgmt_callback) {
+    p_port->p_mgmt_callback(PORT_SUCCESS, p_port->handle);
+    bluetooth::metrics::Counter(bluetooth::metrics::CounterKey::RFCOMM_CONNECTION_SUCCESS_IND);
   }
 
   p_port->state = PORT_CONNECTION_STATE_OPENED;
@@ -516,17 +500,10 @@ void PORT_DlcEstablishCnf(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint16_t 
     (p_port->p_callback)(PORT_EV_CONNECTED, p_port->handle);
   }
 
-  if (com_android_bluetooth_flags_indicate_rfcomm_connection_complete_after_msc()) {
-    if (p_port->rfc_cfg_info.data_path != BTSOCK_DATA_PATH_HARDWARE_OFFLOAD &&
-        p_port->p_mgmt_callback) {
-      p_port->p_mgmt_callback(PORT_SUCCESS, p_port->handle);
-      bluetooth::metrics::Counter(bluetooth::metrics::CounterKey::RFCOMM_CONNECTION_SUCCESS_CNF);
-    }
-  } else {
-    if (p_port->p_mgmt_callback) {
-      p_port->p_mgmt_callback(PORT_SUCCESS, p_port->handle);
-      bluetooth::metrics::Counter(bluetooth::metrics::CounterKey::RFCOMM_CONNECTION_SUCCESS_CNF);
-    }
+  if (p_port->rfc_cfg_info.data_path != BTSOCK_DATA_PATH_HARDWARE_OFFLOAD &&
+      p_port->p_mgmt_callback) {
+    p_port->p_mgmt_callback(PORT_SUCCESS, p_port->handle);
+    bluetooth::metrics::Counter(bluetooth::metrics::CounterKey::RFCOMM_CONNECTION_SUCCESS_CNF);
   }
 
   p_port->state = PORT_CONNECTION_STATE_OPENED;
@@ -534,9 +511,9 @@ void PORT_DlcEstablishCnf(tRFC_MCB* p_mcb, uint8_t dlci, uint16_t mtu, uint16_t 
   /* RPN is required only if we want to tell DTE how the port should be opened
    */
   if ((p_port->uuid == UUID_SERVCLASS_DIALUP_NETWORKING) || (p_port->uuid == UUID_SERVCLASS_FAX)) {
-    RFCOMM_PortParameterNegotiationRequest(p_port->rfc.p_mcb, p_port->dlci, nullptr);
+    RFCOMM_PortParameterNegotiationRequest(p_port->p_mcb, p_port->dlci, nullptr);
   } else {
-    RFCOMM_ControlReq(p_port->rfc.p_mcb, p_port->dlci, &p_port->local_ctrl);
+    RFCOMM_ControlReq(p_port->p_mcb, p_port->dlci, &p_port->local_ctrl);
   }
 }
 
@@ -600,7 +577,7 @@ void PORT_PortNegCnf(tRFC_MCB* p_mcb, uint8_t dlci, PortSettings* /* p_settings 
   }
 
   if (!(p_port->port_ctrl & PORT_CTRL_REQ_SENT)) {
-    RFCOMM_ControlReq(p_port->rfc.p_mcb, p_port->dlci, &p_port->local_ctrl);
+    RFCOMM_ControlReq(p_port->p_mcb, p_port->dlci, &p_port->local_ctrl);
   } else {
     log::warn("PORT_PortNegCnf Control Already sent");
   }
@@ -633,7 +610,7 @@ void PORT_ControlInd(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_CTRL* p_pars) {
   p_port->peer_ctrl = *p_pars;
 
   if (!(p_port->port_ctrl & PORT_CTRL_REQ_SENT)) {
-    RFCOMM_ControlReq(p_port->rfc.p_mcb, p_port->dlci, &p_port->local_ctrl);
+    RFCOMM_ControlReq(p_port->p_mcb, p_port->dlci, &p_port->local_ctrl);
   } else {
     /* If this is the first time we received control RFCOMM is connected */
     if (!(p_port->port_ctrl & PORT_CTRL_IND_RECEIVED)) {
@@ -663,12 +640,10 @@ void PORT_ControlInd(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_CTRL* p_pars) {
                (p_port->peer_ctrl.modem_signal & MODEM_SIGNAL_RI) ? 1 : 0,
                (p_port->peer_ctrl.modem_signal & MODEM_SIGNAL_DCD) ? 1 : 0);
 
-  if (com_android_bluetooth_flags_indicate_rfcomm_connection_complete_after_msc()) {
-    if (p_port->rfc_cfg_info.data_path == BTSOCK_DATA_PATH_HARDWARE_OFFLOAD) {
-      if (p_port->port_ctrl == PORT_CTRL_SETUP_COMPLETED && p_port->p_mgmt_callback) {
-        p_port->p_mgmt_callback(PORT_SUCCESS, p_port->handle);
-        bluetooth::metrics::Counter(bluetooth::metrics::CounterKey::RFCOMM_CONNECTION_SUCCESS_IND);
-      }
+  if (p_port->rfc_cfg_info.data_path == BTSOCK_DATA_PATH_HARDWARE_OFFLOAD) {
+    if (p_port->port_ctrl == PORT_CTRL_SETUP_COMPLETED && p_port->p_mgmt_callback) {
+      p_port->p_mgmt_callback(PORT_SUCCESS, p_port->handle);
+      bluetooth::metrics::Counter(bluetooth::metrics::CounterKey::RFCOMM_CONNECTION_SUCCESS_IND);
     }
   }
 }
@@ -710,12 +685,10 @@ void PORT_ControlCnf(tRFC_MCB* p_mcb, uint8_t dlci, tPORT_CTRL* /* p_pars */) {
     (p_port->p_callback)(event, p_port->handle);
   }
 
-  if (com_android_bluetooth_flags_indicate_rfcomm_connection_complete_after_msc()) {
-    if (p_port->rfc_cfg_info.data_path == BTSOCK_DATA_PATH_HARDWARE_OFFLOAD) {
-      if (p_port->port_ctrl == PORT_CTRL_SETUP_COMPLETED && p_port->p_mgmt_callback) {
-        p_port->p_mgmt_callback(PORT_SUCCESS, p_port->handle);
-        bluetooth::metrics::Counter(bluetooth::metrics::CounterKey::RFCOMM_CONNECTION_SUCCESS_CNF);
-      }
+  if (p_port->rfc_cfg_info.data_path == BTSOCK_DATA_PATH_HARDWARE_OFFLOAD) {
+    if (p_port->port_ctrl == PORT_CTRL_SETUP_COMPLETED && p_port->p_mgmt_callback) {
+      p_port->p_mgmt_callback(PORT_SUCCESS, p_port->handle);
+      bluetooth::metrics::Counter(bluetooth::metrics::CounterKey::RFCOMM_CONNECTION_SUCCESS_CNF);
     }
   }
 }
@@ -793,7 +766,7 @@ void PORT_CloseInd(tRFC_MCB* p_mcb) {
 
   p_port = &rfc_cb.port.port[0];
   for (i = 0; i < MAX_RFC_PORTS; i++, p_port++) {
-    if (p_port->rfc.p_mcb == p_mcb) {
+    if (p_port->p_mcb == p_mcb) {
       port_rfc_closed(p_port, PORT_PEER_CONNECTION_FAILED);
       bluetooth::metrics::Counter(
               bluetooth::metrics::CounterKey::RFCOMM_PORT_PEER_CONNECTION_FAILED);
@@ -818,7 +791,7 @@ void PORT_TimeOutCloseMux(tRFC_MCB* p_mcb) {
 
   p_port = &rfc_cb.port.port[0];
   for (i = 0; i < MAX_RFC_PORTS; i++, p_port++) {
-    if (p_port->rfc.p_mcb == p_mcb) {
+    if (p_port->p_mcb == p_mcb) {
       port_rfc_closed(p_port, PORT_PEER_TIMEOUT);
       bluetooth::metrics::Counter(bluetooth::metrics::CounterKey::RFCOMM_PORT_PEER_TIMEOUT);
     }
@@ -840,8 +813,8 @@ void PORT_DataInd(tRFC_MCB* p_mcb, uint8_t dlci, BT_HDR* p_buf) {
   uint8_t* p;
   int i;
 
-  log::verbose("PORT_DataInd with data length {}, p_mcb:{},p_port:{},dlci:{}", p_buf->len,
-               std::format_ptr(p_mcb), std::format_ptr(p_port), dlci);
+  log::verbose("PORT_DataInd with data length {}, p_mcb:{}, port_handle:{}, dlci:{}", p_buf->len,
+               std::format_ptr(p_mcb), p_port->handle, dlci);
   if (p_port == nullptr) {
     log::warn("port is null for {}", p_mcb->bd_addr);
     osi_free(p_buf);
@@ -871,7 +844,8 @@ void PORT_DataInd(tRFC_MCB* p_mcb, uint8_t dlci, BT_HDR* p_buf) {
   /* Check if rx queue exceeds the limit */
   if ((p_port->rx.queue_size + p_buf->len > PORT_RX_CRITICAL_WM) ||
       (fixed_queue_length(p_port->rx.queue) + 1 > p_port->rx_buf_critical)) {
-    log::verbose("PORT_DataInd. Buffer over run. Dropping the buffer");
+    log::verbose("PORT_DataInd. Buffer over run. Dropping the buffer, queue_size={}, "
+                 "rx_buf_critical={}", p_port->rx.queue_size, p_port->rx_buf_critical);
     osi_free(p_buf);
     RFCOMM_LineStatusReq(p_mcb, dlci, LINE_STATUS_OVERRUN);
     return;
@@ -946,8 +920,8 @@ void PORT_FlowInd(tRFC_MCB* p_mcb, uint8_t dlci, bool enable_data) {
     /* If DLCI is 0 event applies to all ports */
     if (dlci == 0) {
       p_port = &rfc_cb.port.port[i];
-      if (!p_port->in_use || (p_port->rfc.p_mcb != p_mcb) ||
-          (p_port->rfc.sm_cb.state != RFC_STATE_OPENED)) {
+      if (!p_port->in_use || (p_port->p_mcb != p_mcb) ||
+          (p_port->sm_cb.state != RFC_STATE_OPENED)) {
         continue;
       }
     }
@@ -963,7 +937,7 @@ void PORT_FlowInd(tRFC_MCB* p_mcb, uint8_t dlci, bool enable_data) {
     events &= p_port->ev_mask;
 
     /* Send event to the application */
-    if (p_port->p_callback && events) {
+    if (p_port->p_callback != nullptr && events) {
       (p_port->p_callback)(events, p_port->handle);
     }
 
@@ -988,7 +962,7 @@ static uint32_t port_rfc_send_tx_data(tPORT* p_port) {
   /* if there is data to be sent */
   if (p_port->tx.queue_size > 0) {
     /* while the rfcomm peer is not flow controlling us, and peer is ready */
-    while (!p_port->tx.peer_fc && p_port->rfc.p_mcb && p_port->rfc.p_mcb->peer_ready) {
+    while (!p_port->tx.peer_fc && p_port->p_mcb && p_port->p_mcb->peer_ready) {
       /* get data from tx queue and send it */
       mutex_global_lock();
 
@@ -1000,7 +974,7 @@ static uint32_t port_rfc_send_tx_data(tPORT* p_port) {
 
         log::verbose("Sending RFCOMM_DataReq tx.queue_size={}", p_port->tx.queue_size);
 
-        if (RFCOMM_DataReq(p_port->rfc.p_mcb, p_port->dlci, p_buf) != PORT_SUCCESS) {
+        if (RFCOMM_DataReq(p_port->p_mcb, p_port->dlci, p_buf) != PORT_SUCCESS) {
           log::warn("RFCOMM_DataReq failed");
           break;
         }
@@ -1035,7 +1009,7 @@ static uint32_t port_rfc_send_tx_data(tPORT* p_port) {
 void port_rfc_closed(tPORT* p_port, uint8_t res) {
   uint8_t old_signals;
   uint32_t events = 0;
-  tRFC_MCB* p_mcb = p_port->rfc.p_mcb;
+  tRFC_MCB* p_mcb = p_port->p_mcb;
 
   if ((p_port->state == PORT_CONNECTION_STATE_OPENING) && (p_port->is_server)) {
     /* The server side was not informed that connection is up, ignore */
@@ -1049,7 +1023,7 @@ void port_rfc_closed(tPORT* p_port, uint8_t res) {
 
       /* If there are no more ports opened on this MCB release it */
       rfc_check_mcb_active(p_mcb);
-      p_port->rfc.p_mcb = nullptr;
+      p_port->p_mcb = nullptr;
     }
 
     /* Need to restore DLCI to listening state
@@ -1101,12 +1075,12 @@ void port_rfc_closed(tPORT* p_port, uint8_t res) {
   }
 
   rfc_set_state(RFC_STATE_CLOSED, p_port);
-  p_port->rfc.sm_cb.close_reason = static_cast<tPORT_RESULT>(res);
+  p_port->sm_cb.close_reason = static_cast<tPORT_RESULT>(res);
   port_collect_attempt_metrics(p_port);
   log::info(
-          "RFCOMM connection closed, port_handle={}, state={}, reason={}[{}], "
+          "RFCOMM connection closed, port_handle={}, state={}, reason={}, "
           "UUID=0x{:x}, bd_addr={}, is_server={}",
-          p_port->handle, p_port->state, PORT_GetResultString(res), res, p_port->uuid,
+          p_port->handle, p_port->state, port_result_text(p_port->sm_cb.close_reason), p_port->uuid,
           p_port->bd_addr, p_port->is_server);
 
   port_release_port(p_port);

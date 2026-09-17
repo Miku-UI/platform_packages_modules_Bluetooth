@@ -16,13 +16,14 @@
 
 #include "topshim/le_audio/le_audio_shim.h"
 
+#include <audio_hal_interface/le_audio_software_host.h>
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
+#include <bta/le_audio/le_audio_types.h>
 #include <hardware/bluetooth.h>
 
 #include <vector>
 
-#include "bta/le_audio/le_audio_types.h"
 #include "src/profiles/le_audio.rs.h"
 
 namespace rusty = ::bluetooth::topshim::rust;
@@ -145,7 +146,7 @@ static BtLeAudioUnicastMonitorModeStatus to_rust_btle_audio_unicast_monitor_mode
       return BtLeAudioUnicastMonitorModeStatus::StreamingRequested;
     case le_audio::UnicastMonitorModeStatus::STREAMING:
       return BtLeAudioUnicastMonitorModeStatus::Streaming;
-    case le_audio::UnicastMonitorModeStatus::STREAMING_SUSPENDED:
+    case le_audio::UnicastMonitorModeStatus::SUSPENDED:
       return BtLeAudioUnicastMonitorModeStatus::StreamingSuspended;
     default:
       log::assert_that(false, "Unhandled enum value from C++");
@@ -414,21 +415,20 @@ void LeAudioClientIntf::send_audio_profile_preferences(int group_id,
                                             is_duplex_preference_le_audio);
 }
 
-void LeAudioClientIntf::set_unicast_monitor_mode(BtLeAudioDirection direction, bool enable) {
-  return intf_->SetUnicastMonitorMode(internal::from_rust_btle_audio_direction(direction), enable);
+void LeAudioClientIntf::set_unicast_monitor_mode(BtLeAudioDirection local_directions, bool enable) {
+  return intf_->SetUnicastMonitorMode(internal::from_rust_btle_audio_direction(local_directions),
+                                      enable);
 }
 
-std::unique_ptr<LeAudioClientIntf> GetLeAudioClientProfile(const unsigned char* btif) {
+std::unique_ptr<LeAudioClientIntf> GetLeAudioClientProfile(const BtIntf& intf) {
   if (internal::g_lea_client_if) {
     std::abort();
   }
 
-  const bt_interface_t* btif_ = reinterpret_cast<const bt_interface_t*>(btif);
-
   auto lea_client_if =
           std::make_unique<LeAudioClientIntf>(const_cast<le_audio::LeAudioClientInterface*>(
                   reinterpret_cast<const le_audio::LeAudioClientInterface*>(
-                          btif_->get_profile_interface("le_audio"))));
+                          intf.get_profile_interface(BT_PROFILE_LE_AUDIO_ID))));
 
   internal::g_lea_client_if = lea_client_if.get();
 

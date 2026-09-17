@@ -1,0 +1,22 @@
+package: "com.android.bluetooth.flags"
+container: "com.android.bt"
+
+flag {
+    name: "use_cached_clock_offset"
+    namespace: "bluetooth"
+    description: "Use cached clock offset for BR/EDR connection requests and RNRs"
+    bug: "471239086"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "role_contention_policy"
+    namespace: "bluetooth"
+    description: "Improves role contention policy"
+    bug: "472561734"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

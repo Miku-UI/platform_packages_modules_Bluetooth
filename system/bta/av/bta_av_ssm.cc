@@ -26,6 +26,7 @@
 
 #include <bluetooth/log.h>
 #include <bluetooth/metrics/bluetooth_event.h>
+#include <com_android_bluetooth_flags.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -301,6 +302,9 @@ void bta_av_ssm_execute(tBTA_AV_SCB* p_scb, uint16_t event, tBTA_AV_DATA* p_data
         case BTA_AV_SDP_DISC_FAIL_EVT:
           event_handler1 = &bta_av_free_sdb;
           break;
+        case BTA_AV_STR_DISC_OK_EVT:
+          event_handler1 = &bta_av_disc_res_as_acp;
+          break;
         case BTA_AV_STR_GETCAP_OK_EVT:
           event_handler1 = &bta_av_save_caps;
           break;
@@ -423,12 +427,22 @@ void bta_av_ssm_execute(tBTA_AV_SCB* p_scb, uint16_t event, tBTA_AV_DATA* p_data
           event_handler1 = &bta_av_disconnect_req;
           break;
         case BTA_AV_SDP_DISC_OK_EVT:
-          p_scb->state = BTA_AV_INIT_SST;
-          event_handler1 = &bta_av_sdp_failed;
+          if (com_android_bluetooth_flags_cleanup_avdt_on_sdp_result_when_closing()) {
+            event_handler1 = &bta_av_sdp_failed;
+            event_handler2 = &bta_av_disconnect_req;
+          } else {
+            p_scb->state = BTA_AV_INIT_SST;
+            event_handler1 = &bta_av_sdp_failed;
+          }
           break;
         case BTA_AV_SDP_DISC_FAIL_EVT:
-          p_scb->state = BTA_AV_INIT_SST;
-          event_handler1 = &bta_av_sdp_failed;
+          if (com_android_bluetooth_flags_cleanup_avdt_on_sdp_result_when_closing()) {
+            event_handler1 = &bta_av_sdp_failed;
+            event_handler2 = &bta_av_disconnect_req;
+          } else {
+            p_scb->state = BTA_AV_INIT_SST;
+            event_handler1 = &bta_av_sdp_failed;
+          }
           break;
         case BTA_AV_STR_OPEN_OK_EVT:
           event_handler1 = &bta_av_do_close;
@@ -465,6 +479,10 @@ void bta_av_ssm_execute(tBTA_AV_SCB* p_scb, uint16_t event, tBTA_AV_DATA* p_data
               bta_av_evt_code(event), previous_state, bta_av_sst_code(previous_state), p_scb->state,
               bta_av_sst_code(p_scb->state));
 
+  } else if (event != BTA_AV_SRC_DATA_READY_EVT && event != BTA_AV_STR_WRITE_CFM_EVT) {
+    log::debug("peer {} p_scb={:#x}({}) AV event=0x{:x}({}) state={}({})", p_scb->PeerAddress(),
+               p_scb->hndl, std::format_ptr(p_scb), event, bta_av_evt_code(event), p_scb->state,
+               bta_av_sst_code(p_scb->state));
   } else {
     log::verbose("peer {} p_scb={:#x}({}) AV event=0x{:x}({}) state={}({})", p_scb->PeerAddress(),
                  p_scb->hndl, std::format_ptr(p_scb), event, bta_av_evt_code(event), p_scb->state,
@@ -544,9 +562,9 @@ void bta_av_set_scb_sst_init(tBTA_AV_SCB* p_scb) {
 
   uint8_t next_state = BTA_AV_INIT_SST;
 
-  log::verbose("peer {} AV (hndl=0x{:x}) state={}({}) next state={}({}) p_scb={}",
-               p_scb->PeerAddress(), p_scb->hndl, p_scb->state, bta_av_sst_code(p_scb->state),
-               next_state, bta_av_sst_code(next_state), std::format_ptr(p_scb));
+  log::debug("peer {} AV (hndl=0x{:x}) state={}({}) next state={}({}) p_scb={}",
+             p_scb->PeerAddress(), p_scb->hndl, p_scb->state, bta_av_sst_code(p_scb->state),
+             next_state, bta_av_sst_code(next_state), std::format_ptr(p_scb));
 
   p_scb->state = next_state;
 }

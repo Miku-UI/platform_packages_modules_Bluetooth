@@ -234,14 +234,6 @@ public:
                     const uint8_t* p_codec_info, bool* p_no_rtp_header);
 
   /**
-   * Process AVDTP Stop when the audio data streaming is stopped.
-   *
-   * @param bta_av_handle the BTA AV handle to identify the peer
-   * @param peer_address the peer address
-   */
-  void ProcessStop(tBTA_AV_HNDL bta_av_handle, const RawAddress& peer_address);
-
-  /**
    * Get the next encoded audio data packet to send.
    *
    * @param p_codec_info the codec configuration
@@ -358,6 +350,14 @@ public:
    * @return true on success, otherwise false
    */
   bool ReportSourceCodecState(BtaAvCoPeer* p_peer);
+
+  /**
+   * Report the source codec state for a peer
+   *
+   * @param peer_address the peer address to report
+   * @return true on success, otherwise false
+   */
+  bool ReportSourceCodecState(const RawAddress& peer_address);
 
   /**
    * Report the sink codec state for a peer

@@ -17,9 +17,11 @@
 #include "hci/distance_measurement_manager_impl.h"
 
 #include <bluetooth/log.h>
+#include <bluetooth/types/string_helpers.h>
 #include <com_android_bluetooth_flags.h>
 #include <frameworks/proto_logging/stats/enums/bluetooth/enums.pb.h>
 #include <math.h>
+#include <utils/SystemClock.h>
 
 #include <chrono>
 #include <complex>
@@ -27,7 +29,6 @@
 
 #include "acl_manager/assembler.h"
 #include "channel_sounding/cs_metrics.h"
-#include "common/strings.h"
 #include "hal/ranging_hal.h"
 #include "hci/acl_manager/acl_manager_le.h"
 #include "hci/controller.h"
@@ -55,6 +56,8 @@ static constexpr int kInvalidAzimuthAngleDegree = -1;
 static constexpr int kInvalidAltitudeAngleDegree = -91;
 static constexpr double kInvalidDelayedSpreadMeters = -1.0;
 static constexpr int8_t kInvalidConfidenceLevel = -1;
+static constexpr int8_t kInvalidRemoteTxPower = 127;
+static constexpr int8_t kInvalidRssi = 127;
 static constexpr double kInvalidVelocityMetersPerSecond = -1.0;
 static constexpr uint16_t kIllegalConnectionHandle = 0xffff;
 static constexpr uint8_t kTxPowerNotAvailable = 0xfe;
@@ -81,8 +84,11 @@ static constexpr uint8_t kInvalidConfigId = 0xFF;
 static constexpr uint8_t kMinConfigId = 0;
 static constexpr uint8_t kMaxConfigId = 3;
 static constexpr uint16_t kDefaultIntervalMs = 1000;  // 1s
+static constexpr uint8_t kMaxRetryCounterForReadRemoteCapability = 0x03;
 static constexpr uint8_t kMaxRetryCounterForCreateConfig = 0x03;
+static constexpr uint8_t kMaxRetryCounterForSetProcedureParameter = 0x0a;
 static constexpr uint8_t kMaxRetryCounterForCsEnable = 0x03;
+static constexpr uint16_t kCommandRetryIntervalMs = 300;  // 300 ms
 static constexpr uint16_t kInvalidConnInterval = 0;  // valid value is from 0x0006 to 0x0C80
 static constexpr uint16_t kDefaultRasMtu = 247;      // Section 3.1.2 of RAP 1.0
 static constexpr uint8_t kAttHeaderSize = 5;         // Section 3.2.2.1 of RAS 1.0
@@ -115,6 +121,8 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
       ranging_header_.ranging_counter_ = counter;
       ranging_header_.configuration_id_ = configuration_id;
       ranging_header_.selected_tx_power_ = selected_tx_power;
+      // Updated to 'Previously used' per Erratum 26610; kept original logic for backward
+      // compatibility
       ranging_header_.antenna_paths_mask_ = 0;
       for (uint8_t i = 0; i < num_antenna_paths; i++) {
         ranging_header_.antenna_paths_mask_ |= (1 << i);
@@ -144,7 +152,6 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
     std::vector<int8_t> packet_quality_reflector;
     std::vector<int16_t> toa_tod_initiators;
     std::vector<int16_t> tod_toa_reflectors;
-    std::vector<int8_t> rssi_initiator;
     std::vector<int8_t> rssi_reflector;
     bool contains_sounding_sequence_local_;
     bool contains_sounding_sequence_remote_;
@@ -198,7 +205,9 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
     bool measurement_ongoing = false;
     bool ras_connected = false;
     bool setup_complete = false;
+    uint8_t retry_counter_for_read_remote_capability = 0;
     uint8_t retry_counter_for_create_config = 0;
+    uint8_t retry_counter_for_set_procedure_parameter = 0;
     uint8_t retry_counter_for_cs_enable = 0;
     uint16_t n_procedure_count = 0;
     CsMainModeType main_mode_type = CsMainModeType::MODE_2;
@@ -207,6 +216,7 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
     bool remote_support_phase_based_ranging = false;
     uint8_t remote_num_antennas_supported_ = 0x01;
     uint8_t remote_supported_sw_time_ = 0;
+    uint8_t remote_max_antenna_paths_supported_ = 0x01;
     // sending from host to controller with CS config command, request the controller to use it.
     uint8_t requesting_config_id = kInvalidConfigId;
     // received from controller to host with CS config complete event, it will be used
@@ -218,6 +228,8 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
     uint16_t max_procedure_count = 1;
     bool waiting_for_start_callback = false;
     std::unique_ptr<os::Alarm> procedure_schedule_guard_alarm = nullptr;
+    int reflector_rssi_sum = 0;
+    int reflector_rssi_count = 0;
     // RAS data
     RangingHeader ranging_header_;
     PacketViewForRecombination segment_data_;
@@ -320,20 +332,30 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
       log::warn("Can't find CS tracker for connection_handle {}", connection_handle);
       return;
     }
-    log::debug("address {}, resultMeters {}", cs_requester_trackers_[connection_handle].address,
-               ranging_result.result_meters_);
-    using namespace std::chrono;
-    uint64_t elapsedRealtimeNanos =
-            duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
-    if (is_hal_v2()) {
+    uint64_t elapsedRealtimeNanos = ::android::elapsedRealtimeNano();
+    if (is_hal_v2() && ranging_result.elapsed_timestamp_nanos_ != 0) {
       elapsedRealtimeNanos = ranging_result.elapsed_timestamp_nanos_;
     }
+    log::info("address:{}, resultMeters:{}, confidence_level_:{}, elapsedRealtimeNanos:{}",
+              cs_requester_trackers_[connection_handle].address, ranging_result.result_meters_,
+              ranging_result.confidence_level_, elapsedRealtimeNanos);
+
+    int reflector_rssi = kInvalidRssi;
+    if (com_android_bluetooth_flags_include_power_and_rssi_in_distance_measurement_result()) {
+      int rssi_count = cs_requester_trackers_[connection_handle].reflector_rssi_count;
+      if (rssi_count > 0) {
+        reflector_rssi = cs_requester_trackers_[connection_handle].reflector_rssi_sum / rssi_count;
+      }
+      cs_requester_trackers_[connection_handle].reflector_rssi_sum = 0;
+      cs_requester_trackers_[connection_handle].reflector_rssi_count = 0;
+    }
+
     distance_measurement_callbacks_->OnDistanceMeasurementResult(
             cs_requester_trackers_[connection_handle].address, ranging_result.result_meters_ * 100,
             ranging_result.error_meters_ * 100, kInvalidAzimuthAngleDegree,
             kInvalidAzimuthAngleDegree, kInvalidAltitudeAngleDegree, kInvalidAltitudeAngleDegree,
-            elapsedRealtimeNanos, ranging_result.confidence_level_,
-            ranging_result.delay_spread_meters_,
+            elapsedRealtimeNanos, kInvalidRemoteTxPower, reflector_rssi,
+            ranging_result.confidence_level_, ranging_result.delay_spread_meters_,
             static_cast<DistanceMeasurementDetectedAttackLevel>(
                     ranging_result.detected_attack_level_),
             ranging_result.velocity_meters_per_second_, DistanceMeasurementMethod::METHOD_CS);
@@ -364,17 +386,10 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
 
   ~impl() {
     stop();
-    if (!com_android_bluetooth_flags_same_handler_for_all_modules()) {
-      handler_->Clear();
-      handler_->WaitUntilStopped(std::chrono::milliseconds(2000));
-      delete handler_;
-    }
   }
 
   void stop() {
-    if (com_android_bluetooth_flags_fix_event_handler_reg_and_dereg()) {
-      hci_layer_->ReleaseDistanceMeasurementInterface();
-    }
+    hci_layer_->ReleaseDistanceMeasurementInterface();
 
     hci_layer_->UnregisterLeEventHandler(hci::SubeventCode::TRANSMIT_POWER_REPORTING);
     cs_requester_trackers_.clear();
@@ -508,7 +523,9 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
     it->second.measurement_ongoing = true;
     it->second.waiting_for_start_callback = true;
     it->second.local_hci_role = local_hci_role;
+    it->second.retry_counter_for_read_remote_capability = 0;
     it->second.retry_counter_for_create_config = 0;
+    it->second.retry_counter_for_set_procedure_parameter = 0;
     it->second.retry_counter_for_cs_enable = 0;
     it->second.sent_procedure_disable_after_stopping = false;
     it->second.sight_type = sight_type;
@@ -519,7 +536,8 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
   void start_distance_measurement_with_cs(const Address& cs_remote_address,
                                           uint16_t connection_handle,
                                           bool has_updated_procedure_params) {
-    log::info("connection_handle: {}, address: {}", connection_handle, cs_remote_address);
+    log::info("connection_handle: {}, address: {}, is_hal_v2: {}", connection_handle,
+              cs_remote_address, is_hal_v2());
     if (!is_local_cs_ready_) {
       log::error("Channel Sounding is not enabled");
       distance_measurement_callbacks_->OnDistanceMeasurementStopped(
@@ -548,7 +566,12 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
     if (has_updated_procedure_params) {
       send_le_cs_set_procedure_parameters(
               connection_handle, cs_requester_trackers_[connection_handle].used_config_id,
-              cs_requester_trackers_[connection_handle].remote_num_antennas_supported_);
+              cs_requester_trackers_[connection_handle].remote_num_antennas_supported_,
+              cs_requester_trackers_[connection_handle].remote_max_antenna_paths_supported_);
+    } else if (com_android_bluetooth_flags_channel_sounding_26q1_fix() &&
+               cs_requester_trackers_[connection_handle].local_hci_role == hci::Role::CENTRAL) {
+      cs_requester_trackers_[connection_handle].state = CsTrackerState::WAIT_FOR_SECURITY_ENABLED;
+      send_le_cs_security_enable(connection_handle, true);
     } else {
       send_le_cs_procedure_enable(connection_handle, Enable::ENABLED);
     }
@@ -834,6 +857,7 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
   }
 
   void send_le_cs_read_remote_supported_capabilities(uint16_t connection_handle) {
+    log::info("connection_handle:0x{:04x}", connection_handle);
     hci_layer_->EnqueueCommand(
             LeCsReadRemoteSupportedCapabilitiesBuilder::Create(connection_handle),
             handler_->BindOnceOn(
@@ -842,13 +866,15 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
   }
 
   void send_le_cs_security_enable(uint16_t connection_handle, bool local_start) {
+    log::info("connection_handle:0x{:04x}, local_start:{}", connection_handle, local_start);
     if (local_start) {
       auto req_it = cs_requester_trackers_.find(connection_handle);
-      if (req_it != cs_requester_trackers_.end() &&
-          req_it->second.state == CsTrackerState::WAIT_FOR_CONFIG_COMPLETE) {
-        req_it->second.state = CsTrackerState::WAIT_FOR_SECURITY_ENABLED;
-      } else {
+      if (req_it == cs_requester_trackers_.end()) {
         log::error("no requester tracker. something wrong.");
+      } else if (req_it->second.state == CsTrackerState::WAIT_FOR_CONFIG_COMPLETE) {
+        req_it->second.state = CsTrackerState::WAIT_FOR_SECURITY_ENABLED;
+      } else if (req_it->second.state != CsTrackerState::WAIT_FOR_SECURITY_ENABLED) {
+        log::error("Unexpected state {}", static_cast<uint16_t>(req_it->second.state));
       }
     } else {
       auto res_it = cs_responder_trackers_.find(connection_handle);
@@ -867,20 +893,24 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
                     ChannelSoundingStopReason::REASON_SECURITY_ENABLE_COMMAND_STATUS_ERROR));
   }
 
-  void send_le_cs_set_default_settings(uint16_t connection_handle) {
+  void send_le_cs_set_default_settings(uint16_t connection_handle,
+                                       CsSyncAntennaSelection selection) {
+    log::info("connection_handle:0x{:04x}", connection_handle);
     uint8_t role_enable = (1 << (uint8_t)CsRole::INITIATOR) | 1 << ((uint8_t)CsRole::REFLECTOR);
     hci_layer_->EnqueueCommand(
-            LeCsSetDefaultSettingsBuilder::Create(connection_handle, role_enable,
-                                                  kCsSyncAntennaSelection, kCsMaxTxPower),
-            handler_->BindOnceOn(this, &impl::on_cs_set_default_settings_complete));
+            LeCsSetDefaultSettingsBuilder::Create(connection_handle, role_enable, selection,
+                                                  kCsMaxTxPower),
+            handler_->BindOnceOn(this, &impl::on_cs_set_default_settings_complete, selection));
   }
 
   void send_le_cs_read_remote_fae_table(uint16_t connection_handle) const {
+    log::info("connection_handle:0x{:04x}", connection_handle);
     hci_layer_->EnqueueCommand(LeCsReadRemoteFaeTableBuilder::Create(connection_handle),
                                handler_->BindOnce(check_status<LeCsReadRemoteFaeTableStatusView>));
   }
 
   void send_le_cs_create_config(uint16_t connection_handle, uint8_t config_id) {
+    log::info("connection_handle:0x{:04x}, config_id:{}", connection_handle, config_id);
     if (cs_requester_trackers_.find(connection_handle) == cs_requester_trackers_.end()) {
       log::warn("no cs tracker found for {}", connection_handle);
     }
@@ -907,18 +937,76 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
                     ChannelSoundingStopReason::REASON_CREATE_CONFIG_COMMAND_STATUS_ERROR));
   }
 
+  /**
+   * Selects the best Antenna Configuration Index (ACI) based on the mutually
+   * supported maximum number of antenna paths and the number of antennas
+   * available on the local and remote devices.
+   *
+   * The logic prioritizes configurations that use more paths. It uses fallthrough
+   * to check for less capable configurations if a more capable one isn't supported
+   * by the available antennas.
+   */
+  uint8_t get_tone_antenna_config_selection(uint8_t remote_num_antennas_supported,
+                                            uint8_t max_antenna_paths_supported) {
+    if (com_android_bluetooth_flags_channel_sounding_26q1_fix()) {
+      return cs_tone_antenna_config_mapping_table_[num_antennas_supported_ - 1]
+                                                  [remote_num_antennas_supported - 1];
+    }
+    switch (max_antenna_paths_supported) {
+      case 4:
+        // Check for 4-path configurations first.
+        if (num_antennas_supported_ >= 2 && remote_num_antennas_supported >= 2) {
+          // Prefer the symmetric 2x2 configuration if both devices have at least 2 antennas.
+          return 7;  // ACI 7: 2x2 configuration
+        } else if (num_antennas_supported_ >= 4) {
+          // Check for 4x1 if the local device has 4+ antennas.
+          return 3;  // ACI 3: 4x1 configuration
+        } else if (remote_num_antennas_supported >= 4) {
+          // Check for 1x4 if the remote device has 4+ antennas.
+          return 6;  // ACI 6: 1x4 configuration
+        }
+        // If no 4-path configuration is possible with the available antennas,
+        // fall through to check for 3-path configurations.
+        ABSL_FALLTHROUGH_INTENDED;
+      case 3:
+        // Check for 3-path configurations.
+        if (num_antennas_supported_ >= 3) {
+          return 2;  // ACI 2: 3x1 configuration
+        } else if (remote_num_antennas_supported >= 3) {
+          return 5;  // ACI 5: 1x3 configuration
+        }
+        // Fall through to check for 2-path configurations.
+        ABSL_FALLTHROUGH_INTENDED;
+      case 2:
+        // Check for 2-path configurations.
+        if (num_antennas_supported_ >= 2) {
+          return 1;  // ACI 1: 2x1 configuration
+        } else if (remote_num_antennas_supported >= 2) {
+          return 4;  // ACI 4: 1x2 configuration
+        }
+        // Fall through to the default 1-path configuration.
+        ABSL_FALLTHROUGH_INTENDED;
+      default:
+        // This is the baseline 1-path configuration (1x1).
+        return 0;  // ACI 0: 1x1 configuration
+    }
+  }
+
   void send_le_cs_set_procedure_parameters(uint16_t connection_handle, uint8_t config_id,
-                                           uint8_t remote_num_antennas_supported) {
-    uint8_t tone_antenna_config_selection =
-            cs_tone_antenna_config_mapping_table_[num_antennas_supported_ - 1]
-                                                 [remote_num_antennas_supported - 1];
+                                           uint8_t remote_num_antennas_supported,
+                                           uint8_t remote_max_antenna_paths_supported) {
+    uint8_t max_antenna_paths_supported =
+            std::min(local_max_antenna_paths_supported_, remote_max_antenna_paths_supported);
+    uint8_t tone_antenna_config_selection = get_tone_antenna_config_selection(
+            remote_num_antennas_supported, max_antenna_paths_supported);
     uint8_t preferred_peer_antenna_value =
             cs_preferred_peer_antenna_mapping_table_[tone_antenna_config_selection];
     log::info(
             "num_antennas_supported:{}, remote_num_antennas_supported:{}, "
+            "max_antenna_paths_supported:{},"
             "tone_antenna_config_selection:{}, preferred_peer_antenna:{}",
-            num_antennas_supported_, remote_num_antennas_supported, tone_antenna_config_selection,
-            preferred_peer_antenna_value);
+            num_antennas_supported_, remote_num_antennas_supported, max_antenna_paths_supported,
+            tone_antenna_config_selection, preferred_peer_antenna_value);
     CsPreferredPeerAntenna preferred_peer_antenna;
     preferred_peer_antenna.use_first_ordered_antenna_element_ = preferred_peer_antenna_value & 0x01;
     preferred_peer_antenna.use_second_ordered_antenna_element_ =
@@ -938,7 +1026,8 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
               (double)measurement_interval_ms /
               (cs_requester_trackers_[connection_handle].conn_interval_ * kConnIntervalUnitMs)));
     }
-    log::debug("procedure params: min_int = {}", min_procedure_interval);
+    log::info("min_procedure_interval:{}, conn_interval:{}", min_procedure_interval,
+              cs_requester_trackers_[connection_handle].conn_interval_);
     hci_layer_->EnqueueCommand(
             LeCsSetProcedureParametersBuilder::Create(
                     connection_handle, config_id, kMaxProcedureLen, min_procedure_interval,
@@ -1070,6 +1159,7 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
     num_antennas_supported_ = complete_view.GetNumAntennasSupported();
     local_support_phase_based_ranging_ = cs_subfeature_supported_.phase_based_ranging_ == 0x01;
     local_supported_sw_time_ = complete_view.GetTSwTimeSupported();
+    local_max_antenna_paths_supported_ = complete_view.GetMaxAntennaPathsSupported();
     is_local_cs_ready_ = true;
   }
 
@@ -1084,8 +1174,27 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
       std::string error_code = ErrorCodeText(event_view.GetStatus());
       log::warn("Received LeCsReadRemoteSupportedCapabilitiesCompleteView with error code {}",
                 error_code);
-      handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR,
-                              ChannelSoundingStopReason::REASON_READ_REMOTE_CAP_COMPLETE_FAILED);
+
+      if (cs_requester_trackers_[connection_handle].retry_counter_for_read_remote_capability <
+          kMaxRetryCounterForReadRemoteCapability) {
+        // Get a reference to the tracker
+        auto& tracker = cs_requester_trackers_[connection_handle];
+        tracker.retry_counter_for_read_remote_capability++;
+        log::info(
+                "Scheduling retry for send_le_cs_read_remote_supported_capabilities after {} ms, "
+                "retry counter {}",
+                kCommandRetryIntervalMs, tracker.retry_counter_for_read_remote_capability);
+
+        // Cancel any pending task and schedule the retry with a delay
+        tracker.procedure_schedule_guard_alarm->Cancel();
+        tracker.procedure_schedule_guard_alarm->Schedule(
+                common::Bind(&impl::send_le_cs_read_remote_supported_capabilities,
+                             common::Unretained(this), connection_handle),
+                std::chrono::milliseconds(kCommandRetryIntervalMs));
+      } else {
+        handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR,
+                                ChannelSoundingStopReason::REASON_READ_REMOTE_CAP_COMPLETE_FAILED);
+      }
       return;
     }
     auto res_it = cs_responder_trackers_.find(connection_handle);
@@ -1093,7 +1202,7 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
       res_it->second.remote_support_phase_based_ranging =
               event_view.GetOptionalSubfeaturesSupported().phase_based_ranging_ == 0x01;
     }
-    send_le_cs_set_default_settings(connection_handle);
+    send_le_cs_set_default_settings(connection_handle, kCsSyncAntennaSelection);
 
     auto req_it = cs_requester_trackers_.find(connection_handle);
     if (req_it != cs_requester_trackers_.end() && req_it->second.measurement_ongoing) {
@@ -1102,6 +1211,7 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
       req_it->second.remote_num_antennas_supported_ = event_view.GetNumAntennasSupported();
       req_it->second.retry_counter_for_create_config = 0;
       req_it->second.remote_supported_sw_time_ = event_view.GetTSwTimeSupported();
+      req_it->second.remote_max_antenna_paths_supported_ = event_view.GetMaxAntennaPathsSupported();
 
       if (event_view.GetOptionalSubfeaturesSupported().no_frequency_actuation_error_ == 0) {
         log::debug("read remote fae as the no_fae is false.");
@@ -1118,7 +1228,8 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
             event_view.GetOptionalSubfeaturesSupported().phase_based_ranging_);
   }
 
-  void on_cs_set_default_settings_complete(CommandCompleteView view) {
+  void on_cs_set_default_settings_complete(CsSyncAntennaSelection selection,
+                                           CommandCompleteView view) {
     auto complete_view = LeCsSetDefaultSettingsCompleteView::Create(view);
     if (!complete_view.IsValid()) {
       log::warn("Get invalid LeCsSetDefaultSettingsComplete");
@@ -1128,6 +1239,13 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
       std::string error_code = ErrorCodeText(complete_view.GetStatus());
       log::warn("Received LeCsSetDefaultSettingsComplete with error code {}", error_code);
       uint16_t connection_handle = complete_view.GetConnectionHandle();
+
+      if (selection == CsSyncAntennaSelection::ANTENNAS_IN_ORDER) {
+        log::info("Retry with NO_RECOMMENDATION");
+        send_le_cs_set_default_settings(connection_handle,
+                                        CsSyncAntennaSelection::NO_RECOMMENDATION);
+        return;
+      }
       handle_cs_setup_failure(
               connection_handle, REASON_INTERNAL_ERROR,
               ChannelSoundingStopReason::REASON_SET_DEFAULT_SETTINGS_COMPLETE_FAILED);
@@ -1178,7 +1296,8 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
     if (is_expected_by_requester) {
       send_le_cs_set_procedure_parameters(event_view.GetConnectionHandle(),
                                           req_it->second.used_config_id,
-                                          req_it->second.remote_num_antennas_supported_);
+                                          req_it->second.remote_num_antennas_supported_,
+                                          req_it->second.remote_max_antenna_paths_supported_);
     }
     auto res_it = cs_responder_trackers_.find(connection_handle);
     if (res_it != cs_responder_trackers_.end() &&
@@ -1208,11 +1327,18 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
         if (cs_requester_trackers_[connection_handle].retry_counter_for_create_config <
             kMaxRetryCounterForCreateConfig) {
           log::info("Failed Create_Config_Complete with config id - {}", event_view.GetConfigId());
-          cs_requester_trackers_[connection_handle].retry_counter_for_create_config++;
-          log::info("send_le_cs_create_config, retry counter {}",
-                    cs_requester_trackers_[connection_handle].retry_counter_for_create_config);
-          send_le_cs_create_config(connection_handle,
-                                   cs_requester_trackers_[connection_handle].requesting_config_id);
+          // Get a reference to the tracker
+          auto& tracker = cs_requester_trackers_[connection_handle];
+          tracker.retry_counter_for_create_config++;
+          log::info("Scheduling retry for send_le_cs_create_config after {} ms, retry counter {}",
+                    kCommandRetryIntervalMs, tracker.retry_counter_for_create_config);
+
+          // Cancel any pending task and schedule the retry with a delay
+          tracker.procedure_schedule_guard_alarm->Cancel();
+          tracker.procedure_schedule_guard_alarm->Schedule(
+                  common::Bind(&impl::send_le_cs_create_config, common::Unretained(this),
+                               connection_handle, tracker.requesting_config_id),
+                  std::chrono::milliseconds(kCommandRetryIntervalMs));
         } else {
           handle_cs_setup_failure(connection_handle, REASON_INTERNAL_ERROR,
                                   ChannelSoundingStopReason::REASON_CREATE_CONFIG_COMPLETE_FAILED);
@@ -1307,9 +1433,28 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
     if (complete_view.GetStatus() != ErrorCode::SUCCESS) {
       std::string error_code = ErrorCodeText(complete_view.GetStatus());
       log::warn("Received LeCsSetProcedureParametersCompleteView with error code {}", error_code);
-      handle_cs_setup_failure(
-              connection_handle, REASON_INTERNAL_ERROR,
-              ChannelSoundingStopReason::REASON_SET_PROCEDURE_PARAMETERS_COMPLETE_FAILED);
+      if (cs_requester_trackers_[connection_handle].retry_counter_for_set_procedure_parameter <
+          kMaxRetryCounterForSetProcedureParameter) {
+        // Get a reference to the tracker
+        auto& tracker = cs_requester_trackers_[connection_handle];
+        tracker.retry_counter_for_set_procedure_parameter++;
+        log::info(
+                "Scheduling retry for send_le_cs_set_procedure_parameters after {} ms, "
+                "retry counter {}",
+                kCommandRetryIntervalMs, tracker.retry_counter_for_set_procedure_parameter);
+        // Cancel any pending task and schedule the retry with a delay
+        tracker.procedure_schedule_guard_alarm->Cancel();
+        tracker.procedure_schedule_guard_alarm->Schedule(
+                common::Bind(&impl::send_le_cs_set_procedure_parameters, common::Unretained(this),
+                             connection_handle, tracker.used_config_id,
+                             tracker.remote_num_antennas_supported_,
+                             tracker.remote_max_antenna_paths_supported_),
+                std::chrono::milliseconds(kCommandRetryIntervalMs));
+      } else {
+        handle_cs_setup_failure(
+                connection_handle, REASON_INTERNAL_ERROR,
+                ChannelSoundingStopReason::REASON_SET_PROCEDURE_PARAMETERS_COMPLETE_FAILED);
+      }
       return;
     }
     auto it = cs_requester_trackers_.find(connection_handle);
@@ -1319,7 +1464,8 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
     }
 
     if (it->second.measurement_ongoing) {
-      log::debug("cs set up succeed");
+      log::info("cs set up succeed");
+      it->second.retry_counter_for_set_procedure_parameter = 0;
       it->second.setup_complete = true;
       send_le_cs_procedure_enable(connection_handle, Enable::ENABLED);
     }
@@ -1599,6 +1745,10 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
         subevent_result->frequency_compensation_ = cs_event_result.GetFrequencyCompensation();
         subevent_result->reference_power_level_ = cs_event_result.GetReferencePowerLevel();
         subevent_result->num_antenna_paths_ = cs_event_result.GetNumAntennaPaths();
+        subevent_result->timestamp_nanos_ =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        std::chrono::system_clock::now().time_since_epoch())
+                        .count();
         procedure_data->procedure_data_v2_.local_subevent_data_.emplace_back(subevent_result);
       }
     } else {
@@ -1686,15 +1836,11 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
       procedure_data->contains_complete_subevent_ = true;
     }
 
-    if (procedure_abort_reason != ProcedureAbortReason::NO_ABORT ||
-        subevent_abort_reason != SubeventAbortReason::NO_ABORT) {
-      // Even the procedure is aborted, we should keep following process and
-      // handle it when all corresponding remote data received.
-      procedure_data->ras_subevent_header_.ranging_abort_reason_ =
-              static_cast<RangingAbortReason>(procedure_abort_reason);
-      procedure_data->ras_subevent_header_.subevent_abort_reason_ =
-              static_cast<bluetooth::ras::SubeventAbortReason>(subevent_abort_reason);
-    }
+    procedure_data->ras_subevent_header_.ranging_abort_reason_ =
+            static_cast<RangingAbortReason>(procedure_abort_reason);
+    procedure_data->ras_subevent_header_.subevent_abort_reason_ =
+            static_cast<bluetooth::ras::SubeventAbortReason>(subevent_abort_reason);
+
     parse_cs_result_data(result_data_structures, *procedure_data, live_tracker->role);
 
     if (live_tracker->local_start) {
@@ -1895,12 +2041,7 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
       return;
     }
 
-    uint8_t num_antenna_paths = 0;
-    for (uint8_t i = 0; i < 4; i++) {
-      if ((ranging_header.antenna_paths_mask_ & (1 << i)) != 0) {
-        num_antenna_paths++;
-      }
-    }
+    uint8_t num_antenna_paths = procedure_data->num_antenna_paths;
 
     // Get role of the remote device
     CsRole remote_role = cs_requester_trackers_[connection_handle].role == CsRole::INITIATOR
@@ -2176,7 +2317,6 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
                 parse_index += data_len;
                 log::verbose("step_data: {}", tone_data_view.ToString());
                 permutation_index = tone_data_view.antenna_permutation_index_;
-                procedure_data->rssi_initiator.emplace_back(tone_data_view.packet_rssi_);
                 procedure_data->toa_tod_initiators.emplace_back(tone_data_view.toa_tod_initiator_);
                 procedure_data->packet_quality_initiator.emplace_back(
                         tone_data_view.packet_quality_);
@@ -2198,7 +2338,6 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
                 parse_index += data_len;
                 log::verbose("step_data: {}", tone_data_view.ToString());
                 permutation_index = tone_data_view.antenna_permutation_index_;
-                procedure_data->rssi_initiator.emplace_back(tone_data_view.packet_rssi_);
                 procedure_data->toa_tod_initiators.emplace_back(tone_data_view.toa_tod_initiator_);
                 procedure_data->packet_quality_initiator.emplace_back(
                         tone_data_view.packet_quality_);
@@ -2428,6 +2567,14 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
       procedure_data->procedure_data_v2_.procedure_sequence_ =
               live_tracker->procedure_sequence_after_enable;
     }
+
+    if (com_android_bluetooth_flags_include_power_and_rssi_in_distance_measurement_result()) {
+      for (size_t i = 0; i < procedure_data->rssi_reflector.size(); i++) {
+        live_tracker->reflector_rssi_sum += procedure_data->rssi_reflector[i];
+      }
+      live_tracker->reflector_rssi_count += procedure_data->rssi_reflector.size();
+    }
+
     try_send_data_to_hal(connection_handle, live_tracker, procedure_data);
 
     // If the procedure is completed or aborted, delete all previous data
@@ -2530,7 +2677,6 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
                 continue;
               }
               log::verbose("step_data: {}", tone_data_view.ToString());
-              procedure_data.rssi_initiator.emplace_back(tone_data_view.packet_rssi_);
               procedure_data.toa_tod_initiators.emplace_back(tone_data_view.toa_tod_initiator_);
               procedure_data.packet_quality_initiator.emplace_back(tone_data_view.packet_quality_);
               if (is_hal_v2() && local_subevent_data) {
@@ -2546,7 +2692,6 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
                 continue;
               }
               log::verbose("step_data: {}", tone_data_view.ToString());
-              procedure_data.rssi_initiator.emplace_back(tone_data_view.packet_rssi_);
               procedure_data.toa_tod_initiators.emplace_back(tone_data_view.toa_tod_initiator_);
               procedure_data.packet_quality_initiator.emplace_back(tone_data_view.packet_quality_);
               if (is_hal_v2() && local_subevent_data) {
@@ -2660,7 +2805,6 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
               }
               log::verbose("step_data: {}", tone_data_view.ToString());
               permutation_index = tone_data_view.antenna_permutation_index_;
-              procedure_data.rssi_initiator.emplace_back(tone_data_view.packet_rssi_);
               procedure_data.toa_tod_initiators.emplace_back(tone_data_view.toa_tod_initiator_);
               procedure_data.packet_quality_initiator.emplace_back(tone_data_view.packet_quality_);
               auto tone_data = tone_data_view.tone_data_;
@@ -2680,7 +2824,6 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
               }
               log::verbose("step_data: {}", tone_data_view.ToString());
               permutation_index = tone_data_view.antenna_permutation_index_;
-              procedure_data.rssi_initiator.emplace_back(tone_data_view.packet_rssi_);
               procedure_data.toa_tod_initiators.emplace_back(tone_data_view.toa_tod_initiator_);
               procedure_data.packet_quality_initiator.emplace_back(tone_data_view.packet_quality_);
               auto tone_data = tone_data_view.tone_data_;
@@ -2920,13 +3063,12 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
     double pow_value = (remote_tx_power - rssi - kRSSIDropOffAt1M) / 20.0;
     double distance = pow(10.0, pow_value);
 
-    using namespace std::chrono;
-    uint64_t elapsedRealtimeNanos =
-            duration_cast<nanoseconds>(steady_clock::now().time_since_epoch()).count();
+    uint64_t elapsedRealtimeNanos = ::android::elapsedRealtimeNano();
     distance_measurement_callbacks_->OnDistanceMeasurementResult(
             address, distance * 100, distance * 100, kInvalidAzimuthAngleDegree,
             kInvalidAzimuthAngleDegree, kInvalidAltitudeAngleDegree, kInvalidAltitudeAngleDegree,
-            elapsedRealtimeNanos, kInvalidConfidenceLevel, kInvalidDelayedSpreadMeters,
+            elapsedRealtimeNanos, remote_tx_power, rssi, kInvalidConfidenceLevel,
+            kInvalidDelayedSpreadMeters,
             DistanceMeasurementDetectedAttackLevel::NADM_ATTACK_UNKNOWN,
             kInvalidVelocityMetersPerSecond, DistanceMeasurementMethod::METHOD_RSSI);
   }
@@ -2958,6 +3100,7 @@ struct DistanceMeasurementManagerImpl::impl : bluetooth::hal::RangingHalCallback
   uint8_t num_antennas_supported_ = 0x01;
   bool local_support_phase_based_ranging_ = false;
   uint8_t local_supported_sw_time_ = 0;
+  uint8_t local_max_antenna_paths_supported_ = 0x01;
   bool is_local_cs_ready_ = false;
   // A table that maps num_antennas_supported and remote_num_antennas_supported to Antenna
   // Configuration Index.

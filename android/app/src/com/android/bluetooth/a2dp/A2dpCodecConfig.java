@@ -21,6 +21,7 @@ import static java.util.Objects.requireNonNull;
 import android.bluetooth.BluetoothCodecConfig;
 import android.bluetooth.BluetoothCodecConfig.CodecPriority;
 import android.bluetooth.BluetoothCodecStatus;
+import android.bluetooth.BluetoothCodecType;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.res.Resources;
@@ -31,6 +32,7 @@ import android.util.Log;
 
 import com.android.bluetooth.R;
 import com.android.bluetooth.flags.Flags;
+import com.android.modules.utils.build.SdkLevel;
 
 import java.util.List;
 import java.util.Objects;
@@ -57,6 +59,8 @@ class A2dpCodecConfig {
             BluetoothCodecConfig.CODEC_PRIORITY_DEFAULT;
     private @CodecPriority int mA2dpSourceCodecPriorityOpus =
             BluetoothCodecConfig.CODEC_PRIORITY_DEFAULT;
+    private @CodecPriority int mA2dpSourceCodecPriorityLhdcv5 =
+            BluetoothCodecConfig.CODEC_PRIORITY_DISABLED;
 
     private BluetoothCodecConfig[] mCodecConfigOffloading = new BluetoothCodecConfig[0];
 
@@ -298,8 +302,25 @@ class A2dpCodecConfig {
             mA2dpSourceCodecPriorityOpus = value;
         }
 
+        // LHDCv5 codec is not supported on Android 16 Baklava, the audio framework
+        // will not recognize the codec type and default to SBC as default
+        // configuration, which is often offloaded. This configuration can be overridden
+        // by setting the system property for LHDCv5 codec priority, e.g. in case SBC
+        // is not offloaded on the platform.
+        value =
+                SystemProperties.getInt(
+                        "bluetooth.a2dp.source.lhdcv5_priority.config",
+                        SdkLevel.isAtLeastC()
+                                ? 5002
+                                : BluetoothCodecConfig.CODEC_PRIORITY_DISABLED);
+
+        if ((value >= BluetoothCodecConfig.CODEC_PRIORITY_DISABLED)
+                && (value < BluetoothCodecConfig.CODEC_PRIORITY_HIGHEST)) {
+            mA2dpSourceCodecPriorityLhdcv5 = value;
+        }
+
         BluetoothCodecConfig codecConfig;
-        BluetoothCodecConfig[] codecConfigArray = new BluetoothCodecConfig[6];
+        BluetoothCodecConfig[] codecConfigArray = new BluetoothCodecConfig[7];
         codecConfig =
                 new BluetoothCodecConfig.Builder()
                         .setCodecType(BluetoothCodecConfig.SOURCE_CODEC_TYPE_SBC)
@@ -336,12 +357,23 @@ class A2dpCodecConfig {
                         .setCodecPriority(mA2dpSourceCodecPriorityOpus)
                         .build();
         codecConfigArray[5] = codecConfig;
+        codecConfig =
+                new BluetoothCodecConfig.Builder()
+                        .setExtendedCodecType(
+                                new BluetoothCodecType(
+                                        7, BluetoothCodecType.CODEC_ID_LHDCV5, "LHDCV5"))
+                        .setCodecPriority(mA2dpSourceCodecPriorityLhdcv5)
+                        .build();
+        codecConfigArray[6] = codecConfig;
 
         return codecConfigArray;
     }
 
     public void switchCodecByBufferSize(
             BluetoothDevice device, boolean isLowLatency, int currentCodecType) {
+        if (Flags.a2dpHandleSaReconfigInNative()) {
+            throw new IllegalStateException("Reconfig is in native");
+        }
         if ((isLowLatency && currentCodecType == BluetoothCodecConfig.SOURCE_CODEC_TYPE_OPUS)
                 || (!isLowLatency
                         && currentCodecType != BluetoothCodecConfig.SOURCE_CODEC_TYPE_OPUS)) {

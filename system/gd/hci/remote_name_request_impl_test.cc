@@ -68,6 +68,9 @@ protected:
     client_handler_ = new os::Handler(thread_);
     ASSERT_NE(client_handler_, nullptr);
 
+    com_android_bluetooth_flags_reset_flags();
+    set_com_android_bluetooth_flags_rnr_multiple_name_request(true);
+
     test_hci_layer_ = std::make_unique<HciLayerFake>(client_handler_);
     test_acl_scheduler_ = std::make_unique<hci::acl_manager::AclScheduler>(client_handler_);
     remote_name_request_module_ = std::make_unique<RemoteNameRequestModuleImpl>(
@@ -638,25 +641,22 @@ TEST_F(RemoteNameRequestModuleTest, FailToSendCommandThenDequeueNext) {
 }
 
 TEST_F(RemoteNameRequestModuleTest, CancelJustWhenRNREventReturns) {
-  auto promise = std::promise<std::tuple<ErrorCode, std::array<uint8_t, 248>>>{};
-  auto future = promise.get_future();
-
   // start a remote name request
   remote_name_request_module_->StartRemoteNameRequest(
           address1,
           RemoteNameRequestBuilder::Create(address1, PageScanRepetitionMode::R0, 3,
                                            ClockOffsetValid::INVALID),
           emptyCallback<ErrorCode>(), impossibleCallback<uint64_t>(),
-          capturingPromiseCallback<ErrorCode, std::array<uint8_t, 248>>(std::move(promise)));
+          impossibleCallback<ErrorCode, std::array<uint8_t, 248>>());
 
   // we successfully start
   test_hci_layer_->GetCommand();
 
-  auto promise2 = std::promise<void>();
-  auto future2 = promise2.get_future();
+  auto promise = std::promise<void>();
+  auto future = promise.get_future();
   client_handler_->Post(base::BindOnce(
           [](RemoteNameRequestModule* remote_name_request_module, HciLayerFake* test_hci_layer,
-             std::promise<void> promise2) {
+             std::promise<void> promise) {
             // but then the request is cancelled successfully (the status doesn't matter)
             remote_name_request_module->CancelRemoteNameRequest(address1);
 
@@ -664,11 +664,11 @@ TEST_F(RemoteNameRequestModuleTest, CancelJustWhenRNREventReturns) {
             test_hci_layer->IncomingEvent(
                     RemoteNameRequestStatusBuilder::Create(ErrorCode::PAGE_TIMEOUT, 1));
 
-            promise2.set_value();
+            promise.set_value();
           },
-          remote_name_request_module_.get(), test_hci_layer_.get(), std::move(promise2)));
+          remote_name_request_module_.get(), test_hci_layer_.get(), std::move(promise)));
 
-  future2.wait();
+  future.wait();
 }
 
 }  // namespace

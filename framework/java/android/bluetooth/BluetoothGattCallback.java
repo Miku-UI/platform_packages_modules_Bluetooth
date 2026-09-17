@@ -17,7 +17,10 @@
 package android.bluetooth;
 
 import android.annotation.FlaggedApi;
+import android.annotation.Hide;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
+import android.annotation.SystemApi;
 
 import com.android.bluetooth.flags.Flags;
 
@@ -29,27 +32,31 @@ public abstract class BluetoothGattCallback {
      * remote device changing the PHY.
      *
      * @param gatt GATT client
-     * @param txPhy the transmitter PHY in use. One of {@link BluetoothDevice#PHY_LE_1M}, {@link
-     *     BluetoothDevice#PHY_LE_2M}, and {@link BluetoothDevice#PHY_LE_CODED}.
-     * @param rxPhy the receiver PHY in use. One of {@link BluetoothDevice#PHY_LE_1M}, {@link
-     *     BluetoothDevice#PHY_LE_2M}, and {@link BluetoothDevice#PHY_LE_CODED}.
+     * @param txPhy the transmitter PHY in use.
+     * @param rxPhy the receiver PHY in use.
      * @param status Status of the PHY update operation. {@link BluetoothGatt#GATT_SUCCESS} if the
      *     operation succeeds.
      */
-    public void onPhyUpdate(BluetoothGatt gatt, int txPhy, int rxPhy, int status) {}
+    public void onPhyUpdate(
+            BluetoothGatt gatt,
+            @BluetoothDevice.PhyType int txPhy,
+            @BluetoothDevice.PhyType int rxPhy,
+            int status) {}
 
     /**
      * Callback triggered as result of {@link BluetoothGatt#readPhy}
      *
      * @param gatt GATT client
-     * @param txPhy the transmitter PHY in use. One of {@link BluetoothDevice#PHY_LE_1M}, {@link
-     *     BluetoothDevice#PHY_LE_2M}, and {@link BluetoothDevice#PHY_LE_CODED}.
-     * @param rxPhy the receiver PHY in use. One of {@link BluetoothDevice#PHY_LE_1M}, {@link
-     *     BluetoothDevice#PHY_LE_2M}, and {@link BluetoothDevice#PHY_LE_CODED}.
+     * @param txPhy the transmitter PHY in use.
+     * @param rxPhy the receiver PHY in use.
      * @param status Status of the PHY read operation. {@link BluetoothGatt#GATT_SUCCESS} if the
      *     operation succeeds.
      */
-    public void onPhyRead(BluetoothGatt gatt, int txPhy, int rxPhy, int status) {}
+    public void onPhyRead(
+            BluetoothGatt gatt,
+            @BluetoothDevice.PhyType int txPhy,
+            @BluetoothDevice.PhyType int rxPhy,
+            int status) {}
 
     /**
      * Callback indicating when GATT client has connected/disconnected to/from a remote GATT server.
@@ -241,8 +248,8 @@ public abstract class BluetoothGattCallback {
      *     (0.1s) to 3200 (32s)
      * @param status {@link BluetoothGatt#GATT_SUCCESS} if the connection has been updated
      *     successfully
-     * @hide
      */
+    @Hide
     public void onConnectionUpdated(
             BluetoothGatt gatt, int interval, int latency, int timeout, int status) {}
 
@@ -264,9 +271,52 @@ public abstract class BluetoothGattCallback {
      * @param status {@link BluetoothGatt#GATT_SUCCESS} if the connection subrating has been updated
      *     successfully
      */
-    @FlaggedApi(Flags.FLAG_LE_SUBRATE_API)
     public void onSubrateChange(
             @NonNull BluetoothGatt gatt,
             @BluetoothGatt.OnSubrateChangeModeValues int subrateMode,
             @BluetoothGatt.OnSubrateChangeStatusValues int status) {}
+
+    /**
+     * Callback reporting the result of a GATT characteristic offload request.
+     *
+     * <p>This callback is invoked in response to a call to {@link
+     * BluetoothGatt#offloadCharacteristics}.
+     *
+     * <p>If the operation was successful, the {@code status} will be {@link
+     * GattOffloadSession#STATUS_SUCCESS}. The characteristics contained within the {@code session}
+     * are now being managed by the offload hardware or application. The returned {@link
+     * GattOffloadSession} object can be used to later terminate the offload session via {@link
+     * GattOffloadSession#close}.
+     *
+     * @param gatt The {@link BluetoothGatt} involved in the offload operation.
+     * @param session A {@link GattOffloadSession} object representing the offloaded
+     *     characteristics. This object can only be used if the {@code status} is {@link
+     *     GattOffloadSession#STATUS_SUCCESS}.
+     * @param status The result of the offload operation.
+     */
+    @Hide
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_GATT_OFFLOAD_API)
+    public void onCharacteristicsOffloaded(
+            @NonNull BluetoothGatt gatt,
+            @Nullable GattOffloadSession session,
+            @GattOffloadSession.Status int status) {}
+
+    /**
+     * Callback indicating offloaded GATT characteristic session has been removed.
+     *
+     * <p>This callback signifies that GATT characteristics, which were previously delegated to the
+     * offload app, are no longer being offloaded.
+     *
+     * @param gatt The {@link BluetoothGatt} that is involved.
+     * @param sessionId The unique identifier for the terminated offload session. This ID was
+     *     originally obtained from {@link GattOffloadSession} after a successful call to {@link
+     *     BluetoothGatt#offloadCharacteristics}.
+     * @param status An status code indicating why the offload session was terminated.
+     */
+    @Hide
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_GATT_OFFLOAD_API)
+    public void onCharacteristicsUnoffloaded(
+            @NonNull BluetoothGatt gatt, int sessionId, @GattOffloadSession.Status int status) {}
 }

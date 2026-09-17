@@ -46,6 +46,7 @@
 #include "stack/include/bt_types.h"
 #include "stack/include/bt_uuid16.h"
 #include "stack/include/btm_client_interface.h"
+#include "stack/include/btm_sec_api.h"
 #include "stack/include/gatt_api.h"
 #include "stack/include/sdp_api.h"
 
@@ -59,7 +60,6 @@ using gatt::Descriptor;
 using gatt::IncludedService;
 using gatt::Service;
 
-static tGATT_STATUS bta_gattc_sdp_service_disc(tCONN_ID conn_id, tBTA_GATTC_SERV* p_server_cb);
 static void bta_gattc_explore_srvc_finished(tCONN_ID conn_id, tBTA_GATTC_SERV* p_srvc_cb);
 
 static void bta_gattc_read_db_hash_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_OP_CMPL* p_data,
@@ -181,7 +181,7 @@ RobustCachingSupport GetRobustCachingSupport(const tBTA_GATTC_CLCB* p_clcb,
   // Some LMP 5.2 devices also don't support robust caching. This workaround
   // conditionally disables the feature based on a combination of LMP
   // version and OUI prefix.
-  if (lmp_version < 0x0c && interop_match_addr(INTEROP_DISABLE_ROBUST_CACHING, &p_clcb->bda)) {
+  if (lmp_version < 0x0c && interop_match_addr(INTEROP_DISABLE_ROBUST_CACHING, p_clcb->bda)) {
     log::warn(
             "Device LMP version 0x{:02x} <= Bluetooth 5.2 and MAC addr on interop "
             "list, skipping robust caching",
@@ -197,20 +197,21 @@ RobustCachingSupport GetRobustCachingSupport(const tBTA_GATTC_CLCB* p_clcb,
 
 /** Start primary service discovery */
 [[nodiscard]] tGATT_STATUS bta_gattc_discover_pri_service(tCONN_ID conn_id,
-                                                          tBTA_GATTC_SERV* p_server_cb,
                                                           tGATT_DISC_TYPE disc_type) {
   tBTA_GATTC_CLCB* p_clcb = bta_gattc_find_clcb_by_conn_id(conn_id);
   if (!p_clcb) {
     return GATT_ERROR;
   }
 
-  if (p_clcb->transport == BT_TRANSPORT_LE ||
-      com_android_bluetooth_flags_br_edr_discover_gatt_services_over_gatt()) {
-    return GATTC_Discover(conn_id, disc_type, 0x0001, 0xFFFF);
+  if (com_android_bluetooth_flags_gatt_service_changed_subscription() &&
+      p_clcb->transport == BT_TRANSPORT_LE) {
+    // Subscribing to service changed indication before discovering services, so that we can
+    // restart service discovery if remote database changes during database discovery.
+    log::info("Subscribing to service changed indication before discovering services");
+    GATT_LE_ConfigServiceChangeCCC(p_clcb->p_srcb->server_bda, true);
   }
 
-  // only for Classic transport
-  return bta_gattc_sdp_service_disc(conn_id, p_server_cb);
+  return GATTC_Discover(conn_id, disc_type, 0x0001, 0xFFFF);
 }
 
 /** start exploring next service, or finish discovery if no more services left
@@ -298,7 +299,8 @@ static void bta_gattc_explore_srvc_finished(tCONN_ID conn_id, tBTA_GATTC_SERV* p
   bool success = bta_gattc_hash_write(hash, p_clcb->p_srcb->gatt_database);
 
   // If the device is trusted, link the addr file to hash file
-  if (success && BTM_IsBonded(p_srvc_cb->server_bda)) {
+  if (success &&
+      get_security_client_interface().BTM_IsBonded(p_srvc_cb->server_bda, BT_TRANSPORT_AUTO)) {
     log::debug("Linking db hash to address {}",
                p_clcb->p_srcb->server_bda.ToRedactedStringForLogging());
     bta_gattc_cache_link(p_clcb->p_srcb->server_bda, hash);
@@ -331,112 +333,19 @@ descriptor_discovery_done:
   return;
 }
 
-/* Process the discovery result from sdp */
-static void bta_gattc_sdp_callback(tBTA_GATTC_CB_DATA* cb_data, const RawAddress& /* bd_addr */,
-                                   tSDP_STATUS sdp_status) {
-  tBTA_GATTC_SERV* p_srvc_cb = bta_gattc_find_scb_by_cid(cb_data->sdp_conn_id);
-
-  if (p_srvc_cb == nullptr) {
-    log::error("GATT service discovery is done on unknown connection");
-    /* allocated in bta_gattc_sdp_service_disc */
-    osi_free(cb_data);
-    return;
-  }
-
-  if ((sdp_status != tSDP_STATUS::SDP_SUCCESS) && (sdp_status != tSDP_STATUS::SDP_DB_FULL)) {
-    bta_gattc_explore_srvc_finished(cb_data->sdp_conn_id, p_srvc_cb);
-
-    /* allocated in bta_gattc_sdp_service_disc */
-    osi_free(cb_data);
-    return;
-  }
-
-  bool no_pending_disc = !p_srvc_cb->pending_discovery.InProgress();
-
-  tSDP_DISC_REC* p_sdp_rec =
-          get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(cb_data->p_sdp_db, 0, nullptr);
-  while (p_sdp_rec != nullptr) {
-    /* find a service record, report it */
-    Uuid service_uuid;
-    if (!get_legacy_stack_sdp_api()->record.SDP_FindServiceUUIDInRec(p_sdp_rec, &service_uuid)) {
-      continue;
-    }
-
-    tSDP_PROTOCOL_ELEM pe;
-    if (!get_legacy_stack_sdp_api()->record.SDP_FindProtocolListElemInRec(p_sdp_rec,
-                                                                          UUID_PROTOCOL_ATT, &pe)) {
-      continue;
-    }
-
-    uint16_t start_handle = (uint16_t)pe.params[0];
-    uint16_t end_handle = (uint16_t)pe.params[1];
-
-#if (BTA_GATT_DEBUG == TRUE)
-    log::verbose("Found ATT service uuid={}, s_handle=0x{:x}, e_handle=0x{:x}", service_uuid,
-                 start_handle, end_handle);
-#endif
-
-    if (!GATT_HANDLE_IS_VALID(start_handle) || !GATT_HANDLE_IS_VALID(end_handle)) {
-      log::error("invalid start_handle=0x{:x}, end_handle=0x{:x}", start_handle, end_handle);
-      p_sdp_rec =
-              get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(cb_data->p_sdp_db, 0, p_sdp_rec);
-      continue;
-    }
-
-    /* discover services result, add services into a service list */
-    p_srvc_cb->pending_discovery.AddService(start_handle, end_handle, service_uuid, true);
-
-    p_sdp_rec = get_legacy_stack_sdp_api()->db.SDP_FindServiceInDb(cb_data->p_sdp_db, 0, p_sdp_rec);
-  }
-
-  // If discovery is already pending, no need to call
-  // bta_gattc_explore_next_service. Next service will be picked up to discovery
-  // once current one is discovered. If discovery is not pending, start one
-  if (no_pending_disc) {
-    bta_gattc_explore_next_service(cb_data->sdp_conn_id, p_srvc_cb);
-  }
-
-  /* allocated in bta_gattc_sdp_service_disc */
-  osi_free(cb_data);
-}
-
-/* Start DSP Service Discovery */
-static tGATT_STATUS bta_gattc_sdp_service_disc(tCONN_ID conn_id, tBTA_GATTC_SERV* p_server_cb) {
-  uint16_t num_attrs = 2;
-  uint16_t attr_list[2];
-
-  /*
-   * On success, cb_data will be freed inside bta_gattc_sdp_callback,
-   * otherwise it will be freed within this function.
-   */
-  tBTA_GATTC_CB_DATA* cb_data =
-          (tBTA_GATTC_CB_DATA*)osi_malloc(sizeof(tBTA_GATTC_CB_DATA) + BTA_GATT_SDP_DB_SIZE);
-
-  cb_data->p_sdp_db = (tSDP_DISCOVERY_DB*)(cb_data + 1);
-  attr_list[0] = ATTR_ID_SERVICE_CLASS_ID_LIST;
-  attr_list[1] = ATTR_ID_PROTOCOL_DESC_LIST;
-
-  Uuid uuid = Uuid::From16Bit(UUID_PROTOCOL_ATT);
-  if (!get_legacy_stack_sdp_api()->service.SDP_InitDiscoveryDb(
-              cb_data->p_sdp_db, BTA_GATT_SDP_DB_SIZE, 1, &uuid, num_attrs, attr_list)) {
-    log::warn("Unable to initialize SDP service discovery db peer:{}", p_server_cb->server_bda);
-  };
-
-  if (!get_legacy_stack_sdp_api()->service.SDP_ServiceSearchAttributeRequest2(
-              p_server_cb->server_bda, cb_data->p_sdp_db,
-              base::BindRepeating(bta_gattc_sdp_callback, cb_data))) {
-    log::warn("Unable to start SDP service search attribute request peer:{}",
-              p_server_cb->server_bda);
-    osi_free(cb_data);
-    return GATT_ERROR;
-  }
-
-  cb_data->sdp_conn_id = conn_id;
-  return GATT_SUCCESS;
-}
-
 /** operation completed */
 void bta_gattc_op_cmpl_during_discovery(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATTC_DATA* p_data) {
+  /*
+   * As early MTU exchange related response can arrive when discovery in progress,
+   * this enables pushing the callback to application when MTU response arrives
+   * while GATT discovery is in progress
+   */
+  if (com_android_bluetooth_flags_gatt_conn_settings() && p_clcb->p_q_cmd == NULL) {
+    if (p_data->op_cmpl.op_code == GATTC_OPTYPE_CONFIG) {
+      bta_gattc_op_cmpl(p_clcb, p_data);
+    }
+    log::warn("No pending gatt client command, fall thru");
+  }
   // Currently, there are two cases needed to be handled.
   // 1. Read ext prop descriptor value after service discovery
   // 2. Read db hash before starting service discovery
@@ -560,30 +469,6 @@ void bta_gattc_disc_cmpl_cback(tCONN_ID conn_id, tGATT_DISC_TYPE disc_type, tGAT
     default:
       log::error("Received illegal discovery item");
       break;
-  }
-}
-
-/** search local cache for matching service record */
-void bta_gattc_search_service(tBTA_GATTC_CLCB* p_clcb, Uuid* p_uuid) {
-  for (const Service& service : p_clcb->p_srcb->gatt_database.Services()) {
-    if (p_uuid && *p_uuid != service.uuid) {
-      continue;
-    }
-
-#if (BTA_GATT_DEBUG == TRUE)
-    log::verbose("found service {} handle:{}", service.uuid, service.handle);
-#endif
-    if (!p_clcb->p_rcb->p_cback) {
-      continue;
-    }
-
-    tBTA_GATTC cb_data;
-    memset(&cb_data, 0, sizeof(tBTA_GATTC));
-    cb_data.srvc_res.conn_id = p_clcb->bta_conn_id;
-    cb_data.srvc_res.service_uuid.inst_id = service.handle;
-    cb_data.srvc_res.service_uuid.uuid = service.uuid;
-
-    (*p_clcb->p_rcb->p_cback)(BTA_GATTC_SEARCH_RES_EVT, &cb_data);
   }
 }
 
@@ -767,7 +652,8 @@ static void bta_gattc_read_db_hash_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATT
           found = true;
         }
         // If the device is trusted, link addr file to correct hash file
-        if (found && BTM_IsBonded(p_clcb->p_srcb->server_bda)) {
+        if (found && get_security_client_interface().BTM_IsBonded(p_clcb->p_srcb->server_bda,
+                                                                      BT_TRANSPORT_AUTO)) {
           bta_gattc_cache_link(p_clcb->p_srcb->server_bda, remote_hash);
         }
       }
@@ -775,7 +661,8 @@ static void bta_gattc_read_db_hash_cmpl(tBTA_GATTC_CLCB* p_clcb, const tBTA_GATT
   } else {
     // Only load cache for trusted device if no database hash on server side.
     // If is_svc_chg is true, do not read the existing cache.
-    bool is_a_bonded_dev = BTM_IsBonded(p_clcb->p_srcb->server_bda);
+    bool is_a_bonded_dev = get_security_client_interface().BTM_IsBonded(
+            p_clcb->p_srcb->server_bda, BT_TRANSPORT_AUTO);
     if (!is_svc_chg && is_a_bonded_dev) {
       gatt::Database db = bta_gattc_cache_load(p_clcb->p_srcb->server_bda);
       if (!db.IsEmpty()) {
@@ -1055,7 +942,7 @@ void bta_gattc_link_cache_for_bonded_device(const RawAddress& bd_addr) {
     return;
   }
 
-  if (BTM_IsBonded(bd_addr)) {
+  if (get_security_client_interface().BTM_IsBonded(bd_addr, BT_TRANSPORT_AUTO)) {
     Octet16 hash = p_srcb->gatt_database.Hash();
 
     log::debug("Linking db hash to bonded device {}",

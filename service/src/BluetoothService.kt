@@ -30,83 +30,77 @@ import kotlinx.coroutines.runBlocking
 
 // See BluetoothServiceManager.BLUETOOTH_MANAGER_SERVICE
 private const val SERVICE_NAME = "bluetooth_manager"
+private const val TAG = "BluetoothService"
 
+@kotlin.time.ExperimentalTime
 class BluetoothService(context: Context) : SystemService(context) {
     private val looper = HandlerThread("BluetoothSystemServer").apply { start() }.looper
     private val serviceDispatcher = Handler(looper).asCoroutineDispatcher()
     private val scope = CoroutineScope(serviceDispatcher + SupervisorJob())
 
     private var supervisor: BluetoothSupervisor
-    private var mInitialized = false
 
     init {
-        Log.d("Booting now")
-        val bluetoothComponent =
-            if (Flags.userRestrictionRefactor()) {
-                BluetoothComponent(context)
-            } else {
-                null
-            }
+        Log.d(TAG, "Booting now")
+        val bluetoothComponent = BluetoothComponent(context)
         // Run BluetoothManagerService on the correct thread even during constructor
         supervisor =
             runBlocking(serviceDispatcher) {
-                BluetoothSupervisor(context, looper, bluetoothComponent)
+                if (Flags.systemServerMigrateBmsToKotlin()) {
+                    BluetoothSupervisorNew(context, looper, bluetoothComponent)
+                } else {
+                    BluetoothSupervisorLegacy(context, looper, bluetoothComponent)
+                }
             }
 
-        runOnBmsThread {
-            if (Flags.userRestrictionRefactor()) {
-                BluetoothRestriction.initialize(context, looper, supervisor::onBluetoothDisallowed)
-            }
+        launchOnServerThread {
+            BluetoothRestriction.initialize(context, looper, supervisor::onRestrictionChange)
         }
     }
 
-    // Run any lambda on the BluetoothSystemServer thread without waiting for its completion
-    private fun runOnBmsThread(block: suspend CoroutineScope.() -> Unit) = scope.launch { block() }
+    // Run lambda on the BluetoothSystemServer thread without waiting for completion
+    private fun launchOnServerThread(block: suspend CoroutineScope.() -> Unit) = scope.launch {
+        block()
+    }
 
     override fun onStart() {
-        publishBinderService(
-            SERVICE_NAME,
-            BluetoothServiceBinder(looper, supervisor.api(), context),
-        )
+        publishBinderService(SERVICE_NAME, ServerBinder(looper, supervisor.api, context))
+    }
+
+    override fun onBootPhase(phase: Int) {
+        if (phase != SystemService.PHASE_BOOT_COMPLETED) return
+        launchOnServerThread { supervisor.onBootCompleted() }
     }
 
     override fun onUserStarting(user: TargetUser) {
-        if (mInitialized) {
-            Log.i("onUserStarting($user) but already initialized")
+        val isUserVisible =
+            context
+                .createContextAsUser(user.userHandle, 0)
+                .getSystemService(UserManager::class.java)!!
+                .isUserVisible
+        if (!isUserVisible) {
+            Log.i(TAG, "onUserStarting($user): Skipping non visible user")
             return
         }
-        if (Flags.userVisibleOnUserStarting()) {
-            val isUserVisible =
-                context
-                    .createContextAsUser(user.userHandle, 0)
-                    .getSystemService(android.os.UserManager::class.java)!!
-                    .isUserVisible
-            if (!isUserVisible) {
-                Log.i("onUserStarting($user) Skipping non visible user ")
-                return
-            }
-            Log.i("onUserStarting($user) Initializing for visible user ")
-        } else {
-            val isForeground =
-                context
-                    .createContextAsUser(user.userHandle, 0)
-                    .getSystemService(android.os.UserManager::class.java)!!
-                    .isUserForeground
-            if (!isForeground) {
-                Log.i("onUserStarting($user) Skipping non foreground user ")
-                return
-            }
-            Log.i("onUserStarting($user) Initializing for foreground user ")
-        }
-        runOnBmsThread { supervisor.handleOnBootPhase(user.userHandle) }
-        mInitialized = true
+        Log.i(TAG, "onUserStarting($user): Initializing for visible user")
+        launchOnServerThread { supervisor.onUserStarting(user.userHandle) }
     }
 
-    override fun onUserSwitching(_from: TargetUser?, to: TargetUser) {
-        Log.d("onUserSwitching($to)")
-        if (!mInitialized) {
-            throw IllegalStateException("Initialize did not happen")
+    override fun onUserStopping(user: TargetUser) {
+        if (!Flags.switchWhenCurrentUserStop()) {
+            Log.i(TAG, "onUserStopping($user): Not implemented. Flag Disabled")
+            return
         }
-        runOnBmsThread { supervisor.onUserSwitching(to.userHandle) }
+        Log.i(TAG, "onUserStopping($user)")
+        launchOnServerThread { supervisor.onUserStopping(user.userHandle) }
+    }
+
+    override fun onUserStopped(user: TargetUser) {
+        Log.i(TAG, "onUserStopped($user): Not implemented")
+    }
+
+    override fun onUserSwitching(from: TargetUser?, to: TargetUser) {
+        Log.i(TAG, "onUserSwitching($from => $to)")
+        launchOnServerThread { supervisor.onUserSwitching(to.userHandle) }
     }
 }

@@ -16,11 +16,12 @@
 
 #include "os/handler.h"
 
+#include <base/functional/callback.h>
+
 #include <future>
 #include <thread>
 
 #include "common/bind.h"
-#include "common/callback.h"
 #include "gtest/gtest.h"
 
 namespace bluetooth {
@@ -48,7 +49,7 @@ TEST_F(HandlerTest, post_task_invoked) {
   int val = 0;
   std::promise<void> closure_ran;
   auto future = closure_ran.get_future();
-  common::OnceClosure closure = common::BindOnce(
+  base::OnceClosure closure = common::BindOnce(
           [](int* val, std::promise<void> closure_ran) {
             *val = *val + 1;
             closure_ran.set_value();
@@ -84,6 +85,7 @@ TEST_F(HandlerTest, post_task_cleared) {
   closure_can_continue.set_value();
   closure_finished_future.wait();
   ASSERT_EQ(val, 1);
+  handler_->WaitUntilStopped(std::chrono::milliseconds(10));
 }
 
 void check_int(std::unique_ptr<int> number, std::shared_ptr<int> to_change) {
@@ -107,6 +109,31 @@ TEST_F(HandlerTest, callback_with_promise) {
   std::move(once_callback).Run();
   future.wait();
   handler_->Clear();
+}
+
+// Check that the handler is correctly notified when a task is pushed while the thread is active
+// handling a different handler loop on the same thread (the same scenario would be reproduced
+// by using an Alarm instead).
+TEST_F(HandlerTest, regression_489590494) {
+  Handler* other_handler = new Handler(thread_);
+  std::promise<int> value_promise;
+  std::future<int> value_future = value_promise.get_future();
+
+  other_handler->Post(base::BindOnce(
+          [](Handler* handler, std::promise<int> value_promise) {
+            // Posting on the same thread, but a different handler.
+            handler->Post(base::BindOnce(
+                    [](std::promise<int> value_promise) { value_promise.set_value(42); },
+                    std::move(value_promise)));
+          },
+          handler_, std::move(value_promise)));
+
+  // The task posted on the original handler should execute within a reasonable delay.
+  EXPECT_EQ(value_future.wait_for(std::chrono::milliseconds(10)), std::future_status::ready);
+
+  other_handler->Clear();
+  handler_->Clear();
+  delete other_handler;
 }
 
 // For Death tests, all the threading needs to be done in the ASSERT_DEATH call

@@ -23,14 +23,17 @@
  ******************************************************************************/
 
 #include <bluetooth/log.h>
+#include <bluetooth/metrics/bluetooth_event.h>
 #include <bluetooth/types/address.h>
 #include <com_android_bluetooth_flags.h>
 
 #include <cstddef>
 #include <cstdint>
 
-#include "common/time_util.h"
+#include "hci/controller.h"
 #include "internal_include/bt_target.h"
+#include "main/shim/entry.h"
+#include "main/shim/helpers.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
@@ -91,55 +94,41 @@ void rfcomm_l2cap_if_init() {
  ******************************************************************************/
 void RFCOMM_ConnectInd(const RawAddress& bd_addr, uint16_t lcid, uint16_t /* psm */, uint8_t id) {
   tRFC_MCB* p_mcb = rfc_alloc_multiplexer_channel(bd_addr, false);
-  if (!com_android_bluetooth_flags_rfcomm_fix_mux_collision_handling()) {
-    if (p_mcb != nullptr && p_mcb->is_initiator && p_mcb->state == RFC_MX_STATE_WAIT_CONN_CNF) {
-      p_mcb->pending_lcid = lcid;
+  bluetooth::metrics::LogRfcommMxEvent(bd_addr,
+                                       bluetooth::metrics::State::L2CAP_CONNECT_REQUEST_RECEIVED);
+  if (p_mcb != nullptr && p_mcb->is_initiator && p_mcb->state != RFC_MX_STATE_IDLE) {
+    /* Collision: We received a ConnectInd from L2CAP after sending our own L2CAP connection req.
+     *
+     * To avoid deadlock when both sides behave mirror-like, compare Local and Remote BD_ADDR.
+     * Only the device with the lower address will swap roles to become an Acceptor.
+     * The device with the higher address stays as an Initiator, rejects the incoming
+     * colliding connection, and waits for its own outgoing connection to complete.
+     *
+     * For lower address device, the outgoing connection is cached and the incoming connection
+     * is processed.  If the current state is RFC_MX_STATE_WAIT_CONN_CNF, the collision event
+     * will effectively reset the state machine.
+     */
 
-      /* wait random timeout (2 - 12) to resolve collision */
-      /* if peer gives up then local device rejects incoming connection and
-       * continues as initiator */
-      /* if timeout, local device disconnects outgoing connection and continues
-       * as acceptor */
-      log::verbose(
-              "RFCOMM_ConnectInd start timer for collision, initiator's "
-              "LCID(0x{:x}), acceptor's LCID(0x{:x})",
-              p_mcb->lcid, p_mcb->pending_lcid);
+    RawAddress local_addr =
+            bluetooth::ToRawAddress(bluetooth::shim::GetController()->GetMacAddress());
 
-      rfc_timer_start(p_mcb, (uint16_t)(bluetooth::common::time_get_os_boottime_ms() % 10 + 2));
-      return;
-    }
-    if (p_mcb != nullptr && p_mcb->is_initiator && p_mcb->state != RFC_MX_STATE_IDLE) {
-      /* we cannot accept connection request from peer at this state */
-      /* don't update lcid */
-      p_mcb = nullptr;
-    } else {
-      /* store mcb even if null */
-      rfc_save_lcid_mcb(p_mcb, lcid);
-    }
-
-    if (p_mcb == nullptr) {
+    if (local_addr > bd_addr) {
+      log::info(
+              "RFCOMM MUX Collision - Local wins ({} > {}), rejecting incoming connection "
+              "incoming lcid:{:x}",
+              local_addr, bd_addr, lcid);
       if (!stack::l2cap::get_interface().L2CA_DisconnectReq(lcid)) {
         log::warn("Unable to disconnect L2CAP cid:{}", lcid);
       }
       return;
     }
-    p_mcb->lcid = lcid;
 
-    rfc_mx_sm_execute(p_mcb, RFC_MX_EVENT_CONN_IND, &id);
-    return;
-  }
-
-  if (p_mcb != nullptr && p_mcb->is_initiator && p_mcb->state != RFC_MX_STATE_IDLE) {
-    /* Collision: We received a ConnectInd from L2CAP after sending our own L2CAP connection req.
-     *
-     * The outgoing connection is cached and the incoming connection is processed.  If the
-     * current state is RFC_MX_STATE_WAIT_CONN_CNF, the collision event will effectively
-     * reset the state machine.
-     */
     log::info(
-            "RFCOMM MUX Collision - accepting incoming connection. incoming lcid:{0:x}, cached "
-            "lcid:{0:x}",
-            lcid, p_mcb->lcid);
+            "RFCOMM MUX Collision - Local loses ({} < {}), accepting incoming connection. "
+            "incoming lcid:{:x}, cached lcid:{:x}",
+            local_addr, bd_addr, lcid, p_mcb->lcid);
+    bluetooth::metrics::LogRfcommMxEvent(
+            p_mcb->bd_addr, bluetooth::metrics::State::COLLISION_DETECTED_ACCEPT_INCOMING);
     p_mcb->collision_outgoing_lcid = p_mcb->lcid;
     /* note: mcb will be stored if appropriate in COLLISION event */
     p_mcb->lcid = lcid;
@@ -172,7 +161,7 @@ void RFCOMM_ConnectInd(const RawAddress& bd_addr, uint16_t lcid, uint16_t /* psm
 void RFCOMM_ConnectCnf(uint16_t lcid, tL2CAP_CONN result) {
   tRFC_MCB* p_mcb = rfc_find_lcid_mcb(lcid);
 
-  if (com_android_bluetooth_flags_rfcomm_fix_mux_collision_handling() && p_mcb == nullptr) {
+  if (p_mcb == nullptr) {
     /* Check if we cached corresponding lcid for collision */
     for (auto& [cid, mcb] : rfc_lcid_mcb) {
       if (mcb == nullptr || mcb->collision_outgoing_lcid != lcid) {
@@ -181,6 +170,8 @@ void RFCOMM_ConnectCnf(uint16_t lcid, tL2CAP_CONN result) {
       if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
         /* We cached the corresponding lcid but its connection failed. */
         /* We can remove from cache */
+        bluetooth::metrics::LogRfcommMxEvent(mcb->bd_addr,
+                                             bluetooth::metrics::State::COLLISION_OUTGOING_FAILED);
         mcb->collision_outgoing_lcid = 0;
       } else {
         /* we started accepting incoming connection and outgoing connection went through */
@@ -194,29 +185,10 @@ void RFCOMM_ConnectCnf(uint16_t lcid, tL2CAP_CONN result) {
     log::error("MCB for LCID 0x{:x} not found", lcid);
     return;
   }
-  if (p_mcb == nullptr) {
-    log::error("RFCOMM_ConnectCnf LCID:0x{:x}", lcid);
-    return;
-  }
 
-  if (p_mcb->pending_lcid) {
-    /* if peer rejects our connect request but peer's connect request is pending
-     */
-    if (result != tL2CAP_CONN::L2CAP_CONN_OK) {
-      return;
-    } else {
-      log::verbose("RFCOMM_ConnectCnf peer gave up pending LCID(0x{:x})", p_mcb->pending_lcid);
-
-      /* Peer gave up its connection request, make sure cleaning up L2CAP
-       * channel */
-      if (!stack::l2cap::get_interface().L2CA_DisconnectReq(p_mcb->pending_lcid)) {
-        log::warn("Unable to send L2CAP disconnect request peer:{} cid:{}", p_mcb->bd_addr,
-                  p_mcb->lcid);
-      }
-
-      p_mcb->pending_lcid = 0;
-    }
-  }
+  bluetooth::metrics::LogRfcommL2capEvent(
+          p_mcb->bd_addr, bluetooth::metrics::EventType::RFCOMM_L2CAP_CONNECTION_RESPONSE_RECEIVED,
+          result);
 
   /* Save LCID to be used in all consecutive calls to L2CAP */
   p_mcb->lcid = lcid;
@@ -242,21 +214,10 @@ void RFCOMM_ConfigInd(uint16_t lcid, tL2CAP_CFG_INFO* p_cfg) {
   tRFC_MCB* p_mcb = rfc_find_lcid_mcb(lcid);
 
   if (p_mcb == nullptr) {
-    if (!com_android_bluetooth_flags_rfcomm_fix_mux_collision_handling()) {
-      log::error("RFCOMM_ConfigInd LCID:0x{:x}", lcid);
-      for (auto& [cid, mcb] : rfc_lcid_mcb) {
-        if (mcb != nullptr && mcb->pending_lcid == lcid) {
-          tL2CAP_CFG_INFO l2cap_cfg_info(*p_cfg);
-          mcb->pending_configure_complete = true;
-          mcb->pending_cfg_info = l2cap_cfg_info;
-          return;
-        }
-      }
-      return;
-    }
     log::error("LCID 0x{:x} not found", lcid);
     for (auto& [cid, mcb] : rfc_lcid_mcb) {
       if (mcb != nullptr && mcb->collision_outgoing_lcid == lcid) {
+        log::info("Collision case: ConfigInd for outgoing connection");
         tL2CAP_CFG_INFO l2cap_cfg_info(*p_cfg);
         mcb->collision_outgoing_cfg_complete = true;
         mcb->collision_cfg_info = l2cap_cfg_info;
@@ -303,14 +264,10 @@ void RFCOMM_DisconnectInd(uint16_t lcid, bool is_conf_needed) {
   log::verbose("lcid:0x{:x}, is_conf_needed:{}", lcid, is_conf_needed);
   tRFC_MCB* p_mcb = rfc_find_lcid_mcb(lcid);
   if (p_mcb == nullptr) {
-    if (!com_android_bluetooth_flags_rfcomm_fix_mux_collision_handling()) {
-      log::warn("no mcb for lcid 0x{:x}", lcid);
-      return;
-    }
-
-    /* DisconnectInd called for cached lcid */
     for (auto& [cid, mcb] : rfc_lcid_mcb) {
       if (mcb != nullptr && mcb->collision_outgoing_lcid == lcid) {
+        log::info("Collision case: DisconnectInd called for outgoing connection");
+        // Clear cached info
         mcb->collision_outgoing_lcid = 0;
         mcb->collision_outgoing_conn_cnf = false;
         mcb->collision_outgoing_cfg_complete = false;
@@ -321,6 +278,9 @@ void RFCOMM_DisconnectInd(uint16_t lcid, bool is_conf_needed) {
     log::warn("no mcb for lcid 0x{:x}", lcid);
     return;
   }
+
+  bluetooth::metrics::LogRfcommMxEvent(
+          p_mcb->bd_addr, bluetooth::metrics::State::L2CAP_DISCONNECT_REQUEST_RECEIVED);
   rfc_mx_sm_execute(p_mcb, RFC_MX_EVENT_DISC_IND, nullptr);
 }
 
@@ -343,7 +303,7 @@ void RFCOMM_BufDataInd(uint16_t lcid, BT_HDR* p_buf) {
     return;
   }
 
-  tRFC_EVENT event = rfc_parse_data(p_mcb, &rfc_cb.rfc.rx_frame, p_buf);
+  RfcommEvent event = rfc_parse_data(p_mcb, &rfc_cb.rfc.rx_frame, p_buf);
 
   /* If the frame did not pass validation just ignore it */
   if (event == RFC_EVENT_BAD_FRAME) {
@@ -354,7 +314,8 @@ void RFCOMM_BufDataInd(uint16_t lcid, BT_HDR* p_buf) {
   }
 
   if (rfc_cb.rfc.rx_frame.dlci == RFCOMM_MX_DLCI) {
-    log::verbose("handle multiplexer event {}, p_mcb={}", event, std::format_ptr(p_mcb));
+    log::verbose("handle multiplexer event {}, p_mcb={}", rfcomm_event_text(event),
+                 std::format_ptr(p_mcb));
     /* Take special care of the Multiplexer Control Messages */
     if (event == RFC_EVENT_UIH) {
       rfc_process_mx_message(p_mcb, p_buf);
@@ -362,14 +323,14 @@ void RFCOMM_BufDataInd(uint16_t lcid, BT_HDR* p_buf) {
     }
 
     /* Other multiplexer events go to state machine */
-    rfc_mx_sm_execute(p_mcb, static_cast<tRFC_MX_EVENT>(event), nullptr);
+    rfc_mx_sm_execute(p_mcb, static_cast<RfcommMuxEvent>(event), nullptr);
     osi_free(p_buf);
     return;
   }
 
   /* The frame was received on the data channel DLCI, verify that DLC exists */
   tPORT* p_port = port_find_mcb_dlci_port(p_mcb, rfc_cb.rfc.rx_frame.dlci);
-  if (p_port == nullptr || !p_port->rfc.p_mcb) {
+  if (p_port == nullptr || !p_port->p_mcb) {
     /* If this is a SABME on new port, check if any app is waiting for it */
     if (event != RFC_EVENT_SABME) {
       log::warn("no for none-SABME event, lcid=0x{:x}, bd_addr={}, p_mcb={}", lcid, p_mcb->bd_addr,
@@ -398,14 +359,17 @@ void RFCOMM_BufDataInd(uint16_t lcid, BT_HDR* p_buf) {
                  p_mcb->port_handles[rfc_cb.rfc.rx_frame.dlci], p_port->handle,
                  std::format_ptr(p_mcb));
     p_mcb->port_handles[rfc_cb.rfc.rx_frame.dlci] = p_port->handle;
-    p_port->rfc.p_mcb = p_mcb;
+    p_port->p_mcb = p_mcb;
+    if (com_android_bluetooth_flags_hfp_collision_fix_rfcomm_port_rx_buf_critical_error()) {
+      port_select_mtu(p_port);
+    }
   }
 
   if (event == RFC_EVENT_UIH) {
     log::verbose("Handling UIH event, buf_len={}, credit={}", p_buf->len,
                  rfc_cb.rfc.rx_frame.credit);
     if (p_buf->len > 0) {
-      rfc_port_sm_execute(p_port, static_cast<tRFC_PORT_EVENT>(event), p_buf);
+      rfc_port_sm_execute(p_port, static_cast<RfcommPortEvent>(event), p_buf);
     } else {
       osi_free(p_buf);
     }
@@ -416,7 +380,7 @@ void RFCOMM_BufDataInd(uint16_t lcid, BT_HDR* p_buf) {
 
     return;
   }
-  rfc_port_sm_execute(p_port, static_cast<tRFC_PORT_EVENT>(event), nullptr);
+  rfc_port_sm_execute(p_port, static_cast<RfcommPortEvent>(event), nullptr);
   osi_free(p_buf);
 }
 
@@ -448,12 +412,16 @@ void RFCOMM_CongestionStatusInd(uint16_t lcid, bool is_congested) {
  *
  ******************************************************************************/
 tRFC_MCB* rfc_find_lcid_mcb(uint16_t lcid) {
-  tRFC_MCB* p_mcb = rfc_lcid_mcb[lcid];
-  if (p_mcb != nullptr) {
-    if (p_mcb->lcid != lcid) {
-      log::warn("LCID reused lcid=:0x{:x}, current_lcid=0x{:x}", lcid, p_mcb->lcid);
-      return nullptr;
-    }
+  auto it = rfc_lcid_mcb.find(lcid);
+  if (it == rfc_lcid_mcb.end()) {
+    log::warn("no mcb saved for lcid:0x{:x}", lcid);
+    return nullptr;
+  }
+
+  tRFC_MCB* p_mcb = it->second;
+  if (p_mcb->lcid != lcid) {
+    log::warn("LCID reused lcid=0x{:x}, current_lcid=0x{:x}", lcid, p_mcb->lcid);
+    return nullptr;
   }
   return p_mcb;
 }
@@ -462,10 +430,13 @@ tRFC_MCB* rfc_find_lcid_mcb(uint16_t lcid) {
  *
  * Function         rfc_save_lcid_mcb
  *
- * Description      This function returns MCB block supporting local cid
+ * Description      This function saves a (lcid, p_mcb) mapping to rfc_lcid_mcb
  *
  ******************************************************************************/
 void rfc_save_lcid_mcb(tRFC_MCB* p_mcb, uint16_t lcid) {
-  auto mcb_index = static_cast<size_t>(lcid);
-  rfc_lcid_mcb[mcb_index] = p_mcb;
+  if (p_mcb == nullptr) {
+    rfc_lcid_mcb.erase(lcid);
+    return;
+  }
+  rfc_lcid_mcb[lcid] = p_mcb;
 }

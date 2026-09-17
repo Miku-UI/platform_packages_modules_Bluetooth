@@ -70,9 +70,8 @@ struct AclScheduler::impl {
         outgoing_entry_.reset();
         handle_outgoing_connection();
         // Check if incoming request also exists for this address
-        if (com_android_bluetooth_flags_acl_fix_in_and_out_connection_reqs() &&
-            incoming_connecting_address_set_.find(address) !=
-                    incoming_connecting_address_set_.end()) {
+        if (incoming_connecting_address_set_.find(address) !=
+            incoming_connecting_address_set_.end()) {
           log::warn("Incoming connection request also exists for {}", address);
           incoming_connecting_address_set_.erase(address);
         }
@@ -171,11 +170,6 @@ struct AclScheduler::impl {
 
   void Stop() {
     stopped_ = true;
-    if (!com_android_bluetooth_flags_same_handler_for_all_modules()) {
-      handler_->Clear();
-      handler_->WaitUntilStopped(std::chrono::milliseconds(2000));
-      delete handler_;
-    }
   }
 
 private:
@@ -254,11 +248,10 @@ private:
       pending_outgoing_operations_.pop_front();
       std::visit([](auto&& variant) { variant.callback(); }, entry);
       outgoing_entry_ = std::move(entry);
-    }
-   else {
+    } else {
       // log the reasons on why we're not sending the next operation
       log_try_dequeue_next_operation();
-   }
+    }
   }
 
   template <typename T, typename U, typename V>

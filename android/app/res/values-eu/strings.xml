@@ -18,9 +18,11 @@
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_name" msgid="2326164424236203271">"Bluetootha"</string>
     <string name="permlab_bluetoothShareManager" msgid="5297865456717871041">"Atzitu deskargen kudeatzailea."</string>
-    <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"Bluetooth bidezko partekatzeen kudeatzailea atzitzea eta fitxategiak transferitzeko erabiltzeko baimena ematen dio aplikazioari."</string>
+    <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"Bluetooth bidezko partekatzeen kudeatzailea atzitzea eta fitxategiak transferitzeko erabiltzeko baimena ematen die aplikazioei."</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"Ezarri Bluetooth bidezko gailuak onartutakoen zerrendan."</string>
-    <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"Bluetooth bidezko gailu bat aldi baterako onartutakoen zerrendan ezartzeko baimena ematen dio aplikazioari, gailu honetara fitxategiak bidaltzeko baimena izan dezan, baina gailu honen erabiltzaileari berrespena eskatu beharrik gabe."</string>
+    <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"Bluetooth bidezko gailu bat aldi baterako onartutakoen zerrendan ezartzeko baimena ematen die aplikazioei, gailu honetara fitxategiak bidaltzeko baimena izan dezaten, baina gailu honen erabiltzaileari berrespena eskatu beharrik gabe."</string>
+    <string name="permlab_bluetoothBackup" msgid="49451988877877942">"Eman Bluetooth bidezko babeskopien iragarpenak egiteko baimena."</string>
+    <string name="permdesc_bluetoothBackup" msgid="2871500153259509669">"Ezarpenen datuen babeskopiak abiarazteko iragarpenak onartzeko baimena ematen dio Bluetootharen aplikazioari"</string>
     <string name="bt_share_picker_label" msgid="7464438494743777696">"Bluetootha"</string>
     <string name="unknown_device" msgid="2317679521750821654">"Identifikatu ezin den gailua"</string>
     <string name="unknownNumber" msgid="1245183329830158661">"Ezezaguna"</string>
@@ -112,10 +114,10 @@
     <string name="transfer_menu_open" msgid="5193344638774400131">"Ireki"</string>
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Garbitu zerrendatik"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Garbitu"</string>
-    <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Orain erreproduzitzen"</string>
+    <string name="bluetooth_media_audio_app_name" msgid="2389937877819723460">"Bluetooth bidezko audioa"</string>
+    <string name="bluetooth_media_audio_queue_name" msgid="2327164681598379428">"Orain erreproduzitzen"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Aplikazioaren ikonoa"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Deskonektatu da Bluetooth bidezko audioa"</string>
-    <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Bluetooth bidezko audioa"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"Ezin dira transferitu 4 GB baino gehiagoko fitxategiak"</string>
     <string name="bluetooth_connect_action" msgid="2319449093046720209">"Konektatu Bluetoothera"</string>
     <string name="bluetooth_enabled_apm_title" msgid="6914461147844949044">"Bluetootha aktibatuta mantentzen da hegaldi moduan"</string>
@@ -130,4 +132,13 @@
     <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"Berriro aktibatu da Bluetootha"</string>
     <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"Ezarpenetan alda dezakezu aukera hori"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"Bluetootharen egoera automatikoki aldatu da"</string>
+    <string name="auracast_notification_channel" msgid="5159181425358316696">"Auracast"</string>
+    <string name="auracast_notification_title" msgid="3101708313009368939">"<xliff:g id="STREAM_NAME">%1$s</xliff:g> zerbitzuko zuzeneko audio-igorpena erabilgarri"</string>
+    <string name="auracast_notification_subtext" msgid="4696155233480316395">"Kontsumo txikiko audioa"</string>
+    <string name="auracast_connect_device_message" msgid="4461776363082532493">"Entzuten hasteko, konektatu kontsumo txikiko audio-gailu bat"</string>
+    <string name="auracast_listen_on_device_message" msgid="3719491065367993094">"Entzun <xliff:g id="STREAM_NAME">%1$s</xliff:g> zerbitzuko zuzeneko audio-igorpena <xliff:g id="DEVICE_NAME">%2$s</xliff:g> gailuan"</string>
+    <string name="auracast_connect_action" msgid="7157544449029291355">"Konektatu"</string>
+    <string name="auracast_connection_failed_message" msgid="6490085541428198952">"Ezin izan da konektatu <xliff:g id="STREAM_NAME">%1$s</xliff:g> zerbitzuko zuzeneko audio-igorpenarera <xliff:g id="DEVICE_NAME">%2$s</xliff:g> gailuan."</string>
+    <string name="auracast_default_stream_name" msgid="2824625871526576239">"Inguruan"</string>
+    <string name="auracast_default_device_name" msgid="15748131701036354">"gailuak"</string>
 </resources>

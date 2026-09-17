@@ -16,18 +16,21 @@
 
 package com.android.server.bluetooth.test
 
-import android.bluetooth.IBluetoothManager
+import android.Manifest.permission.BLUETOOTH_CONNECT
+import android.Manifest.permission.BLUETOOTH_PRIVILEGED
+import android.app.Application
 import android.bluetooth.State
+import android.content.Context
 import android.os.Binder
 import android.os.HandlerThread
 import android.os.ParcelFileDescriptor
 import android.os.Process
+import android.permission.PermissionManager
 import android.platform.test.flag.junit.SetFlagsRule
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.filters.SmallTest
-import com.android.bluetooth.flags.Flags
 import com.android.server.bluetooth.BluetoothManagerServiceApi
-import com.android.server.bluetooth.PermissionChecker
-import com.android.server.bluetooth.ServiceMessenger
+import com.android.server.bluetooth.ServerBinder
 import com.android.server.bluetooth.ShellCommand
 import com.android.tests.bluetooth.FlagsWrapper
 import com.google.common.truth.Truth.assertThat
@@ -46,18 +49,21 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.ParameterizedRobolectricTestRunner
 import org.robolectric.ParameterizedRobolectricTestRunner.Parameters
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadows.ShadowBinder
 
 @SmallTest
 @RunWith(ParameterizedRobolectricTestRunner::class)
-class ShellCommandTest(private val flags: FlagsWrapper, private val returnValue: Boolean) {
-    @get:Rule val mSetFlagsRule: SetFlagsRule = SetFlagsRule(flags.flags)
+class ShellCommandTest(flags: FlagsWrapper, private val returnValue: Boolean) {
+    @get:Rule val setFlagsRule: SetFlagsRule = SetFlagsRule(flags.flags)
     @get:Rule val testName = TestName()
 
-    private val mockApi: BluetoothManagerServiceApi = mock()
-    private val mockPermissionChecker: PermissionChecker = mock()
-    private val mockBinder: IBluetoothManager.Stub = mock()
+    private val api: BluetoothManagerServiceApi = mock()
+    private val permissionManager: PermissionManager = mock()
 
+    private val context = ApplicationProvider.getApplicationContext<Context>()
+    private val application = ApplicationProvider.getApplicationContext<Application>()
+    private val looper = HandlerThread("ServerBinderTest").apply { start() }.looper
     private val testWaitForState: (Int) -> Boolean = {
         waitForStateCalledWith = it
         returnValue
@@ -66,17 +72,23 @@ class ShellCommandTest(private val flags: FlagsWrapper, private val returnValue:
 
     private lateinit var shellCommand: ShellCommand
     private lateinit var outPipe: Array<ParcelFileDescriptor>
-    private lateinit var handlerThread: HandlerThread
+    private lateinit var binder: ServerBinder
 
     @Before
     fun setUp() {
+        BluetoothComponentTest.setup()
+        BluetoothRestrictionTest.setup()
+
+        doReturn(PermissionManager.PERMISSION_HARD_DENIED)
+            .whenever(permissionManager)
+            .checkPermissionForDataDeliveryFromDataSource(any(), any(), any())
+
+        binder = ServerBinder(looper, api, context, permissionManager)
+
         waitForStateCalledWith = null
         outPipe = ParcelFileDescriptor.createPipe()
-        handlerThread = HandlerThread("ShellCommandTestHandler").apply { start() }
 
-        val serviceMessenger =
-            ServiceMessenger(handlerThread.looper, mockPermissionChecker, mockApi)
-        shellCommand = ShellCommand(mockBinder, serviceMessenger.messenger, testWaitForState)
+        shellCommand = ShellCommand(binder, testWaitForState)
 
         shellCommand.init(
             Binder(),
@@ -88,23 +100,17 @@ class ShellCommandTest(private val flags: FlagsWrapper, private val returnValue:
         )
 
         // Mock API and Binder calls to return the parameterized value
-        doReturn(returnValue).whenever(mockApi).enable(any(), any())
-        doReturn(returnValue).whenever(mockApi).enableBle(any(), any())
-        doReturn(returnValue).whenever(mockApi).enableNoAutoConnect(any())
-        doReturn(returnValue).whenever(mockApi).disable(any(), any())
-        doReturn(returnValue).whenever(mockApi).disableBle(any(), any())
-        doReturn(returnValue).whenever(mockApi).factoryReset(any())
-        doReturn(returnValue).whenever(mockBinder).enable(any())
-        doReturn(returnValue).whenever(mockBinder).disable(any(), any())
-        doReturn(returnValue).whenever(mockBinder).enableBle(any(), any())
-        doReturn(returnValue).whenever(mockBinder).disableBle(any(), any())
-        doReturn(returnValue).whenever(mockBinder).factoryReset(any())
+        doReturn(returnValue).whenever(api).enable(any(), any())
+        doReturn(returnValue).whenever(api).enableBle(any(), any())
+        doReturn(returnValue).whenever(api).enableNoAutoConnect(any())
+        doReturn(returnValue).whenever(api).disable(any(), any())
+        doReturn(returnValue).whenever(api).disableBle(any(), any())
+        doReturn(returnValue).whenever(api).factoryReset()
     }
 
     @After
     fun tearDown() {
         outPipe.forEach { it.close() }
-        handlerThread.quitSafely()
     }
 
     @Test
@@ -119,49 +125,50 @@ class ShellCommandTest(private val flags: FlagsWrapper, private val returnValue:
 
     @Test
     fun onCommand_unknown_doNotCrash() {
+        assertThat(
+                binder.handleShellCommand(
+                    outPipe[1],
+                    outPipe[1],
+                    outPipe[1],
+                    arrayOf("not a known command"),
+                )
+            )
+            .isEqualTo(-1)
         assertThat(shellCommand.onCommand("not a known command")).isEqualTo(-1)
     }
 
     @Test
     fun onCommand_enable() {
+        assertThrows(SecurityException::class.java) { shellCommand.onCommand("enable") }
+        grantConnect()
         assertThat(shellCommand.onCommand("enable")).isEqualTo(if (returnValue) 0 else -1)
-        if (Flags.systemServerMessenger()) {
-            verify(mockApi).enable(any(), any())
-        } else {
-            verify(mockBinder).enable(any())
-        }
+        verify(api).enable(any(), any())
     }
 
     @Test
     fun onCommand_enableBle() {
+        assertThrows(SecurityException::class.java) { shellCommand.onCommand("enableBle") }
+        grantConnect()
         ShadowBinder.setCallingUid(Process.ROOT_UID)
         assertThat(shellCommand.onCommand("enableBle")).isEqualTo(if (returnValue) 0 else -1)
-        if (Flags.systemServerMessenger()) {
-            verify(mockApi).enableBle(any(), eq(mockBinder))
-        } else {
-            verify(mockBinder).enableBle(any(), eq(mockBinder))
-        }
+        verify(api).enableBle(any(), eq(binder))
     }
 
     @Test
     fun onCommand_disable() {
+        assertThrows(SecurityException::class.java) { shellCommand.onCommand("disable") }
+        grantConnect()
         assertThat(shellCommand.onCommand("disable")).isEqualTo(if (returnValue) 0 else -1)
-        if (Flags.systemServerMessenger()) {
-            verify(mockApi).disable(any(), eq(true))
-        } else {
-            verify(mockBinder).disable(any(), eq(true))
-        }
+        verify(api).disable(any(), eq(true))
     }
 
     @Test
     fun onCommand_disableBle() {
+        assertThrows(SecurityException::class.java) { shellCommand.onCommand("disableBle") }
+        grantConnect()
         ShadowBinder.setCallingUid(Process.ROOT_UID)
         assertThat(shellCommand.onCommand("disableBle")).isEqualTo(if (returnValue) 0 else -1)
-        if (Flags.systemServerMessenger()) {
-            verify(mockApi).disableBle(any(), eq(mockBinder))
-        } else {
-            verify(mockBinder).disableBle(any(), eq(mockBinder))
-        }
+        verify(api).disableBle(any(), eq(binder))
     }
 
     @Test
@@ -174,14 +181,13 @@ class ShellCommandTest(private val flags: FlagsWrapper, private val returnValue:
 
     @Test
     fun onCommand_factoryReset() {
+        assertThrows(SecurityException::class.java) { shellCommand.onCommand("factoryReset") }
         ShadowBinder.setCallingUid(Process.ROOT_UID)
+        grantConnect()
+        grantPrivileged()
 
         assertThat(shellCommand.onCommand("factoryReset")).isEqualTo(if (returnValue) 0 else -1)
-        if (Flags.systemServerMessenger()) {
-            verify(mockApi).factoryReset(any())
-        } else {
-            verify(mockBinder).factoryReset(any())
-        }
+        verify(api).factoryReset()
     }
 
     @Test
@@ -204,11 +210,20 @@ class ShellCommandTest(private val flags: FlagsWrapper, private val returnValue:
         assertThat(waitForStateCalledWith).isNull()
     }
 
+    private fun grantConnect() {
+        shadowOf(application).grantPermissions(BLUETOOTH_CONNECT)
+        doReturn(PermissionManager.PERMISSION_GRANTED)
+            .whenever(permissionManager)
+            .checkPermissionForDataDeliveryFromDataSource(any(), any(), any())
+    }
+
+    private fun grantPrivileged() = shadowOf(application).grantPermissions(BLUETOOTH_PRIVILEGED)
+
     companion object {
         @JvmStatic
-        @Parameters(name = "{0}|{1}")
+        @Parameters(name = "{0}|returnValue={1}")
         fun getParams() =
-            FlagsWrapper.progressionOf(Flags.FLAG_SYSTEM_SERVER_MESSENGER).flatMap { flag ->
+            FlagsWrapper.progressionOf().flatMap { flag ->
                 listOf(arrayOf(flag, true), arrayOf(flag, false))
             }
     }

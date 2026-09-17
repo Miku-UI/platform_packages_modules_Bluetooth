@@ -18,203 +18,6 @@ filegroup {
 }
 
 filegroup {
-    name: "TestMockBtaAg",
-    srcs: [
-        "mock/mock_bta_ag_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaAr",
-    srcs: [
-        "mock/mock_bta_ar.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaAv",
-    srcs: [
-        "mock/mock_bta_av_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaCsis",
-    srcs: [
-        "mock/mock_bta_csis*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaDm",
-    srcs: [
-        "mock/mock_bta_dm_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaGatt",
-    srcs: [
-        "mock/mock_bta_gatt*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaGroups",
-    srcs: [
-        "mock/mock_bta_groups*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaHas",
-    srcs: [
-        "mock/mock_bta_has.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaHd",
-    srcs: [
-        "mock/mock_bta_hd*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaHearingAid",
-    srcs: [
-        "mock/mock_bta_hearing_aid.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaHearingAidAudioSource",
-    srcs: [
-        "mock/mock_bta_hearing_aid_audio_source.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaHf",
-    srcs: [
-        "mock/mock_bta_hf*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaHh",
-    srcs: [
-        "mock/mock_bta_hh*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaJv",
-    srcs: [
-        "mock/mock_bta_jv_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaLeAudio",
-    srcs: [
-        "mock/mock_bta_leaudio*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaLeAudioHalVerifier",
-    srcs: [
-        "mock/mock_le_audio_hal_verifier.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaPan",
-    srcs: [
-        "mock/mock_bta_pan_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaRas",
-    srcs: [
-        "mock/mock_bta_ras*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaRfcMetrics",
-    srcs: [
-        "mock/mock_bta_rfc_metrics.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaScn",
-    srcs: [
-        "mock/mock_bta_scn.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaSdp",
-    srcs: [
-        "mock/mock_bta_sdp_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaSys",
-    srcs: [
-        "mock/mock_bta_sys_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaVaps",
-    srcs: [
-        "mock/mock_bta_vaps_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtaVc",
-    srcs: [
-        "mock/mock_bta_vc*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBta",
-    srcs: [
-        ":TestMockBtaAg",
-        ":TestMockBtaAr",
-        ":TestMockBtaAv",
-        ":TestMockBtaCsis",
-        ":TestMockBtaDm",
-        ":TestMockBtaGatt",
-        ":TestMockBtaGroups",
-        ":TestMockBtaHas",
-        ":TestMockBtaHd",
-        ":TestMockBtaHearingAid",
-        ":TestMockBtaHearingAidAudioSource",
-        ":TestMockBtaHf",
-        ":TestMockBtaHh",
-        ":TestMockBtaJv",
-        ":TestMockBtaLeAudio",
-        ":TestMockBtaLeAudioHalVerifier",
-        ":TestMockBtaPan",
-        ":TestMockBtaRas",
-        ":TestMockBtaRfcMetrics",
-        ":TestMockBtaSdp",
-        ":TestMockBtaSys",
-        ":TestMockBtaVaps",
-        ":TestMockBtaVc",
-    ],
-}
-
-filegroup {
     name: "TestMockMainShimDumpsys",
     srcs: [
         "mock/mock_main_shim_dumpsys.cc",
@@ -233,90 +36,6 @@ filegroup {
         "mock/mock_main_shim_hci_layer.cc",
         "mock/mock_main_shim_le_advertising_manager.cc",
         "mock/mock_main_shim_le_scanning_manager.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackA2dp",
-    srcs: [
-        "mock/mock_stack_a2dp_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackA2dpApi",
-    srcs: [
-        "mock/mock_stack_a2dp_api.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackArbiter",
-    srcs: [
-        "mock/mock_stack_arbiter_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackAvct",
-    srcs: [
-        "mock/mock_stack_avct_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackAvdt",
-    srcs: [
-        "mock/mock_stack_avdt_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackAvrc",
-    srcs: [
-        "mock/mock_stack_avrc_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackL2cap",
-    srcs: [
-        "mock/mock_stack_l2cap_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackL2capInterface",
-    srcs: [
-        "mock/mock_stack_l2cap_interface.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackRfcomm",
-    srcs: [
-        "mock/mock_stack_rfcomm*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackRfcommMetrics",
-    srcs: [
-        "mock/mock_stack_rfcomm_metrics.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackRnr",
-    srcs: [
-        "mock/mock_stack_rnr_interface.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStack",
-    srcs: [
-        "mock/mock_stack_*.cc",
     ],
 }
 
@@ -380,55 +99,6 @@ filegroup {
 }
 
 filegroup {
-    name: "TestMockStackHid",
-    srcs: [
-        "mock/mock_stack_hid*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackPan",
-    srcs: [
-        "mock/mock_stack_pan*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackSdp",
-    srcs: [
-        "mock/mock_stack_sdp*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackBtm",
-    srcs: [
-        "mock/mock_stack_btm*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackBtmInterface",
-    srcs: [
-        "mock/mock_stack_btm_interface.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackSecurityClientInterface",
-    srcs: [
-        "mock/mock_stack_security_client_interface.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackBtmIso",
-    srcs: [
-        "mock/mock_stack_btm_iso.cc",
-    ],
-}
-
-filegroup {
     name: "TestStubOsi",
     srcs: [
         "stub/osi.cc",
@@ -439,62 +109,6 @@ filegroup {
     name: "TestMockOsi",
     srcs: [
         "mock/mock_osi_*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackAcl",
-    srcs: [
-        "mock/mock_stack_acl*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackSmp",
-    srcs: [
-        "mock/mock_stack_smp*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackGap",
-    srcs: [
-        "mock/mock_stack_gap*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackGapConnInterface",
-    srcs: [
-        "mock/mock_stack_gap_conn_interface.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackConnMgr",
-    srcs: [
-        "mock/mock_stack_connection_manager.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackGatt",
-    srcs: [
-        "mock/mock_stack_gatt*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockStackBtu",
-    srcs: [
-        "mock/mock_stack_btu*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockBtu",
-    srcs: [
-        "mock/mock_btu_*cc",
     ],
 }
 
@@ -539,27 +153,6 @@ filegroup {
 }
 
 filegroup {
-    name: "TestMockStackHcic",
-    srcs: [
-        "mock/mock_stack_hcic*.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockLegacyHciInterface",
-    srcs: [
-        "mock/mock_legacy_hci_interface.cc",
-    ],
-}
-
-filegroup {
-    name: "TestMockSrvcDis",
-    srcs: [
-        "mock/mock_stack_srvc_dis.cc",
-    ],
-}
-
-filegroup {
     name: "TestFakeOsi",
     srcs: [
         ":TestMockOsi",
@@ -568,21 +161,19 @@ filegroup {
 }
 
 filegroup {
-    name: "TestFakeThread",
-    srcs: [
-        "fake/fake_thread.cc",
-    ],
-}
-
-filegroup {
-    name: "TestFakeLooper",
-    srcs: [
-        "fake/fake_looper.cc",
-    ],
+    name: "mts_defaults_map",
+    srcs: ["mts_defaults.map"],
 }
 
 cc_defaults {
     name: "mts_defaults",
+    // (b/445941769): Mainline tests get compiled against the new libc++.so but
+    // the tests also run on old platform versions. The tests load the older
+    // version of libc++.so in these older platform versions which will not have
+    // the newer symbols causing test failures. The fix is to statically link libc++.
+    // The tests need to be linked with a version script else it leads to asan issues.
+    version_script: ":mts_defaults_map",
+    stl: "libc++_static",
     target: {
         android: {
             test_config_template: ":BluetoothGTestConfigTemplate",

@@ -26,6 +26,7 @@
 
 #include "stack/include/bt_dev_class.h"
 #include "stack/include/bt_hdr.h"
+#include "stack/include/btm_status.h"
 #include "stack/include/hcidefs.h"
 #include "stack/include/sdpdefs.h"
 
@@ -39,11 +40,19 @@ typedef struct {
 /**************************************************
  *  Device Control and General Callback Functions
  **************************************************/
+namespace bluetooth {
+namespace hci {
+class CommandCompleteView;
+}  // namespace hci
+}  // namespace bluetooth
+
 /* General callback function for notifying an application that a synchronous
  * BTM function is complete. The pointer contains the address of any returned
  * data.
  */
-typedef void(tBTM_CMPL_CB)(void* p1);
+using tBTM_CMPL_CB = void(bluetooth::hci::CommandCompleteView view);
+using tBTM_READ_RSSI_CB = void(tBTM_STATUS status, int8_t rssi, RawAddress addr);
+using tBTM_READ_AUTOMATIC_FLUSH_TIMEOUT_CB = void(RawAddress addr);
 
 /* VSC callback function for notifying an application that a synchronous
  * BTM function is complete. The pointer contains the address of any returned
@@ -105,10 +114,20 @@ enum class tBTA_AG_UUID_CODEC : uint16_t {
 
 typedef uint16_t tBTM_SCO_CODEC_TYPE;
 
+// Mirrored from {@link AudioManager}
+typedef enum : uint8_t {
+  NO_FAILURE = 0,
+  REMOTE_INITIATED_DISCONNECT = 1,
+  CODEC_NEGOTIATION_FAIL = 2,
+  PRECONDITION_FAIL = 3,
+  INTERNAL_ERROR = 4,
+} SCO_CONNECTION_FAILURES;
+
 /***************************
  *  SCO Callback Functions
  ***************************/
 typedef void(tBTM_SCO_CB)(uint16_t sco_inx);
+typedef void(tBTM_SCO_WITH_REASON_CB)(uint16_t sco_inx, SCO_CONNECTION_FAILURES reason);
 
 /***************
  *  eSCO Types

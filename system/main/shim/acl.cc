@@ -16,11 +16,13 @@
 
 #include "main/shim/acl.h"
 
+#include <base/functional/bind.h>
 #include <base/location.h>
 #include <bluetooth/log.h>
 #include <bluetooth/metrics/bluetooth_event.h>
 #include <bluetooth/types/address.h>
 #include <bluetooth/types/ble_address_with_type.h>
+#include <bluetooth/types/string_helpers.h>
 #include <com_android_bluetooth_flags.h>
 #include <time.h>
 
@@ -39,7 +41,6 @@
 #include <vector>
 
 #include "common/bind.h"
-#include "common/strings.h"
 #include "common/sync_map_count.h"
 #include "hci/acl_manager/acl_connection.h"
 #include "hci/acl_manager/acl_manager_le.h"
@@ -328,8 +329,8 @@ public:
         send_data_upwards_(send_data_upwards),
         queue_up_end_(queue_up_end),
         creation_time_(creation_time) {
-    queue_up_end_->RegisterDequeue(handler_, common::Bind(&ShimAclConnection::data_ready_callback,
-                                                          common::Unretained(this)));
+    queue_up_end_->RegisterDequeue(
+            handler_, base::Bind(&ShimAclConnection::data_ready_callback, base::Unretained(this)));
   }
 
   virtual ~ShimAclConnection() {
@@ -372,7 +373,7 @@ public:
     if (send_data_upwards_ == nullptr) {
       log::warn("Dropping ACL data with no callback");
       osi_free(p_buf);
-    } else if (do_in_main_thread(base::BindOnce(send_data_upwards_, p_buf)) != BT_STATUS_SUCCESS) {
+    } else if (!do_in_main_thread(base::BindOnce(send_data_upwards_, p_buf))) {
       osi_free(p_buf);
     }
   }
@@ -435,7 +436,7 @@ private:
     }
     is_enqueue_registered_ = true;
     queue_up_end_->RegisterEnqueue(
-            handler_, common::Bind(&ShimAclConnection::handle_enqueue, common::Unretained(this)));
+            handler_, base::Bind(&ShimAclConnection::handle_enqueue, base::Unretained(this)));
   }
 
   virtual void RegisterCallbacks() = 0;
@@ -818,16 +819,18 @@ struct shim::Acl::impl {
     }
 
 #ifndef TARGET_FLOSS
-    // Since this is a suspend disconnect, we immediately also call
-    // |OnClassicSuspendInitiatedDisconnect| without waiting for it to happen.
-    // We want the stack to clean up ahead of the link layer (since we will mask
-    // away that event). The reason we do this in a separate loop is that this
-    // will also remove the handle from the connection map.
-    for (auto& handle : disconnect_handles) {
-      auto found = handle_to_classic_connection_map_.find(handle);
-      if (found != handle_to_classic_connection_map_.end()) {
-        GetAclManagerClassic()->OnClassicSuspendInitiatedDisconnect(
-                found->first, hci::ErrorCode::CONNECTION_TERMINATED_BY_LOCAL_HOST);
+    if (!com_android_bluetooth_flags_le_hid_connection_policy_suspend()) {
+      // Since this is a suspend disconnect, we immediately also call
+      // |OnClassicSuspendInitiatedDisconnect| without waiting for it to happen.
+      // We want the stack to clean up ahead of the link layer (since we will mask
+      // away that event). The reason we do this in a separate loop is that this
+      // will also remove the handle from the connection map.
+      for (auto& handle : disconnect_handles) {
+        auto found = handle_to_classic_connection_map_.find(handle);
+        if (found != handle_to_classic_connection_map_.end()) {
+          GetAclManagerClassic()->OnClassicSuspendInitiatedDisconnect(
+                  found->first, hci::ErrorCode::CONNECTION_TERMINATED_BY_LOCAL_HOST);
+        }
       }
     }
 #endif
@@ -852,16 +855,18 @@ struct shim::Acl::impl {
     }
 
 #ifndef TARGET_FLOSS
-    // Since this is a suspend disconnect, we immediately also call
-    // |OnLeSuspendInitiatedDisconnect| without waiting for it to happen. We
-    // want the stack to clean up ahead of the link layer (since we will mask
-    // away that event). The reason we do this in a separate loop is that this
-    // will also remove the handle from the connection map.
-    for (auto& handle : disconnect_handles) {
-      auto found = handle_to_le_connection_map_.find(handle);
-      if (found != handle_to_le_connection_map_.end()) {
-        GetAclManagerLe()->OnLeSuspendInitiatedDisconnect(
-                found->first, hci::ErrorCode::CONNECTION_TERMINATED_BY_LOCAL_HOST);
+    if (!com_android_bluetooth_flags_le_hid_connection_policy_suspend()) {
+      // Since this is a suspend disconnect, we immediately also call
+      // |OnLeSuspendInitiatedDisconnect| without waiting for it to happen. We
+      // want the stack to clean up ahead of the link layer (since we will mask
+      // away that event). The reason we do this in a separate loop is that this
+      // will also remove the handle from the connection map.
+      for (auto& handle : disconnect_handles) {
+        auto found = handle_to_le_connection_map_.find(handle);
+        if (found != handle_to_le_connection_map_.end()) {
+          GetAclManagerLe()->OnLeSuspendInitiatedDisconnect(
+                  found->first, hci::ErrorCode::CONNECTION_TERMINATED_BY_LOCAL_HOST);
+        }
       }
     }
 #endif
@@ -959,12 +964,9 @@ struct shim::Acl::impl {
     }
 
     auto remote_address_with_type = connection->second->GetRemoteAddressWithType();
-    if (com_android_bluetooth_flags_disconnect_acl_on_gatt_timeout() ||
-        !com_android_bluetooth_flags_remove_device_with_connection_manager()) {
-      GetAclManagerLe()->RemoveFromBackgroundList(remote_address_with_type);
-    } else {
-      connection_manager::remove_unconditional(ToRawAddress(remote_address_with_type.GetAddress()));
-    }
+    GetAclManagerLe()->RemoveFromBackgroundList(remote_address_with_type);
+    connection_manager::on_removed_from_accept_list(
+            ToRawAddress(remote_address_with_type.GetAddress()));
     connection->second->InitiateDisconnect(ToDisconnectReasonFromLegacy(reason));
     log::debug("Disconnection initiated le remote:{} handle:{}", remote_address_with_type, handle);
     BTM_LogHistory(kBtmLogTag, ToLegacyAddressWithType(remote_address_with_type),
@@ -1129,8 +1131,7 @@ void DumpsysAcl(int fd) {
                     common::ToString(link.peer_lmp_feature_valid[j]).c_str(),
                     bd_features_text(link.peer_lmp_feature_pages[j]).c_str());
       }
-      LOG_DUMPSYS(fd, "    [classic] link_policy:%s",
-                  link_policy_text(static_cast<tLINK_POLICY>(link.link_policy)).c_str());
+      LOG_DUMPSYS(fd, "    [classic] link_policy:%s", link_policy_text(link.link_policy).c_str());
       LOG_DUMPSYS(fd, "    [classic] sniff_subrating:%s",
                   common::ToString(HCI_SNIFF_SUB_RATE_SUPPORTED(link.peer_lmp_feature_pages[0]))
                           .c_str());
@@ -1214,38 +1215,11 @@ shim::Acl::~Acl() {
 }
 
 bool shim::Acl::CheckForOrphanedAclConnections() const {
-  if (com_android_bluetooth_flags_fix_race_in_orphaned_acls()) {
-    std::promise<bool> promise;
-    auto future = promise.get_future();
-    handler_->CallOn(pimpl_.get(), &Acl::impl::check_for_orphaned_acl_connections,
-                     std::move(promise));
-    return future.get();
-  }
-
-  bool orphaned_acl_connections = false;
-
-  if (!pimpl_->handle_to_classic_connection_map_.empty()) {
-    log::error("About to destroy classic active ACL");
-    for (const auto& connection : pimpl_->handle_to_classic_connection_map_) {
-      log::error("Orphaned classic ACL handle:0x{:04x} bd_addr:{} created:{}",
-                 connection.second->Handle(), connection.second->GetRemoteAddress(),
-                 common::StringFormatTimeWithMilliseconds(kConnectionDescriptorTimeFormat,
-                                                          connection.second->GetCreationTime()));
-    }
-    orphaned_acl_connections = true;
-  }
-
-  if (!pimpl_->handle_to_le_connection_map_.empty()) {
-    log::error("About to destroy le active ACL");
-    for (const auto& connection : pimpl_->handle_to_le_connection_map_) {
-      log::error("Orphaned le ACL handle:0x{:04x} bd_addr:{} created:{}",
-                 connection.second->Handle(), connection.second->GetRemoteAddressWithType(),
-                 common::StringFormatTimeWithMilliseconds(kConnectionDescriptorTimeFormat,
-                                                          connection.second->GetCreationTime()));
-    }
-    orphaned_acl_connections = true;
-  }
-  return orphaned_acl_connections;
+  std::promise<bool> promise;
+  auto future = promise.get_future();
+  handler_->CallOn(pimpl_.get(), &Acl::impl::check_for_orphaned_acl_connections,
+                   std::move(promise));
+  return future.get();
 }
 
 void shim::Acl::on_incoming_acl_credits(uint16_t handle, uint16_t credits) {
@@ -1273,8 +1247,8 @@ void shim::Acl::Flush(HciHandle handle) {
   handler_->Post(common::BindOnce(&Acl::flush, common::Unretained(this), handle));
 }
 
-void shim::Acl::CreateClassicConnection(const hci::Address& address) {
-  GetAclManagerClassic()->CreateConnection(address);
+void shim::Acl::CreateClassicConnection(const hci::Address& address, uint16_t clock_offset) {
+  GetAclManagerClassic()->CreateConnection(address, clock_offset);
   log::debug("Connection initiated for classic to remote:{}", address);
   BTM_LogHistory(kBtmLogTag, ToRawAddress(address), "Initiated connection", "classic");
 }
@@ -1350,8 +1324,8 @@ void shim::Acl::OnLeLinkDisconnected(HciHandle handle, hci::ErrorCode reason) {
           reason));
 }
 
-void shim::Acl::OnConnectSuccess(
-        std::unique_ptr<hci::acl_manager::ClassicAclConnection> connection) {
+void shim::Acl::OnConnectSuccess(std::unique_ptr<hci::acl_manager::ClassicAclConnection> connection,
+                                 hci::Role role) {
   log::assert_that(connection != nullptr, "assert failed: connection != nullptr");
   auto handle = connection->GetHandle();
   bool locally_initiated = connection->locally_initiated_;
@@ -1369,7 +1343,8 @@ void shim::Acl::OnConnectSuccess(
   pimpl_->handle_to_classic_connection_map_[handle]->ReadRemoteControllerInformation();
 
   TRY_POSTING_ON_MAIN(acl_interface_.connection.classic.on_connected, bd_addr, handle, false,
-                      locally_initiated);
+                      locally_initiated,
+                      role == hci::Role::CENTRAL ? HCI_ROLE_CENTRAL : HCI_ROLE_PERIPHERAL);
   log::debug("Connection successful classic remote:{} handle:{} initiator:{}", remote_address,
              handle, (locally_initiated) ? "local" : "remote");
   metrics::LogAclCompletionEvent(remote_address, hci::ErrorCode::SUCCESS, locally_initiated);
@@ -1418,9 +1393,6 @@ void shim::Acl::OnLeConnectSuccess(hci::AddressWithType address_with_type,
     }
   }
 
-  // Save the peer address, if any
-  hci::AddressWithType peer_address_with_type = connection->peer_address_with_type_;
-
   hci::Role connection_role = connection->GetRole();
   bool locally_initiated = connection->locally_initiated_;
 
@@ -1463,10 +1435,8 @@ void shim::Acl::OnLeConnectSuccess(hci::AddressWithType address_with_type,
     BTM_LogHistory(kBtmLogTag, ToLegacyAddressWithType(address_with_type), "Connection canceled",
                    "Le");
 
-    if (com_android_bluetooth_flags_gatt_failure_callback_on_cancel()) {
-      // When reporting back, remote becomes local.
-      OnLeConnectFail(address_with_type, hci::ErrorCode::CONNECTION_TERMINATED_BY_LOCAL_HOST);
-    }
+    // When reporting back, remote becomes local.
+    OnLeConnectFail(address_with_type, hci::ErrorCode::CONNECTION_TERMINATED_BY_LOCAL_HOST);
     return;
   }
 

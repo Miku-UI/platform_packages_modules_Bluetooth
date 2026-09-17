@@ -2,30 +2,60 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "adm_remove_handling_wired"
-    namespace: "bluetooth"
-    description: "ActiveDeviceManager doesn't need to handle adding and removing wired devices."
-    bug: "390372480"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "adm_unset_others_on_hfp_changed"
-    namespace: "bluetooth"
-    description: "when HFP device is set as active, unset LE Audio and Hearing aid"
-    bug: "419505580"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "adm_centralize_active_device_handling"
     namespace: "bluetooth"
     description: "ActiveDeviceManager is centralized manager of active Bluetooth device."
     bug: "429980017"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "adm_fix_fallback_device_search"
+    namespace: "bluetooth"
+    description: "Fallback device must be different from recently inactivated one"
+    bug: "440528457"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "adm_remove_hap_variables"
+    namespace: "bluetooth"
+    description: "For LE Audio hearing aids it's sufficient to listen to only LE Audio events."
+    bug: "450220555"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "adm_suspend_fallback_during_change"
+    namespace: "bluetooth"
+    description: "Suspend active device disconnection fallback mechanism when active device change is pending"
+    bug: "446848896"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "adm_use_set_active_device_helpers"
+    namespace: "bluetooth"
+    description: "Use set<profile>ActiveDevice helper functions instead of direct service calls"
+    bug: "467020079"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "adm_clear_active_device_on_disconnect"
+    namespace: "bluetooth"
+    description: "Clear active device when it disconnects"
+    bug: "479649175"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

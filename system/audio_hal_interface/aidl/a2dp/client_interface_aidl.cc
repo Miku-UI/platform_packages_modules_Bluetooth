@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "BTAudioClientAIDL"
+#define LOG_TAG "bluetooth-a2dp-aidl"
 
 #include "aidl/a2dp/client_interface_aidl.h"
 
@@ -38,15 +38,16 @@ namespace audio {
 namespace aidl {
 namespace a2dp {
 
-BluetoothAudioClientInterface::BluetoothAudioClientInterface(IBluetoothTransportInstance* instance)
+BluetoothAudioClientInterface::BluetoothAudioClientInterface(
+        SessionType sessionType, StreamCallbacks const* stream_callbacks)
     : provider_(nullptr),
       provider_factory_(nullptr),
       session_started_(false),
       data_mq_(nullptr),
-      transport_(instance),
       latency_modes_({LatencyMode::FREE}) {
   death_recipient_ =
           ::ndk::ScopedAIBinder_DeathRecipient(AIBinder_DeathRecipient_new(binderDiedCallbackAidl));
+  transport_ = std::make_shared<A2dpTransport>(sessionType, stream_callbacks);
   FetchAudioProvider();
 }
 
@@ -60,10 +61,6 @@ bool BluetoothAudioClientInterface::IsValid() const { return provider_ != nullpt
 
 bool BluetoothAudioClientInterface::is_aidl_available() {
   return AServiceManager_isDeclared(kDefaultAudioProviderFactoryInterface.c_str());
-}
-
-std::vector<AudioCapabilities> BluetoothAudioClientInterface::GetAudioCapabilities() const {
-  return capabilities_;
 }
 
 std::vector<AudioCapabilities> BluetoothAudioClientInterface::GetAudioCapabilities(
@@ -82,8 +79,8 @@ std::vector<AudioCapabilities> BluetoothAudioClientInterface::GetAudioCapabiliti
 
   auto aidl_retval = provider_factory->getProviderCapabilities(session_type, &capabilities);
   if (!aidl_retval.isOk()) {
-    log::fatal("BluetoothAudioHal::getProviderCapabilities failure: {}",
-               aidl_retval.getDescription());
+    log::error("BluetoothAudioHal::getProviderCapabilities session_type: {}, failure: {}",
+               toString(session_type), aidl_retval.getDescription());
   }
   return capabilities;
 }
@@ -110,7 +107,8 @@ BluetoothAudioClientInterface::GetProviderInfo(
   auto aidl_retval = provider_factory->getProviderInfo(session_type, &provider_info);
 
   if (!aidl_retval.isOk()) {
-    log::error("BluetoothAudioHal::getProviderInfo failure: {}", aidl_retval.getDescription());
+    log::error("BluetoothAudioHal::getProviderInfo session_type: {}, failure: {}",
+               toString(session_type), aidl_retval.getDescription());
     return std::nullopt;
   }
 
@@ -181,23 +179,7 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
       return;
     }
 
-    capabilities_.clear();
-    auto aidl_retval =
-            provider_factory->getProviderCapabilities(transport_->GetSessionType(), &capabilities_);
-    if (!aidl_retval.isOk()) {
-      log::error("BluetoothAudioHal::getProviderCapabilities failure: {}, retry number {}",
-                 aidl_retval.getDescription(), retry_no + 1);
-      continue;
-    }
-    if (capabilities_.empty()) {
-      log::warn("SessionType={} Not supported by BluetoothAudioHal",
-                toString(transport_->GetSessionType()));
-      return;
-    }
-    log::info("BluetoothAudioHal SessionType={} has {} AudioCapabilities",
-              toString(transport_->GetSessionType()), capabilities_.size());
-
-    aidl_retval = provider_factory->openProvider(transport_->GetSessionType(), &provider_);
+    auto aidl_retval = provider_factory->openProvider(transport_->GetSessionType(), &provider_);
     if (!aidl_retval.isOk() || provider_ == nullptr) {
       log::error("BluetoothAudioHal::openProvider failure: {}, retry number {}",
                  aidl_retval.getDescription(), retry_no + 1);
@@ -206,7 +188,10 @@ void BluetoothAudioClientInterface::FetchAudioProvider() {
       break;
     }
   }
-  log::assert_that(provider_factory_ != nullptr, "assert failed: provider_factory_ != nullptr");
+
+  log::assert_that(provider_factory_ != nullptr,
+                   "IBluetoothAudioProvidersFactory::openProvider({}) failed {} times",
+                   toString(transport_->GetSessionType()), kFetchAudioProviderRetryNumber);
   log::assert_that(provider_ != nullptr, "assert failed: provider_ != nullptr");
 
   binder_status_t binder_status =
@@ -495,7 +480,7 @@ size_t BluetoothAudioClientInterface::ReadAudioDataExact(uint8_t* buf, size_t le
 
   size_t available = data_mq_->availableToRead();
 
-  if (fmq_buffer_size_ + available <= len) {
+  if (fmq_buffer_size_ + available < len) {
     // Reading from the FMQ does not yield enough data to return a complete
     // frame. Read into the temporary buffer instead.
     bool status = data_mq_->read(reinterpret_cast<MqDataType*>(fmq_buffer_) + fmq_buffer_size_,
@@ -536,61 +521,37 @@ size_t BluetoothAudioClientInterface::ReadAudioData(uint8_t* p_buf, size_t len) 
 
   std::lock_guard<std::mutex> guard(internal_mutex_);
 
-  if (com_android_bluetooth_flags_a2dp_fmq_read_exact()) {
-    for (int n = 0; n < 10; n++) {
-      if (n > 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(kDefaultDataReadPollIntervalMs));
-      }
-
-      size_t result = ReadAudioDataExact(p_buf, len);
-      if (result > 0) {
-        transport_->LogBytesRead(result);
-        return result;
-      }
-    }
-
-    log::warn("read underflow: buffer={} expected={}", fmq_buffer_size_, len);
-    return 0;
-  }
-
-  size_t total_read = 0;
-  int timeout_ms = kDefaultDataReadTimeoutMs;
-  do {
-    if (data_mq_ == nullptr || !data_mq_->isValid()) {
-      break;
-    }
-
-    size_t avail_to_read = data_mq_->availableToRead();
-    if (avail_to_read) {
-      if (avail_to_read > len - total_read) {
-        avail_to_read = len - total_read;
-      }
-      if (data_mq_->read(reinterpret_cast<MqDataType*>(p_buf) + total_read, avail_to_read) == 0) {
-        log::warn("len={} total_read={} failed", len, total_read);
-        break;
-      }
-      total_read += avail_to_read;
-    } else if (timeout_ms >= kDefaultDataReadPollIntervalMs) {
+  for (int n = 0; n < 10; n++) {
+    if (n > 0) {
       std::this_thread::sleep_for(std::chrono::milliseconds(kDefaultDataReadPollIntervalMs));
-      timeout_ms -= kDefaultDataReadPollIntervalMs;
-      continue;
-    } else {
-      log::warn("{}/{} no data {} ms", len - total_read, len,
-                kDefaultDataReadTimeoutMs - timeout_ms);
-      break;
     }
-  } while (total_read < len);
 
-  if (timeout_ms < (kDefaultDataReadTimeoutMs - kDefaultDataReadPollIntervalMs) &&
-      timeout_ms >= kDefaultDataReadPollIntervalMs) {
-    log::verbose("underflow {} -> {} read {} ms", len, total_read,
-                 kDefaultDataReadTimeoutMs - timeout_ms);
-  } else {
-    log::verbose("{} -> {} read", len, total_read);
+    size_t result = ReadAudioDataExact(p_buf, len);
+    if (result > 0) {
+      transport_->LogBytesRead(result);
+      return result;
+    }
   }
 
-  transport_->LogBytesRead(total_read);
-  return total_read;
+  log::warn("read underflow: buffer={} expected={}", fmq_buffer_size_, len);
+  return 0;
+}
+
+void BluetoothAudioClientInterface::FlushAudioData() {
+  // Clear the FMQ buffer.
+  fmq_buffer_size_ = 0;
+
+  if (!data_mq_ || !data_mq_->isValid()) {
+    return;
+  }
+
+  // Clear data present in the FMQ itself.
+  size_t available = data_mq_->availableToRead();
+  while (available > 0) {
+    size_t read_size = std::min(available, sizeof(fmq_buffer_));
+    data_mq_->read(reinterpret_cast<MqDataType*>(fmq_buffer_), read_size);
+    available -= read_size;
+  }
 }
 
 void BluetoothAudioClientInterface::RenewAudioProviderAndSession() {

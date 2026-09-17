@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,6 @@ import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.OpenableColumns;
-import android.provider.Settings;
 
 import androidx.lifecycle.Lifecycle;
 import androidx.test.core.app.ActivityScenario;
@@ -55,8 +54,8 @@ import androidx.test.filters.MediumTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.bluetooth.BluetoothMethodProxy;
-import com.android.bluetooth.btservice.MetricsLogger;
 import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.metrics.MetricsLogger;
 import com.android.tests.bluetooth.MockitoRule;
 
 import org.junit.After;
@@ -406,17 +405,15 @@ public class BluetoothOppLauncherActivityTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SEND_OPP_DEVICE_PICKER_EXTRA_INTENT)
     public void onCreate_withActionSend_grantUriPermissionToNearbyComponent() {
         doReturn(true).when(mMethodProxy).bluetoothAdapterIsEnabled(any());
         doReturn(PackageManager.PERMISSION_GRANTED)
                 .when(mMethodProxy)
                 .componentCallerCheckContentUriPermission(any(), any(), anyInt());
+        doReturn("com.example/.BComponent")
+                .when(mMethodProxy)
+                .settingsSecureGetString(any(), eq("nearby_sharing_component"));
         String uriString = "content://test.provider/1";
-        Settings.Secure.putString(
-                sContext.getContentResolver(),
-                "nearby_sharing_component",
-                "com.example/.BComponent");
 
         ActivityScenario<BluetoothOppLauncherActivity> unused =
                 ActivityScenario.launch(createSendIntent(uriString));

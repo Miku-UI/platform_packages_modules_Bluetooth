@@ -21,6 +21,8 @@
     <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"Hiermee krijgt de app toegang tot de beheerfunctie voor delen via bluetooth om deze functie te gebruiken voor het overdragen van bestanden."</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"Toegang voor bluetooth-apparaat op toelatingslijst zetten."</string>
     <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"Hiermee kan de app een bluetooth-apparaat tijdelijk op de toelatingslijst zetten, waardoor dat apparaat bestanden naar dit apparaat kan sturen zonder bevestiging van de gebruiker."</string>
+    <string name="permlab_bluetoothBackup" msgid="49451988877877942">"Sta back-uptransmissies via bluetooth toe."</string>
+    <string name="permdesc_bluetoothBackup" msgid="2871500153259509669">"Hiermee kan de bluetooth-app transmissies accepteren om een back-up van instellingsgegevens te activeren"</string>
     <string name="bt_share_picker_label" msgid="7464438494743777696">"Bluetooth"</string>
     <string name="unknown_device" msgid="2317679521750821654">"Onbekend apparaat"</string>
     <string name="unknownNumber" msgid="1245183329830158661">"Onbekend"</string>
@@ -112,10 +114,10 @@
     <string name="transfer_menu_open" msgid="5193344638774400131">"Openen"</string>
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Wissen uit lijst"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Wissen"</string>
-    <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Now Playing"</string>
+    <string name="bluetooth_media_audio_app_name" msgid="2389937877819723460">"Bluetooth-audio"</string>
+    <string name="bluetooth_media_audio_queue_name" msgid="2327164681598379428">"Now Playing"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"App-icoon"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Bluetooth-audio ontkoppeld"</string>
-    <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Bluetooth-audio"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"Bestanden groter dan 4 GB kunnen niet worden overgedragen"</string>
     <string name="bluetooth_connect_action" msgid="2319449093046720209">"Verbinding maken met bluetooth"</string>
     <string name="bluetooth_enabled_apm_title" msgid="6914461147844949044">"Bluetooth aan in de vliegtuigmodus"</string>
@@ -130,4 +132,13 @@
     <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"Bluetooth weer aangezet"</string>
     <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"Je kunt dit altijd wijzigen via Instellingen"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"Automatische wijziging in status van bluetooth"</string>
+    <string name="auracast_notification_channel" msgid="5159181425358316696">"Auracast"</string>
+    <string name="auracast_notification_title" msgid="3101708313009368939">"<xliff:g id="STREAM_NAME">%1$s</xliff:g>-audiostream beschikbaar"</string>
+    <string name="auracast_notification_subtext" msgid="4696155233480316395">"LE Audio"</string>
+    <string name="auracast_connect_device_message" msgid="4461776363082532493">"Verbind een LE Audio-apparaat om te beginnen met luisteren"</string>
+    <string name="auracast_listen_on_device_message" msgid="3719491065367993094">"Luister naar de <xliff:g id="STREAM_NAME">%1$s</xliff:g>-audiostream op je <xliff:g id="DEVICE_NAME">%2$s</xliff:g>"</string>
+    <string name="auracast_connect_action" msgid="7157544449029291355">"Verbinden"</string>
+    <string name="auracast_connection_failed_message" msgid="6490085541428198952">"Kan geen verbinding maken met de <xliff:g id="STREAM_NAME">%1$s</xliff:g>-audiostream op je <xliff:g id="DEVICE_NAME">%2$s</xliff:g>."</string>
+    <string name="auracast_default_stream_name" msgid="2824625871526576239">"In de buurt"</string>
+    <string name="auracast_default_device_name" msgid="15748131701036354">"apparaten"</string>
 </resources>

@@ -15,13 +15,13 @@
  */
 #pragma once
 
+#include <bluetooth/types/uuid.h>
+
 #include <memory>
 #include <vector>
 
-#include "common/callback.h"
 #include "hci/address_with_type.h"
 #include "hci/hci_packets.h"
-#include "hci/uuid.h"
 
 namespace bluetooth {
 namespace hci {
@@ -56,7 +56,7 @@ public:
   };
 
   virtual ~ScanningCallback() = default;
-  virtual void OnScannerRegistered(const bluetooth::hci::Uuid app_uuid, ScannerId scanner_id,
+  virtual void OnScannerRegistered(const bluetooth::Uuid app_uuid, ScannerId scanner_id,
                                    ScanningStatus status) = 0;
   virtual void OnSetScannerParameterComplete(ScannerId scanner_id, ScanningStatus status) = 0;
   virtual void OnScanResult(uint16_t event_type, uint8_t address_type, Address address,
@@ -72,7 +72,7 @@ public:
   virtual void OnFilterParamSetup(uint8_t available_spaces, ApcfAction action, uint8_t status) = 0;
   virtual void OnFilterConfigCallback(ApcfFilterType filter_type, uint8_t available_spaces,
                                       ApcfAction action, uint8_t status) = 0;
-  virtual void OnPeriodicSyncStarted(int request_id, uint8_t status, uint16_t sync_handle,
+  virtual void OnPeriodicSyncStarted(int reg_id, uint8_t status, uint16_t sync_handle,
                                      uint8_t advertising_sid, AddressWithType address_with_type,
                                      uint8_t phy, uint16_t interval) = 0;
   virtual void OnPeriodicSyncReport(uint16_t sync_handle, int8_t tx_power, int8_t rssi,

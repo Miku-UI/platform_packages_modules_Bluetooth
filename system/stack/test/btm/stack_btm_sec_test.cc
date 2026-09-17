@@ -16,21 +16,22 @@
  */
 
 #include <bluetooth/types/address.h>
+#include <bluetooth/types/string_helpers.h>
+#include <com_android_bluetooth_flags.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <vector>
 
-#include "common/strings.h"
 #include "hci/hci_layer_mock.h"
 #include "internal_include/bt_target.h"
 #include "stack/btm/btm_ble_sec.h"
 #include "stack/btm/btm_dev.h"
+#include "stack/btm/btm_device_record.h"
 #include "stack/btm/btm_int_types.h"
 #include "stack/btm/btm_sec.h"
-#include "stack/btm/btm_sec_cb.h"
+#include "stack/btm/btm_security.h"
 #include "stack/btm/internal/btm_api.h"
-#include "stack/btm/security_device_record.h"
 #include "stack/include/btm_status.h"
 #include "stack/include/main_thread.h"
 #include "stack/include/sec_hci_link_interface.h"
@@ -43,7 +44,7 @@ using ::testing::Return;
 using ::testing::Test;
 
 namespace {
-const RawAddress kRawAddress = RawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+const RawAddress kRawAddress = RawAddress("11:22:33:44:55:66");
 const uint8_t kBdName[] = "kBdName";
 constexpr char kTimeFormat[] = "%Y-%m-%d %H:%M:%S";
 }  // namespace
@@ -53,14 +54,12 @@ using bluetooth::legacy::testing::wipe_secrets_and_remove;
 constexpr size_t kBtmSecMaxDeviceRecords = static_cast<size_t>(BTM_SEC_MAX_DEVICE_RECORDS + 1);
 
 class StackBtmSecTest : public BtmWithMocksTest {
-public:
 protected:
   void SetUp() override { BtmWithMocksTest::SetUp(); }
   void TearDown() override { BtmWithMocksTest::TearDown(); }
 };
 
 class StackBtmSecWithQueuesTest : public StackBtmSecTest {
-public:
 protected:
   void SetUp() override {
     StackBtmSecTest::SetUp();
@@ -97,87 +96,85 @@ protected:
     main_thread_start_up();
     post_on_bt_main([]() { log::info("Main thread started up"); });
     StackBtmSecWithQueuesTest::SetUp();
-    BTM_Sec_Init();
+    get_security_client_interface().BTM_Sec_Init();
   }
   void TearDown() override {
     post_on_bt_main([]() { log::info("Main thread shutting down"); });
     main_thread_shut_down();
-    BTM_Sec_Free();
+    get_security_client_interface().BTM_Sec_Free();
     StackBtmSecWithQueuesTest::TearDown();
   }
 };
 
 TEST_F(StackBtmSecWithInitFreeTest, btm_sec_encrypt_change) {
-  RawAddress bd_addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});
+  RawAddress bd_addr = RawAddress("A1:A2:A3:A4:A5:A6");
   const uint16_t classic_handle = 0x1234;
   const uint16_t ble_handle = 0x9876;
 
   // Check the collision conditionals
-  ::btm_sec_cb.collision_start_time = 0UL;
+  ::BtmSecurity::Get().collision_start_time_ = 0UL;
   btm_sec_encrypt_change(classic_handle, HCI_ERR_LMP_ERR_TRANS_COLLISION, 0x01, 0x10);
-  uint64_t collision_start_time = ::btm_sec_cb.collision_start_time;
+  uint64_t collision_start_time = ::BtmSecurity::Get().collision_start_time_;
   ASSERT_NE(0UL, collision_start_time);
 
-  ::btm_sec_cb.collision_start_time = 0UL;
+  ::BtmSecurity::Get().collision_start_time_ = 0UL;
   btm_sec_encrypt_change(classic_handle, HCI_ERR_DIFF_TRANSACTION_COLLISION, 0x01, 0x10);
-  collision_start_time = ::btm_sec_cb.collision_start_time;
+  collision_start_time = ::BtmSecurity::Get().collision_start_time_;
   ASSERT_NE(0UL, collision_start_time);
 
   // No device
-  ::btm_sec_cb.collision_start_time = 0;
+  ::BtmSecurity::Get().collision_start_time_ = 0;
   btm_sec_encrypt_change(classic_handle, HCI_SUCCESS, 0x01, 0x10);
-  ASSERT_EQ(0UL, ::btm_sec_cb.collision_start_time);
+  ASSERT_EQ(0UL, ::BtmSecurity::Get().collision_start_time_);
 
   // Setup device
-  tBTM_SEC_DEV_REC* device_record = btm_sec_allocate_dev_rec();
-  ASSERT_NE(nullptr, device_record);
-  ASSERT_EQ(BTM_SEC_IN_USE, device_record->sec_rec.sec_flags);
-  device_record->bd_addr = bd_addr;
-  device_record->hci_handle = classic_handle;
-  device_record->ble_hci_handle = ble_handle;
+  BtmDevice* p_device = btm_sec_allocate_dev_rec(bd_addr);
+  ASSERT_NE(nullptr, p_device);
+  ASSERT_EQ(BTM_SEC_IN_USE, p_device->sec_rec.sec_flags);
+  p_device->hci_handle = classic_handle;
+  p_device->ble_hci_handle = ble_handle;
 
   // With classic device encryption enable
   btm_sec_encrypt_change(classic_handle, HCI_SUCCESS, 0x01, 0x10);
   ASSERT_EQ(BTM_SEC_IN_USE | BTM_SEC_AUTHENTICATED | BTM_SEC_ENCRYPTED,
-            device_record->sec_rec.sec_flags);
+            p_device->sec_rec.sec_flags);
 
   // With classic device encryption disable
   btm_sec_encrypt_change(classic_handle, HCI_SUCCESS, 0x00, 0x10);
-  ASSERT_EQ(BTM_SEC_IN_USE | BTM_SEC_AUTHENTICATED, device_record->sec_rec.sec_flags);
-  device_record->sec_rec.sec_flags = BTM_SEC_IN_USE;
+  ASSERT_EQ(BTM_SEC_IN_USE | BTM_SEC_AUTHENTICATED, p_device->sec_rec.sec_flags);
+  p_device->sec_rec.sec_flags = BTM_SEC_IN_USE;
 
   // With le device encryption enable
   btm_sec_encrypt_change(ble_handle, HCI_SUCCESS, 0x01, 0x10);
-  ASSERT_EQ(BTM_SEC_IN_USE | BTM_SEC_LE_ENCRYPTED, device_record->sec_rec.sec_flags);
+  ASSERT_EQ(BTM_SEC_IN_USE | BTM_SEC_LE_ENCRYPTED, p_device->sec_rec.sec_flags);
 
   // With le device encryption disable
   btm_sec_encrypt_change(ble_handle, HCI_SUCCESS, 0x00, 0x10);
-  ASSERT_EQ(BTM_SEC_IN_USE, device_record->sec_rec.sec_flags);
-  device_record->sec_rec.sec_flags = BTM_SEC_IN_USE;
+  ASSERT_EQ(BTM_SEC_IN_USE, p_device->sec_rec.sec_flags);
+  p_device->sec_rec.sec_flags = BTM_SEC_IN_USE;
 
-  wipe_secrets_and_remove(device_record);
+  wipe_secrets_and_remove(p_device);
 }
 
 TEST_F(StackBtmSecWithInitFreeTest, BTM_SetEncryption) {
-  const RawAddress bd_addr = RawAddress({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+  const RawAddress bd_addr = RawAddress("11:22:33:44:55:66");
   const tBT_TRANSPORT transport{BT_TRANSPORT_LE};
   tBTM_SEC_CALLBACK* p_callback{nullptr};
   tBTM_BLE_SEC_ACT sec_act{BTM_BLE_SEC_ENCRYPT};
 
   // No device
-  ASSERT_EQ(tBTM_STATUS::BTM_WRONG_MODE,
-            BTM_SetEncryption(bd_addr, transport, p_callback, nullptr, sec_act));
+  ASSERT_EQ(tBTM_STATUS::BTM_WRONG_MODE, get_security_client_interface().BTM_SetEncryption(
+                                                 bd_addr, transport, p_callback, nullptr, sec_act));
 
   // With device
-  tBTM_SEC_DEV_REC* device_record = btm_sec_allocate_dev_rec();
-  ASSERT_NE(nullptr, device_record);
-  device_record->bd_addr = bd_addr;
-  device_record->hci_handle = 0x1234;
+  BtmDevice* p_device = btm_sec_allocate_dev_rec(bd_addr);
+  ASSERT_NE(nullptr, p_device);
+  p_device->hci_handle = 0x1234;
 
-  ASSERT_EQ(tBTM_STATUS::BTM_WRONG_MODE,
-            BTM_SetEncryption(bd_addr, transport, p_callback, nullptr, sec_act));
+  ASSERT_EQ(tBTM_STATUS::BTM_WRONG_MODE, get_security_client_interface().BTM_SetEncryption(
+                                                 bd_addr, transport, p_callback, nullptr, sec_act));
 
-  wipe_secrets_and_remove(device_record);
+  wipe_secrets_and_remove(p_device);
 }
 
 TEST_F(StackBtmSecTest, btm_ble_sec_req_act_text) {
@@ -188,20 +185,44 @@ TEST_F(StackBtmSecTest, btm_ble_sec_req_act_text) {
 }
 
 TEST_F(StackBtmSecWithInitFreeTest, btm_sec_allocate_dev_rec__all) {
-  tBTM_SEC_DEV_REC* records[kBtmSecMaxDeviceRecords];
+  BtmDevice* p_devices[kBtmSecMaxDeviceRecords];
+  const RawAddress bd_addr = RawAddress("11:22:33:44:55:66");
 
   // Fill up the records
-  for (size_t i = 0; i < kBtmSecMaxDeviceRecords; i++) {
-    ASSERT_EQ(i, list_length(::btm_sec_cb.sec_dev_rec));
-    records[i] = btm_sec_allocate_dev_rec();
-    ASSERT_NE(nullptr, records[i]);
+  if (!com_android_bluetooth_flags_use_array_instead_list_in_sec_dev_rec()) {
+    for (size_t i = 0; i < kBtmSecMaxDeviceRecords; i++) {
+      ASSERT_EQ(i, list_length(::BtmSecurity::Get().sec_dev_rec_));
+      p_devices[i] = btm_sec_allocate_dev_rec(bd_addr);
+      ASSERT_NE(nullptr, p_devices[i]);
+    }
+  } else {
+    for (size_t i = 0; i < kBtmSecMaxDeviceRecords; i++) {
+      p_devices[i] = btm_sec_allocate_dev_rec(bd_addr);
+    }
   }
 
   // Second pass up the records
-  for (size_t i = 0; i < kBtmSecMaxDeviceRecords; i++) {
-    ASSERT_EQ(kBtmSecMaxDeviceRecords, list_length(::btm_sec_cb.sec_dev_rec));
-    records[i] = btm_sec_allocate_dev_rec();
-    ASSERT_NE(nullptr, records[i]);
+  if (!com_android_bluetooth_flags_use_array_instead_list_in_sec_dev_rec()) {
+    for (size_t i = 0; i < kBtmSecMaxDeviceRecords; i++) {
+      ASSERT_EQ(kBtmSecMaxDeviceRecords, list_length(::BtmSecurity::Get().sec_dev_rec_));
+      p_devices[i] = btm_sec_allocate_dev_rec(bd_addr);
+      ASSERT_NE(nullptr, p_devices[i]);
+    }
+  } else {
+    for (size_t i = 0; i < kBtmSecMaxDeviceRecords; i++) {
+      /**
+       * Since we are now using BtmSecurity::Get().device_records_ as static array, so
+       * there will be no deletion/creation of records, and hence the addresses will be the same.
+       * So, need to store the timestamp, before the second allocation of record (or clean and
+       * re-allocate in this case) and then see whether the timestamp has changed.
+       */
+      auto timestamp = p_devices[i]->timestamp;
+
+      BtmDevice* p_device = btm_sec_allocate_dev_rec(bd_addr);
+      ASSERT_NE(nullptr, p_device);               // must be a valid entry
+      ASSERT_NE(timestamp, p_device->timestamp);  // should be a new record
+      p_devices[i] = p_device;
+    }
   }
 
   // NOTE: The memory allocated for each record is automatically
@@ -244,19 +265,18 @@ TEST_F(StackBtmSecTest, bond_type_text) {
 }
 
 TEST_F(StackBtmSecWithInitFreeTest, wipe_secrets_and_remove) {
-  RawAddress bd_addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});
+  RawAddress bd_addr = RawAddress("A1:A2:A3:A4:A5:A6");
   const uint16_t classic_handle = 0x1234;
   const uint16_t ble_handle = 0x9876;
 
   // Setup device
-  tBTM_SEC_DEV_REC* device_record = btm_sec_allocate_dev_rec();
-  ASSERT_NE(nullptr, device_record);
-  ASSERT_EQ(BTM_SEC_IN_USE, device_record->sec_rec.sec_flags);
-  device_record->bd_addr = bd_addr;
-  device_record->hci_handle = classic_handle;
-  device_record->ble_hci_handle = ble_handle;
+  BtmDevice* p_device = btm_sec_allocate_dev_rec(bd_addr);
+  ASSERT_NE(nullptr, p_device);
+  ASSERT_EQ(BTM_SEC_IN_USE, p_device->sec_rec.sec_flags);
+  p_device->hci_handle = classic_handle;
+  p_device->ble_hci_handle = ble_handle;
 
-  wipe_secrets_and_remove(device_record);
+  wipe_secrets_and_remove(p_device);
 }
 
 TEST_F(StackBtmSecWithInitFreeTest, btm_sec_rmt_name_request_complete) {
@@ -284,21 +304,20 @@ TEST_F(StackBtmSecWithInitFreeTest, btm_sec_rmt_name_request_complete) {
 }
 
 TEST_F(StackBtmSecWithInitFreeTest, btm_sec_temp_bond_auth_authenticated_temporary) {
-  RawAddress bd_addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});
+  RawAddress bd_addr = RawAddress("A1:A2:A3:A4:A5:A6");
   const uint16_t classic_handle = 0x1234;
   const uint16_t ble_handle = 0x9876;
 
-  tBTM_SEC_DEV_REC* device_record = btm_sec_allocate_dev_rec();
-  device_record->bd_addr = bd_addr;
-  device_record->hci_handle = classic_handle;
-  device_record->ble_hci_handle = ble_handle;
+  BtmDevice* p_device = btm_sec_allocate_dev_rec(bd_addr);
+  p_device->hci_handle = classic_handle;
+  p_device->ble_hci_handle = ble_handle;
 
-  device_record->sec_rec.sec_flags |= BTM_SEC_AUTHENTICATED;
-  device_record->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
-  device_record->sec_rec.bond_type = BOND_TYPE_TEMPORARY;
+  p_device->sec_rec.sec_flags |= BTM_SEC_AUTHENTICATED;
+  p_device->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
+  p_device->sec_rec.bond_type = BOND_TYPE_TEMPORARY;
 
-  btm_sec_cb.security_mode = BTM_SEC_MODE_SERVICE;
-  btm_sec_cb.pairing_state = BTM_PAIR_STATE_IDLE;
+  BtmSecurity::Get().security_mode_ = BTM_SEC_MODE_SERVICE;
+  BtmSecurity::Get().pairing_state_ = BTM_PAIR_STATE_IDLE;
 
   uint16_t sec_req = BTM_SEC_IN_AUTHENTICATE;
   tBTM_STATUS status = tBTM_STATUS::BTM_UNDEFINED;
@@ -309,21 +328,20 @@ TEST_F(StackBtmSecWithInitFreeTest, btm_sec_temp_bond_auth_authenticated_tempora
 }
 
 TEST_F(StackBtmSecWithInitFreeTest, btm_sec_temp_bond_auth_non_authenticated_temporary) {
-  RawAddress bd_addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});
+  RawAddress bd_addr = RawAddress("A1:A2:A3:A4:A5:A6");
   const uint16_t classic_handle = 0x1234;
   const uint16_t ble_handle = 0x9876;
 
-  tBTM_SEC_DEV_REC* device_record = btm_sec_allocate_dev_rec();
-  device_record->bd_addr = bd_addr;
-  device_record->hci_handle = classic_handle;
-  device_record->ble_hci_handle = ble_handle;
+  BtmDevice* p_device = btm_sec_allocate_dev_rec(bd_addr);
+  p_device->hci_handle = classic_handle;
+  p_device->ble_hci_handle = ble_handle;
 
-  device_record->sec_rec.sec_flags &= ~BTM_SEC_AUTHENTICATED;
-  device_record->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
-  device_record->sec_rec.bond_type = BOND_TYPE_TEMPORARY;
+  p_device->sec_rec.sec_flags &= ~BTM_SEC_AUTHENTICATED;
+  p_device->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
+  p_device->sec_rec.bond_type = BOND_TYPE_TEMPORARY;
 
-  btm_sec_cb.security_mode = BTM_SEC_MODE_SERVICE;
-  btm_sec_cb.pairing_state = BTM_PAIR_STATE_IDLE;
+  BtmSecurity::Get().security_mode_ = BTM_SEC_MODE_SERVICE;
+  BtmSecurity::Get().pairing_state_ = BTM_PAIR_STATE_IDLE;
 
   uint16_t sec_req = BTM_SEC_IN_AUTHENTICATE;
   tBTM_STATUS status = tBTM_STATUS::BTM_UNDEFINED;
@@ -336,21 +354,20 @@ TEST_F(StackBtmSecWithInitFreeTest, btm_sec_temp_bond_auth_non_authenticated_tem
 }
 
 TEST_F(StackBtmSecWithInitFreeTest, btm_sec_temp_bond_auth_authenticated_persistent) {
-  RawAddress bd_addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});
+  RawAddress bd_addr = RawAddress("A1:A2:A3:A4:A5:A6");
   const uint16_t classic_handle = 0x1234;
   const uint16_t ble_handle = 0x9876;
 
-  tBTM_SEC_DEV_REC* device_record = btm_sec_allocate_dev_rec();
-  device_record->bd_addr = bd_addr;
-  device_record->hci_handle = classic_handle;
-  device_record->ble_hci_handle = ble_handle;
+  BtmDevice* p_device = btm_sec_allocate_dev_rec(bd_addr);
+  p_device->hci_handle = classic_handle;
+  p_device->ble_hci_handle = ble_handle;
 
-  device_record->sec_rec.sec_flags |= BTM_SEC_AUTHENTICATED;
-  device_record->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
-  device_record->sec_rec.bond_type = BOND_TYPE_PERSISTENT;
+  p_device->sec_rec.sec_flags |= BTM_SEC_AUTHENTICATED;
+  p_device->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
+  p_device->sec_rec.bond_type = BOND_TYPE_PERSISTENT;
 
-  btm_sec_cb.security_mode = BTM_SEC_MODE_SERVICE;
-  btm_sec_cb.pairing_state = BTM_PAIR_STATE_IDLE;
+  BtmSecurity::Get().security_mode_ = BTM_SEC_MODE_SERVICE;
+  BtmSecurity::Get().pairing_state_ = BTM_PAIR_STATE_IDLE;
 
   uint16_t sec_req = BTM_SEC_IN_AUTHENTICATE;
   tBTM_STATUS status = tBTM_STATUS::BTM_UNDEFINED;
@@ -363,21 +380,20 @@ TEST_F(StackBtmSecWithInitFreeTest, btm_sec_temp_bond_auth_authenticated_persist
 }
 
 TEST_F(StackBtmSecWithInitFreeTest, btm_sec_temp_bond_auth_upgrade_needed) {
-  RawAddress bd_addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});
+  RawAddress bd_addr = RawAddress("A1:A2:A3:A4:A5:A6");
   const uint16_t classic_handle = 0x1234;
   const uint16_t ble_handle = 0x9876;
 
-  tBTM_SEC_DEV_REC* device_record = btm_sec_allocate_dev_rec();
-  device_record->bd_addr = bd_addr;
-  device_record->hci_handle = classic_handle;
-  device_record->ble_hci_handle = ble_handle;
+  BtmDevice* p_device = btm_sec_allocate_dev_rec(bd_addr);
+  p_device->hci_handle = classic_handle;
+  p_device->ble_hci_handle = ble_handle;
 
-  device_record->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
-  device_record->sec_rec.sec_flags |= BTM_SEC_LINK_KEY_KNOWN;
-  device_record->sec_rec.bond_type = BOND_TYPE_PERSISTENT;
+  p_device->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
+  p_device->sec_rec.sec_flags |= BTM_SEC_LINK_KEY_KNOWN;
+  p_device->sec_rec.bond_type = BOND_TYPE_PERSISTENT;
 
-  btm_sec_cb.security_mode = BTM_SEC_MODE_SERVICE;
-  btm_sec_cb.pairing_state = BTM_PAIR_STATE_IDLE;
+  BtmSecurity::Get().security_mode_ = BTM_SEC_MODE_SERVICE;
+  BtmSecurity::Get().pairing_state_ = BTM_PAIR_STATE_IDLE;
 
   uint16_t sec_req = BTM_SEC_IN_AUTHENTICATE | BTM_SEC_IN_MIN_16_DIGIT_PIN;
   tBTM_STATUS status = tBTM_STATUS::BTM_UNDEFINED;
@@ -391,25 +407,24 @@ TEST_F(StackBtmSecWithInitFreeTest, btm_sec_temp_bond_auth_upgrade_needed) {
   // In this case we expect it to clear several security flags and return
   // BTM_CMD_STARTED.
   ASSERT_EQ(status, tBTM_STATUS::BTM_CMD_STARTED);
-  ASSERT_FALSE(device_record->sec_rec.sec_flags & BTM_SEC_LINK_KEY_KNOWN);
+  ASSERT_FALSE(p_device->sec_rec.sec_flags & BTM_SEC_LINK_KEY_KNOWN);
 }
 
 TEST_F(StackBtmSecWithInitFreeTest, btm_sec_temp_bond_auth_encryption_required) {
-  RawAddress bd_addr = RawAddress({0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6});
+  RawAddress bd_addr = RawAddress("A1:A2:A3:A4:A5:A6");
   const uint16_t classic_handle = 0x1234;
   const uint16_t ble_handle = 0x9876;
 
-  tBTM_SEC_DEV_REC* device_record = btm_sec_allocate_dev_rec();
-  device_record->bd_addr = bd_addr;
-  device_record->hci_handle = classic_handle;
-  device_record->ble_hci_handle = ble_handle;
+  BtmDevice* p_device = btm_sec_allocate_dev_rec(bd_addr);
+  p_device->hci_handle = classic_handle;
+  p_device->ble_hci_handle = ble_handle;
 
-  device_record->sec_rec.sec_flags |= BTM_SEC_AUTHENTICATED;
-  device_record->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
-  device_record->sec_rec.bond_type = BOND_TYPE_PERSISTENT;
+  p_device->sec_rec.sec_flags |= BTM_SEC_AUTHENTICATED;
+  p_device->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;
+  p_device->sec_rec.bond_type = BOND_TYPE_PERSISTENT;
 
-  btm_sec_cb.security_mode = BTM_SEC_MODE_SERVICE;
-  btm_sec_cb.pairing_state = BTM_PAIR_STATE_IDLE;
+  BtmSecurity::Get().security_mode_ = BTM_SEC_MODE_SERVICE;
+  BtmSecurity::Get().pairing_state_ = BTM_PAIR_STATE_IDLE;
 
   uint16_t sec_req = BTM_SEC_IN_AUTHENTICATE | BTM_SEC_OUT_ENCRYPT;
   tBTM_STATUS status = tBTM_STATUS::BTM_UNDEFINED;
@@ -419,5 +434,240 @@ TEST_F(StackBtmSecWithInitFreeTest, btm_sec_temp_bond_auth_encryption_required) 
   status = btm_sec_service_access_request(bd_addr, true, sec_req, NULL, NULL);
 
   ASSERT_EQ(status, tBTM_STATUS::BTM_CMD_STARTED);
-  ASSERT_EQ(device_record->sec_rec.classic_link, tSECURITY_STATE::ENCRYPTING);
+  ASSERT_EQ(p_device->sec_rec.classic_link, tSECURITY_STATE::ENCRYPTING);
+}
+
+// Test fixture for testing the security upgrade logic.
+class StackBtmSecSecurityUpgradeTest : public StackBtmSecWithInitFreeTest {
+protected:
+  void SetUp() override {
+    StackBtmSecWithInitFreeTest::SetUp();
+    p_device_ = btm_sec_allocate_dev_rec(kRawAddress);
+    ASSERT_NE(p_device_, nullptr);
+    p_device_->hci_handle = 0x1;  // Needed for btm_sec_service_access_request
+    p_device_->sec_rec.sec_flags |= BTM_SEC_NAME_KNOWN;  // Avoid RNR
+    p_device_->sm4 = BTM_SM4_TRUE;                       // Enable SM4 path
+    BtmSecurity::Get().pairing_state_ = BTM_PAIR_STATE_IDLE;  // Ensure not busy
+  }
+
+  void TearDown() override {
+    wipe_secrets_and_remove(p_device_);
+    StackBtmSecWithInitFreeTest::TearDown();
+  }
+
+  BtmDevice* p_device_;
+};
+
+// Verifies that no upgrade is triggered when the existing security is sufficient.
+TEST_F(StackBtmSecSecurityUpgradeTest, PairedNoUpgradeNeeded) {
+  // Setup: Paired with authenticated key, persistent bond, no special requirements.
+  p_device_->sec_rec.sec_flags |= BTM_SEC_LINK_KEY_KNOWN;
+  p_device_->sec_rec.link_key_type = BTM_LKEY_TYPE_AUTH_COMB;
+  p_device_->sec_rec.bond_type = BOND_TYPE_PERSISTENT;
+  uint16_t initial_sec_flags = p_device_->sec_rec.sec_flags;
+  uint8_t initial_sm4 = p_device_->sm4;
+
+  // Action: Request access for a service with no special security.
+  btm_sec_service_access_request(kRawAddress, true /* outgoing */, BTM_SEC_NONE, NULL, NULL);
+
+  // Assert: No upgrade is triggered.
+  ASSERT_EQ(p_device_->sm4, initial_sm4);
+  ASSERT_EQ(p_device_->sec_rec.sec_flags, initial_sec_flags);
+}
+
+// Verifies that an upgrade is triggered to create a persistent bond when
+// accessing a secure service with a temporary bond.
+TEST_F(StackBtmSecSecurityUpgradeTest, TemporaryBondingUpgrade) {
+  // Setup: Paired with a temporary bond.
+  p_device_->sec_rec.sec_flags |= BTM_SEC_LINK_KEY_KNOWN;
+  p_device_->sec_rec.bond_type = BOND_TYPE_TEMPORARY;
+
+  // Action: Request access for a service that requires authentication.
+  btm_sec_service_access_request(kRawAddress, true /* outgoing */, BTM_SEC_OUT_AUTHENTICATE, NULL,
+                                 NULL);
+
+  // Assert: Upgrade is triggered, and link key status is cleared for re-pairing.
+  ASSERT_TRUE(p_device_->sm4 & BTM_SM4_UPGRADE);
+  ASSERT_FALSE(p_device_->sec_rec.sec_flags & BTM_SEC_LINK_KEY_KNOWN);
+}
+
+// Verifies that an upgrade is triggered when MITM is required, but the existing
+// key is unauthenticated and IO capabilities support MITM.
+TEST_F(StackBtmSecSecurityUpgradeTest, MitmUpgradePossible) {
+  // Setup: Paired with an unauthenticated key, but MITM is possible.
+  p_device_->sec_rec.sec_flags |= BTM_SEC_LINK_KEY_KNOWN;
+  p_device_->sec_rec.link_key_type = BTM_LKEY_TYPE_UNAUTH_COMB;
+  p_device_->sec_rec.bond_type = BOND_TYPE_PERSISTENT;
+  p_device_->sec_rec.rmt_io_caps = BtIoCap::KEYBOARD_ONLY;
+
+  // Action: Request access for a service that requires MITM.
+  btm_sec_service_access_request(kRawAddress, true /* outgoing */, BTM_SEC_OUT_MITM, NULL, NULL);
+
+  // Assert: Upgrade is triggered, and link key status is cleared for re-pairing.
+  ASSERT_TRUE(p_device_->sm4 & BTM_SM4_UPGRADE);
+  ASSERT_FALSE(p_device_->sec_rec.sec_flags & BTM_SEC_LINK_KEY_KNOWN);
+}
+
+// Verifies that no upgrade is triggered when MITM is required, but the IO
+// capabilities do not support it.
+TEST_F(StackBtmSecSecurityUpgradeTest, MitmUpgradeNotPossible) {
+  // Setup: Paired with an unauthenticated key, but MITM is not possible.
+  p_device_->sec_rec.sec_flags |= BTM_SEC_LINK_KEY_KNOWN;
+  p_device_->sec_rec.link_key_type = BTM_LKEY_TYPE_UNAUTH_COMB;
+  p_device_->sec_rec.bond_type = BOND_TYPE_PERSISTENT;
+  p_device_->sec_rec.rmt_io_caps = BtIoCap::NO_INPUT_NO_OUTPUT;
+  uint16_t initial_sec_flags = p_device_->sec_rec.sec_flags;
+  uint8_t initial_sm4 = p_device_->sm4;
+
+  // Action: Request access for a service that requires MITM.
+  btm_sec_service_access_request(kRawAddress, true /* outgoing */, BTM_SEC_OUT_MITM, NULL, NULL);
+
+  // Assert: No upgrade is triggered because IO caps don't support it.
+  ASSERT_EQ(p_device_->sm4, initial_sm4);
+  ASSERT_EQ(p_device_->sec_rec.sec_flags, initial_sec_flags);
+}
+
+// Must be global to resolve the symbol within the legacy stack
+struct alarm_t {
+  alarm_callback_t cb;
+  void* data;
+};
+
+static tBTM_STATUS dummy_pin_callback(const RawAddress&, const DEV_CLASS&, const BD_NAME&, bool,
+                                      PairingAlgorithm) {
+  return tBTM_STATUS::BTM_SUCCESS;
+}
+static tBTM_STATUS dummy_link_key_callback(const RawAddress&, const BD_NAME&, const LinkKey&,
+                                           uint8_t, bool) {
+  return tBTM_STATUS::BTM_SUCCESS;
+}
+static void dummy_auth_complete_callback(const RawAddress&, const BD_NAME&, tHCI_REASON) {}
+static void dummy_bond_cancel_cmpl_callback(tBTM_STATUS) {}
+static tBTM_STATUS dummy_sp_callback(tBTM_SP_EVT, tBTM_SP_EVT_DATA*) {
+  return tBTM_STATUS::BTM_SUCCESS;
+}
+static tBTM_STATUS dummy_le_callback(tBTM_LE_EVT, const RawAddress&, tBTM_LE_EVT_DATA*) {
+  return tBTM_STATUS::BTM_SUCCESS;
+}
+static void dummy_le_key_callback(uint8_t, tBTM_BLE_LOCAL_KEYS*) {}
+static tBTM_STATUS dummy_sirk_verification_callback(const RawAddress&) {
+  return tBTM_STATUS::BTM_SUCCESS;
+}
+
+static BtmAppReg dummy_app_reg = {dummy_pin_callback,
+                                  dummy_link_key_callback,
+                                  dummy_auth_complete_callback,
+                                  dummy_bond_cancel_cmpl_callback,
+                                  dummy_sp_callback,
+                                  dummy_le_callback,
+                                  dummy_le_key_callback,
+                                  dummy_sirk_verification_callback};
+
+// Test fixture for testing the Link Key Request Timer logic.
+class StackBtmSecLinkKeyRequestTest : public StackBtmSecWithInitFreeTest {
+protected:
+  void SetUp() override {
+    StackBtmSecWithInitFreeTest::SetUp();
+    btm_sec_register(dummy_app_reg);
+  }
+
+  void TearDown() override {
+    // Clean up timer if it exists to avoid leaks if Free doesn't handle it
+    BtmSecurity::Get().ResetLinkKeyRequestTimer();
+    StackBtmSecWithInitFreeTest::TearDown();
+  }
+};
+
+TEST_F(StackBtmSecLinkKeyRequestTest, LinkKeyRequest_TimerStarted) {
+  set_com_android_bluetooth_flags_link_key_request_timer(true);
+
+  RawAddress bd_addr = RawAddress("11:22:33:44:55:66");
+
+  // Allocate device record
+  BtmDevice* p_device = btm_sec_allocate_dev_rec(bd_addr);
+  ASSERT_NE(nullptr, p_device);
+
+  // Prepare conditions
+  BtmSecurity::Get().link_spec_.addrt.bda = bd_addr;
+  BtmSecurity::Get().link_spec_.transport = BT_TRANSPORT_LE;
+
+  // Act
+  btm_sec_link_key_request(bd_addr);
+
+  // Assert
+  ASSERT_NE(nullptr, BtmSecurity::Get().lk_req_timer_);
+  ASSERT_NE(nullptr, BtmSecurity::Get().lk_req_timer_->cb);
+
+  wipe_secrets_and_remove(p_device);
+}
+
+TEST_F(StackBtmSecLinkKeyRequestTest, LinkKeyRequest_Timeout) {
+  set_com_android_bluetooth_flags_link_key_request_timer(true);
+
+  // Allocate device record
+  RawAddress bd_addr = RawAddress("11:22:33:44:55:66");
+  BtmDevice* p_device = btm_sec_allocate_dev_rec(bd_addr);
+
+  BtmSecurity::Get().link_spec_.addrt.bda = bd_addr;
+  BtmSecurity::Get().link_spec_.transport = BT_TRANSPORT_LE;
+
+  btm_sec_link_key_request(bd_addr);
+  ASSERT_NE(nullptr, BtmSecurity::Get().lk_req_timer_);
+
+  // Trigger callback
+  alarm_callback_t cb = BtmSecurity::Get().lk_req_timer_->cb;
+  void* data = BtmSecurity::Get().lk_req_timer_->data;
+  cb(data);
+
+  // Verify timer is reset
+  ASSERT_EQ(nullptr, BtmSecurity::Get().lk_req_timer_);
+
+  wipe_secrets_and_remove(p_device);
+}
+
+TEST_F(StackBtmSecLinkKeyRequestTest, LinkKeyRequest_ReplyCancelsTimer) {
+  set_com_android_bluetooth_flags_link_key_request_timer(true);
+
+  RawAddress bd_addr = RawAddress("11:22:33:44:55:66");
+  BtmDevice* p_device = btm_sec_allocate_dev_rec(bd_addr);
+
+  BtmSecurity::Get().link_spec_.addrt.bda = bd_addr;
+  BtmSecurity::Get().link_spec_.transport = BT_TRANSPORT_LE;
+
+  btm_sec_link_key_request(bd_addr);
+  ASSERT_NE(nullptr, BtmSecurity::Get().lk_req_timer_);
+
+  // Act: Reply with link key (via notification)
+  LinkKey link_key;
+  // Key type for CTKD: BTM_LTK_DERIVED_LKEY_OFFSET + BTM_LKEY_TYPE_COMBINATION ...
+  uint8_t key_type = BTM_LTK_DERIVED_LKEY_OFFSET + BTM_LKEY_TYPE_AUTH_COMB_P_256;
+
+  btm_sec_link_key_notification(bd_addr, link_key, key_type);
+
+  // Assert
+  ASSERT_EQ(nullptr, BtmSecurity::Get().lk_req_timer_);
+
+  wipe_secrets_and_remove(p_device);
+}
+
+TEST_F(StackBtmSecLinkKeyRequestTest, LinkKeyRequest_DisconnectCancelsTimer) {
+  set_com_android_bluetooth_flags_link_key_request_timer(true);
+
+  RawAddress bd_addr = RawAddress("11:22:33:44:55:66");
+  BtmDevice* p_device = btm_sec_allocate_dev_rec(bd_addr);
+  p_device->hci_handle = 0x1234;
+
+  BtmSecurity::Get().link_spec_.addrt.bda = bd_addr;
+  BtmSecurity::Get().link_spec_.transport = BT_TRANSPORT_LE;
+
+  btm_sec_link_key_request(bd_addr);
+  ASSERT_NE(nullptr, BtmSecurity::Get().lk_req_timer_);
+
+  // Act
+  btm_sec_disconnected(0x1234, HCI_ERR_CONN_CAUSE_LOCAL_HOST, "test");
+
+  // Assert
+  ASSERT_EQ(nullptr, BtmSecurity::Get().lk_req_timer_);
+
+  wipe_secrets_and_remove(p_device);
 }

@@ -89,7 +89,7 @@ class IBroadcastStateMachineCallbacks;
 
 struct BigConfig {
   uint8_t status;
-  uint8_t big_id;
+  uint8_t big_handle;
   uint32_t big_sync_delay;
   uint32_t transport_latency_big;
   uint8_t phy;
@@ -127,7 +127,8 @@ public:
   // ADDRESS_TYPE_RANDOM_NON_RESOLVABLE = 2
   static constexpr int8_t kBroadcastAdvertisingType = 0x2;
 
-  static void Initialize(IBroadcastStateMachineCallbacks*, AdvertisingCallbacks* adv_callbacks);
+  static void Initialize(IBroadcastStateMachineCallbacks*, AdvertisingCallbacks* adv_callbacks,
+                         hci::iso_manager::IsoClientHandle client_handle);
   static std::unique_ptr<BroadcastStateMachine> CreateInstance(BroadcastStateMachineConfig msg);
 
   enum class Message : uint8_t {
@@ -161,7 +162,7 @@ public:
   virtual std::optional<BigConfig> const& GetBigConfig() const = 0;
   virtual BroadcastStateMachineConfig const& GetStateMachineConfig() const = 0;
   virtual void RequestOwnAddress(
-          base::Callback<void(uint8_t /* address_type*/, RawAddress /*address*/)> cb) = 0;
+          base::OnceCallback<void(uint8_t /* address_type*/, RawAddress /*address*/)> cb) = 0;
   virtual void RequestOwnAddress() = 0;
   virtual RawAddress GetOwnAddress() = 0;
   virtual uint8_t GetOwnAddressType() = 0;

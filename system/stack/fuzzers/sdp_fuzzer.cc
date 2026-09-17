@@ -21,19 +21,24 @@
 #include <string>
 #include <vector>
 
+#include "bta/ag/bta_ag_int.h"
+#include "bta/sys/bta_sys.h"
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/l2cdefs.h"
+#include "stack/include/sdp_api.h"
 #include "stack/include/sdpdefs.h"
+#include "stack/mock/mock_stack_l2cap_interface.h"
 #include "stack/sdp/internal/sdp_api.h"
-#include "stack/sdp/sdpint.h"
 #include "test/fake/fake_osi.h"
 #include "test/mock/mock_btif_config.h"
-#include "test/mock/mock_stack_l2cap_api.h"
-#include "test/mock/mock_stack_l2cap_interface.h"
 
 using ::testing::NiceMock;
 using ::testing::Unused;
+
+// TODO: remove dependency on BTA symbols.
+bool bta_ag_get_swb_supported() { return false; }
+void bta_sys_add_uuid(uint16_t) {}
 
 namespace {
 
@@ -42,7 +47,7 @@ namespace {
 constexpr uint16_t kDummyCID = 0x1234;
 constexpr uint16_t kDummyPSM = 0x7788;
 constexpr uint8_t kDummyID = 0x99;
-constexpr RawAddress kDummyAddr({0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+constexpr RawAddress kDummyAddr("11:22:33:44:55:66");
 
 // Set up default callback structure
 tL2CAP_APPL_INFO cb_info = {

@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <bluetooth/types/acl_link_spec.h>
 #include <bluetooth/types/ble_address_with_type.h>
 #include <bluetooth/types/hci_role.h>
 #include <bluetooth/types/remote_version.h>
@@ -31,61 +32,50 @@
 #include "stack/include/btm_status.h"
 #include "stack/include/hcimsgs.h"
 
-enum btm_acl_encrypt_state_t {
-  BTM_ACL_ENCRYPT_STATE_IDLE = 0,
-  BTM_ACL_ENCRYPT_STATE_ENCRYPT_OFF = 1,
-  BTM_ACL_ENCRYPT_STATE_TEMP_FUNC = 2,
-  BTM_ACL_ENCRYPT_STATE_ENCRYPT_ON = 3,
+enum class BtmAclEncryptState : uint8_t {
+  kIdle = 0,
+  kEncryptOff,
+  kTemporaryOff,
+  kEncryptOn,
 };
 
-enum btm_acl_swkey_state_t {
-  BTM_ACL_SWKEY_STATE_IDLE = 0,
-  BTM_ACL_SWKEY_STATE_MODE_CHANGE = 1,
-  BTM_ACL_SWKEY_STATE_ENCRYPTION_OFF = 2,
-  BTM_ACL_SWKEY_STATE_SWITCHING = 3,
-  BTM_ACL_SWKEY_STATE_ENCRYPTION_ON = 4,
-  BTM_ACL_SWKEY_STATE_IN_PROGRESS = 5,
+enum class BtmAclSwitchKeyState : uint8_t {
+  kIdle = 0,
+  kModeChange,
+  kEncryptionOff,
+  kSwitching,
+  kEncryptionOn,
+  kInProgress,
 };
 
-/* Policy settings status */
-typedef enum : uint16_t {
-  HCI_DISABLE_ALL_LM_MODES = 0,
-  HCI_ENABLE_CENTRAL_PERIPHERAL_SWITCH = (1u << 0),
-  HCI_ENABLE_HOLD_MODE = (1u << 1),
-  HCI_ENABLE_SNIFF_MODE = (1u << 2),
-  HCI_ENABLE_PARK_MODE = (1u << 3),
-} tLINK_POLICY_BITMASK;
-typedef uint16_t tLINK_POLICY;
+struct LinkPolicy {
+  // Hold mode is not supported in Android
+  // Park mode is deprecated in the Bluetooth spec
+  bool role_switch;
+  bool sniff_mode;
 
-constexpr tLINK_POLICY kAllLinkPoliciesEnabled =
-        (HCI_ENABLE_CENTRAL_PERIPHERAL_SWITCH | HCI_ENABLE_HOLD_MODE | HCI_ENABLE_SNIFF_MODE);
-
-static const char* link_policy_string[] = {
-        " role_switch ",
-        " hold_mode ",
-        " sniff_mode ",
-        " park_mode ",
+public:
+  constexpr uint16_t toUint16() const { return (role_switch << 0) | (sniff_mode << 2); }
+  constexpr operator uint16_t() const { return toUint16(); }
 };
 
-inline std::string link_policy_text(tLINK_POLICY policy) {
+inline std::string link_policy_text(const LinkPolicy& policy) {
   std::ostringstream os;
-  os << "0x" << loghex(static_cast<uint16_t>(policy)) << " :";
-  std::string s = os.str();
-  for (uint16_t i = 0; i < 4; i++) {
-    if (policy & (0x1 << i)) {
-      s += link_policy_string[i];
-    }
-  }
-  return s;
+  os << "role_switch: " << (policy.role_switch == 0 ? "disabled" : "enabled") << ", ";
+  os << "sniff_mode: " << (policy.sniff_mode == 0 ? "disabled" : "enabled");
+  return os.str();
 }
+
+constexpr LinkPolicy kLinkPolicyDefault = {
+        .role_switch = true,
+        .sniff_mode = true,
+};
 
 // Power mode states.
 // Used as both value and bitmask
 enum : uint8_t {
   BTM_PM_ST_ACTIVE = HCI_MODE_ACTIVE,      // 0x00
-  BTM_PM_ST_HOLD = HCI_MODE_HOLD,          // 0x01
   BTM_PM_ST_SNIFF = HCI_MODE_SNIFF,        // 0x02
-  BTM_PM_ST_PARK = HCI_MODE_PARK,          // 0x03
   BTM_PM_ST_UNUSED,                        // 0x04
   BTM_PM_ST_PENDING = BTM_PM_STS_PENDING,  // 0x05
   BTM_PM_ST_INVALID = 0x7F,
@@ -98,12 +88,8 @@ inline std::string power_mode_state_text(tBTM_PM_STATE state) {
   switch (state & ~BTM_PM_STORED_MASK) {
     case BTM_PM_ST_ACTIVE:
       return s + std::string("active");
-    case BTM_PM_ST_HOLD:
-      return s + std::string("hold");
     case BTM_PM_ST_SNIFF:
       return s + std::string("sniff");
-    case BTM_PM_ST_PARK:
-      return s + std::string("park");
     case BTM_PM_ST_UNUSED:
       return s + std::string("WARN:UNUSED");
     case BTM_PM_ST_PENDING:
@@ -168,7 +154,7 @@ struct tBTM_PM_MCB {
 };
 
 struct tACL_CONN {
-  tAclLinkSpec link_spec;
+  AclLinkSpec link_spec;
   tBLE_BD_ADDR active_addrt;
 
   bool in_use{false};
@@ -192,7 +178,7 @@ public:
 
   uint16_t flush_timeout_in_ticks;
   uint16_t hci_handle;
-  tLINK_POLICY link_policy;
+  LinkPolicy link_policy;
 
 public:
   uint16_t Handle() const { return hci_handle; }
@@ -200,25 +186,8 @@ public:
   uint16_t pkt_types_mask;
   uint8_t disconnect_reason;
 
-private:
-  btm_acl_encrypt_state_t encrypt_state_;
-
 public:
-  void set_encryption_off() {
-    if (encrypt_state_ != BTM_ACL_ENCRYPT_STATE_ENCRYPT_OFF) {
-      btsnd_hcic_set_conn_encrypt(hci_handle, false);
-      encrypt_state_ = BTM_ACL_ENCRYPT_STATE_ENCRYPT_OFF;
-    }
-  }
-  void set_encryption_on() {
-    if (encrypt_state_ != BTM_ACL_ENCRYPT_STATE_ENCRYPT_ON) {
-      btsnd_hcic_set_conn_encrypt(hci_handle, true);
-      encrypt_state_ = BTM_ACL_ENCRYPT_STATE_ENCRYPT_ON;
-    }
-  }
-  void set_encryption_idle() { encrypt_state_ = BTM_ACL_ENCRYPT_STATE_IDLE; }
-
-  void set_encryption_switching() { encrypt_state_ = BTM_ACL_ENCRYPT_STATE_TEMP_FUNC; }
+  BtmAclEncryptState encrypt_state_ = BtmAclEncryptState::kIdle;
 
 public:
   bool is_encrypted = false;
@@ -230,6 +199,7 @@ public:
 #define BTM_SEC_RS_NOT_PENDING 0 /* Role Switch not in progress */
 #define BTM_SEC_RS_PENDING 1     /* Role Switch in progress */
 #define BTM_SEC_DISC_PENDING 2   /* Disconnect is pending */
+
 private:
   uint8_t rs_disc_pending = BTM_SEC_RS_NOT_PENDING;
   friend struct StackAclBtmAcl;
@@ -244,36 +214,8 @@ public:
   bool is_disconnect_pending() const { return rs_disc_pending == BTM_SEC_DISC_PENDING; }
   bool is_role_switch_pending() const { return rs_disc_pending == BTM_SEC_RS_PENDING; }
 
-private:
-  uint8_t switch_role_state_;
-
 public:
-  void reset_switch_role() { switch_role_state_ = BTM_ACL_SWKEY_STATE_IDLE; }
-  void set_switch_role_changing() { switch_role_state_ = BTM_ACL_SWKEY_STATE_MODE_CHANGE; }
-  void set_switch_role_encryption_off() { switch_role_state_ = BTM_ACL_SWKEY_STATE_ENCRYPTION_OFF; }
-  void set_switch_role_encryption_on() { switch_role_state_ = BTM_ACL_SWKEY_STATE_ENCRYPTION_ON; }
-  void set_switch_role_in_progress() { switch_role_state_ = BTM_ACL_SWKEY_STATE_IN_PROGRESS; }
-  void set_switch_role_switching() { switch_role_state_ = BTM_ACL_SWKEY_STATE_SWITCHING; }
-
-  bool is_switch_role_idle() const { return switch_role_state_ == BTM_ACL_SWKEY_STATE_IDLE; }
-  bool is_switch_role_encryption_off() const {
-    return switch_role_state_ == BTM_ACL_SWKEY_STATE_ENCRYPTION_OFF;
-  }
-  bool is_switch_role_encryption_on() const {
-    return switch_role_state_ == BTM_ACL_SWKEY_STATE_ENCRYPTION_ON;
-  }
-  bool is_switch_role_switching() const {
-    return switch_role_state_ == BTM_ACL_SWKEY_STATE_SWITCHING;
-  }
-  bool is_switch_role_in_progress() const {
-    return switch_role_state_ == BTM_ACL_SWKEY_STATE_IN_PROGRESS;
-  }
-  bool is_switch_role_mode_change() const {
-    return switch_role_state_ == BTM_ACL_SWKEY_STATE_MODE_CHANGE;
-  }
-  bool is_switch_role_switching_or_in_progress() const {
-    return is_switch_role_switching() || is_switch_role_in_progress();
-  }
+  BtmAclSwitchKeyState switch_role_state_ = BtmAclSwitchKeyState::kIdle;
 
 public:
   uint8_t sca; /* Sleep clock accuracy */
@@ -300,9 +242,7 @@ private:
   tACL_CONN acl_db[MAX_L2CAP_LINKS];
   tBTM_ROLE_SWITCH_CMPL switch_role_ref_data;
   uint16_t btm_acl_pkt_types_supported = kDefaultPacketTypeMask;
-  uint16_t btm_def_link_policy;
   tHCI_STATUS acl_disc_reason = HCI_ERR_UNDEFINED;
-  bool locally_initiated;
 
 public:
   void SetDefaultPacketTypeMask(uint16_t packet_type_mask) {
@@ -311,10 +251,7 @@ public:
 
   tHCI_STATUS get_disconnect_reason() const { return acl_disc_reason; }
   void set_disconnect_reason(tHCI_STATUS reason) { acl_disc_reason = reason; }
-  bool is_locally_initiated() const { return locally_initiated; }
-  void set_locally_initiated(bool value) { locally_initiated = value; }
   uint16_t DefaultPacketTypes() const { return btm_acl_pkt_types_supported; }
-  uint16_t DefaultLinkPolicy() const { return btm_def_link_policy; }
 
   struct {
     std::vector<tBTM_PM_STATUS_CBACK*> clients;
@@ -334,3 +271,8 @@ public:
 tACL_CONN* btm_acl_for_bda(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 
 void btm_acl_encrypt_change(uint16_t handle, uint8_t status, uint8_t encr_enable);
+
+namespace std {
+template <>
+struct formatter<LinkPolicy> : string_formatter<LinkPolicy, link_policy_text> {};
+}  // namespace std

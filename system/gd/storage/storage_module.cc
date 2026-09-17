@@ -34,15 +34,12 @@
 #include "storage/config_cache.h"
 #include "storage/config_keys.h"
 #include "storage/legacy_config_file.h"
-#include "storage/mutation.h"
 
 namespace bluetooth {
 namespace storage {
 
 using os::Alarm;
 using os::Handler;
-
-static const std::string kFactoryResetProperty = "persist.bluetooth.factoryreset";
 
 static const size_t kDefaultTempDeviceCapacity = 10000;
 // Save config whenever there is a change, but delay it by this value so that burst config change
@@ -63,13 +60,10 @@ const std::string StorageModule::kTimeCreatedFormat = "%Y-%m-%d %H:%M:%S";
 const std::string StorageModule::kAdapterSection = BTIF_STORAGE_SECTION_ADAPTER;
 
 struct StorageModule::impl {
-  explicit impl(Handler* handler, ConfigCache cache, size_t in_memory_cache_size_limit)
-      : config_save_alarm_(&handler->thread()),
-        cache_(std::move(cache)),
-        memory_only_cache_(in_memory_cache_size_limit, {}) {}
+  explicit impl(Handler* handler, ConfigCache cache, size_t)
+      : config_save_alarm_(&handler->thread()), cache_(std::move(cache)) {}
   Alarm config_save_alarm_;
   ConfigCache cache_;
-  ConfigCache memory_only_cache_;
   bool has_pending_config_save_ = false;
 };
 
@@ -98,11 +92,6 @@ StorageModule::StorageModule(os::Handler* handler, std::string config_file_path,
                    config_save_delay_.count(), kMinConfigSaveDelay.count());
 
   std::lock_guard<std::recursive_mutex> lock(mutex_);
-  if (os::GetSystemProperty(kFactoryResetProperty) == "true") {
-    log::info("{} is true, delete config files", kFactoryResetProperty);
-    LegacyConfigFile::FromPath(config_file_path_).Delete();
-    os::SetSystemProperty(kFactoryResetProperty, "false");
-  }
   if (!is_config_checksum_pass(kConfigFileComparePass)) {
     LegacyConfigFile::FromPath(config_file_path_).Delete();
   }
@@ -123,12 +112,7 @@ StorageModule::StorageModule(os::Handler* handler, std::string config_file_path,
   pimpl_ = std::make_unique<impl>(handler_, std::move(config.value()), temp_devices_capacity_);
   pimpl_->cache_.SetPersistentConfigChangedCallback(
           [this] { handler_->CallOn(this, &StorageModule::SaveDelayed); });
-
   pimpl_->cache_.FixDeviceTypeInconsistencies();
-  if (bluetooth::os::ParameterProvider::GetBtKeystoreInterface() != nullptr) {
-    bluetooth::os::ParameterProvider::GetBtKeystoreInterface()
-            ->ConvertEncryptOrDecryptKeyIfNeeded();
-  }
 
   if (save_needed) {
     SaveDelayed();
@@ -149,18 +133,7 @@ StorageModule::~StorageModule() {
   }
   pimpl_.reset();
 
-  if (!com_android_bluetooth_flags_same_handler_for_all_modules()) {
-    handler_->Clear();
-    handler_->WaitUntilStopped(std::chrono::milliseconds(2000));
-    delete handler_;
-  }
-
   log::verbose("Storage module stopped !!");
-}
-
-Mutation StorageModule::Modify() {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  return Mutation(&pimpl_->cache_, &pimpl_->memory_only_cache_);
 }
 
 void StorageModule::SaveDelayed() {
@@ -180,6 +153,7 @@ void StorageModule::SaveImmediately() {
     pimpl_->config_save_alarm_.Cancel();
     pimpl_->has_pending_config_save_ = false;
   }
+  auto start_time = std::chrono::steady_clock::now();
 #ifndef TARGET_FLOSS
   log::assert_that(
           LegacyConfigFile::FromPath(config_file_path_).Write(pimpl_->cache_),
@@ -195,28 +169,30 @@ void StorageModule::SaveImmediately() {
     bluetooth::os::ParameterProvider::GetBtKeystoreInterface()->set_encrypt_key_or_remove_key(
             kConfigFilePrefix, kConfigFileHash);
   }
-}
-
-void StorageModule::Clear() {
-  std::lock_guard<std::recursive_mutex> lock(mutex_);
-  pimpl_->cache_.Clear();
+  auto end_time = std::chrono::steady_clock::now();
+  auto write_duration =
+          std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+  // TODO(b/493507987): Remove this log after debugging.
+  if (write_duration >= std::chrono::milliseconds(500)) {
+    log::error("Config write took too long: {}ms", write_duration.count());
+  }
 }
 
 Device StorageModule::GetDeviceByLegacyKey(hci::Address legacy_key_address) {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
-  return Device(&pimpl_->cache_, &pimpl_->memory_only_cache_, std::move(legacy_key_address),
+  return Device(&pimpl_->cache_, std::move(legacy_key_address),
                 Device::ConfigKeyAddressType::LEGACY_KEY_ADDRESS);
 }
 
 Device StorageModule::GetDeviceByClassicMacAddress(hci::Address classic_address) {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
-  return Device(&pimpl_->cache_, &pimpl_->memory_only_cache_, std::move(classic_address),
+  return Device(&pimpl_->cache_, std::move(classic_address),
                 Device::ConfigKeyAddressType::CLASSIC_ADDRESS);
 }
 
 Device StorageModule::GetDeviceByLeIdentityAddress(hci::Address le_identity_address) {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
-  return Device(&pimpl_->cache_, &pimpl_->memory_only_cache_, std::move(le_identity_address),
+  return Device(&pimpl_->cache_, std::move(le_identity_address),
                 Device::ConfigKeyAddressType::LE_IDENTITY_ADDRESS);
 }
 
@@ -226,7 +202,7 @@ std::vector<Device> StorageModule::GetBondedDevices() {
   std::vector<Device> result;
   result.reserve(persistent_sections.size());
   for (const auto& section : persistent_sections) {
-    result.emplace_back(&pimpl_->cache_, &pimpl_->memory_only_cache_, section);
+    result.emplace_back(&pimpl_->cache_, section);
   }
   return result;
 }

@@ -27,6 +27,7 @@
 
 #include <base/functional/callback.h>
 #include <bluetooth/log.h>
+#include <bluetooth/types/acl_link_spec.h>
 #include <bluetooth/types/address.h>
 #include <bluetooth/types/ble_address_with_type.h>
 #include <bluetooth/types/bt_transport.h>
@@ -165,20 +166,23 @@ typedef enum : uint8_t {
 
 /* Structure associated with BTA_DM_LINK_UP_EVT */
 typedef struct {
-  tAclLinkSpec link_spec;
+  AclLinkSpec link_spec;
   uint16_t acl_handle;
+  bool locally_initiated;
 } tBTA_DM_LINK_UP;
 
 /* Structure associated with BTA_DM_LINK_UP_FAILED_EVT */
 typedef struct {
-  tAclLinkSpec link_spec;
+  AclLinkSpec link_spec;
   tHCI_STATUS status; /* The HCI error code associated with this event */
+  bool locally_initiated;
 } tBTA_DM_LINK_UP_FAILED;
 
 /* Structure associated with BTA_DM_LINK_DOWN_EVT */
 typedef struct {
-  tAclLinkSpec link_spec;
+  AclLinkSpec link_spec;
   tHCI_STATUS status;
+  bool locally_initiated;
 } tBTA_DM_LINK_DOWN;
 
 typedef union {
@@ -293,7 +297,6 @@ typedef void(tBTA_BLE_ENERGY_INFO_CBACK)(tBTM_BLE_TX_TIME_MS tx_time, tBTM_BLE_R
 typedef enum : uint8_t {
   /* power mode actions  */
   BTA_DM_PM_NO_ACTION = 0x00,   /* no change to the current pm setting */
-  BTA_DM_PM_PARK = 0x10,        /* prefers park mode */
   BTA_DM_PM_SNIFF = 0x20,       /* prefers sniff mode */
   BTA_DM_PM_SNIFF1 = 0x21,      /* prefers sniff1 mode */
   BTA_DM_PM_SNIFF2 = 0x22,      /* prefers sniff2 mode */
@@ -325,10 +328,6 @@ enum {
 };
 
 #define BTA_DM_PM_NUM_EVTS 9
-
-#ifndef BTA_DM_PM_PARK_IDX
-#define BTA_DM_PM_PARK_IDX 7 /* the actual index to bta_dm_pm_md[] for PARK mode */
-#endif
 
 #ifndef BTA_DM_PM_SNIFF_A2DP_IDX
 #define BTA_DM_PM_SNIFF_A2DP_IDX BTA_DM_PM_SNIFF
@@ -425,13 +424,6 @@ enum {
 #define BTA_DM_PM_SNIFF6_TIMEOUT 0
 #endif
 
-#ifndef BTA_DM_PM_PARK_MAX
-#define BTA_DM_PM_PARK_MAX 800
-#define BTA_DM_PM_PARK_MIN 400
-#define BTA_DM_PM_PARK_ATTEMPT 0
-#define BTA_DM_PM_PARK_TIMEOUT 0
-#endif
-
 /* Device Identification (DI) data structure
  */
 
@@ -448,18 +440,6 @@ enum {
  ****************************************************************************/
 
 void BTA_dm_init();
-
-/*******************************************************************************
- *
- * Function         BTA_EnableTestMode
- *
- * Description      Enables bluetooth device under test mode
- *
- *
- * Returns          tBTA_STATUS
- *
- ******************************************************************************/
-extern void BTA_EnableTestMode(void);
 
 /*******************************************************************************
  *
@@ -561,31 +541,10 @@ bool BTA_DmGetConnectionState(const RawAddress& bd_addr);
  *
  * Description      This function adds a DI record to the local SDP database.
  *
- * Returns          BTA_SUCCESS if record set successfully, otherwise error code.
+ * Returns          true if record set successfully, false otherwise.
  *
  ******************************************************************************/
-tBTA_STATUS BTA_DmSetLocalDiRecord(tSDP_DI_RECORD* p_device_info, uint32_t* p_handle);
-
-/*******************************************************************************
- *
- * Function         BTA_DmSetBlePrefConnParams
- *
- * Description      This function is called to set the preferred connection
- *                  parameters when default connection parameter is not desired.
- *
- * Parameters:      bd_addr          - BD address of the peripheral
- *                  min_conn_int     - minimum preferred connection interval
- *                  max_conn_int     - maximum preferred connection interval
- *                  peripheral_latency    - preferred peripheral latency
- *                  supervision_tout - preferred supervision timeout
- *
- *
- * Returns          void
- *
- ******************************************************************************/
-void BTA_DmSetBlePrefConnParams(const RawAddress& bd_addr, uint16_t min_conn_int,
-                                uint16_t max_conn_int, uint16_t peripheral_latency,
-                                uint16_t supervision_tout);
+bool BTA_DmSetLocalDiRecord(tSDP_DI_RECORD* p_device_info);
 
 /*******************************************************************************
  *
@@ -643,26 +602,6 @@ void BTA_DmBleConfigLocalPrivacy(bool privacy_enable);
  *
  ******************************************************************************/
 void BTA_DmBleEnableRemotePrivacy(const RawAddress& bd_addr, bool privacy_enable);
-
-/*******************************************************************************
- *
- * Function         BTA_DmBleUpdateConnectionParams
- *
- * Description      Update connection parameters, can only be used when
- *                  connection is up.
- *
- * Parameters:      bd_addr   - BD address of the peer
- *                  min_int   - minimum connection interval, [0x0004 ~ 0x4000]
- *                  max_int   - maximum connection interval, [0x0004 ~ 0x4000]
- *                  latency   - peripheral latency [0 ~ 500]
- *                  timeout   - supervision timeout [0x000a ~ 0xc80]
- *
- * Returns          void
- *
- ******************************************************************************/
-void BTA_DmBleUpdateConnectionParams(const RawAddress& bd_addr, uint16_t min_int, uint16_t max_int,
-                                     uint16_t latency, uint16_t timeout, uint16_t min_ce_len,
-                                     uint16_t max_ce_len);
 
 /*******************************************************************************
  *
@@ -804,6 +743,17 @@ void BTA_DmSetEventFilterInquiryResultAllDevices();
 
 /*******************************************************************************
  *
+ * Function         BTA_DmSetSuspendState
+ *
+ * Description      Set the suspend state
+ *
+ * Parameters       whether we're suspending or not
+ *
+ *******************************************************************************/
+void BTA_DmSetSuspendState(bool suspend);
+
+/*******************************************************************************
+ *
  * Function         BTA_DmBleResetId
  *
  * Description      This function resets the ble keys such as IRK
@@ -812,25 +762,6 @@ void BTA_DmSetEventFilterInquiryResultAllDevices();
  *
  ******************************************************************************/
 void BTA_DmBleResetId(void);
-
-/*******************************************************************************
- *
- * Function         BTA_DmBleSubrateRequest
- *
- * Description      subrate request, can only be used when connection is up.
- *
- * Parameters:      bd_addr       - BD address of the peer
- *                  subrate_min   - subrate min
- *                  subrate_max   - subrate max
- *                  max_latency   - max latency
- *                  cont_num      - continuation number
- *                  timeout       - supervision timeout
- *
- * Returns          void
- *
- ******************************************************************************/
-void BTA_DmBleSubrateRequest(const RawAddress& bd_addr, uint16_t subrate_min, uint16_t subrate_max,
-                             uint16_t max_latency, uint16_t cont_num, uint16_t timeout);
 
 /*******************************************************************************
  *

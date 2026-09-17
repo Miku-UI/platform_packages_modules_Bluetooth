@@ -49,15 +49,13 @@ import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTED;
 import static android.bluetooth.BluetoothProfile.STATE_DISCONNECTING;
 import static android.bluetooth.BluetoothProfile.getConnectionStateName;
 
-import static com.android.bluetooth.flags.Flags.leaudioIntentBroadcastInStateMachineCleanup;
-
 import android.bluetooth.BluetoothDevice;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
-import com.android.bluetooth.btservice.ProfileService;
 import com.android.bluetooth.flags.Flags;
+import com.android.bluetooth.profile.ProfileService;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
@@ -118,7 +116,7 @@ final class LeAudioStateMachine extends StateMachine {
 
     public void doQuit() {
         log("doQuit for device " + mDevice);
-        if (leaudioIntentBroadcastInStateMachineCleanup()
+        if (Flags.leaudioIntentBroadcastInStateMachineCleanup()
                 && mConnectionState != STATE_DISCONNECTED
                 && mLastConnectionState != -1) {
             // Broadcast CONNECTION_STATE_CHANGED when state machine is turned off while
@@ -177,16 +175,7 @@ final class LeAudioStateMachine extends StateMachine {
                         Log.e(TAG, "Disconnected: error connecting to " + mDevice);
                         break;
                     }
-                    if (Flags.validateConnectionPolicyBeforeAcceptingConnection()) {
-                        transitionTo(mConnecting);
-                        break;
-                    }
-                    if (mService.okToConnect(mDevice)) {
-                        transitionTo(mConnecting);
-                    } else {
-                        // Reject the request and stay in Disconnected state
-                        Log.w(TAG, "Outgoing LeAudio Connecting request rejected: " + mDevice);
-                    }
+                    transitionTo(mConnecting);
                 }
                 case DISCONNECT -> {
                     Log.d(TAG, "Disconnected: " + mDevice);
@@ -281,15 +270,7 @@ final class LeAudioStateMachine extends StateMachine {
 
             switch (message.what) {
                 case CONNECT -> {
-                    if (Flags.ignoreMultipleConnectRequestInBtServices()) {
-                        Log.w(TAG, "Connecting: CONNECT ignored: " + mDevice);
-                    } else {
-                        if (!hasDeferredMessages(DISCONNECT)) {
-                            Log.w(TAG, "Connecting: CONNECT ignored: " + mDevice);
-                        } else {
-                            deferMessage(message);
-                        }
-                    }
+                    Log.w(TAG, "Connecting: CONNECT ignored: " + mDevice);
                 }
                 case MESSAGE_CONNECT_TIMEOUT -> {
                     Log.w(TAG, "Connecting connection timeout: " + mDevice);
@@ -379,14 +360,10 @@ final class LeAudioStateMachine extends StateMachine {
 
             switch (message.what) {
                 case CONNECT -> {
-                    if (Flags.ignoreMultipleConnectRequestInBtServices()) {
-                        if (!hasDeferredMessages(CONNECT)) {
-                            deferMessage(message);
-                        } else {
-                            log("Connect already scheduled for " + mDevice);
-                        }
-                    } else {
+                    if (!hasDeferredMessages(CONNECT)) {
                         deferMessage(message);
+                    } else {
+                        log("Connect already scheduled for " + mDevice);
                     }
                 }
                 case MESSAGE_CONNECT_TIMEOUT -> {
@@ -400,14 +377,10 @@ final class LeAudioStateMachine extends StateMachine {
                     sendMessage(STACK_EVENT, disconnectEvent);
                 }
                 case DISCONNECT -> {
-                    if (Flags.ignoreMultipleConnectRequestInBtServices()) {
-                        log("Disconnect is ongoing for " + mDevice);
-                        if (hasDeferredMessages(CONNECT)) {
-                            log("Removing scheduled connect for " + mDevice);
-                            removeDeferredMessages(CONNECT);
-                        }
-                    } else {
-                        deferMessage(message);
+                    log("Disconnect is ongoing for " + mDevice);
+                    if (hasDeferredMessages(CONNECT)) {
+                        log("Removing scheduled connect for " + mDevice);
+                        removeDeferredMessages(CONNECT);
                     }
                 }
                 case STACK_EVENT -> {

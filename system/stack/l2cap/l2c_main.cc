@@ -226,8 +226,7 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
 
   /* if l2c free was already called that indicates stack being shutdown, donot process
    * any command*/
-  if (com_android_bluetooth_flags_avoid_l2c_processing_while_stack_shutdown() &&
-      is_l2c_cleanup_inprogress) {
+  if (is_l2c_cleanup_inprogress) {
     log::warn("Do not process any events when stack is being shutdown");
     return;
   }
@@ -446,6 +445,12 @@ static void process_l2cap_cmd(tL2C_LCB* p_lcb, uint8_t* p, uint16_t pkt_len) {
           l2c_csm_execute(p_ccb, L2CEVT_L2CAP_CONNECT_RSP_NEG, &con_info);
 
           p_rcb = p_ccb->p_rcb;
+
+          if (p_rcb == nullptr) {
+            log::warn("Rcvd conn rsp for unknown PSM: {}", con_info.psm);
+            break;
+          }
+
           if (p_rcb->psm == BT_PSM_RFCOMM) {
             bluetooth::shim::GetSnoopLogger()->AddRfcommL2capChannel(
                     p_lcb->Handle(), p_ccb->local_cid, p_ccb->remote_cid);

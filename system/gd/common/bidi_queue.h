@@ -18,7 +18,8 @@
 
 #pragma once
 
-#include "common/callback.h"
+#include <base/functional/callback.h>
+
 #include "os/queue.h"
 
 namespace bluetooth {
@@ -32,21 +33,21 @@ template <typename TENQUEUE, typename TDEQUEUE>
 class BidiQueueEnd : public ::bluetooth::os::IQueueEnqueue<TENQUEUE>,
                      public ::bluetooth::os::IQueueDequeue<TDEQUEUE> {
 public:
-  using EnqueueCallback = Callback<std::unique_ptr<TENQUEUE>()>;
-  using DequeueCallback = Callback<void()>;
+  using EnqueueCallback = base::RepeatingCallback<std::unique_ptr<TENQUEUE>()>;
+  using DequeueCallback = base::RepeatingCallback<void()>;
 
   BidiQueueEnd(::bluetooth::os::IQueueEnqueue<TENQUEUE>* tx,
                ::bluetooth::os::IQueueDequeue<TDEQUEUE>* rx)
       : tx_(tx), rx_(rx) {}
 
   void RegisterEnqueue(::bluetooth::os::Handler* handler, EnqueueCallback callback) override {
-    tx_->RegisterEnqueue(handler, callback);
+    tx_->RegisterEnqueue(handler, std::move(callback));
   }
 
   void UnregisterEnqueue() override { tx_->UnregisterEnqueue(); }
 
   void RegisterDequeue(::bluetooth::os::Handler* handler, DequeueCallback callback) override {
-    rx_->RegisterDequeue(handler, callback);
+    rx_->RegisterDequeue(handler, std::move(callback));
   }
 
   void UnregisterDequeue() override { rx_->UnregisterDequeue(); }

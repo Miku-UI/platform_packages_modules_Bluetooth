@@ -2,31 +2,18 @@ package: "com.android.bluetooth.flags"
 container: "com.android.bt"
 
 flag {
-    name: "floss_separate_host_privacy_and_llprivacy"
+    name: "gd_conn_mgr_one_timeout"
     namespace: "bluetooth"
-    description: "Allow enabling host privacy and LL privacy separately in floss"
-    bug: "338134627"
+    description: "Have just one timer for connection manager direct connections"
+    bug: "481287758"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "ble_rnr_when_connected"
+    name: "move_conn_mgr_callbacks"
     namespace: "bluetooth"
-    description: "If non-connectable, still read remote name if already connected"
-    bug: "411705040"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "gen_key_missing_evt_only_from_iocapreq"
-    namespace: "bluetooth"
-    description: "Genearte the key missing event only from IO_CAP_REQ and not from RSP"
-    bug: "411619742"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    description: "Move connection management callbacks from GATT to connection manager"
+    bug: "483449240"
 }

@@ -16,7 +16,7 @@
 
 #define LOG_TAG "bluetooth-a2dp"
 
-#include "a2dp_vendor_aptx_hd_encoder.h"
+#include "stack/include/a2dp_vendor_aptx_hd_encoder.h"
 
 #include <bluetooth/log.h>
 #include <inttypes.h>
@@ -25,14 +25,14 @@
 
 #include <cstdint>
 
-#include "a2dp_codec_api.h"
-#include "a2dp_vendor.h"
-#include "a2dp_vendor_aptx_hd.h"
 #include "aptXHDbtenc.h"
-#include "avdt_api.h"
 #include "common/time_util.h"
 #include "internal_include/bt_target.h"
 #include "osi/include/allocator.h"
+#include "stack/include/a2dp_codec_api.h"
+#include "stack/include/a2dp_vendor.h"
+#include "stack/include/a2dp_vendor_aptx_hd.h"
+#include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
 
 using namespace bluetooth;
@@ -248,7 +248,7 @@ static void aptx_hd_update_framing_params(tAPTX_HD_FRAMING_PARAMS* framing_param
     }
   }
 
-  log::verbose(
+  log::debug(
           "sleep_time_ns={} aptx_hd_bytes={} pcm_bytes_per_read={} pcm_reads={} "
           "frame_size_counter={}",
           framing_params->sleep_time_ns, framing_params->aptx_hd_bytes,

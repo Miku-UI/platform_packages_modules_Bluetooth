@@ -43,7 +43,7 @@
 #include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/hci_error_code.h"
-#include "stack/sdp/sdp_discovery_db.h"
+#include "stack/include/sdp_discovery_db.h"
 
 /*****************************************************************************
  *  Constants
@@ -198,7 +198,6 @@ typedef struct {
   tBTA_AV_CO_OPEN open;
   tBTA_AV_CO_CLOSE close;
   tBTA_AV_CO_START start;
-  tBTA_AV_CO_STOP stop;
   tBTA_AV_CO_DATAPATH data;
   tBTA_AV_CO_DELAY delay;
   tBTA_AV_CO_UPDATE_MTU update_mtu;

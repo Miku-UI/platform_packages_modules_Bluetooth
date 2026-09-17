@@ -29,6 +29,7 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattServerCallback;
 import android.bluetooth.BluetoothGattService;
+import android.bluetooth.State;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -132,8 +133,6 @@ public class TbsGatt {
     private Callback mCallback;
     private boolean mSilentMode = false;
     private BluetoothEventLogger mEventLogger = null;
-
-    private static final int GATT_MAX_ATTR_LEN = 512;
 
     public abstract static class Callback {
 
@@ -727,12 +726,17 @@ public class TbsGatt {
         if (entryExist
                 && (((mStatusFlagValue.get(device) & STATUS_FLAG_INBAND_RINGTONE_ENABLED) != 0)
                         == set)) {
-            Log.i(TAG, "Silent mode already set for " + device);
+            Log.i(TAG, "Inband ringtone mode already set for " + device);
             return false;
         }
 
         Integer valueInt = entryExist ? mStatusFlagValue.get(device) : 0;
-        valueInt ^= STATUS_FLAG_INBAND_RINGTONE_ENABLED;
+
+        if (set) {
+            valueInt |= STATUS_FLAG_INBAND_RINGTONE_ENABLED;
+        } else {
+            valueInt &= ~STATUS_FLAG_INBAND_RINGTONE_ENABLED;
+        }
 
         if (entryExist) {
             mStatusFlagValue.replace(device, valueInt);
@@ -754,7 +758,12 @@ public class TbsGatt {
             }
 
             Integer valueInt = entryExist ? mStatusFlagValue.get(device) : 0;
-            valueInt ^= STATUS_FLAG_SILENT_MODE_ENABLED;
+
+            if (set) {
+                valueInt |= STATUS_FLAG_SILENT_MODE_ENABLED;
+            } else {
+                valueInt &= ~STATUS_FLAG_SILENT_MODE_ENABLED;
+            }
 
             if (entryExist) {
                 mStatusFlagValue.replace(device, valueInt);
@@ -842,8 +851,8 @@ public class TbsGatt {
         int uri_len = 0;
         if (uri != null) {
             uri_len = uri.length();
-            if (uri_len >= GATT_MAX_ATTR_LEN) {
-                uri_len = GATT_MAX_ATTR_LEN - 1;
+            if (uri_len >= bluetooth.constants.Core.GATT_MAX_ATTR_LEN) {
+                uri_len = bluetooth.constants.Core.GATT_MAX_ATTR_LEN - 1;
             }
         }
 
@@ -870,8 +879,8 @@ public class TbsGatt {
                         + "callFriendlyName="
                         + callFriendlyName);
         int name_len = callFriendlyName.length();
-        if (name_len >= GATT_MAX_ATTR_LEN) {
-            name_len = GATT_MAX_ATTR_LEN - 1;
+        if (name_len >= bluetooth.constants.Core.GATT_MAX_ATTR_LEN) {
+            name_len = bluetooth.constants.Core.GATT_MAX_ATTR_LEN - 1;
         }
         byte[] value = new byte[name_len + 1];
         value[0] = (byte) (callIndex & 0xff);
@@ -916,7 +925,10 @@ public class TbsGatt {
 
     private void restoreCccValuesForStoredDevices() {
         BluetoothGattService gattService = mBluetoothGattServer.getService(UUID_GTBS);
-
+        if (gattService == null) {
+            Log.e(TAG, "gattService is null, return");
+            return;
+        }
         for (BluetoothDevice device : mAdapterService.getBondedDevices()) {
             byte[] gtbs_cccd = mAdapterService.getMetadata(device, METADATA_GTBS_CCCD);
 
@@ -952,7 +964,7 @@ public class TbsGatt {
                 Log.d(
                         TAG,
                         "onBluetoothStateChange: state=" + BluetoothAdapter.nameForState(newState));
-                if (newState == BluetoothAdapter.STATE_ON) {
+                if (newState == State.ON) {
                     restoreCccValuesForStoredDevices();
                 }
             };
@@ -1637,13 +1649,13 @@ public class TbsGatt {
             };
 
     public void dump(StringBuilder sb) {
-        sb.append("\n\tSilent mode: ").append(mSilentMode);
+        sb.append("\n    Silent mode: ").append(mSilentMode);
 
         for (Map.Entry<BluetoothDevice, HashMap<UUID, Short>> deviceEntry :
                 mCccDescriptorValues.entrySet()) {
-            sb.append("\n\tCCC states for device: ").append(deviceEntry.getKey());
+            sb.append("\n    CCC states for device: ").append(deviceEntry.getKey());
             for (Map.Entry<UUID, Short> entry : deviceEntry.getValue().entrySet()) {
-                sb.append("\n\t\tCharacteristic: ")
+                sb.append("\n      Characteristic: ")
                         .append(tbsUuidToString(entry.getKey()))
                         .append(", value: ")
                         .append(Utils.cccIntToStr(entry.getValue()));

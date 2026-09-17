@@ -21,6 +21,8 @@
     <string name="permdesc_bluetoothShareManager" msgid="1588034776955941477">"Дава на приложението достъп и възможност за прехвърляне на файлове с диспечера за BluetoothShare."</string>
     <string name="permlab_bluetoothAcceptlist" msgid="5785922051395856524">"Достъп до устройство с Bluetooth, поставено в списъка за приемане."</string>
     <string name="permdesc_bluetoothAcceptlist" msgid="259308920158011885">"Разрешава на приложението временно да постави в списъка за приемане устройство с Bluetooth, позволявайки му да изпраща файлове до това устройство без потвърждение от потребителя."</string>
+    <string name="permlab_bluetoothBackup" msgid="49451988877877942">"Разрешете излъчванията чрез Bluetooth с цел създаване на резервни копия."</string>
+    <string name="permdesc_bluetoothBackup" msgid="2871500153259509669">"Разрешава на приложението за Bluetooth да приема излъчвания, за да задейства създаването на резервно копие на данните за настройките"</string>
     <string name="bt_share_picker_label" msgid="7464438494743777696">"Bluetooth"</string>
     <string name="unknown_device" msgid="2317679521750821654">"Неизвестно устройство"</string>
     <string name="unknownNumber" msgid="1245183329830158661">"Неизвестно"</string>
@@ -112,10 +114,10 @@
     <string name="transfer_menu_open" msgid="5193344638774400131">"Отваряне"</string>
     <string name="transfer_menu_clear" msgid="7213491281898188730">"Изчистване от списъка"</string>
     <string name="transfer_clear_dlg_title" msgid="128904516163257225">"Изчистване"</string>
-    <string name="bluetooth_a2dp_sink_queue_name" msgid="7521243473328258997">"Възпроизвеждано сега съдържание"</string>
+    <string name="bluetooth_media_audio_app_name" msgid="2389937877819723460">"Аудио през Bluetooth"</string>
+    <string name="bluetooth_media_audio_queue_name" msgid="2327164681598379428">"Сега слушате"</string>
     <string name="bluetooth_map_settings_app_icon" msgid="3501432663809664982">"Икона на приложението"</string>
     <string name="bluetooth_disconnected" msgid="6841396291728343534">"Аудиовръзката през Bluetooth е прекратена"</string>
-    <string name="a2dp_sink_mbs_label" msgid="6035366346569127155">"Аудио през Bluetooth"</string>
     <string name="bluetooth_opp_file_limit_exceeded" msgid="6612109860149473930">"Файловете с размер над 4 ГБ не могат да бъдат прехвърлени"</string>
     <string name="bluetooth_connect_action" msgid="2319449093046720209">"Свързване с Bluetooth"</string>
     <string name="bluetooth_enabled_apm_title" msgid="6914461147844949044">"Функцията за Bluetooth е включена в самолетния режим"</string>
@@ -130,4 +132,13 @@
     <string name="bluetooth_enabled_auto_on_title" msgid="8983664142805050578">"Функцията за Bluetooth се включи отново"</string>
     <string name="bluetooth_enabled_auto_on_message" msgid="2790514825041114851">"Винаги можете да промените това в „Настройки“"</string>
     <string name="bluetooth_notification_group" msgid="7251886707585872194">"Автоматична промяна в състоянието на Bluetooth"</string>
+    <string name="auracast_notification_channel" msgid="5159181425358316696">"Auracast"</string>
+    <string name="auracast_notification_title" msgid="3101708313009368939">"Аудиопотокът на <xliff:g id="STREAM_NAME">%1$s</xliff:g> е налице"</string>
+    <string name="auracast_notification_subtext" msgid="4696155233480316395">"LE Audio"</string>
+    <string name="auracast_connect_device_message" msgid="4461776363082532493">"Свържете устройство, поддържащо LE Audio, за да започнете да слушате"</string>
+    <string name="auracast_listen_on_device_message" msgid="3719491065367993094">"Слушайте аудиопотока на <xliff:g id="STREAM_NAME">%1$s</xliff:g> на <xliff:g id="DEVICE_NAME">%2$s</xliff:g>"</string>
+    <string name="auracast_connect_action" msgid="7157544449029291355">"Свързване"</string>
+    <string name="auracast_connection_failed_message" msgid="6490085541428198952">"Не бе установена връзка между аудиопотока на <xliff:g id="STREAM_NAME">%1$s</xliff:g> и <xliff:g id="DEVICE_NAME">%2$s</xliff:g>."</string>
+    <string name="auracast_default_stream_name" msgid="2824625871526576239">"В близост"</string>
+    <string name="auracast_default_device_name" msgid="15748131701036354">"устройства"</string>
 </resources>

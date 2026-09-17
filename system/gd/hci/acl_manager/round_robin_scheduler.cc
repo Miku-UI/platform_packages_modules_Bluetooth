@@ -45,12 +45,6 @@ RoundRobinScheduler::RoundRobinScheduler(os::Handler* handler, Controller& contr
 RoundRobinScheduler::~RoundRobinScheduler() {
   unregister_all_connections();
   controller_.UnregisterCompletedAclPacketsCallback();
-  if (!com_android_bluetooth_flags_same_handler_for_all_modules()) {
-    handler_->Clear();
-    handler_->WaitUntilStopped(std::chrono::milliseconds(2000));
-    delete handler_;
-  }
-
   log::verbose("module stopped !!");
 }
 
@@ -283,8 +277,7 @@ std::unique_ptr<AclBuilder> RoundRobinScheduler::handle_enqueue_next_fragment() 
     if (enqueue_registered_.exchange(false)) {
       hci_queue_end_->UnregisterEnqueue();
     }
-    handler_->Post(
-            common::BindOnce(&RoundRobinScheduler::start_round_robin, common::Unretained(this)));
+    start_round_robin();
   } else {
     ConnectionType next_connection_type = fragments_to_send_.front().connection_type_;
     bool classic_buffer_full =

@@ -18,11 +18,40 @@
 
 #pragma once
 
-#include <cstdint>
+#include <bluetooth/types/bt_octets.h>
 
-#include "stack/include/bt_octets.h"
+#include <cstdint>
+#include <string>
+
+#include "macros.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/btm_status.h"
+
+typedef enum : uint8_t {
+  BTM_BLE_SEC_REQ_ACT_NONE = 0,
+  /* encrypt the link using current key or key refresh */
+  BTM_BLE_SEC_REQ_ACT_ENCRYPT = 1,
+  BTM_BLE_SEC_REQ_ACT_PAIR = 2,
+  /* discard the sec request while encryption is started but not completed */
+  BTM_BLE_SEC_REQ_ACT_DISCARD = 3,
+} tBTM_BLE_SEC_REQ_ACT;
+
+inline std::string btm_ble_sec_req_act_text(const tBTM_BLE_SEC_REQ_ACT& action) {
+  switch (action) {
+    CASE_RETURN_TEXT(BTM_BLE_SEC_REQ_ACT_NONE);
+    CASE_RETURN_TEXT(BTM_BLE_SEC_REQ_ACT_ENCRYPT);
+    CASE_RETURN_TEXT(BTM_BLE_SEC_REQ_ACT_PAIR);
+    CASE_RETURN_TEXT(BTM_BLE_SEC_REQ_ACT_DISCARD);
+    default:
+      return "UNKNOWN ACTION";
+  }
+}
+
+namespace std {
+template <>
+struct formatter<tBTM_BLE_SEC_REQ_ACT>
+    : string_formatter<tBTM_BLE_SEC_REQ_ACT, &btm_ble_sec_req_act_text> {};
+}  // namespace std
 
 //////////////////////////////////////////////////////////
 ////// from btm_ble_api_types.h
@@ -30,7 +59,7 @@
 /* BLE encryption keys */
 typedef struct {
   Octet16 ltk;
-  BT_OCTET8 rand;
+  Octet8 rand;
   uint16_t ediv;
   uint8_t sec_level;
   uint8_t key_size;
@@ -65,36 +94,37 @@ typedef struct {
   RawAddress identity_addr;
 } tBTM_LE_PID_KEYS;
 
-typedef union {
-  tBTM_LE_PENC_KEYS penc_key;   /* received peer encryption key */
-  tBTM_LE_PCSRK_KEYS pcsrk_key; /* received peer device SRK */
-  tBTM_LE_PID_KEYS pid_key;     /* peer device ID key */
-  tBTM_LE_LENC_KEYS lenc_key;   /* local encryption reproduction keys LTK = = d1(ER, DIV, 0) */
-  tBTM_LE_LCSRK_KEYS lcsrk_key; /* local device CSRK = d1(ER,DIV,1)*/
+typedef struct {
+  union {
+    tBTM_LE_PENC_KEYS penc_key;   /* received peer encryption key */
+    tBTM_LE_PCSRK_KEYS pcsrk_key; /* received peer device SRK */
+    tBTM_LE_PID_KEYS pid_key;     /* peer device ID key */
+    tBTM_LE_LENC_KEYS lenc_key;   /* local encryption reproduction keys LTK = = d1(ER, DIV, 0) */
+    tBTM_LE_LCSRK_KEYS lcsrk_key; /* local device CSRK = d1(ER,DIV,1)*/
+  };
+  PairingAlgorithm pairing_algorithm;
 } tBTM_LE_KEY_VALUE;
 
 typedef struct {
   tBTM_LE_KEY_TYPE key_type;
-  tBTM_LE_KEY_VALUE* p_key_value;
+  const tBTM_LE_KEY_VALUE* p_key_value;
 } tBTM_LE_KEY;
 
-typedef union {
-  tBTM_LE_IO_REQ io_req; /* BTM_LE_IO_REQ_EVT */
-  uint32_t key_notif;    /* BTM_LE_KEY_NOTIF_EVT */
-                         /* BTM_LE_NC_REQ_EVT */
-                         /* no callback data for BTM_LE_KEY_REQ_EVT and BTM_LE_OOB_REQ_EVT */
-  tBTM_LE_COMPLT complt; /* BTM_LE_COMPLT_EVT */
-  tSMP_OOB_DATA_TYPE req_oob_type;
-  tBTM_LE_KEY key;
-  tSMP_LOC_OOB_DATA local_oob_data;
-  tBLE_BD_ADDR id_addr_with_type;
+// This should be the same as tSMP_EVT_DATA.
+typedef struct {
+  union {
+    tBTM_LE_IO_REQ io_req; /* BTM_LE_IO_REQ_EVT */
+    uint32_t key_notif;    /* BTM_LE_KEY_NOTIF_EVT */
+                          /* BTM_LE_NC_REQ_EVT */
+                          /* no callback data for BTM_LE_KEY_REQ_EVT and BTM_LE_OOB_REQ_EVT */
+    tBTM_LE_COMPLT complt; /* BTM_LE_COMPLT_EVT */
+    tSMP_OOB_DATA_TYPE req_oob_type;
+    tBTM_LE_KEY key;
+    tSMP_LOC_OOB_DATA local_oob_data;
+    tBLE_BD_ADDR id_addr_with_type;
+  };
+  PairingAlgorithm pairing_algorithm;
 } tBTM_LE_EVT_DATA;
-
-/* Simple Pairing Events. Called by the stack when Simple Pairing related
- * events occur.
- */
-typedef tBTM_STATUS(tBTM_LE_CALLBACK)(tBTM_LE_EVT event, const RawAddress& bda,
-                                      tBTM_LE_EVT_DATA* p_data);
 
 #define BTM_BLE_KEY_TYPE_ID 1
 #define BTM_BLE_KEY_TYPE_ER 2
@@ -110,7 +140,3 @@ typedef union {
   tBTM_BLE_LOCAL_ID_KEYS id_keys;
   Octet16 er;
 } tBTM_BLE_LOCAL_KEYS;
-
-/* New LE identity key for local device.
- */
-typedef void(tBTM_LE_KEY_CALLBACK)(uint8_t key_type, tBTM_BLE_LOCAL_KEYS* p_key);

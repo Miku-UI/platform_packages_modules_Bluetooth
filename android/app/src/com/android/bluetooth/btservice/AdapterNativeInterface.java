@@ -20,23 +20,22 @@ import static android.bluetooth.BluetoothDevice.TRANSPORT_AUTO;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.OobData;
-import android.os.ParcelUuid;
 
-import com.android.bluetooth.Utils;
+import com.android.bluetooth.Util;
 
 import java.io.FileDescriptor;
+import java.lang.annotation.Native;
 
 /** Native interface to be used by AdapterService */
 public class AdapterNativeInterface {
-    private static final String TAG =
-            Utils.BT_PREFIX + AdapterNativeInterface.class.getSimpleName();
+    private static final String TAG = Util.BT_PREFIX + AdapterNativeInterface.class.getSimpleName();
 
-    private JniCallbacks mJniCallbacks;
+    @Native private AdapterNativeCallback mNativeCallback;
 
     AdapterNativeInterface() {}
 
-    JniCallbacks getCallbacks() {
-        return mJniCallbacks;
+    AdapterNativeCallback getCallbacks() {
+        return mNativeCallback;
     }
 
     boolean init(
@@ -47,37 +46,38 @@ public class AdapterNativeInterface {
             int configCompareResult,
             boolean isAtvDevice,
             String hciInstanceName) {
-        mJniCallbacks = new JniCallbacks(service, adapterProperties);
+        mNativeCallback = new AdapterNativeCallback(service, adapterProperties);
         return initNative(
                 startRestricted,
                 isCommonCriteriaMode,
                 configCompareResult,
                 isAtvDevice,
-                hciInstanceName);
+                hciInstanceName,
+                android.bluetooth.platform.flags.Flags.autonomousRepairingInitiation());
     }
 
     void cleanup() {
         cleanupNative();
     }
 
-    boolean enable() {
-        return enableNative();
+    void enable(String localName) {
+        enableNative(localName);
     }
 
-    boolean disable() {
-        return disableNative();
+    void disable() {
+        disableNative();
     }
 
     boolean setScanMode(int mode) {
         return setScanModeNative(mode);
     }
 
-    boolean setAdapterProperty(int type, byte[] val) {
-        return setAdapterPropertyNative(type, val);
+    void setLocalName(String localName) {
+        setLocalNameNative(localName);
     }
 
-    boolean getAdapterProperties() {
-        return getAdapterPropertiesNative();
+    boolean setAdapterProperty(int type, byte[] val) {
+        return setAdapterPropertyNative(type, val);
     }
 
     boolean getAdapterProperty(int type) {
@@ -120,10 +120,6 @@ public class AdapterNativeInterface {
         return sdpSearchNative(address, uuid);
     }
 
-    int getConnectionState(byte[] address) {
-        return getConnectionStateNative(address);
-    }
-
     boolean startDiscovery() {
         return startDiscoveryNative();
     }
@@ -150,10 +146,6 @@ public class AdapterNativeInterface {
 
     int readEnergyInfo() {
         return readEnergyInfoNative();
-    }
-
-    boolean factoryReset() {
-        return factoryResetNative();
     }
 
     void dump(FileDescriptor fd, String[] arguments) {
@@ -233,7 +225,7 @@ public class AdapterNativeInterface {
     }
 
     void metadataChanged(BluetoothDevice device, int key, byte[] value) {
-        metadataChangedNative(Utils.getBytesFromAddress(device.getAddress()), key, value);
+        metadataChangedNative(Util.getBytesFromAddress(device.getAddress()), key, value);
     }
 
     boolean interopMatchAddrOrName(String featureName, String address) {
@@ -246,18 +238,6 @@ public class AdapterNativeInterface {
 
     boolean pbapPseDynamicVersionUpgradeIsEnabled() {
         return pbapPseDynamicVersionUpgradeIsEnabledNative();
-    }
-
-    int getSocketL2capLocalChannelId(ParcelUuid connectionUuid) {
-        return getSocketL2capLocalChannelIdNative(
-                connectionUuid.getUuid().getLeastSignificantBits(),
-                connectionUuid.getUuid().getMostSignificantBits());
-    }
-
-    int getSocketL2capRemoteChannelId(ParcelUuid connectionUuid) {
-        return getSocketL2capRemoteChannelIdNative(
-                connectionUuid.getUuid().getLeastSignificantBits(),
-                connectionUuid.getUuid().getMostSignificantBits());
     }
 
     boolean setDefaultEventMaskExcept(long mask, long leMask) {
@@ -281,7 +261,7 @@ public class AdapterNativeInterface {
     }
 
     boolean disconnectAcl(BluetoothDevice device, int transport) {
-        return disconnectAclNative(Utils.getBytesFromAddress(device.getAddress()), transport);
+        return disconnectAclNative(Util.getBytesFromAddress(device.getAddress()), transport);
     }
 
     boolean allowWakeByHid() {
@@ -292,34 +272,29 @@ public class AdapterNativeInterface {
         return restoreFilterAcceptListNative();
     }
 
-    /**********************************************************************************************/
-    /*********************************** callbacks from native ************************************/
-    /**********************************************************************************************/
-
-    // See JniCallbacks.java
-
-    /**********************************************************************************************/
-    /******************************************* native *******************************************/
-    /**********************************************************************************************/
+    boolean setSuspendState(boolean suspend) {
+        return setSuspendStateNative(suspend);
+    }
 
     private native boolean initNative(
             boolean startRestricted,
             boolean isCommonCriteriaMode,
             int configCompareResult,
             boolean isAtvDevice,
-            String hciInstanceName);
+            String hciInstanceName,
+            boolean autonomousRepairingInitiation);
 
     private native void cleanupNative();
 
-    private native boolean enableNative();
+    private native void enableNative(String localName);
 
-    private native boolean disableNative();
+    private native void disableNative();
 
     private native boolean setScanModeNative(int mode);
 
-    private native boolean setAdapterPropertyNative(int type, byte[] val);
+    private native void setLocalNameNative(String localName);
 
-    private native boolean getAdapterPropertiesNative();
+    private native boolean setAdapterPropertyNative(int type, byte[] val);
 
     private native boolean getAdapterPropertyNative(int type);
 
@@ -342,8 +317,6 @@ public class AdapterNativeInterface {
 
     private native boolean sdpSearchNative(byte[] address, byte[] uuid);
 
-    private native int getConnectionStateNative(byte[] address);
-
     private native boolean startDiscoveryNative();
 
     private native boolean cancelDiscoveryNative();
@@ -357,8 +330,6 @@ public class AdapterNativeInterface {
     private native boolean getRemoteMasInstancesNative(byte[] address);
 
     private native int readEnergyInfoNative();
-
-    private native boolean factoryResetNative();
 
     private native void dumpNative(FileDescriptor fd, String[] arguments);
 
@@ -412,12 +383,6 @@ public class AdapterNativeInterface {
 
     private native boolean pbapPseDynamicVersionUpgradeIsEnabledNative();
 
-    private native int getSocketL2capLocalChannelIdNative(
-            long connectionUuidLsb, long connectionUuidMsb);
-
-    private native int getSocketL2capRemoteChannelIdNative(
-            long connectionUuidLsb, long connectionUuidMsb);
-
     private native boolean setDefaultEventMaskExceptNative(long mask, long leMask);
 
     private native boolean clearEventFilterNative();
@@ -431,4 +396,6 @@ public class AdapterNativeInterface {
     private native boolean allowWakeByHidNative();
 
     private native boolean restoreFilterAcceptListNative();
+
+    private native boolean setSuspendStateNative(boolean suspend);
 }

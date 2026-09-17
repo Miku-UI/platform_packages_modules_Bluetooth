@@ -16,7 +16,7 @@
 
 #define LOG_TAG "bluetooth-a2dp"
 
-#include "a2dp_vendor_opus_encoder.h"
+#include "stack/include/a2dp_vendor_opus_encoder.h"
 
 #include <bluetooth/log.h>
 #include <opus.h>
@@ -25,16 +25,15 @@
 
 #include <cstdint>
 
-#include "a2dp_codec_api.h"
-#include "a2dp_vendor_opus.h"
-#include "a2dp_vendor_opus_constants.h"
-#include "avdt_api.h"
 #include "common/time_util.h"
 #include "hardware/bt_av.h"
 #include "internal_include/bt_target.h"
 #include "opus_defines.h"
 #include "opus_types.h"
 #include "osi/include/allocator.h"
+#include "stack/include/a2dp_codec_api.h"
+#include "stack/include/a2dp_vendor_opus.h"
+#include "stack/include/a2dp_vendor_opus_constants.h"
 #include "stack/include/bt_hdr.h"
 
 using namespace bluetooth;
@@ -335,7 +334,6 @@ static void a2dp_opus_encode_frames(uint8_t nb_frame) {
   uint8_t read_buffer[p_encoder_params->framesize * p_encoder_params->pcm_wlength *
                       p_encoder_params->channel_mode];
 
-  int32_t out_frames = 0;
   int32_t written = 0;
 
   uint32_t bytes_read = 0;
@@ -370,12 +368,11 @@ static void a2dp_opus_encode_frames(uint8_t nb_frame) {
           a2dp_opus_encoder_cb.stats.media_read_total_dropped_packets++;
           osi_free(p_buf);
           return;
-        } else {
-          out_frames++;
         }
+
         p_buf->len += written;
         nb_frame--;
-        p_buf->layer_specific += out_frames;  // added a frame to the buffer
+        p_buf->layer_specific++;  // added a frame to the buffer
       } else {
         log::warn("Opus src buffer underflow {}", nb_frame);
         a2dp_opus_encoder_cb.opus_feeding_state.counter +=

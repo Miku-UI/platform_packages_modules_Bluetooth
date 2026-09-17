@@ -41,8 +41,8 @@ bluetooth::stack::l2cap::Interface& bluetooth::stack::l2cap::get_interface() { r
 
 void bluetooth::stack::l2cap::Impl::L2CA_Deregister(uint16_t psm) { ::L2CA_Deregister(psm); }
 
-[[nodiscard]] uint16_t bluetooth::stack::l2cap::Impl::L2CA_AllocateLePSM(void) {
-  return ::L2CA_AllocateLePSM();
+uint16_t bluetooth::stack::l2cap::Impl::L2CA_AllocateLePSM(int fixed_psm_slots) {
+  return ::L2CA_AllocateLePSM(fixed_psm_slots);
 }
 
 void bluetooth::stack::l2cap::Impl::L2CA_FreeLePSM(uint16_t psm) { return ::L2CA_FreeLePSM(psm); }
@@ -141,6 +141,10 @@ void bluetooth::stack::l2cap::Impl::L2CA_DeregisterLECoc(uint16_t psm) {
   return ::L2CA_SetAclLatency(bd_addr, latency);
 }
 
+[[nodiscard]] bool bluetooth::stack::l2cap::Impl::L2CA_SetRateControlEnabled(
+        const RawAddress& bd_addr, bool enabled) {
+  return ::L2CA_SetRateControlEnabled(bd_addr, enabled);
+}
 [[nodiscard]] bool bluetooth::stack::l2cap::Impl::L2CA_SetTxPriority(
         uint16_t cid, tL2CAP_CHNL_PRIORITY priority) {
   return ::L2CA_SetTxPriority(cid, priority);
@@ -219,9 +223,24 @@ void bluetooth::stack::l2cap::Impl::L2CA_Consolidate(const RawAddress& identity_
   return ::L2CA_GetBleConnRole(bd_addr);
 }
 
+[[nodiscard]] uint16_t bluetooth::stack::l2cap::Impl::L2CA_GetBleSubrateFactor(
+        const RawAddress& bd_addr) {
+  return ::L2CA_GetBleSubrateFactor(bd_addr);
+}
+
 [[nodiscard]] uint16_t bluetooth::stack::l2cap::Impl::L2CA_GetBleConnInterval(
         const RawAddress& bd_addr) {
   return ::L2CA_GetBleConnInterval(bd_addr);
+}
+
+[[nodiscard]] uint16_t bluetooth::stack::l2cap::Impl::L2CA_GetBlePeriphLatency(
+        const RawAddress& bd_addr) {
+  return ::L2CA_GetBlePeriphLatency(bd_addr);
+}
+
+[[nodiscard]] uint16_t bluetooth::stack::l2cap::Impl::L2CA_GetBleSupervisionTimeout(
+        const RawAddress& bd_addr) {
+  return ::L2CA_GetBleSupervisionTimeout(bd_addr);
 }
 
 void bluetooth::stack::l2cap::Impl::L2CA_AdjustConnectionIntervals(uint16_t* min_interval,

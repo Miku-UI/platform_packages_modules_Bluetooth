@@ -23,6 +23,7 @@
 #include "main/shim/entry.h"
 #include "main/shim/helpers.h"
 #include "stack/include/acl_api.h"
+#include "stack/include/btm_client_interface.h"
 #include "stack/include/main_thread.h"
 
 using bluetooth::hci::DistanceMeasurementDetectedAttackLevel;
@@ -32,7 +33,8 @@ using bluetooth::hci::DistanceMeasurementMethod;
 using bluetooth::hci::DistanceMeasurementSightType;
 using namespace bluetooth;
 
-extern tBTM_SEC_DEV_REC* btm_find_dev(const RawAddress& bd_addr);
+extern BtmDevice* btm_find_dev(const RawAddress& bd_addr);
+extern bool BTM_IsEncrypted(const RawAddress& bd_addr, tBT_TRANSPORT transport);
 
 class DistanceMeasurementInterfaceImpl : public DistanceMeasurementInterface,
                                          public bluetooth::hci::DistanceMeasurementCallbacks,
@@ -57,12 +59,12 @@ public:
    */
   static uint16_t GetConnectionHandleAndRole(const RawAddress& bd_addr,
                                              hci::Role* hci_role = nullptr) {
-    tBTM_SEC_DEV_REC* p_sec_dev_rec = btm_find_dev(bd_addr);
-    if (p_sec_dev_rec != nullptr) {
+    BtmDevice* p_device = btm_find_dev(bd_addr);
+    if (p_device != nullptr) {
       if (hci_role != nullptr) {
-        *hci_role = p_sec_dev_rec->role_central ? hci::Role::CENTRAL : hci::Role::PERIPHERAL;
+        *hci_role = p_device->role_central ? hci::Role::CENTRAL : hci::Role::PERIPHERAL;
       }
-      return p_sec_dev_rec->get_ble_hci_handle();
+      return p_device->get_ble_hci_handle();
     }
     return kIllegalConnectionHandle;
   }
@@ -75,16 +77,34 @@ public:
                                 uint8_t method, uint8_t sight_type, uint8_t location_type) {
     do_in_main_thread(base::BindOnce(&DistanceMeasurementInterfaceImpl::DoStartDistanceMeasurement,
                                      base::Unretained(this), app_uid, identity_addr, interval,
-                                     method, sight_type, location_type));
+                                     method, sight_type, location_type, 0));
   }
 
   void DoStartDistanceMeasurement(int32_t app_uid, RawAddress identity_addr, uint16_t interval,
-                                  uint8_t method, uint8_t sight_type, uint8_t location_type) {
+                                  uint8_t method, uint8_t sight_type, uint8_t location_type,
+                                  int retries = 0) {
     auto distance_measurement_method = static_cast<DistanceMeasurementMethod>(method);
     auto distance_measurement_sight_type = static_cast<DistanceMeasurementSightType>(sight_type);
     auto distance_measurement_location_type =
             static_cast<DistanceMeasurementLocationType>(location_type);
     hci::Role local_hci_role;
+    if (!get_security_client_interface().BTM_IsEncrypted(identity_addr, BT_TRANSPORT_LE) &&
+        distance_measurement_method == DistanceMeasurementMethod::METHOD_CS) {
+      if (retries < kMaxRetryCount) {
+        log::info("Connection is not encrypted, retrying in {} ms", kRetryIntervalMs);
+        do_in_main_thread_delayed(
+                base::BindOnce(&DistanceMeasurementInterfaceImpl::DoStartDistanceMeasurement,
+                               base::Unretained(this), app_uid, identity_addr, interval, method,
+                               sight_type, location_type, retries + 1),
+                std::chrono::milliseconds(kRetryIntervalMs));
+        return;
+      }
+      log::error("Connection not encrypted after retries, failing distance measurement");
+      OnDistanceMeasurementStopped(identity_addr,
+                                   DistanceMeasurementErrorCode::REASON_INTERNAL_ERROR,
+                                   static_cast<DistanceMeasurementMethod>(method));
+      return;
+    }
     uint16_t connection_handle = GetConnectionHandleAndRole(identity_addr, &local_hci_role);
     bluetooth::shim::GetDistanceMeasurementManager()->StartDistanceMeasurement(
             app_uid, identity_addr, connection_handle, local_hci_role, interval,
@@ -124,21 +144,19 @@ public:
                                     static_cast<uint8_t>(method)));
   }
 
-  void OnDistanceMeasurementResult(bluetooth::hci::Address address, uint32_t centimeter,
-                                   uint32_t error_centimeter, int azimuth_angle,
-                                   int error_azimuth_angle, int altitude_angle,
-                                   int error_altitude_angle, uint64_t elapsed_realtime_nanos,
-                                   int8_t confidence_level, double delay_spread_meters,
-                                   DistanceMeasurementDetectedAttackLevel detected_attack_level,
-                                   double velocity_meters_per_second,
-                                   DistanceMeasurementMethod method) override {
+  void OnDistanceMeasurementResult(
+          bluetooth::hci::Address address, uint32_t centimeter, uint32_t error_centimeter,
+          int azimuth_angle, int error_azimuth_angle, int altitude_angle, int error_altitude_angle,
+          uint64_t elapsed_realtime_nanos, int remote_tx_power, int rssi, int8_t confidence_level,
+          double delay_spread_meters, DistanceMeasurementDetectedAttackLevel detected_attack_level,
+          double velocity_meters_per_second, DistanceMeasurementMethod method) override {
     do_in_jni_thread(base::BindOnce(
             &::DistanceMeasurementCallbacks::OnDistanceMeasurementResult,
             base::Unretained(distance_measurement_callbacks_), bluetooth::ToRawAddress(address),
             centimeter, error_centimeter, azimuth_angle, error_azimuth_angle, altitude_angle,
-            error_altitude_angle, elapsed_realtime_nanos, confidence_level, delay_spread_meters,
-            static_cast<uint8_t>(detected_attack_level), velocity_meters_per_second,
-            static_cast<uint8_t>(method)));
+            error_altitude_angle, elapsed_realtime_nanos, remote_tx_power, rssi, confidence_level,
+            delay_spread_meters, static_cast<uint8_t>(detected_attack_level),
+            velocity_meters_per_second, static_cast<uint8_t>(method)));
   }
 
   void OnRasFragmentReady(bluetooth::hci::Address address, uint16_t procedure_counter, bool is_last,
@@ -291,6 +309,8 @@ public:
 private:
   ::DistanceMeasurementCallbacks* distance_measurement_callbacks_;
   static constexpr uint16_t kIllegalConnectionHandle = 0xffff;
+  static constexpr uint16_t kRetryIntervalMs = 200;
+  static constexpr uint16_t kMaxRetryCount = 10;
 };
 
 void bluetooth::shim::init_distance_measurement_manager() {

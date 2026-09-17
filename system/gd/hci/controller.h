@@ -29,7 +29,7 @@ class Controller {
 public:
   static constexpr uint64_t kDefaultEventMask = 0x3dbfffffffffffff;
   static constexpr uint64_t kDefaultEventMaskPage2 = 0x2000000;
-  static constexpr uint64_t kDefaultLeEventMask = 0x000000074d02fe7f;
+  static constexpr uint64_t kDefaultLeEventMask = 0x000000077f02fe7f;
   static constexpr uint64_t kLeCSEventMask = 0x0007f80000000000;
 
   Controller() = default;
@@ -48,7 +48,6 @@ public:
   virtual void RegisterCompletedMonitorAclPacketsCallback(CompletedAclPacketsCallback cb) = 0;
   virtual void UnregisterCompletedMonitorAclPacketsCallback() = 0;
 
-  virtual std::string GetLocalName() const = 0;
   virtual LocalVersionInformation GetLocalVersionInformation() const = 0;
 
   virtual bool SupportsSimplePairing() const = 0;
@@ -121,6 +120,7 @@ public:
   virtual bool SupportsBleConnectionSubrating() const = 0;
   virtual bool SupportsBleConnectionSubratingHost() const = 0;
   virtual bool SupportsBleChannelSounding() const = 0;
+  virtual bool SupportsBleHighDataThroughputPhy() const = 0;
 
   virtual uint16_t GetAclPacketLength() const = 0;
 
@@ -209,7 +209,12 @@ public:
     uint8_t bluetooth_quality_report_support_;
     uint32_t dynamic_audio_buffer_support_;
     uint8_t a2dp_offload_v2_support_;
+    uint8_t iso_link_feedback_support_;
     uint8_t sniff_offload_support_;
+    uint16_t big_set_channel_map_classification_support_;
+    uint16_t vendor_connection_handle_min_;
+    uint16_t vendor_connection_handle_max_;
+    uint8_t connection_proximity_threshold_support_;
   };
 
   virtual uint32_t GetDabSupportedCodecs() const = 0;

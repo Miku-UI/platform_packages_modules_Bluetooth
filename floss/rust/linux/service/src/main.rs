@@ -340,7 +340,7 @@ extern "C" fn try_cleanup_stack(abort: bool) -> bool {
         // finishing btif cleanup.
         std::thread::sleep(EXTRA_WAIT_BEFORE_KILL_MS);
     }
-    return true;
+    true
 }
 
 extern "C" fn handle_sigterm(_signum: i32) {
@@ -356,10 +356,9 @@ extern "C" fn handle_sigterm(_signum: i32) {
 /// Used to indicate controller needs reset
 extern "C" fn handle_sigusr1(_signum: i32) {
     log::info!("SIGUSR1 received");
-    if !try_cleanup_stack(true) {
-        log::info!("Skipped to handle SIGUSR1");
-        return;
+    // use _exit(0) to terminate the process immediately and avoid the unstable cleanup path in
+    // libbluetooth.
+    unsafe {
+        libc::_exit(0);
     }
-    log::info!("SIGUSR1 completed");
-    std::process::exit(0);
 }

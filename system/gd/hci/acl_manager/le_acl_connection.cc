@@ -16,6 +16,7 @@
 
 #include "hci/acl_manager/le_acl_connection.h"
 
+#include <base/functional/callback.h>
 #include <bluetooth/log.h>
 #include <bluetooth/metrics/os_metrics.h>
 #include <com_android_bluetooth_flags.h>
@@ -99,7 +100,7 @@ public:
   LeAclConnectionInterface* le_acl_connection_interface_;
   os::Handler* client_handler_ = nullptr;
   LeConnectionManagementCallbacks* client_callbacks_ = nullptr;
-  std::list<common::OnceClosure> queued_callbacks_;
+  std::list<base::OnceClosure> queued_callbacks_;
   const uint16_t connection_handle_;
 };
 
@@ -114,7 +115,10 @@ struct LeAclConnection::impl {
     invalidate_callbacks_ = std::move(invalidate_callbacks);
     return &tracker;
   }
-  void ClearEventCallbacks() { invalidate_callbacks_ = nullptr; }
+  void ClearEventCallbacks() {
+    invalidate_callbacks_ = nullptr;
+    tracker.queued_callbacks_.clear();
+  }
   void PutEventCallbacks() {
     if (invalidate_callbacks_) {
       invalidate_callbacks_(tracker.connection_handle_);
@@ -187,11 +191,9 @@ void LeAclConnection::RegisterCallbacks(LeConnectionManagementCallbacks* callbac
 }
 
 void LeAclConnection::Disconnect(DisconnectReason reason) {
-  if (com_android_bluetooth_flags_dont_send_hci_disconnect_repeatedly()) {
-    if (is_disconnecting_) {
-      log::info("Already disconnecting {}", remote_address_);
-      return;
-    }
+  if (is_disconnecting_) {
+    log::info("Already disconnecting {}", remote_address_);
+    return;
   }
 
   is_disconnecting_ = true;
@@ -218,6 +220,10 @@ void LeAclConnection::OnLeSubrateRequestStatus(CommandStatusView status) {
   auto hci_status = subrate_request_status.GetStatus();
   if (hci_status != ErrorCode::SUCCESS) {
     log::info("LeSubrateRequest status {}", ErrorCodeText(hci_status));
+    if (hci_status == ErrorCode::UNKNOWN_CONNECTION) {
+      log::warn("Link has not existed");
+      return;
+    }
     pimpl_->tracker.OnLeSubrateChange(hci_status, 0, 0, 0, 0);
   }
 }

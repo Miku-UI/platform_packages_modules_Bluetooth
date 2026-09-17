@@ -115,20 +115,6 @@ static void smp_connect_callback(uint16_t /* channel */, const RawAddress& bd_ad
       log::debug("connect_initialized: {}, smp_over_br: {}", p_cb->connect_initialized,
                  p_cb->smp_over_br);
 
-      if (!com_android_bluetooth_flags_ignore_le_smp_conn_when_sm_over_br_progress()) {
-        if (!p_cb->connect_initialized) {
-          p_cb->connect_initialized = true;
-          /* initiating connection established */
-          p_cb->role = stack::l2cap::get_interface().L2CA_GetBleConnRole(bd_addr);
-
-          /* initialize local i/r key to be default keys */
-          p_cb->local_r_key = p_cb->local_i_key = SMP_SEC_DEFAULT_KEY;
-          p_cb->loc_auth_req = p_cb->peer_auth_req = SMP_DEFAULT_AUTH_REQ;
-          p_cb->cb_evt = SMP_IO_CAP_REQ_EVT;
-          smp_sm_event(p_cb, SMP_L2CAP_CONN_EVT, NULL);
-        }
-        return;
-      }
       if (!p_cb->connect_initialized && !p_cb->smp_over_br) {
         p_cb->connect_initialized = true;
         /* initiating connection established */
@@ -274,10 +260,10 @@ static void smp_br_connect_callback(uint16_t /* channel */, const RawAddress& bd
   log::info("BDA:{} pairing_bda:{}, connected:{}", bd_addr, p_cb->pairing_bda, connected);
 
   if (bd_addr != p_cb->pairing_bda) {
-    tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bd_addr);
+    const BtmDevice* p_device = btm_find_dev(bd_addr);
     /* When pairing was initiated to RPA, and connection was on LE transport first using RPA, then
      * we must check record pseudo address, it might be same device */
-    if (p_dev_rec == nullptr || p_dev_rec->RemoteAddress() != p_cb->pairing_bda) {
+    if (p_device == nullptr || p_device->RemoteAddress() != p_cb->pairing_bda) {
       return;
     }
   }
@@ -286,9 +272,9 @@ static void smp_br_connect_callback(uint16_t /* channel */, const RawAddress& bd
    * check if other side returns some errors. Connection/disconnection on
    * Classic transport shouldn't impact that.
    */
-  tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(p_cb->pairing_bda);
+  const BtmDevice* p_device = btm_find_dev(p_cb->pairing_bda);
   if ((smp_get_state() == SMP_STATE_BOND_PENDING || smp_get_state() == SMP_STATE_IDLE) &&
-      (p_dev_rec && p_dev_rec->sec_rec.is_link_key_known()) &&
+      (p_device && p_device->sec_rec.is_link_key_known()) &&
       alarm_is_scheduled(p_cb->delayed_auth_timer_ent)) {
     /* If we were to not return here, we would reset SMP control block, and
      * delayed_auth_timer_ent would never be executed. Even though we stored all
@@ -303,17 +289,6 @@ static void smp_br_connect_callback(uint16_t /* channel */, const RawAddress& bd
   if (connected) {
     log::debug("connect_initialized: {}, smp_over_br: {}", p_cb->connect_initialized,
                p_cb->smp_over_br);
-    if (!com_android_bluetooth_flags_ignore_le_smp_conn_when_sm_over_br_progress()) {
-      if (!p_cb->connect_initialized) {
-        p_cb->connect_initialized = true;
-        /* initialize local i/r key to be default keys */
-        p_cb->local_r_key = p_cb->local_i_key = SMP_BR_SEC_DEFAULT_KEY;
-        p_cb->loc_auth_req = p_cb->peer_auth_req = 0;
-        p_cb->cb_evt = SMP_BR_KEYS_REQ_EVT;
-        smp_br_state_machine_event(p_cb, SMP_BR_L2CAP_CONN_EVT, NULL);
-      }
-      return;
-    }
     if (!p_cb->connect_initialized && p_cb->smp_over_br) {
       p_cb->connect_initialized = true;
       /* initialize local i/r key to be default keys */

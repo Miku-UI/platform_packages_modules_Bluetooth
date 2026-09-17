@@ -30,8 +30,8 @@ import android.content.AttributionSource;
 import android.net.Uri;
 import android.util.Log;
 
-import com.android.bluetooth.Utils;
-import com.android.bluetooth.btservice.ProfileService.IProfileServiceBinder;
+import com.android.bluetooth.Util;
+import com.android.bluetooth.profile.ProfileService.IProfileServiceBinder;
 
 import java.util.Collections;
 import java.util.List;
@@ -58,14 +58,14 @@ class MapClientServiceBinder extends IBluetoothMapClient.Stub implements IProfil
     private MapClientService getService(AttributionSource source) {
         MapClientService service = mService;
 
-        if (Utils.isInstrumentationTestMode()) {
+        if (Util.isInstrumentationTestMode()) {
             return service;
         }
 
-        if (!Utils.checkServiceAvailable(service, TAG)
+        if (!Util.checkProfileAvailable(service, TAG)
                 || !(getCallingUserHandle().isSystem()
-                        || Utils.checkCallerIsSystemOrActiveOrManagedUser(service, TAG))
-                || !Utils.checkConnectPermissionForDataDelivery(service, source, TAG)) {
+                        || Util.checkCallerIsSystemOrActiveOrManagedUser(service, TAG))
+                || !Util.enforceConnectPermissionForDataDelivery(service, source, TAG)) {
             return null;
         }
         return service;
@@ -75,14 +75,14 @@ class MapClientServiceBinder extends IBluetoothMapClient.Stub implements IProfil
     private MapClientService getServiceAndEnforcePrivileged(AttributionSource source) {
         MapClientService service = mService;
 
-        if (Utils.isInstrumentationTestMode()) {
+        if (Util.isInstrumentationTestMode()) {
             return service;
         }
 
-        if (!Utils.checkServiceAvailable(service, TAG)
+        if (!Util.checkProfileAvailable(service, TAG)
                 || !(getCallingUserHandle().isSystem()
-                        || Utils.checkCallerIsSystemOrActiveOrManagedUser(service, TAG))
-                || !Utils.checkConnectPermissionForDataDelivery(service, source, TAG)) {
+                        || Util.checkCallerIsSystemOrActiveOrManagedUser(service, TAG))
+                || !Util.enforceConnectPermissionForDataDelivery(service, source, TAG)) {
             return null;
         }
 
@@ -137,8 +137,6 @@ class MapClientServiceBinder extends IBluetoothMapClient.Stub implements IProfil
 
     @Override
     public int getConnectionState(BluetoothDevice device, AttributionSource source) {
-        Log.v(TAG, "getConnectionState()");
-
         MapClientService service = getServiceAndEnforcePrivileged(source);
         if (service == null) {
             return STATE_DISCONNECTED;

@@ -1,0 +1,937 @@
+from collections.abc import Sequence
+from typing import Any
+
+from mobly.controllers.android_device_lib import callback_handler_v2
+from mobly.controllers.android_device_lib import snippet_client_v2
+
+from navi.utils import android_constants
+
+
+class BluetoothSnippet(snippet_client_v2.SnippetClientV2):
+    # Mobly
+    def scheduleRpc(self, method_name: str, delay_ms: int,
+                    args: Sequence[Any]) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    # Other
+    def ping(self) -> str:
+        ...
+
+    def getHardware(self) -> str:
+        ...
+
+    def getSdkVersion(self) -> int:
+        ...
+
+    def registerVoiceCommandCallback(self,) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterVoiceCommandCallback(self, callback_id: str) -> None:
+        ...
+
+    # Adapter
+    def factoryReset(self) -> bool:
+        ...
+
+    def enable(self) -> bool:
+        ...
+
+    def disable(self) -> bool:
+        ...
+
+    def waitForAdapterState(self, state: int) -> bool:
+        ...
+
+    def registerAdapterCallback(self) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterAdapterCallback(self, callback_id: str) -> None:
+        ...
+
+    def getBondedDevices(self) -> list[str]:
+        ...
+
+    def getBondState(self, address: str) -> int:
+        ...
+
+    def getAddress(self) -> str:
+        ...
+
+    def getName(self) -> str:
+        ...
+
+    def setName(self, name: str) -> bool:
+        ...
+
+    def createBond(self, address: str, transport: int, address_type: int | None = None) -> bool:
+        ...
+
+    def createBondOutOfBand(
+        self,
+        address: str,
+        transport: int,
+        address_type: int | None = None,
+        p_192_oob_data: dict[str, Any] | None = None,
+        p_256_oob_data: dict[str, Any] | None = None,
+    ) -> bool:
+        """Creates a bond using Out-of-Band method."""
+
+    def generateLocalOobData(self, transport: int) -> dict[str, Any]:
+        """Generates local Out-of-Band pairing data."""
+
+    def removeBond(self, address: str) -> bool:
+        ...
+
+    def cancelBond(self, address: str) -> bool:
+        ...
+
+    def connect(self, address: str) -> int:
+        ...
+
+    def disconnect(self, address: str) -> int:
+        ...
+
+    def getDeviceConnected(self, address: str, transport: int) -> bool:
+        ...
+
+    def setPairingConfirmation(self, address: str, confirm: bool) -> bool:
+        ...
+
+    def setPin(self, address: str, pin: str) -> bool:
+        ...
+
+    def fetchUuidsWithSdp(self, address: str) -> bool:
+        ...
+
+    def getDeviceUuids(self, address: str) -> list[str]:
+        ...
+
+    def getBluetoothClass(self, address: str) -> int:
+        ...
+
+    def setScanMode(self, scan_mode: int) -> int:
+        ...
+
+    def getScanMode(self) -> int:
+        ...
+
+    def startAdvertising(
+        self,
+        advertise_settings: dict[str, Any],
+        advertise_data: dict[str, Any] | None = None,
+        scan_response: dict[str, Any] | None = None,
+    ) -> str:
+        ...
+
+    def stopAdvertising(self, cookie: str) -> None:
+        ...
+
+    def startAdvertisingSet(
+        self,
+        advertising_set_parameters: dict[str, Any],
+        advertise_data: dict[str, Any] | None = None,
+        scan_response: dict[str, Any] | None = None,
+        periodic_advertising_parameters: dict[str, Any] | None = None,
+        periodic_advertising_data: dict[str, Any] | None = None,
+        duration: int = 0,
+        max_extended_advertising_events: int = 0,
+        gatt_server: str | None = None,
+    ) -> str:
+        ...
+
+    def stopAdvertisingSet(self, cookie: str) -> None:
+        ...
+
+    def startScanning(
+        self,
+        scan_filter: dict[str, Any] | None = None,
+        scan_settings: dict[str, Any] | None = None,
+    ) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def stopScanning(self, callback_id: str) -> None:
+        ...
+
+    def startInquiry(self) -> bool:
+        ...
+
+    def stopInquiry(self) -> bool:
+        ...
+
+    def setAlias(self, address: str, alias_name: str) -> None:
+        ...
+
+    def getAlias(self, address: str) -> str | None:
+        ...
+
+    def setPhonebookAccessPermission(self, address: str, permission: int) -> bool:
+        ...
+
+    def setMessageAccessPermission(self, address: str, permission: int) -> bool:
+        ...
+
+    def setSimAccessPermission(self, address: str, permission: int) -> bool:
+        ...
+
+    def registerBluetoothQualityReportCallback(self,) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterBluetoothQualityReportCallback(self, callback_id: str) -> None:
+        ...
+
+    def isLePeriodicAdvertisingSupported(self) -> bool:
+        ...
+
+    def getSupportedProfiles(self) -> list[int]:
+        ...
+
+    # A2DP
+    def registerA2dpCallback(self) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterA2dpCallback(self, callback_id: str) -> None:
+        ...
+
+    def setA2dpConnectionPolicy(self, address: str, policy: int) -> None:
+        ...
+
+    def a2dpGetConnectedDevices(self) -> list[str]:
+        ...
+
+    def isA2dpPlaying(self, address: str) -> bool:
+        ...
+
+    def setA2dpCodecConfig(self, address: str, codec_config: dict[str, Any]) -> None:
+        ...
+
+    # GATT Client
+    def gattConnect(
+        self,
+        address: str,
+        transport: int,
+        address_type: int = android_constants.AddressTypeStatus.RANDOM,
+    ) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def gattReconnect(self, cookie: str) -> bool:
+        ...
+
+    def gattDisconnect(self, cookie: str) -> None:
+        ...
+
+    def gattClose(self, cookie: str) -> None:
+        ...
+
+    def gattDiscoverServices(self, cookie: str) -> bool:
+        ...
+
+    def gattGetServices(self, cookie: str) -> list[dict[str, Any]]:
+        ...
+
+    def gattReadCharacteristic(self, cookie: str, characteristic_handle: int) -> bool:
+        ...
+
+    def gattWriteCharacteristic(
+        self,
+        cookie: str,
+        characteristic_handle: int,
+        value: list[int],
+        write_type: int,
+    ) -> int:
+        ...
+
+    def gattWriteCharacteristicLong(
+        self,
+        cookie: str,
+        characteristic_handle: int,
+        value: str,
+        mtu: int,
+        write_type: int,
+    ) -> None:
+        ...
+
+    def gattWriteDescriptor(
+        self,
+        cookie: str,
+        characteristic_handle: int,
+        descriptor_uuid: str,
+        value: Sequence[int],
+    ) -> int:
+        ...
+
+    def gattSubscribeCharacteristic(
+        self,
+        cookie: str,
+        characteristic_handle: int,
+        enabled: bool,
+    ) -> bool:
+        ...
+
+    def gattRequestMtu(self, cookie: str, mtu: int) -> bool:
+        ...
+
+    def gattSetPreferredPhy(self, cookie: str, tx_phy: int, rx_phy: int, phy_options: int) -> None:
+        ...
+
+    def gattRequestSubrateMode(self, cookie: str, subrate_mode: int) -> int:
+        ...
+
+    # GATT Server
+    def gattServerOpen(self) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def gattServerClose(self, cookie: str) -> None:
+        ...
+
+    def gattServerAddService(self, cookie: str, service: dict[str, Any]) -> bool:
+        ...
+
+    def gattServerGetServices(self, cookie: str) -> list[dict[str, Any]]:
+        ...
+
+    def gattServerSendResponse(
+        self,
+        callbackId: str,
+        address: str,
+        requestId: int,
+        status: int,
+        offset: int,
+        value: list[int],
+    ) -> bool:
+        ...
+
+    def gattServerSendNotification(
+        self,
+        callbackId: str,
+        address: str,
+        characteristicHandle: int,
+        confirm: bool,
+        value: list[int],
+    ) -> int:
+        ...
+
+    # HFP-AG
+    def registerHfpAgCallback(self) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterHfpAgCallback(self, callback_id: str) -> None:
+        ...
+
+    def setHfpAgConnectionPolicy(self, address: str, policy: int) -> None:
+        ...
+
+    def hfpAgGetConnectedDevices(self) -> list[str]:
+        ...
+
+    def hfpAgSetAudioRouteAllowed(self, allowed: bool) -> None:
+        ...
+
+    def hfpAgGetAudioRouteAllowed(self) -> int:
+        ...
+
+    def hfpAgGetInbandRingtoneEnabled(self) -> bool:
+        ...
+
+    def hfpAgGetAudioState(self, address: str) -> int:
+        ...
+
+    def hfpAgStartVoiceRecognition(self, address: str) -> bool:
+        ...
+
+    def hfpAgStopVoiceRecognition(self, address: str) -> bool:
+        ...
+
+    def hfpAgSetActiveDevice(self, address: str | None) -> bool:
+        ...
+
+    # HFP-HF
+    def registerHfpHfCallback(self) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterHfpHfCallback(self, callback_id: str) -> None:
+        ...
+
+    def setHfpHfConnectionPolicy(self, address: str, policy: int) -> None:
+        ...
+
+    def hfpHfGetConnectedDevices(self) -> list[str]:
+        ...
+
+    def hfpHfSetAudioRouteAllowed(self, address: str, allowed: bool) -> None:
+        ...
+
+    def hfpHfGetAudioRouteAllowed(self, address: str) -> bool:
+        ...
+
+    # L2CAP
+    def l2capConnect(
+        self,
+        address: str,
+        secure: bool,
+        psm: int,
+        address_type: int = android_constants.AddressTypeStatus.RANDOM,
+    ) -> str:
+        ...
+
+    def l2capOpenServer(self, secure: bool, psm: int) -> int:
+        ...
+
+    def l2capWaitConnection(self, psm: int) -> str:
+        ...
+
+    def l2capCloseServer(self, psm: int) -> None:
+        ...
+
+    def l2capDisconnect(self, cookie: str) -> None:
+        ...
+
+    def l2capRead(self, cookie: str, bytes_to_read: int | None = None) -> str:
+        ...
+
+    def l2capWrite(self, cookie: str, data: str) -> None:
+        ...
+
+    # RFCOMM
+    def rfcommConnectWithUuid(self,
+                              address: str,
+                              secure: bool,
+                              uuid: str,
+                              blocking: bool = True) -> str:
+        ...
+
+    def rfcommWaitForConnectionComplete(self,
+                                        cookie: str,
+                                        timeout_milliseconds: int = 10_000) -> None:
+        ...
+
+    def rfcommOpenServer(self, secure: bool, uuid: str) -> None:
+        ...
+
+    def rfcommCloseServer(self, uuid: str) -> None:
+        ...
+
+    def rfcommWaitConnection(self, uuid: str) -> str:
+        ...
+
+    def rfcommDisconnect(self, cookie: str) -> None:
+        ...
+
+    def rfcommRead(self, cookie: str, bytes_to_read: int | None = None) -> str:
+        ...
+
+    def rfcommWrite(self, cookie: str, data: str) -> None:
+        ...
+
+    # Audio
+    def audioRegisterCallback(self) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def audioUnregisterCallback(self, callback_id: str) -> None:
+        ...
+
+    def audioPlaySine(self, player_id: str | None = None) -> None:
+        ...
+
+    def playSineSurrounded(self, player_id: str | None = None) -> None:
+        ...
+
+    def audioPlayFile(self, fileUri: str, player_id: str | None = None) -> None:
+        ...
+
+    def audioSetRepeat(self, repeatMode: int, player_id: str | None = None) -> None:
+        ...
+
+    def setShuffleMode(self, enabled: bool, player_id: str | None = None) -> None:
+        ...
+
+    def audioResume(self, player_id: str | None = None) -> None:
+        ...
+
+    def audioPause(self, player_id: str | None = None) -> None:
+        ...
+
+    def audioStop(self, player_id: str | None = None) -> None:
+        ...
+
+    def addPlayer(self) -> str:
+        ...
+
+    def removePlayer(self, player_id: str | None = None) -> None:
+        ...
+
+    def setAudioAttributes(
+        self,
+        attributes: dict[str, Any] | None,
+        handle_audio_focus: bool,
+        player_id: str | None = None,
+    ) -> None:
+        ...
+
+    def getCommunicationDevice(self) -> dict[str, Any] | None:
+        ...
+
+    def setCommunicationDevice(self,
+                               device_type: int | None = None,
+                               address: str | None = None) -> bool:
+        ...
+
+    def addMediaItem(self, media_item: dict[str, Any], player_id: str | None = None) -> None:
+        ...
+
+    def playMediaItem(self, media_item: dict[str, Any], player_id: str | None = None) -> None:
+        ...
+
+    def setAudioPlaybackOffload(self, enabled: bool, player_id: str | None = None) -> None:
+        ...
+
+    def setHandleAudioBecomingNoisy(self, enabled: bool, player_id: str | None = None) -> None:
+        ...
+
+    def startRecording(
+        self,
+        output_path: str,
+        source: int | None = None,
+        preferred_device_address: str | None = None,
+        preferred_device_type: int | None = None,
+    ) -> None:
+        ...
+
+    def stopRecording(self, output_path: str) -> None:
+        ...
+
+    def setVolume(self, stream_type: int, volume: int) -> None:
+        ...
+
+    def getVolume(self, stream_type: int) -> int:
+        ...
+
+    def getMaxVolume(self, stream_type: int) -> int:
+        ...
+
+    def getMinVolume(self, stream_type: int) -> int:
+        ...
+
+    def setParameters(self, parameters: str) -> None:
+        ...
+
+    def getMicrophoneMuteState(self) -> bool:
+        ...
+
+    def setMicrophoneMuteState(self, is_mute: bool) -> None:
+        ...
+
+    def registerPlayerListener(self,
+                               player_id: str | None = None
+                              ) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterPlayerListener(self, callback_id: str) -> None:
+        ...
+
+    def isSpatializerAvailable(self) -> bool:
+        ...
+
+    def setSpatializerEnabled(self, enabled: bool) -> None:
+        ...
+
+    def getCompatibleSpatizlierDevices(self) -> list[str]:
+        ...
+
+    def addCompatibleSpatizlierDevice(self, role: int, device_type: int, address: str) -> None:
+        ...
+
+    def removeCompatibleSpatizlierDevice(self, role: int, device_type: int, address: str) -> None:
+        ...
+
+    def clearCompatibleSpatizlierDevices(self) -> None:
+        ...
+
+    def setHeadtrackerEnabled(self, role: int, device_type: int, address: str,
+                              enabled: bool) -> None:
+        ...
+
+    def getHeadtrackerEnabled(self, role: int, device_type: int, address: str) -> bool:
+        ...
+
+    def getSupportedAudioDeviceTypes(self,
+                                     direction: android_constants.AudioDeviceRole) -> list[int]:
+        ...
+
+    def isVolumeFixed(self) -> bool:
+        ...
+
+    # Telecom
+    def addCall(self, caller_name: str, caller_address: str, is_incoming: bool) -> str:
+        ...
+
+    def answerCall(self, cookie: str) -> None:
+        ...
+
+    def disconnectCall(self, cookie: str) -> None:
+        ...
+
+    def registerTelecomCallback(self,) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterTelecomCallback(self, callback_id: str) -> None:
+        ...
+
+    def addContacts(self, contacts: list[dict[str, Any]]) -> None:
+        ...
+
+    def getContacts(self) -> list[dict[str, Any]]:
+        ...
+
+    def clearContacts(self) -> None:
+        ...
+
+    def addCallLogs(self, logs: list[dict[str, Any]]) -> None:
+        ...
+
+    def getCallLogs(self) -> list[dict[str, Any]]:
+        ...
+
+    def clearCallLogs(self) -> None:
+        ...
+
+    def notifyMmsSmsChange(self) -> None:
+        ...
+
+    # LE Audio
+    def registerLeAudioCallback(self,) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterLeAudioCallback(self, callback_id: str) -> None:
+        ...
+
+    def setLeAudioConnectionPolicy(self, address: str, policy: int) -> None:
+        ...
+
+    # Input
+    def registerInputEventCallback(self,) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterInputEventCallback(self, callback_id: str) -> None:
+        ...
+
+    # HID Device
+    def registerHidDeviceApp(
+        self,
+        sdp_settings: dict[str, Any],
+    ) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterHidDeviceApp(self, callback_id: str) -> None:
+        ...
+
+    def getHidDeviceConnectedDevices(self) -> list[str]:
+        ...
+
+    def getHidDeviceDevicesMatchingConnectionStates(self, states: list[int]) -> list[str]:
+        ...
+
+    def getHidDeviceConnectionState(self, address: str) -> int:
+        ...
+
+    def hidDeviceSendReport(self, address: str, id: int, data: list[int]) -> bool:
+        ...
+
+    def hidDeviceReplyReport(self, address: str, type: int, id: int, data: list[int]) -> bool:
+        ...
+
+    def hidDeviceReportError(self, address: str, error: int) -> bool:
+        ...
+
+    def getHidDeviceUserAppName(self) -> str:
+        ...
+
+    def hidDeviceConnect(self, address: str) -> bool:
+        ...
+
+    def hidDeviceDisconnect(self, address: str) -> bool:
+        ...
+
+    # HID Host
+    def registerHidHostCallback(self,) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterHidHostCallback(self, callback_id: str) -> None:
+        ...
+
+    def getHidHostConnectionState(self, address: str) -> int:
+        ...
+
+    def setHidHostConnectionPolicy(self, address: str, policy: int) -> bool:
+        ...
+
+    def setHidHostPreferredTransport(self, address: str, transport: int) -> bool:
+        ...
+
+    def getHidHostConnectionPolicy(self, address: str) -> int:
+        ...
+
+    def getHidHostPreferredTransport(self, address: str) -> int:
+        ...
+
+    def virtualUnplug(self, address: str) -> bool:
+        ...
+
+    def getHidHostProtocolMode(self, address: str) -> bool:
+        ...
+
+    def setHidHostProtocolMode(self, address: str, mode: int) -> bool:
+        ...
+
+    def getHidHostReport(self, address: str, report_type: int, report_id: int,
+                         buffer_size: int) -> list[int]:
+        ...
+
+    def setHidHostReport(self, address: str, report_type: int, report: str) -> bool:
+        ...
+
+    def sendHidHostData(self, address: str, report: str) -> bool:
+        ...
+
+    def getHidHostIdleTime(self, address: str) -> bool:
+        ...
+
+    def setHidHostIdleTime(self, address: str, idle_time: int) -> bool:
+        ...
+
+    # PAN
+    def registerPanCallback(self) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterPanCallback(self, callback_id: str) -> None:
+        ...
+
+    def setPanConnectionPolicy(self, address: str, policy: int) -> bool:
+        ...
+
+    def setPanTetheringEnabled(self, enabled: bool) -> None:
+        ...
+
+    # OPP
+    def oppShareFiles(self, file_paths: list[str], mime_type: str) -> None:
+        ...
+
+    # Profiles
+    def registerProfileCallback(self, profile: int) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterProfileCallback(self, callback_id: str) -> None:
+        ...
+
+    def setActiveDevice(self, address: str | None, profiles: int) -> bool:
+        ...
+
+    def getActiveDevices(self, profile: int) -> list[str]:
+        ...
+
+    # Broadcast
+    def startBroadcast(
+        self,
+        broadcast_code: list[int] | None = None,
+        settings: dict[str, Any] | None = None,
+    ) -> int:
+        ...
+
+    def stopBroadcast(self, broadcast_id: int) -> None:
+        ...
+
+    def getAllBroadcastMetadata(self) -> list[str]:
+        ...
+
+    # BASS
+    def registerBassCallback(self) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterBassCallback(self, callback_id: str) -> None:
+        ...
+
+    def bassStartSearching(self) -> None:
+        ...
+
+    def bassStopSearching(self) -> None:
+        ...
+
+    def bassAddSource(self, sink: str, source_metadata_string: str) -> int:
+        ...
+
+    def bassRemoveSource(self, sink: str, source_id: int) -> None:
+        ...
+
+    # Distance Measurement
+    def startDistanceMeasurement(self, params: dict[str,
+                                                    Any]) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def stopDistanceMeasurement(self, callback_id: str) -> None:
+        ...
+
+    def getSupportedDistanceMeasurementMethods(self) -> list[int]:
+        ...
+
+    # VOCS
+    def vcpGetConnectedDevices(self) -> list[str]:
+        ...
+
+    def vcpGetConnectionState(self, address: str) -> int:
+        ...
+
+    def registerVolumeControlCallback(self) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterVolumeControlCallback(self, callback_id: str) -> None:
+        ...
+
+    def setVolumeOffset(self, address: str, instance_id: int, volume_offset: int) -> None:
+        ...
+
+    def isVolumeOffsetAvailable(self, address: str) -> bool:
+        ...
+
+    def getNumberofVocsInstances(self, address: str) -> int:
+        ...
+
+    def vcpSetConnectionPolicy(self, address: str, policy: int) -> bool:
+        ...
+
+    def vcpGetConnectionPolicy(self, address: str) -> int:
+        ...
+
+    def vcpSetDeviceVolume(self, address: str, volume: int, is_group_operation: bool) -> None:
+        ...
+
+    # AICS
+    def registerAicsCallback(self, address: str,
+                             instance_id: int) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterAicsCallback(self, callback_id: str) -> None:
+        ...
+
+    def aicsGetAudioInputType(self, address: str, instance_id: int) -> int:
+        ...
+
+    def aicsGetGainSettingUnit(self, address: str, instance_id: int) -> int:
+        ...
+
+    def aicsGetGainSettingMin(self, address: str, instance_id: int) -> int:
+        ...
+
+    def aicsGetGainSettingMax(self, address: str, instance_id: int) -> int:
+        ...
+
+    def aicsGetDescription(self, address: str, instance_id: int) -> str:
+        ...
+
+    def aicsIsDescriptionWritable(self, address: str, instance_id: int) -> bool:
+        ...
+
+    def aicsSetDescription(self, address: str, instance_id: int, description: str) -> bool:
+        ...
+
+    def aicsGetAudioInputStatus(self, address: str, instance_id: int) -> int:
+        ...
+
+    def aicsGetGainSetting(self, address: str, instance_id: int) -> int:
+        ...
+
+    def aicsSetGainSetting(self, address: str, instance_id: int, gain_setting: int) -> bool:
+        ...
+
+    def aicsGetGainMode(self, address: str, instance_id: int) -> int:
+        ...
+
+    def aicsSetGainMode(self, address: str, instance_id: int, gain_mode: int) -> bool:
+        ...
+
+    def aicsGetMute(self, address: str, instance_id: int) -> int:
+        ...
+
+    def aicsSetMute(self, address: str, instance_id: int, mute: int) -> bool:
+        ...
+
+    # HAP Client
+    def registerHapClientCallback(self,) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterHapClientCallback(self, callback_id: str) -> None:
+        ...
+
+    def getAllHapPresetInfo(self, address: str) -> dict[str, str]:
+        ...
+
+    def getActiveHapPresetIndex(self, address: str) -> int:
+        ...
+
+    def selectHapPreset(self, address: str, index: int) -> None:
+        ...
+
+    def selectHapPresetForGroup(self, group_id: int, index: int) -> None:
+        ...
+
+    def getHapGroup(self, address: str) -> int:
+        ...
+
+    def setHapConnectionPolicy(self, address: str, policy: int) -> bool:
+        ...
+
+    def maxConnectedAudioDevices(self) -> int:
+        ...
+
+    # ASHA
+    def setAshaVolume(self, volume: int) -> None:
+        ...
+
+    # Media Browser Service
+    def registerMediaLibrarySession(
+            self, media_tree: dict[str, Any]) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def unregisterMediaLibrarySession(self, callback_id: str) -> None:
+        ...
+
+    # Media Browser
+    def connectMediaBrowser(self, package_name: str, service_class_name: str) -> str:
+        ...
+
+    def disconnectMediaBrowser(self, cookie: str) -> None:
+        ...
+
+    def getMediaBrowserRootId(self, cookie: str) -> str:
+        ...
+
+    def getMediaBrowserChildren(self, cookie: str, media_id: str) -> list[dict[str, Any]]:
+        ...
+
+    def playMediaController(self, cookie: str) -> None:
+        ...
+
+    def pauseMediaController(self, cookie: str) -> None:
+        ...
+
+    def stopMediaController(self, cookie: str) -> None:
+        ...
+
+    def skipToNextMediaController(self, cookie: str) -> None:
+        ...
+
+    def skipToPreviousMediaController(self, cookie: str) -> None:
+        ...
+
+    def fastForwardMediaController(self, cookie: str) -> None:
+        ...
+
+    def rewindMediaController(self, cookie: str) -> None:
+        ...
+
+    def registerMediaControllerCallback(self, cookie: str) -> callback_handler_v2.CallbackHandlerV2:
+        ...
+
+    def setMediaControllerRepeatMode(self, cookie: str, repeat_mode: int) -> None:
+        ...
+
+    def setMediaControllerShuffleMode(self, cookie: str, shuffle_mode: int) -> None:
+        ...

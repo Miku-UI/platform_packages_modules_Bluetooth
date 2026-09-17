@@ -21,18 +21,15 @@ import static java.util.Objects.requireNonNull;
 
 import android.bluetooth.BluetoothDevice;
 
-import com.android.bluetooth.Utils;
-
-import java.lang.annotation.Native;
+import com.android.bluetooth.Util;
+import com.android.bluetooth.profile.NativeInterface;
 
 /** Hearing Access Profile Client Native Interface to/from JNI. */
-public class HapClientNativeInterface {
+public class HapClientNativeInterface extends NativeInterface<HapClientNativeCallback> {
     private static final String TAG = HapClientNativeInterface.class.getSimpleName();
 
-    @Native private final HapClientNativeCallback mHapClientNativeCallback;
-
-    public HapClientNativeInterface(HapClientNativeCallback hapClientNativeCallback) {
-        mHapClientNativeCallback = requireNonNull(hapClientNativeCallback);
+    public HapClientNativeInterface(HapClientNativeCallback nativeCallback) {
+        super(requireNonNull(nativeCallback));
     }
 
     boolean connectHapClient(BluetoothDevice device) {
@@ -45,16 +42,17 @@ public class HapClientNativeInterface {
 
     private static byte[] getByteAddress(BluetoothDevice device) {
         if (device == null) {
-            return Utils.getBytesFromAddress("00:00:00:00:00:00");
+            return Util.getBytesFromAddress("00:00:00:00:00:00");
         }
-        return Utils.getBytesFromAddress(device.getAddress());
+        return Util.getBytesFromAddress(device.getAddress());
     }
 
     void init() {
         initNative();
     }
 
-    void cleanup() {
+    @Override
+    public void cleanup() {
         cleanupNative();
     }
 

@@ -33,8 +33,9 @@
 #include <string>
 #include <vector>
 
-#include "a2dp_api.h"
-#include "avdt_api.h"
+#include "stack/include/a2dp_api.h"
+#include "stack/include/a2dp_constants.h"
+#include "stack/include/avdt_api.h"
 #include "stack/include/bt_hdr.h"
 
 class tBT_A2DP_OFFLOAD;
@@ -92,7 +93,7 @@ public:
 
   // Gets the bitRate for the A2DP codec.
   // Returns the bitrate of current codec configuration, or 0 if not configured
-  int getTrackBitRate() const;
+  virtual int getTrackBitRate() const;
 
   // Copies out the current OTA codec config to |p_codec_info|.
   // Returns true if the current codec config is valid and copied,
@@ -124,7 +125,7 @@ public:
 
   // Gets the number of bits per sample of the current codec configuration,
   // or 0 if not configured.
-  uint8_t getAudioBitsPerSample();
+  uint8_t getAudioBitsPerSample() const;
 
   // Checks whether the codec uses the RTP Header Marker bit (see RFC 6416).
   // NOTE: Even if the encoded data uses RTP headers, some codecs do not use
@@ -236,7 +237,7 @@ protected:
   // The information is written in user-friendly form to file descriptor |fd|.
   virtual void debug_codec_dump(int fd);
 
-  std::recursive_mutex codec_mutex_;
+  mutable std::recursive_mutex codec_mutex_;
   const btav_a2dp_codec_index_t codec_index_;  // The unique codec index
   const bluetooth::a2dp::CodecId codec_id_;    // The standardized codec id
   const std::string name_;                     // The codec name
@@ -255,9 +256,9 @@ protected:
   // The selected audio feeding configuration.
   btav_a2dp_codec_config_t codec_audio_config_;
 
-  uint8_t ota_codec_config_[AVDT_CODEC_SIZE];
-  uint8_t ota_codec_peer_capability_[AVDT_CODEC_SIZE];
-  uint8_t ota_codec_peer_config_[AVDT_CODEC_SIZE];
+  bluetooth::a2dp::MediaCodecCapabilities ota_codec_config_;
+  bluetooth::a2dp::MediaCodecCapabilities ota_codec_peer_capability_;
+  bluetooth::a2dp::MediaCodecCapabilities ota_codec_peer_config_;
 };
 
 class A2dpCodecs {

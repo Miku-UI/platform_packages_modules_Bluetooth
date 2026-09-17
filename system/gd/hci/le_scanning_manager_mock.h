@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <bluetooth/types/uuid.h>
 #include <gmock/gmock.h>
 
 #include <memory>
@@ -22,14 +23,13 @@
 #include "hci/address.h"
 #include "hci/le_scanning_callback.h"
 #include "hci/le_scanning_manager.h"
-#include "hci/uuid.h"
 
 namespace bluetooth {
 namespace hci {
 namespace testing {
 
 class MockScanningCallback : public ScanningCallback {
-  MOCK_METHOD(void, OnScannerRegistered, (const bluetooth::hci::Uuid, ScannerId, ScanningStatus));
+  MOCK_METHOD(void, OnScannerRegistered, (const bluetooth::Uuid, ScannerId, ScanningStatus));
   MOCK_METHOD(void, OnSetScannerParameterComplete, (ScannerId scanner_id, ScanningStatus status));
   MOCK_METHOD(void, OnScanResult,
               (uint16_t, uint8_t, Address, uint8_t, uint8_t, uint8_t, int8_t, int8_t, uint16_t,
@@ -84,6 +84,15 @@ public:
   MOCK_METHOD(void, SyncTxParameters, (const Address&, uint8_t, uint16_t, uint16_t, int),
               (override));
   MOCK_METHOD(bool, IsAdTypeFilterSupported, (), (const override));
+  MOCK_METHOD(bool, Is1mPhyConfigured, (), (const override));
+  MOCK_METHOD(bool, IsCodedPhyConfigured, (), (const override));
+  MOCK_METHOD(bool, IsScanActive, (), (const override));
+  MOCK_METHOD(uint32_t, GetIntervalMs1m, (), (const override));
+  MOCK_METHOD(uint16_t, GetWindowMs1m, (), (const override));
+  MOCK_METHOD(uint32_t, GetIntervalMsCoded, (), (const override));
+  MOCK_METHOD(uint16_t, GetWindowMsCoded, (), (const override));
+  MOCK_METHOD(void, StartDiscovery, (uint8_t), (override));
+  MOCK_METHOD(void, StopDiscovery, (), (override));
 };
 
 }  // namespace testing

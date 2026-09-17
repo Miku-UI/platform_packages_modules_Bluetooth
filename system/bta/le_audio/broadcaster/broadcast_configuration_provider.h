@@ -44,6 +44,23 @@ static const BroadcastSubgroupCodecConfig lc3_mono_16_2 = BroadcastSubgroupCodec
         // bits_per_sample
         16);
 
+static const BroadcastSubgroupCodecConfig lc3_mono_48_4 = BroadcastSubgroupCodecConfig(
+        kLeAudioCodecIdLc3,
+        {BroadcastSubgroupBisCodecConfig{
+                // num_bis
+                1,
+                // bis_channel_cnt_
+                1,
+                // codec_specific
+                types::LeAudioLtvMap({
+                        LTV_ENTRY_SAMPLING_FREQUENCY(codec_spec_conf::kLeAudioSamplingFreq48000Hz),
+                        LTV_ENTRY_FRAME_DURATION(codec_spec_conf::kLeAudioCodecFrameDur10000us),
+                        LTV_ENTRY_OCTETS_PER_CODEC_FRAME(120),
+                }),
+        }},
+        // bits_per_sample
+        16);
+
 static const BroadcastSubgroupCodecConfig lc3_stereo_16_2 = BroadcastSubgroupCodecConfig(
         kLeAudioCodecIdLc3,
         {BroadcastSubgroupBisCodecConfig{
@@ -153,12 +170,13 @@ static const types::DataPathConfiguration lc3_data_path = {
                 {
                         .codecId = kLeAudioCodecIdLc3,
                         .isTransparent = true,
-                        .controllerDelayUs = 0x00000000,  // irrlevant for transparent mode
+                        .controllerDelayUs = 0x00000000,  // irrelevant for transparent mode
                         .configuration = {},
                 },
 };
 
 static const BroadcastQosConfig qos_config_2_10 = BroadcastQosConfig(2, 10);
+static const BroadcastQosConfig qos_config_4_20 = BroadcastQosConfig(4, 20);
 static const BroadcastQosConfig qos_config_4_45 = BroadcastQosConfig(4, 45);
 static const BroadcastQosConfig qos_config_4_50 = BroadcastQosConfig(4, 50);
 static const BroadcastQosConfig qos_config_4_60 = BroadcastQosConfig(4, 60);
@@ -195,7 +213,7 @@ static const BroadcastConfiguration lc3_stereo_16_2_2 = {
         .qos = qos_config_4_60,
         .data_path = lc3_data_path,
         .sduIntervalUs = 10000,
-        .maxSduOctets = 80,
+        .maxSduOctets = 40,
         .phy = 0x02,   // PHY_LE_2M
         .packing = 0,  // Sequential
         .framing = 0,  // Unframed
@@ -207,7 +225,7 @@ static const BroadcastConfiguration lc3_stereo_24_2_1 = {
         .qos = qos_config_2_10,
         .data_path = lc3_data_path,
         .sduIntervalUs = 10000,
-        .maxSduOctets = 120,
+        .maxSduOctets = 60,
         .phy = 0x02,   // PHY_LE_2M
         .packing = 0,  // Sequential
         .framing = 0,  // Unframed
@@ -219,7 +237,7 @@ static const BroadcastConfiguration lc3_stereo_24_2_2 = {
         .qos = qos_config_4_60,
         .data_path = lc3_data_path,
         .sduIntervalUs = 10000,
-        .maxSduOctets = 120,
+        .maxSduOctets = 60,
         .phy = 0x02,   // PHY_LE_2M
         .packing = 0,  // Sequential
         .framing = 0,  // Unframed
@@ -230,8 +248,20 @@ static const BroadcastConfiguration lc3_stereo_48_1_2 = {
         .subgroups = {lc3_stereo_48_1},
         .qos = qos_config_4_50,
         .data_path = lc3_data_path,
+        .sduIntervalUs = 7500,
+        .maxSduOctets = 75,
+        .phy = 0x02,   // PHY_LE_2M
+        .packing = 0,  // Sequential
+        .framing = 0   // Unframed,
+};
+
+static const BroadcastConfiguration lc3_stereo_48_2_1 = {
+        // subgroup list, qos configuration, data path configuration
+        .subgroups = {lc3_stereo_48_2},
+        .qos = qos_config_4_20,
+        .data_path = lc3_data_path,
         .sduIntervalUs = 10000,
-        .maxSduOctets = 150,
+        .maxSduOctets = 100,
         .phy = 0x02,   // PHY_LE_2M
         .packing = 0,  // Sequential
         .framing = 0   // Unframed,
@@ -243,7 +273,7 @@ static const BroadcastConfiguration lc3_stereo_48_2_2 = {
         .qos = qos_config_4_65,
         .data_path = lc3_data_path,
         .sduIntervalUs = 10000,
-        .maxSduOctets = 200,
+        .maxSduOctets = 100,
         .phy = 0x02,   // PHY_LE_2M
         .packing = 0,  // Sequential
         .framing = 0   // Unframed,
@@ -254,11 +284,23 @@ static const BroadcastConfiguration lc3_stereo_48_3_2 = {
         .subgroups = {lc3_stereo_48_3},
         .qos = qos_config_4_50,
         .data_path = lc3_data_path,
-        .sduIntervalUs = 10000,
-        .maxSduOctets = 180,
+        .sduIntervalUs = 7500,
+        .maxSduOctets = 90,
         .phy = 0x02,   // PHY_LE_2M
         .packing = 0,  // Sequential
         .framing = 0   // Unframed,
+};
+
+static const BroadcastConfiguration lc3_mono_48_4_2 = {
+        // subgroup list, qos configuration, data path configuration
+        .subgroups = {lc3_mono_48_4},
+        .qos = qos_config_4_65,
+        .data_path = lc3_data_path,
+        .sduIntervalUs = 10000,
+        .maxSduOctets = 120,
+        .phy = 0x02,   // PHY_LE_2M
+        .packing = 0,  // Sequential
+        .framing = 0,  // Unframed
 };
 
 static const BroadcastConfiguration lc3_stereo_48_4_2 = {
@@ -267,7 +309,7 @@ static const BroadcastConfiguration lc3_stereo_48_4_2 = {
         .qos = qos_config_4_65,
         .data_path = lc3_data_path,
         .sduIntervalUs = 10000,
-        .maxSduOctets = 240,
+        .maxSduOctets = 120,
         .phy = 0x02,   // PHY_LE_2M
         .packing = 0,  // Sequential
         .framing = 0   // Unframed,

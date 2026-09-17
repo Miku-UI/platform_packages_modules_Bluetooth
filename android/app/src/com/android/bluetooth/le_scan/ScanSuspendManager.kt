@@ -16,53 +16,18 @@
 
 package com.android.bluetooth.le_scan
 
-import android.os.Handler
-import android.os.Looper
-import android.os.Message
 import android.util.Log
-import com.android.bluetooth.flags.Flags
 
-private const val TAG = "ScanSuspendManager"
+private const val TAG = ScanUtil.TAG_PREFIX + "ScanSuspendManager"
 
 /** Class that handles Bluetooth LE scan related operations when the system suspends. */
-internal class ScanSuspendManager(
-    private val scanController: ScanController,
-    private val scanManager: ScanManager,
-    looper: Looper,
-) {
-    private val clientHandler =
-        if (!Flags.scanControllerThread()) {
-            ClientHandler(looper)
-        } else {
-            null
-        }
-
+internal class ScanSuspendManager(private val scanManager: ScanManager) {
     @get:JvmName("isSystemSuspended") var systemSuspended = false
 
-    private fun sendMessage(what: Int) {
-        if (Flags.scanControllerThread()) {
-            throw IllegalStateException(
-                "sendMessage using `clientHandler` should not be called on scan thread"
-            )
-        }
-        clientHandler?.obtainMessage(what)?.sendToTarget()
-    }
+    fun onSystemSuspendChanged(suspended: Boolean) =
+        if (suspended) handleSystemSuspend() else handleSystemResume()
 
-    fun onSystemSuspendChanged(suspended: Boolean) {
-        if (Flags.scanControllerThread()) {
-            scanController.doOnScanThread(
-                if (suspended) {
-                    this::handleSystemSuspend
-                } else {
-                    this::handleSystemResume
-                }
-            )
-        } else {
-            sendMessage(if (suspended) MSG_SYSTEM_SUSPEND else MSG_SYSTEM_RESUME)
-        }
-    }
-
-    fun handleSystemSuspend() {
+    private fun handleSystemSuspend() {
         if (systemSuspended) {
             return
         }
@@ -71,49 +36,19 @@ internal class ScanSuspendManager(
         handleSuspendAllScans()
     }
 
-    fun handleSystemResume() {
-        Log.d(TAG, "handleSystemResume(): scan will be resumed when screen is on.")
+    private fun handleSystemResume() {
+        Log.d(TAG, "handleSystemResume(): Scan will be resumed when screen is on")
         systemSuspended = false
     }
 
-    private fun suspendScan(client: ScanClient) {
-        client.appScanStats.ifPresent { stats: AppScanStats ->
-            stats.recordScanSuspend(client.scannerId)
-        }
-        Log.d(TAG, "suspend scan $client")
-        scanManager.stopScan(client.scannerId)
-        scanManager.suspendedScanQueue.add(client)
-    }
-
     private fun handleSuspendAllScans() {
-        for (client in scanManager.regularScanQueue) {
-            suspendScan(client)
+        fun suspendScan(client: ScanClient) {
+            client.appScanStats.recordScanSuspend(client.scannerId)
+            Log.d(TAG, "Suspend scan for $client")
+            scanManager.stopScan(client.scannerId)
+            scanManager.suspendedScanQueue.add(client)
         }
-        for (client in scanManager.batchScanQueue) {
-            suspendScan(client)
-        }
-    }
-
-    private inner class ClientHandler(looper: Looper) : Handler(looper) {
-        override fun handleMessage(msg: Message) {
-            when (msg.what) {
-                MSG_SYSTEM_SUSPEND -> handleSystemSuspendClientHandlerImpl()
-                MSG_SYSTEM_RESUME -> handleSystemResumeClientHandlerImpl()
-                else -> Log.e(TAG, "received an unknown message : " + msg.what)
-            }
-        }
-
-        fun handleSystemSuspendClientHandlerImpl() {
-            handleSystemSuspend()
-        }
-
-        fun handleSystemResumeClientHandlerImpl() {
-            handleSystemResume()
-        }
-    }
-
-    companion object {
-        const val MSG_SYSTEM_SUSPEND = 1
-        const val MSG_SYSTEM_RESUME = 2
+        scanManager.regularScanQueue.forEach(::suspendScan)
+        scanManager.batchScanQueue.forEach(::suspendScan)
     }
 }

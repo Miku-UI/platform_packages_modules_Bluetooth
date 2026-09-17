@@ -24,14 +24,15 @@
  ******************************************************************************/
 #define LOG_TAG "smp"
 
-#include "smp_api.h"
+#include "stack/include/smp_api.h"
 
 #include <bluetooth/log.h>
 #include <bluetooth/types/address.h>
+#include <bluetooth/types/bt_octets.h>
+#include <com_android_bluetooth_flags.h>
 #include <string.h>
 
 #include "smp_int.h"
-#include "stack/include/bt_octets.h"
 #include "stack/include/btm_sec_api_types.h"
 #include "stack/include/l2cap_interface.h"
 
@@ -200,7 +201,32 @@ bool SMP_PairCancel(const RawAddress& bd_addr) {
  *
  ******************************************************************************/
 void SMP_SecurityGrant(const RawAddress& bd_addr, tSMP_STATUS res) {
-  log::verbose("addr:{}", bd_addr);
+  log::verbose("bd_addr:{} res:{} br_state:{} cb_evt:{} pairing_bda:{} assoc_model:{}", bd_addr,
+               res, smp_cb.br_state, smp_evt_to_text(smp_cb.cb_evt), smp_cb.pairing_bda,
+               smp_cb.selected_association_model);
+
+  if (smp_cb.pairing_bda == bd_addr &&
+      (smp_cb.selected_association_model == SMP_MODEL_SEC_CONN_PASSKEY_DISP ||
+       smp_cb.selected_association_model == SMP_MODEL_KEY_NOTIF)) {
+    if (res == SMP_SUCCESS) {
+      // Passkey/Entry pairing approved
+      smp_cb.passkey_display_state.approved = true;
+      if (smp_cb.passkey_display_state.confirmed) {
+        log::verbose("Passkey/Display pairing approved {}", smp_cb.pairing_bda);
+        tSMP_INT_DATA smp_int_data;
+        smp_int_data.key = {.key_type = SMP_KEY_TYPE_TK, .p_data = smp_cb.tk.data()};
+        smp_sm_event(&smp_cb, SMP_KEY_READY_EVT, &smp_int_data);
+      } else {
+        log::verbose("Waiting for {} to enter passkey", smp_cb.pairing_bda);
+      }
+    } else {
+      // Passkey/Entry pairing rejected
+      tSMP_INT_DATA smp_int_data;
+      smp_int_data.status = SMP_PAIR_AUTH_FAIL;
+      smp_sm_event(&smp_cb, SMP_AUTH_CMPL_EVT, &smp_int_data);
+    }
+    return;
+  }
 
   // If just showing consent dialog, send response
   if (smp_cb.cb_evt == SMP_CONSENT_REQ_EVT) {
@@ -234,6 +260,8 @@ void SMP_SecurityGrant(const RawAddress& bd_addr, tSMP_STATUS res) {
         smp_int_data.status = SMP_NUMERIC_COMPAR_FAIL;
         smp_sm_event(&smp_cb, SMP_AUTH_CMPL_EVT, &smp_int_data);
       }
+    } else {
+      log::warn("Unexpected association model: {}", smp_cb.selected_association_model);
     }
     return;
   }
@@ -379,8 +407,8 @@ void SMP_OobDataReply(const RawAddress& /* bd_addr */, tSMP_STATUS res, uint8_t 
     smp_int_data.status = SMP_OOB_FAIL;
     smp_sm_event(p_cb, SMP_AUTH_CMPL_EVT, &smp_int_data);
   } else {
-    if (len > OCTET16_LEN) {
-      len = OCTET16_LEN;
+    if (len > kOctet16Length) {
+      len = kOctet16Length;
     }
 
     memcpy(p_cb->tk.data(), p_data, len);

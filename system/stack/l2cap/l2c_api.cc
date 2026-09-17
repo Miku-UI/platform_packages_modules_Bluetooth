@@ -33,7 +33,6 @@
 
 #include <cstdint>
 #include <string>
-#include <vector>
 
 #include "hal/snoop_logger.h"
 #include "hci/controller.h"
@@ -44,6 +43,7 @@
 #include "osi/include/allocator.h"
 #include "stack/include/bt_hdr.h"
 #include "stack/include/bt_psm_types.h"
+#include "stack/include/btm_ble_addr.h"
 #include "stack/include/btm_client_interface.h"
 #include "stack/include/l2cap_module.h"
 #include "stack/include/main_thread.h"
@@ -63,7 +63,7 @@ uint16_t L2CA_RegisterWithSecurity(uint16_t psm, const tL2CAP_APPL_INFO& p_cb_in
                                    uint16_t sec_level) {
   auto ret = L2CA_Register(psm, p_cb_info, enable_snoop, p_ertm_info, my_mtu, required_remote_mtu,
                            sec_level);
-  get_btm_client_interface().security.BTM_SetSecurityLevel(false, "", 0, sec_level, psm, 0, 0);
+  get_security_client_interface().BTM_SetSecurityLevel(false, "", 0, sec_level, psm, 0, 0);
   return ret;
 }
 
@@ -218,21 +218,29 @@ void L2CA_Deregister(uint16_t psm) {
  * Returns          LE_PSM to use if success. Otherwise returns 0.
  *
  ******************************************************************************/
-uint16_t L2CA_AllocateLePSM(void) {
+uint16_t L2CA_AllocateLePSM(int lecoc_fixed_psm_slots) {
   bool done = false;
   uint16_t psm = l2cb.le_dyn_psm;
   uint16_t count = 0;
 
+  uint8_t le_dynamic_psm_end = LE_DYNAMIC_PSM_END;
+  uint8_t le_dynamic_psm_slots = LE_DYNAMIC_PSM_RANGE;
+
+  if (com_android_bluetooth_flags_lecoc_with_fixed_psm()) {
+    le_dynamic_psm_end = le_dynamic_psm_end - lecoc_fixed_psm_slots;
+    le_dynamic_psm_slots = le_dynamic_psm_slots - lecoc_fixed_psm_slots;
+  }
+
   log::verbose("last psm={}", psm);
   while (!done) {
     count++;
-    if (count > LE_DYNAMIC_PSM_RANGE) {
+    if (count > le_dynamic_psm_slots) {
       log::error("Out of free BLE PSM");
       return 0;
     }
 
     psm++;
-    if (psm > LE_DYNAMIC_PSM_END) {
+    if (psm > le_dynamic_psm_end) {
       psm = LE_DYNAMIC_PSM_START;
     }
 
@@ -279,7 +287,7 @@ void L2CA_FreeLePSM(uint16_t psm) {
 
 uint16_t L2CA_ConnectReqWithSecurity(uint16_t psm, const RawAddress& p_bd_addr,
                                      uint16_t sec_level) {
-  get_btm_client_interface().security.BTM_SetSecurityLevel(true, "", 0, sec_level, psm, 0, 0);
+  get_security_client_interface().BTM_SetSecurityLevel(true, "", 0, sec_level, psm, 0, 0);
   return L2CA_ConnectReq(psm, p_bd_addr);
 }
 
@@ -379,7 +387,7 @@ uint16_t L2CA_RegisterLECoc(uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, uin
   if (p_cb_info.pL2CA_ConnectInd_Cb != nullptr || psm < LE_DYNAMIC_PSM_START) {
     //  If we register LE COC for outgoing connection only, don't register with
     //  BTM_Sec, because it's handled by L2CA_ConnectLECocReq.
-    get_btm_client_interface().security.BTM_SetSecurityLevel(false, "", 0, sec_level, psm, 0, 0);
+    get_security_client_interface().BTM_SetSecurityLevel(false, "", 0, sec_level, psm, 0, 0);
   }
 
   /* Verify that the required callback info has been filled in
@@ -400,16 +408,39 @@ uint16_t L2CA_RegisterLECoc(uint16_t psm, const tL2CAP_APPL_INFO& p_cb_info, uin
 
   tL2C_RCB* p_rcb;
   uint16_t vpsm = psm;
+  log::verbose("psm: 0x{:04x}", psm);
+  if (com_android_bluetooth_flags_lecoc_with_fixed_psm()) {
+    log::verbose("fixed_psm_slots: 0x{:04x}, lecoc_assigned_psm: 0x{:04x}",
+                 cfg.lecoc_fixed_psm_slots, cfg.lecoc_assigned_psm);
+    /*
+     * If the input PSM is not internally assigned one, Then Ensure same Fixed PSM
+     * is already not allocated
+     */
+    if (!cfg.lecoc_assigned_psm && psm >= (LE_DYNAMIC_PSM_END - cfg.lecoc_fixed_psm_slots) &&
+        psm < LE_DYNAMIC_PSM_END) {
+      if (!l2cb.le_dyn_psm_assigned[psm - LE_DYNAMIC_PSM_START]) {
+        // make sure the newly allocated psm is not used right now
+        if (l2cu_find_ble_rcb_by_psm(psm)) {
+          log::warn("supposedly-free PSM={} have allocated rcb!", psm);
+          return 0;
+        }
+        l2cb.le_dyn_psm_assigned[psm - LE_DYNAMIC_PSM_START] = true;
+        log::verbose("assigned PSM={}", psm);
+      } else {
+        log::error("PSM is already allocated: 0x{:04x}", psm);
+        return 0;
+      }
+    }
+  }
 
   /* Check if this is a registration for an outgoing-only connection to */
   /* a dynamic PSM. If so, allocate a "virtual" PSM for the app to use. */
   if ((psm >= LE_DYNAMIC_PSM_START) && (p_cb_info.pL2CA_ConnectInd_Cb == NULL)) {
-    vpsm = L2CA_AllocateLePSM();
+    vpsm = L2CA_AllocateLePSM(cfg.lecoc_fixed_psm_slots);
     if (vpsm == 0) {
       log::error("Out of free BLE PSM");
       return 0;
     }
-
     log::debug("Real PSM: 0x{:04x}  Virtual PSM: 0x{:04x}", psm, vpsm);
   }
 
@@ -494,7 +525,7 @@ void L2CA_DeregisterLECoc(uint16_t psm) {
  ******************************************************************************/
 uint16_t L2CA_ConnectLECocReq(uint16_t psm, const RawAddress& p_bd_addr, tL2CAP_LE_CFG_INFO* p_cfg,
                               uint16_t sec_level) {
-  get_btm_client_interface().security.BTM_SetSecurityLevel(true, "", 0, sec_level, psm, 0, 0);
+  get_security_client_interface().BTM_SetSecurityLevel(true, "", 0, sec_level, psm, 0, 0);
 
   log::verbose("BDA: {} PSM: 0x{:04x}", p_bd_addr, psm);
 
@@ -513,6 +544,15 @@ uint16_t L2CA_ConnectLECocReq(uint16_t psm, const RawAddress& p_bd_addr, tL2CAP_
 
   /* First, see if we already have a le link to the remote */
   tL2C_LCB* p_lcb = l2cu_find_lcb_by_bd_addr(p_bd_addr, BT_TRANSPORT_LE);
+  if (p_lcb == nullptr && com_android_bluetooth_flags_add_address_mapping_for_lecoc()) {
+    RawAddress le_addr = p_bd_addr;
+    // Try "pseudo" address
+    tBLE_ADDR_TYPE le_addr_type = BLE_ADDR_PUBLIC;
+    if (maybe_resolve_address(&le_addr, &le_addr_type)) {
+      log::info("LE random address: {}", le_addr);
+      p_lcb = l2cu_find_lcb_by_bd_addr(le_addr, BT_TRANSPORT_LE);
+    }
+  }
   if (p_lcb == NULL) {
     /* No link. Get an LCB and start link establishment */
     p_lcb = l2cu_allocate_lcb(p_bd_addr, false, BT_TRANSPORT_LE);
@@ -525,6 +565,9 @@ uint16_t L2CA_ConnectLECocReq(uint16_t psm, const RawAddress& p_bd_addr, tL2CAP_
       l2cu_release_lcb(p_lcb);
       return 0;
     }
+    // ACL connection is triggered, mark it as pending LE ACL connection
+    log::verbose("triggered_le_acl_conn count incremented: {}", p_lcb->triggered_le_acl_conn);
+    p_lcb->triggered_le_acl_conn++;
   }
 
   /* Allocate a channel control block */
@@ -553,6 +596,10 @@ uint16_t L2CA_ConnectLECocReq(uint16_t psm, const RawAddress& p_bd_addr, tL2CAP_
       // should this operation fail
       do_in_main_thread(base::BindOnce(&l2c_csm_execute, base::Unretained(p_ccb),
                                        L2CEVT_L2CA_CONNECT_REQ, nullptr));
+      if (p_lcb->triggered_le_acl_conn > 0) {
+        log::warn("triggered_le_acl_conn count decremented: {}", p_lcb->triggered_le_acl_conn);
+        p_lcb->triggered_le_acl_conn--;
+      }
     }
   } else if (p_lcb->link_state == LST_DISCONNECTING) {
     /* If link is disconnecting, save link info to retry after disconnect
@@ -1043,6 +1090,20 @@ bool L2CA_SetAclLatency(const RawAddress& bd_addr, tL2CAP_LATENCY latency) {
 
 /*******************************************************************************
  *
+ * Function         L2CA_SetRateControlEnabled
+ *
+ * Description      Enable or disable rate control algorithm for a channel.
+ *
+ * Returns          true if a valid channel, else false
+ *
+ ******************************************************************************/
+bool L2CA_SetRateControlEnabled(const RawAddress& bd_addr, bool enabled) {
+  log::info("BDA: {}. enabled: {}", bd_addr, enabled);
+  return l2cu_set_rate_control_enabled(bd_addr, enabled);
+}
+
+/*******************************************************************************
+ *
  * Function         L2CA_SetTxPriority
  *
  * Description      Sets the transmission priority for a channel.
@@ -1214,11 +1275,6 @@ bool L2CA_ConnectFixedChnl(uint16_t fixed_cid, const RawAddress& rem_bda) {
     // Restore the fixed channel if it was suspended
     l2cu_fixed_channel_restore(p_lcb, fixed_cid);
 
-    if (!com_android_bluetooth_flags_smp_connection_status_handling_when_no_acl()) {
-      (*l2cb.fixed_reg[fixed_cid - L2CAP_FIRST_FIXED_CHNL].pL2CA_FixedConn_Cb)(
-              fixed_cid, p_lcb->remote_bd_addr, true, 0, p_lcb->transport);
-      return true;
-    }
     if (p_lcb->link_state == LST_CONNECTED) {
       (*l2cb.fixed_reg[fixed_cid - L2CAP_FIRST_FIXED_CHNL].pL2CA_FixedConn_Cb)(
               fixed_cid, p_lcb->remote_bd_addr, true, 0, p_lcb->transport);
